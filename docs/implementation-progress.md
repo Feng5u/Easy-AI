@@ -1694,3 +1694,50 @@ NOT RUN：wheel/sdist/模型/数据下载、真实conda/pip/环境创建/安装/
 核心sources SHA256 `2628fc7071ca97301e1069dd8bcf20de72eefdeed5e065969c497cf4f89641c5`、核心lock `f30a1d2eb86b13a7ae8a708e3356fade92e8dd942f746616a66376f281d8641b`均未改。计划116185字节SHA256 dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43，旧规格5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190，README befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852不变。旧portable source7b91c46不含本片；distributionReady/legalReviewComplete仍false。CIFAR待裁决、旧226PASS/1FAIL根因UNKNOWN且原始日志丢失不回溯关闭。既有Actions读取/sandbox拒绝未重试/绕过；无本片新CI判断；无main/强推/PR/Release/部署/费用/凭据/安全权限变更，无新拒绝/未知外部写入。
 
 下一项：父侧复核ML来源合同/实际元数据/选择闭包与默认执行门；其余可选组仍需逐项可信元数据/核心兼容裁决，无法核实继续unsupported。Main来源选择入口与真实安装/SSH的独立实测门仍待完成，不把本片可解析性当真实安装完成。
+
+
+## 2026-10-18 — M6.3 CV固定解析：scikit-image可解析，OpenCV native门保留
+
+源码完整SHA **`c512f5649c8e8e09e4ca9b6883af66b045fe302d`**；基线 `1d526f9f5284144f84814f4a285acc6a98e450ec`。按父级原14.3/14.5 CV授权，复用原来源选择/计划/installer/probe链；没有转外围历史/保留策略、增加writer或以测试数推算完成率。原始README/规格/计划及核心、ML来源/锁均保留。合同见 `docs/install-cv-sources.md`；主来源 `packages/training-profiles/easyai-cv-sources.json`。
+
+2026-10-18只读PyPI精确发行JSON/独立PEP658 METADATA（禁redirect、限定pypi.org/files.pythonhosted.org、15秒/2MiB），核真实metadata字节SHA、Name/Version/Requires-Python/Requires-Dist，并交叉核发行filename/URL/SHA/bytes/yanked/当次漏洞记录。选scikit-image0.26.0/imageio2.38.1/tifffile2025.10.16/lazy-loader0.6；四文件声明下载14279559字节，另复用已审SciPy1.17.1的35349300字节。与ML合选SciPy去重。没有下载wheel/sdist、数据/模型、安装或接受许可。发行wheel SHA为注册表声明值，不能冒称实际核验wheel内容；未来仍须operator本地实际archive/hash/bytes/身份门。全部解包占用未知，CV计划installedBytes=null。
+
+- scikit-image的无extras运行图要求NumPy>=1.24/SciPy>=1.11.4/NetworkX>=3/Pillow>=10.1/imageio>=2.33且!=2.35.0/tifffile>=2022.8.12/packaging>=21/lazy-loader>=0.4，复用核心NumPy2.4.2/Pillow13.0.0/NetworkX3.6.1/packaging26.3与ML SciPy1.17.1。imageio只取NumPy/Pillow运行依赖，tifffile只NumPy，lazy-loader只packaging；不选data/doc/build/test/ffmpeg/codec等extras，不下载样例。固定tifffile允许Python3.11，不为最新包升级Python。
+- OpenCV精确候选5.0.0.93 `cp37-abi3-manylinux_2_28_x86_64`，发行声明73783032字节与METADATA均已核；Python3.11生效NumPy>=2，当前2.4.2在Python元数据约束内。但官方README只说明桌面与无GUI headless包的区分/GUI依赖链，不能可靠证明具体目标GUI/系统动态库要求已满足。本轮禁止下载wheel查看ELF、真实probe或系统安装，目标系统库证据未提供，故**INSTALL_NATIVE_REQUIREMENTS_UNVERIFIED**。候选只入unsupportedPackages证据，不入锁/可执行闭包/可执行预算；catalog targetVersion=null，计划同时保留原UNRESOLVED并拒确认。CV全组也阻挡，绝不换headless/contrib、改NumPy核心或接管cv2。此为明确unsupported，非工具动作被拒绝，也没有未知执行结果。
+- helper沿用原authority，按选择合并ML与CV固定图/锁，跨组依赖去重，六份来源/锁绑定constraintsHash→具体闭包/大小/runtime预算→planHash。具体CV源仍由原runtime核本地真实hash/字节、身份和预算；只选core/ML不要求CV wheel。原固定no-index/require-hashes/only-binary安装器、同一owner/lease/WAL/probe/未知停止门不变。无公开DTO/schema变化。
+- 显式映射scikit-image→skimage、opencv-python→cv2、lazy-loader→lazy_loader；metadata版本inventory不因此导入，core-only不import CV，final仅所选闭包模块。未选pandas/sklearn/OpenCV不附带导入或安装；原精确版本/import/CPU tensor门仍在。没有宣称实际CV import/ABI兼容。
+- 17卡当前9卡可解析，余8卡未支持（含OpenCV native blocker）；不是CV全组或完整M6.3/B完成。Main原生source picker仍缺，目前仅operator私有manifest；没有新增实际来源配置。PyInstaller/离线resource allowlist加CV两文件，离线文档allowlist补runtime/ML/CV合同以保留引用可读；未重打旧portable。
+
+| 实际命令/动作 | 结果与范围 |
+| --- | --- |
+| `services/backend/.venv/bin/python -m pytest services/backend/tests/test_install_cv.py services/backend/tests/test_install_ml.py services/backend/tests/test_install_probe_ownership.py services/backend/tests/test_install_process.py services/backend/tests/test_install_service.py services/backend/tests/test_owned_creation.py services/backend/tests/test_supervisor.py services/backend/tests/test_install_runtime.py -q` | **111 PASS/12.43s**，`/tmp/easyai-cv-regression-20261018-unique1.log`。5新增CV metadata/markers/core兼容、单选/合选/全组OpenCV阻挡、固定锁/AST probe映射、选中本地来源/预算与漂移；其余为既有安装相关回归。新CV捕获/合成来源禁止实际Popen/CV导入/安装；既有stdlib子进程只证owner合同。其后仅import排版、文档/离线文档allowlist改变，无行为修订，不为数字重跑。 |
+| `UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache pnpm check` | 最终 **PASS**，`/tmp/easyai-cv-check-20261018-final1.log`；TS/Main/tests、ruff/format114Python、strict mypy62、合同/真实Blocklyfixtures/Prettier。随后仅package文档allowlist补3项，并定向Prettier PASS。 |
+| `UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache XDG_CACHE_HOME=/workspace/.cache pnpm build` | 最终 **PASS**，`/tmp/easyai-cv-build-20261018-final1.log`；Vite/TS/PyInstaller，包含格式修正后的最终后端与CV资源；既有chunk提示。未安装/下载依赖。后续仅离线文档复制allowlist，无后端或资源改变。 |
+| `node scripts/test-frozen.mjs` | **PASS**，`/tmp/easyai-cv-frozen-20261018-unique1.log`；实际冻结后端临时cwd启动、六文件比对、core/ML/scikit-image默认禁用计划、OpenCV native blocker与未知体积、选择API/工程/黄金编译/EOF exit0。未确认真实安装。 |
+| `node --test scripts/package.test.mjs` / `pnpm exec prettier --check scripts/package.mjs` | 最终 **6 PASS**与格式PASS，`/tmp/easyai-cv-package-resources-20261018-final1.log` / `/tmp/easyai-cv-package-format-20261018-unique1.log`；合成allowlist复制覆盖CV资源及离线合同引用/拒覆盖/漂移/清单，不生成真实便携包。早一轮6PASS范围重合不累计。 |
+| 独审 `pytest services/backend/tests/test_install_cv.py services/backend/tests/test_install_ml.py -q` | **12 PASS/0.40s**，`/tmp/easyai-cv-ml-review-8QeoCK.log`；与集成回归重合不累计。来源、markers/闭包/预算/显式import/unsupported门无新增明确P1/P2；没有编辑文件。 |
+| 独审限定JSON/.metadata再次核验 | **5发行全部PASS**，`/tmp/easyai-cv-metadata-review-8p8iyg5c.json`；发行SHA/字节/URL与METADATA SHA/版本/依赖全部匹配，captureJSON SHA未变。OpenCV supported=false，没有因元数据匹配解除native门。无wheel请求/安装/真实probe。 |
+| `git diff --check` / `git ls-remote origin refs/heads/main refs/heads/codex/demo-v0.0.0` / 原件及核心/ML hash | **PASS**；推前dev=1d526f9f5284144f84814f4a285acc6a98e450ec，main=5323f86232529efcfb52131168ad049f01b219f3；普通dev提交后push并核远端。 |
+
+初稿5个CV专项首次5PASS。初次check **FAIL**仅install_process.py import行需要ruff排版；格式修正后check PASS，无测试或执行门放宽。第一次构建已PASS但早于该排版，最终重建PASS并仅对最终产物跑冻结检查。所有中间日志以唯一noclobber保留，不将多窗口结果累加，不覆盖失败。
+
+- `/tmp/easyai-cv-metadata-capture-20261018-unique1.log` SHA256 `a363747741bb0402d1cf588b917ac3f17f89233392f827c842b70efcd8b56745`。
+- `/tmp/easyai-cv-new-20261018-unique1.log` SHA256 `298bc9ad8b9c84af926c34ad8aa487152193d43e8bd22bc298879acb78df3351`。
+- `/tmp/easyai-cv-check-20261018-unique1.log` SHA256 `643e3e588f925a77901c68928e9549e77ebb51832c009cc00ed72dbcb73ee392`。
+- `/tmp/easyai-cv-check-20261018-final1.log` SHA256 `579d7a59a9a3491a792d03865e912d944d46d313ead69531b753b11aa4443de8`。
+- `/tmp/easyai-cv-regression-20261018-unique1.log` SHA256 `bd6ab77b9cd3d4b7dd0ee95c4795f675aafebb6cd12001dc00bea779179deed1`。
+- `/tmp/easyai-cv-build-20261018-unique1.log` SHA256 `7ec5ed0031d4bceb38a0c80029e26826627e0e95585a61ce2a093f4a3e6c602e`。
+- `/tmp/easyai-cv-build-20261018-final1.log` SHA256 `3db182660a47de1fed9c4685a3f0e1e8391455bccad015b6d6f36bd7f82379b1`。
+- `/tmp/easyai-cv-frozen-20261018-unique1.log` SHA256 `598e651d8bfd55009c56cd315d848d8185d98d8ae4eb67c6d0dd2d14af4ed0c3`。
+- `/tmp/easyai-cv-package-resources-20261018-unique1.log` SHA256 `15585416d158e5c29179bcf177bdba2be404eeec9f60a0281d41c6a25938de05`。
+- `/tmp/easyai-cv-package-resources-20261018-final1.log` SHA256 `8221c38905c89c54273dda3df80a72f4518f47fca25796ad6ce7991e75a43f26`。
+- `/tmp/easyai-cv-package-format-20261018-unique1.log` SHA256 `17aa973d3f004560237d9a95171210b0671deff23d61628eecf7322ff5938f20`。
+- `/tmp/easyai-cv-ml-review-8QeoCK.log` SHA256 `eca6a5c460e7aadc57acfc8052b467af80ac8212d0ea7ae79073684021d90a15`。
+- `/tmp/easyai-cv-metadata-review-8p8iyg5c.json` SHA256 `79cf1dab6222108a9e4e8d2257c607a7a283bd0a93f72e0d8dc1c5beefa37f2e`。
+
+
+NOT RUN：wheel/sdist/模型/数据下载、真实conda/pip/安装/环境创建、scikit-image或cv2真实import/ABI/tensor正向/系统库安装、训练/真实SSH、新许可/凭据/网络权限、Electron原生picker/桌面/Windows/干净机、全套大矩阵、重打实际portable/发布。真实安装仍缺可信本地来源/许可及具体owned目标/预算/窗口，**未授权且未执行**；OpenCV另缺精确发行系统库清单与目标验证证据，保持unsupported，不是待自动重试。没有不确定外部安装结果。
+
+核心sources SHA2562628fc7071ca97301e1069dd8bcf20de72eefdeed5e065969c497cf4f89641c5、核心lock f30a1d2eb86b13a7ae8a708e3356fade92e8dd942f746616a66376f281d8641b、ML sources2077c40f335d19027245e31e0f1cfb867c33257a2997332ee408d9f9490a76f9、ML lock c2a5de84967d110330d476098efd63acfce233ccea93bb8bad25ee44beef9403均未改。计划116185字节SHA256 dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43，旧规格5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190，README befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852保持。旧portable source7b91c46未含本片；distributionReady/legalReviewComplete仍false。CIFAR待裁决；旧226PASS/1FAIL根因UNKNOWN且原始日志丢失不回溯关闭。既有Actions读取/sandbox拒绝未重试或绕过，无本片新CI判断。无main/强推/PR/Release/部署/费用/凭据/安全权限变更，无新工具拒绝/未知外部写入。
+
+下一项：父侧复核CV闭包和OpenCV明确unsupported边界；随后Main来源选择仍待补，余可选卡逐组核元数据/约束及许可，不能猜锁或用卡数冒称真实安装。完整M5/M6.3/B仍未验。
