@@ -1152,3 +1152,36 @@ NOT RUN：原阶段命令`pnpm test:e2e`及真实Electron/Blockly SVG/Monaco Wor
 NOT RUN：实际 pip/conda/SDK 安装或许可、依赖联网解析、真实新环境/安装后import/tensor probe、教师共享环境修改、持久任务恢复、远端安装、数据下载、真实训练/MNIST、真实SSH/SFTP、Electron/原生picker/课堂E2E、Windows/NTFS/冻结ABI、个人PC。没有新增授权或尝试被拒动作。既有Electron sandbox及Actions日志拒绝边界保持，不绕路、不改安全权限、不重复同SHA CI。最新精确已知 CI 仍 `407da99effa8a46b492b79cc362f77025b5c7210` / run39149608836：check SUCCESS、desktop FAILURE（2 annotations），失败正文未知；本片新SHA CI **待证据**，不套旧根因。
 
 下一项：在上述关闭的生产门后补实际 provisioner/executor/probe 与持久恢复，或推进独立 M8 打包骨架；真实执行需一次性owned目标、明确来源/下载预算及展示具体计划后的执行授权。常规代码可继续，不以这些实测条件阻断编译/合同。完整B仍未验收；无main/强推/PR/Release/部署/费用/新凭据或权限变化。
+
+## 2026-10-18 — M6.3 受管进程与持久任务保守恢复
+
+源码完整 SHA：`8881b581bfef7cd644571aa93627b662edbeafee`；基线 `3fbdd02e42ee63be4dfad8cd8d4af1ff81fbf03d`。父级有限接受上一片离线合同后，要求继续实际后端代码缺口，本轮实现最小进程/持久恢复纵切，不止重复合同。单一集成者、已有 worker 只读独审。未执行依赖安装/下载，生产入口仍关闭、executionEnabled=false、无HTTP execute。
+
+| 原要求 | 本轮实际代码与剩余边界 |
+| --- | --- |
+| owned隔离新环境创建 | **代码仍缺**：新环境UUID/受控prefix/名称/计划已有，实际conda provisioner尚未实现，execute对newEnvironment仍拒绝INSTALL_PROVISIONER_NOT_ENABLED。没有创建真实环境或借教师环境 |
+| 计划执行 | 新增内部ManagedInstallCommand，直接复用已有ManagedSupervisor/ManagedProcess，不再写一套Popen。OfflineWheelInstaller有固定目标Python `-I -B` + isolated pip/require-hashes/only-binary/no-index/已有本地wheelhouse/锁副本的代码，复制前重核来源hash；authorized默认false、无生产调用者。正向测试只捕获并compile固定脚本，**真pip未执行**。新环境provision、可选包解析及授权生产接线仍缺 |
+| 日志/取消 | 复用现有持久EventJournal、独立POSIX进程组、取消升级、两管道排空；可选rawlog每stdout/stderr文件1MiB上限，满后继续排空；训练默认未改。包输出OS级重定向stderr，不能伪造stdout完成协议。已知非零退出=FAILED，未知停止保留lease/reservation。Windows安装进程适配器拒绝，未冒称支持 |
+| 退出后真实reprobe | 新增固定ManagedInstallInspector独立目标Python，读完整锁定metadata版本、实际torch/torchvision/matplotlib imports、小CPU卷积及nonce/sys.prefix；本轮只在**既有应用venv子进程做负向只读探测**，实际torch缺失、tensor=false。成功链仍为真实stdlib子进程写合成inventory→原复检合同，不能算真实安装/训练Python成功。生产inspector没有接线，正向真实训练环境仍未验 |
+| 重启恢复 | 确认、执行意图、VERIFYING、取消与终态写入每job EventJournal；执行意图fsync成功后才起进程，写失败关闭服务写入。进程重启可按已知jobId查询：未执行确认作废；未知INSTALLING/VERIFYING/CANCEL_REQUESTED恢复为STOP_UNCONFIRMED并隔离，不自动重放/杀旧PID。取得环境锁后重读其他持久意图，预先打开的第二实例也不能把app死亡后的flock释放当作子进程停止。**仍缺**活安装子进程重连、未知停止安全解除/重建、UI历史列表/保留策略；最多64持久目录，不做自动清理。不宣称完整安装恢复或断电目录项持久性 |
+
+父级指出的TTL时序已修：环境锁后_fresh可能耗时，现在其后再次核TTL；写前记录后、最终executor调用前再核一次，跨期不启动。新增耗时inspector跨TTL和落盘跨TTL回归。新增复检barrier下取消，报告即使全部通过也不得发布verified。独审另复现P2：progress140次填满128日志后cancel只改内存，持久末条仍INSTALLING。现将状态写入与日志上限解耦，原fixture及新回归均确认CANCEL_REQUESTED落盘。额外独审接受跨实例持久意图门，无遗留明确新增P1/P2。
+
+实际命令（cwd `/workspace/Easy-AI`；检查/打包使用原应用缓存 `UV_CACHE_DIR=/workspace/.uv-cache UV_PYTHON_INSTALL_DIR=/workspace/.python XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/.cache`，不安装新依赖）：
+
+| 命令 | PASS / FAIL / NOT RUN及证据 |
+| --- | --- |
+| `services/backend/.venv/bin/python -m pytest services/backend/tests/test_install_process.py services/backend/tests/test_install_service.py services/backend/tests/test_supervisor.py services/backend/tests/test_event_journal.py services/backend/tests/test_local_api.py services/backend/tests/test_local_workspace.py -q` | 最终 **103 PASS**，3.77秒，1条第三方弃用warning；`/tmp/easyai-install-execution-final.log`。新16项包含真实stdlib子进程/退出与取消、2.5MB双流限额/协议防混淆、write-ahead失败不启动、两处TTL/barrier取消、严格完整记录拒绝篡改、重启确认作废/未知停止隔离/跨实例锁消失保护、固定pip捕获、负向真实子进程probe。旧合同/共享supervisor/journal/API/workspace窗口均保留，不与上一片36累计 |
+| `pnpm exec vitest run apps/desktop/electron/install-workflow.test.mts apps/desktop/src/PackageManager.test.mts` | **21 PASS**，2.19秒；`/tmp/easyai-install-execution-ui.log`，未改协议生成schema，实际Main/sidecar离线确认取消仍通过。UI改为明确本机持久状态、不自动恢复执行、当前仅显示本次打开任务 |
+| 同缓存 `pnpm check` | **PASS**；TS/Main/测试TS、strict mypy50源文件、90 Python格式、ruff、合同和真实Blockly fixture漂移、Prettier；`/tmp/easyai-install-execution-check.log` |
+| 同缓存 `node scripts/python-task.mjs build`；`pnpm --filter @easyai/desktop build` | 均 **PASS**；`/tmp/easyai-install-execution-build.log`、`/tmp/easyai-install-execution-desktop-build.log`。新内部适配器列为PyInstaller hidden-import，未引入torch应用依赖或执行模块安装。保留既有chunk提示，不是安装包/真实桌面验收 |
+| `node scripts/test-frozen-install-recovery.mjs` | **PASS**；`/tmp/easyai-install-execution-restart.log`。临时cwd下真正启动冻结sidecar→确认202→EOF退出0→同storageRoot用新token/新进程重启→认证GET旧jobId返回CANCELLED/RESTART_CONFIRMATION_EXPIRED、verified=false、changesPossible=false，training-environments仍不存在；没有installer/conda |
+| `node scripts/test-frozen.mjs`；`node scripts/test-frozen-ssh.mjs` | 均 **PASS**；`/tmp/easyai-install-execution-frozen.log`、`/tmp/easyai-install-execution-ssh.log`，原资源/认证golden compile/离线计划确认取消/SSH严格DTO及scoped取消/lazy Paramiko/EOF0门不降低，无出站SSH |
+| 独立只读审查 | 初新11 PASS/0.29秒；满日志/写前失败/落盘TTL3 PASS/12 deselected/0.04秒；额外跨实例持久门1 PASS/15 deselected/0.04秒，均与最终103重合不累计。另真实2MiB stderr复验限额1MiB。没有worker编辑、真实pip/安装/训练/SSH |
+| `git diff --check`；`sha256sum 'docs/v0.0.0 plan.md' docs/v0.0.0.md README.md`；`git ls-remote origin refs/heads/main refs/heads/codex/demo-v0.0.0` | **PASS**；plan SHA `dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43`、原规格 `5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190`、README `befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852`不变。提交前远端dev=3fbdd02、main=`5323f86232529efcfb52131168ad049f01b219f3`；提交后正常推送并复核 |
+
+中途 **FAIL**：首次旧23项为22 PASS/1 FAIL，`/tmp/easyai-install-process-first.log`；旧跨实例测试在unknown之后才创建第二实例，新增恢复门已在confirm提前拒绝，原测试未能走到kernel锁。把第二实例建立提前至writer开始前，保留实际kernel锁冲突断言；另加恢复后confirm拒绝、预先实例在kernel lease消失后仍被持久门阻断，未删除或弱化保护。首次34项与中途102项被最终103覆盖，不累计。独审满日志取消复现先于修复，已如实记录。
+
+NOT RUN：真实pip/conda依赖安装/下载/SDK许可、真实owned新环境provision、已安装torch的正向复检/卷积、真实MNIST训练/数据下载、真实SSH/重连、Windows安装进程/NTFS/冻结ABI、Electron原生对话框/课堂E2E、安装包发布/个人PC。无新拒绝或未决外部写入；既有Actions日志与Electron sandbox拒绝继续保留，没有绕路重试。最新精确已知CI仍407da99/run39149608836的check SUCCESS/desktop FAILURE（2 annotations，失败步骤正文未知）；本片新SHA CI另待证据，不套旧失败根因。
+
+下一项按原M6.3继续受控conda新环境provision与授权生产接线，或推进独立M8包装；代码/可控进程测试可继续，真实安装必须另有一次性owned目标、来源/下载范围及具体计划确认。常规开发分支提交推送；无main/强推/PR/Release/部署/新增费用、凭据或安全权限。本片不是M6.3全验收，更不是完整B。
