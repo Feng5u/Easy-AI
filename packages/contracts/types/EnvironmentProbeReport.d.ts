@@ -26,7 +26,7 @@ export type Sampleshape =
   [] | [number] | [number, number] | [number, number, number] | [number, number, number, number] | null;
 export type Sampledtype = string | null;
 export type Label = number | null;
-export type Error2 = ("dependency_missing" | "unavailable") | null;
+export type Error2 = ("dependency_missing" | "unavailable" | "unsafe_format_blocked") | null;
 
 export interface EnvironmentProbeReport {
   schemaVersion: Schemaversion;

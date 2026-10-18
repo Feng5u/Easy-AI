@@ -203,6 +203,10 @@ export async function startBackend(
             "所选目录缺少已准备的数据文件。应用不会自动下载。",
           DATASET_IDX_INVALID:
             "数据文件头或长度不符合IDX格式，请检查数据目录。",
+          DATASET_CIFAR10_FORMAT_INVALID:
+            "CIFAR10 Python格式文件结构不完整或不符合要求，未启动训练。",
+          DATASET_CIFAR10_SAFE_PROBE_REQUIRED:
+            "CIFAR10安全构造探测尚未完成，数据未就绪，未启动训练。",
           DATASET_PREFLIGHT_NOT_SUPPORTED:
             "当前本地运行预检支持MNIST和FashionMNIST，尚未开放CIFAR10入口。",
           PROJECT_ALREADY_EXISTS:

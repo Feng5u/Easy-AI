@@ -70,7 +70,8 @@
             {
               "enum": [
                 "dependency_missing",
-                "unavailable"
+                "unavailable",
+                "unsafe_format_blocked"
               ],
               "type": "string"
             },

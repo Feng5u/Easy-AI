@@ -158,7 +158,17 @@ it("rejects a foreign result and explains environment failure without blaming co
   }));
   await click();
   expect(container.textContent).toContain("无法导入");
-  expect(container.textContent).toContain("缺少预期的 IDX");
+  expect(container.textContent).toContain("缺少预期的数据文件");
+});
+it("keeps CIFAR structure-only results unready and explains the blocked constructor", async () => {
+  const value = report();
+  value.datasetNames = ["CIFAR10"];
+  value.data = { ok: false, code: "DATASET_CIFAR10_SAFE_PROBE_REQUIRED" };
+  await mount(vi.fn().mockResolvedValue(value));
+  await click();
+  expect(container.textContent).toContain("数据（CIFAR10）：未通过");
+  expect(container.textContent).toContain("未反序列化 pickle");
+  expect(container.textContent).toContain("不能开始本机训练");
 });
 it("real React → Main → authenticated sidecar → fixed import/data checks, without training", async () => {
   const directory = await mkdtemp(join(tmpdir(), "easyai-local-preflight-"));

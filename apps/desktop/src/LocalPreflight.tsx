@@ -17,8 +17,12 @@ const messages: Record<string, string> = {
   LOCAL_STORAGE_FORBIDDEN: "本机检查缓存路径不可安全使用。",
   DATASET_READY: "数据文件头与长度检查通过；未验证数据来源或学习效果。",
   DATASET_MISSING_NO_DOWNLOAD:
-    "所选目录缺少预期的 IDX 数据文件。请准备数据或重新选择目录；未下载数据。",
+    "所选目录缺少预期的数据文件。请准备数据或重新选择目录；未下载数据。",
   DATASET_IDX_INVALID: "数据文件格式或长度不符合要求。",
+  DATASET_CIFAR10_FORMAT_INVALID:
+    "CIFAR10 需要完整的 cifar-10-batches-py Python 格式目录，含五个训练批次、测试批次及元数据；当前文件结构不符合要求。",
+  DATASET_CIFAR10_SAFE_PROBE_REQUIRED:
+    "CIFAR10 文件布局初检完成，但安全的官方适配器构造探测尚未完成；未反序列化 pickle，数据未就绪，不能开始本机训练。",
   DATA_PATH_FORBIDDEN: "数据路径未通过安全检查。",
   DATASET_UNREADABLE: "数据文件不可读，请检查目录与读取权限。",
   DATASET_PREFLIGHT_NOT_SUPPORTED: "此数据集尚不支持本机预检。",

@@ -123,7 +123,7 @@ def test_preflight_is_readonly_validates_headers_and_does_not_download(tmp_path)
     labels.write_bytes(struct.pack(">II", 2049, 2) + b"\x00")
     with pytest.raises(ValueError, match="DATASET_IDX_INVALID"):
         preflight_data(tmp_path, {"MNIST"})
-    with pytest.raises(ValueError, match="PREFLIGHT_NOT_SUPPORTED"):
+    with pytest.raises(ValueError, match="DATASET_MISSING_NO_DOWNLOAD"):
         preflight_data(tmp_path, {"CIFAR10"})
 
 

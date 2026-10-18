@@ -115,6 +115,12 @@ def test_fixed_payload_executes_small_conv_and_exact_offline_dataset_call_with_s
         payload.inspect_environment(config({"name": name, "dataRoot": "/remote/teacher data"}))
     )
     assert report.tensor.ok
+    if name == "CIFAR10":
+        assert not report.dataset.ok
+        assert report.dataset.error == "unsafe_format_blocked"
+        assert report.dataset.sample_shape is None and report.dataset.label is None
+        assert not any(call[0] == "dataset" for call in calls)
+        return
     if missing_train:
         assert not report.dataset.ok
         assert [call[1]["train"] for call in calls if call[0] == "dataset"] == [True]

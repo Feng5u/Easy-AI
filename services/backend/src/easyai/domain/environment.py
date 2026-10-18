@@ -135,7 +135,7 @@ class DatasetCheck(Contract):
     sample_shape: list[Annotated[int, Field(ge=1, le=4096)]] | None = Field(max_length=4)
     sample_dtype: str | None = Field(max_length=64)
     label: int | None = Field(ge=0, le=9)
-    error: Literal["dependency_missing", "unavailable"] | None
+    error: Literal["dependency_missing", "unavailable", "unsafe_format_blocked"] | None
 
     @model_validator(mode="after")
     def consistent(self) -> Self:

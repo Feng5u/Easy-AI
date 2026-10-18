@@ -165,6 +165,32 @@ def test_authenticated_http_contract_and_no_paths(prepared):
     assert not workspace.runs._ledger.entries
 
 
+@pytest.mark.parametrize("change", ["revision", "aba"])
+def test_retired_data_checkpoint_never_starts_selected_python(
+    prepared, monkeypatch, tmp_path, change
+):
+    workspace, root, request, calls = prepared
+
+    def stale_data(data, names, checkpoint):
+        if change == "revision":
+            document = workspace.current().project
+            workspace.save(document.project_id, document, document.revision)
+        else:
+            other = tmp_path / "switched-project"
+            other.mkdir()
+            workspace.create(workspace.select("project", other).selection_id, "other")
+            workspace.open(workspace.select("project", root).selection_id)
+        checkpoint()
+
+    monkeypatch.setattr("easyai.services.local_workspace.preflight_data", stale_data)
+    with pytest.raises(
+        (KeyError, ValueError), match="PROJECT_REVISION_CONFLICT|PROJECT_SCOPE_RETIRED"
+    ):
+        workspace.preflight_local(request)
+    assert not calls
+    assert not workspace.runs._ledger.entries
+
+
 @pytest.mark.parametrize("change", ["project", "aba", "revision"])
 def test_http_rechecks_after_worker_before_delivery(prepared, monkeypatch, tmp_path, change):
     import asyncio

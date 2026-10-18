@@ -44,6 +44,7 @@ from easyai.domain.desktop import (
 from easyai.security.files import read_regular
 from easyai.services.project_service import ProjectService, read_project, validate_project_bytes
 from easyai.services.run_service import RunService
+from easyai.services.cifar_preflight import inspect_cifar10_layout
 
 T = TypeVar("T")
 
@@ -199,8 +200,13 @@ def probe_python(python: Path, cache: Path) -> dict[str, Any]:
     return value
 
 
-def preflight_data(root: Path, dataset_names: set[str]) -> None:
-    for dataset in dataset_names:
+def preflight_data(
+    root: Path, dataset_names: set[str], checkpoint: Callable[[], None] = lambda: None
+) -> None:
+    for dataset in sorted(dataset_names):
+        checkpoint()
+        if dataset == "CIFAR10":
+            inspect_cifar10_layout(root, checkpoint)
         if dataset not in {"MNIST", "FashionMNIST"}:
             raise ValueError("DATASET_PREFLIGHT_NOT_SUPPORTED")
         raw = root / dataset / "raw"
@@ -713,20 +719,28 @@ class LocalWorkspace:
             data_check = LocalPreflightCheck(ok=False, code="DATASET_PROJECT_NOT_RUNNABLE")
             if names:
                 try:
-                    preflight_data(data, names)
+                    preflight_data(
+                        data, names, lambda: self.verify_preflight_scope(request, generation)
+                    )
                     data_check = LocalPreflightCheck(ok=True, code="DATASET_READY")
                 except (OSError, ValueError) as error:
+                    # A data checkpoint can report a retired project/revision.
+                    # Never turn that into a data warning and launch old Python.
+                    self.verify_preflight_scope(request, generation)
                     code = str(error)
                     allowed = {
                         "DATASET_PREFLIGHT_NOT_SUPPORTED",
                         "DATA_PATH_FORBIDDEN",
                         "DATASET_MISSING_NO_DOWNLOAD",
                         "DATASET_IDX_INVALID",
+                        "DATASET_CIFAR10_FORMAT_INVALID",
+                        "DATASET_CIFAR10_SAFE_PROBE_REQUIRED",
                     }
                     data_check = LocalPreflightCheck(
                         ok=False, code=code if code in allowed else "DATASET_UNREADABLE"
                     )
             versions = None
+            self.verify_preflight_scope(request, generation)
             try:
                 versions = LocalPythonVersions.model_validate(
                     probe_python(python, self.root / "probe-cache")

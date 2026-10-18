@@ -89,6 +89,14 @@ def test_cifar_metadata_and_scalar_normalize_use_three_channels() -> None:
     assert program.shape_trace[6].output_shape == [2048]
 
 
+def test_cifar_cannot_be_paired_with_an_idx_split() -> None:
+    changed = value()
+    datasets = [node for node in nodes(changed) if node["type"] == "data.dataset_builtin"]
+    datasets[1]["fields"]["DATASET_NAME"] = "CIFAR10"
+    program, diagnostics = prepare(ProjectDocument.model_validate(changed))
+    assert program is None and diagnostics[0].code == "DATASET_MISMATCH"
+
+
 @pytest.mark.parametrize("types", [["data.normalize", "data.to_tensor"], ["data.normalize"]])
 def test_transform_order_is_semantic(types: list[str]) -> None:
     changed = value()

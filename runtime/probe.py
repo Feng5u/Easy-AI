@@ -134,7 +134,12 @@ def inspect_environment(config: dict[str, Any]) -> dict[str, Any]:
             "error": "dependency_missing",
         }
         vision = modules["torchvision"]
-        if torch is not None and vision is not None:
+        if binding["name"] == "CIFAR10":
+            # download=False still invokes pickle.load and full-data MD5 in the
+            # official CIFAR adapter. Do not execute untrusted reducers during
+            # a preflight. A safe construction boundary remains unimplemented.
+            dataset["error"] = "unsafe_format_blocked"
+        elif torch is not None and vision is not None:
             try:
                 # Fixed whitelist, both required splits; no download or dataset writes.
                 constructor = getattr(vision.datasets, binding["name"])
