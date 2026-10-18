@@ -3,6 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, createElement } from "react";
 import type { Root } from "react-dom/client";
 import { createRequire } from "node:module";
+import { mkdtemp, mkdir, readFile, writeFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { startBackend } from "../electron/backend.mjs";
+import { MainWorkflow } from "../electron/workflow.mjs";
+import type { SelectionResult } from "../electron/bridge.js";
 import type {
   DesktopAPI,
   ProjectDocument,
@@ -188,6 +195,95 @@ afterEach(async () => {
 });
 
 describe("real App DOM persistence lifecycle", () => {
+  it("exports clean noncanonical JSON byte-exact through real App, Main workflow and sidecar", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "easyai-clean-export-"));
+    const chosen = join(directory, "original");
+    const destination = join(directory, "portable.json");
+    await mkdir(chosen);
+    const fixture = JSON.parse(
+      await readFile(
+        new URL(
+          "../../../packages/contracts/fixtures/blank.json",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+    );
+    const original = Buffer.from(
+      JSON.stringify(
+        Object.fromEntries(Object.entries(fixture).reverse()),
+        null,
+        "\t",
+      ) + "\n\n",
+    );
+    await writeFile(join(chosen, "project.easyai.json"), original);
+    const cwd = fileURLToPath(
+      new URL("../../../services/backend/", import.meta.url),
+    );
+    const backend = await startBackend(
+      join(
+        cwd,
+        process.platform === "win32"
+          ? ".venv/Scripts/python.exe"
+          : ".venv/bin/python",
+      ),
+      cwd,
+      10000,
+      join(directory, "state"),
+    );
+    const workflow = new MainWorkflow(
+      () => backend,
+      async () => chosen,
+      () => undefined,
+      {
+        importProject: async () => null,
+        exportProject: async () => destination,
+      },
+    );
+    try {
+      const selected = (await workflow.invoke("easyai:selections:pick", [
+        "project",
+      ])) as SelectionResult;
+      await workflow.invoke("easyai:projects:open", [selected.selectionId]);
+      const mocked = bridge();
+      mocked.api.projects.current = async () =>
+        (await workflow.invoke(
+          "easyai:projects:current",
+          [],
+        )) as ProjectSession;
+      mocked.api.projects.exportProject = vi.fn(
+        async (document) =>
+          (await workflow.invoke(
+            "easyai:projects:export",
+            document ? [document] : [],
+          )) as { exported: boolean },
+      );
+      mocked.api.runs.list = async (id, offset, limit) =>
+        (await workflow.invoke("easyai:runs:list", [id, offset, limit])) as [];
+      await mount(mocked.api);
+      await click("导出当前工程");
+      await act(async () => {
+        await vi.mocked(mocked.api.projects.exportProject).mock.results[0]
+          .value;
+      });
+      expect(
+        vi.mocked(mocked.api.projects.exportProject).mock.calls[0][0],
+      ).toBeUndefined();
+      expect(await readFile(destination)).toEqual(original);
+      expect(await readFile(join(chosen, "project.easyai.json"))).toEqual(
+        original,
+      );
+      expect(container.textContent).toContain("已导出工程原件");
+    } finally {
+      if (root) {
+        await act(async () => root!.unmount());
+        root = undefined;
+      }
+      workflow.dispose();
+      await backend.stop();
+      await rm(directory, { recursive: true, force: true });
+    }
+  }, 20000);
   it("switches readonly viewing tabs without dirtying or saving the original project", async () => {
     const mocked = bridge(true);
     await mount(mocked.api);

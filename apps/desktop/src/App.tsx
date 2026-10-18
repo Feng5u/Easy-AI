@@ -301,7 +301,9 @@ export function App({ api }: { api?: DesktopAPI }) {
   async function exportProject() {
     if (!bridge) return;
     await perform("导出工程", async () => {
-      const result = await bridge.projects.exportProject(project ?? undefined);
+      const result = await bridge.projects.exportProject(
+        dirty ? (project ?? undefined) : undefined,
+      );
       if (active.current && result?.exported)
         setNotice(
           dirty
