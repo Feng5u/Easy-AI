@@ -1,7 +1,7 @@
 import { FailureCard, operationFailure } from "./FailureCard.js";
 import type { OperationFailure } from "./FailureCard.js";
 import { RuntimeErrorCard } from "./RuntimeErrorCard.js";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   ArtifactRecord,
   ConnectionState,
@@ -19,6 +19,7 @@ import {
 } from "./runEvents.js";
 import type { EpochPoint, RunEventState } from "./runEvents.js";
 import { SnapshotCode } from "./RunSnapshot.js";
+import { captureRunSnapshot, locateRunBlock } from "./runSnapshot.js";
 import type { SnapshotRequest } from "./RunSnapshot.js";
 
 const LOG_WINDOW = 120_000;
@@ -204,6 +205,10 @@ function RunDashboardForRun({
   const [readError, setReadError] = useState<OperationFailure | null>(null);
   const [sourceError, setSourceError] = useState<OperationFailure | null>(null);
   const [source, setSource] = useState<RunSource | null>(null);
+  const sourceView = useMemo(
+    () => (source ? captureRunSnapshot(source) : null),
+    [source],
+  );
   const [artifacts, setArtifacts] = useState<ArtifactRecord[]>([]);
   const [stdout, setStdout] = useState("");
   const [stderr, setStderr] = useState("");
@@ -514,8 +519,15 @@ function RunDashboardForRun({
         <RuntimeErrorCard
           key={item.seq}
           diagnostic={item}
-          sourceReady={Boolean(source)}
-          onLocate={() => setSelectedBlock(item.blockId)}
+          sourceReady={Boolean(
+            sourceView && locateRunBlock(sourceView, item.blockId).blockId,
+          )}
+          onLocate={() => {
+            if (sourceView) {
+              const location = locateRunBlock(sourceView, item.blockId);
+              if (location.blockId) setSelectedBlock(location.blockId);
+            }
+          }}
         />
       ))}
       <section className="panel">

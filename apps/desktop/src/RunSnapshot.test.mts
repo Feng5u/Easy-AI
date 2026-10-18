@@ -770,3 +770,33 @@ it("read and source recovery cannot clear unconfirmed stop or image failures", a
   expect(h.api.runs.cancel).toHaveBeenCalledTimes(1);
   expect(h.api.runs.start).not.toHaveBeenCalled();
 });
+
+it("foreign private runtime block IDs cannot be forwarded to the old snapshot viewer", async () => {
+  const h = dashboard(source(), "foreign-diagnostic");
+  await render(
+    createElement(RunDashboard, {
+      api: h.api,
+      initialRun: h.run,
+      onRunUpdate: vi.fn(),
+    }),
+  );
+  await act(async () =>
+    h.emit({
+      runId: h.run.runId,
+      seq: 1,
+      source: "runtime",
+      sourceSeq: 1,
+      timestamp: "2026-10-18T00:00:00Z",
+      type: "runtime_error",
+      blockId: "token=private-block",
+      payload: { exceptionType: "NameError", message: "private error" },
+    }),
+  );
+  const locate = [...container.querySelectorAll("button")].find(
+    (node) => node.textContent === "定位旧运行积木",
+  )!;
+  expect(locate.disabled).toBe(true);
+  await click("定位旧运行积木");
+  expect(container.textContent).not.toContain("token=private-block");
+  expect(captured.managers).toHaveLength(0);
+});
