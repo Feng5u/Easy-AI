@@ -847,9 +847,7 @@ def test_transport_close_failure_retains_owner_even_when_no_io_is_running(tmp_pa
     # Test teardown only: the fake has no OS handles. Do not add a product retry/bypass.
     coordinator._journal.close()
     coordinator._lock.close()
-    import os
-
-    os.close(coordinator._fd)
+    coordinator._store.close()
     coordinator._closed = True
 
 
@@ -934,5 +932,34 @@ def test_cancel_during_stage_cannot_cross_consuming_start_boundary(setup):
     try:
         assert restored.checkpoint().execution_state == "CANCELLED"
         assert restored.checkpoint().cancelled_before_start
+    finally:
+        restored.close()
+
+
+def test_storage_marker_flush_failure_recovers_inspect_only(setup, monkeypatch):
+    coordinator, owner, _, _, store = setup
+    sync = coordinator._store.sync
+    failed = False
+
+    def fail_marker_receipt():
+        nonlocal failed
+        if not failed and (coordinator.root / "start-intent.json").exists():
+            failed = True
+            raise OSError("synthetic directory flush failure")
+        sync()
+
+    monkeypatch.setattr(coordinator._store, "sync", fail_marker_receipt)
+    with pytest.raises(RemoteProtocolError, match="STATE_UNKNOWN"):
+        coordinator.start()
+    assert failed and owner.start_calls == 0
+    coordinator.close()
+    restored = SshRunCoordinator(store, owner.identity)
+    try:
+        assert restored.checkpoint().start_outcome == "unknown"
+        fresh = auth_for(owner.identity)
+        restored.attach(fresh, Transport(owner), lambda: fresh)
+        with pytest.raises(RemoteProtocolError, match="STATE_UNKNOWN"):
+            restored.start()
+        assert owner.start_calls == 0 and owner.stage_calls == 1
     finally:
         restored.close()

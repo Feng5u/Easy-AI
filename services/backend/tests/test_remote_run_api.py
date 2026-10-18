@@ -496,3 +496,37 @@ def test_ssh_cancel_scope_commits_after_core_lock_and_rejects_project_switch(har
     assert core.checkpoint().cancel_state == "none" and not core.checkpoint().cancelled_before_start
     assert workspace.runs.get(run.run_id).status == "CREATED"
     assert not endpoint.commands
+
+
+def test_unverified_cache_platform_refuses_binding_and_prepare_without_staging(
+    harness, monkeypatch
+):
+    from types import SimpleNamespace
+    import easyai.security.remote_cache as storage
+
+    workspace, endpoint, api, project = harness
+    _, body, request = binding(harness)
+    entries = set(workspace.runs.root.iterdir())
+    bindings = set(workspace._remote_bindings)
+    calls = sum(session.channel_calls for session in endpoint.sessions)
+    # Capability-provider injection only, not Windows filesystem emulation.
+    monkeypatch.setattr(storage, "os", SimpleNamespace(name="nt"))
+    refused = api.post(f"/api/v1/projects/{project.project_id}/run-bindings", json=body)
+    assert (
+        refused.status_code == 422
+        and refused.json()["error"]["code"] == "REMOTE_CACHE_PLATFORM_UNVERIFIED"
+    )
+    refused = api.post(
+        f"/api/v1/projects/{project.project_id}/runs",
+        json=request,
+        headers={"Idempotency-Key": "unsupported"},
+    )
+    assert (
+        refused.status_code == 422
+        and refused.json()["error"]["code"] == "REMOTE_CACHE_PLATFORM_UNVERIFIED"
+    )
+    assert not workspace.runs._ledger.entries
+    assert set(workspace.runs.root.iterdir()) == entries
+    assert set(workspace._remote_bindings) == bindings
+    assert sum(session.channel_calls for session in endpoint.sessions) == calls
+    assert not endpoint.commands and list(endpoint.run_base.iterdir()) == []

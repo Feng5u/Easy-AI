@@ -328,3 +328,32 @@ it.each([undefined, 2])(
     expect(container.querySelector("fieldset")!.disabled).toBe(false);
   },
 );
+it("unsupported client storage explains platform refusal without suggesting environment retry", async () => {
+  const s = setup();
+  s.report.environmentReady = true;
+  s.report.dataReady = true;
+  const onBinding = vi.fn();
+  const remote: RemoteRunControls = {
+    runs: {
+      bind: vi.fn(async () => {
+        throw new Error("REMOTE_CACHE_PLATFORM_UNVERIFIED");
+      }),
+    } as unknown as DesktopAPI["runs"],
+    authority: { expectedRevision: 1, expectedProgramHash: "a".repeat(64) },
+    onBinding,
+    onSession: vi.fn(),
+  };
+  await mount(s, remote);
+  await credentials();
+  await click("认证并建立短时会话");
+  await click("发现环境");
+  await click("只读检查所选环境");
+  await input("远端应用运行目录", "/synthetic-owned");
+  await click("用于本次远端运行");
+  expect(container.textContent).toContain(
+    "当前客户端平台尚未支持安全的 SSH 本地存储",
+  );
+  expect(container.textContent).not.toContain("请核对目录并重新检查环境");
+  expect(onBinding).toHaveBeenLastCalledWith(null);
+  expect(container.querySelector("fieldset")!.disabled).toBe(false);
+});

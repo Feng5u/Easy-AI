@@ -263,10 +263,15 @@ export function EnvironmentPanel({
       setMessage(
         `已绑定已保存工程 revision ${value.projectRevision}，有效期最长 ${value.expiresInSeconds} 秒。`,
       );
-    } catch {
+    } catch (reason) {
       if (bindingOperation.current === operation) {
         remote.onBinding(null);
-        setMessage("运行绑定未完成或检查已过期；请核对目录并重新检查环境。");
+        setMessage(
+          reason instanceof Error &&
+            reason.message.includes("REMOTE_CACHE_PLATFORM_UNVERIFIED")
+            ? "当前客户端平台尚未支持安全的 SSH 本地存储，暂不能创建远端运行。"
+            : "运行绑定未完成或检查已过期；请核对目录并重新检查环境。",
+        );
       }
     } finally {
       if (bindingOperation.current === operation) {

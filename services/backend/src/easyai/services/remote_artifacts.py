@@ -6,7 +6,6 @@ is outside this protocol's guarantees. This is not a run-success gate.
 """
 
 from dataclasses import dataclass
-import fcntl
 import hashlib
 import json
 import os
@@ -27,7 +26,7 @@ from easyai.domain.remote_run import (
     RemoteRunIdentity,
     RemoteRunObservation,
 )
-from easyai.security.remote_cache import check_file, open_directory, verify_directory
+from easyai.security.remote_cache import LocalWriterLock, local_directory
 from easyai.services.run_views import validate_png
 from easyai.services.ssh_client import VerifiedSshSession
 
@@ -264,31 +263,18 @@ class _Reader:
 
 class _Cache:
     def __init__(self, path: Path):
-        self.path, self.fd = path, open_directory(path)
-        self.lock: int | None = None
+        self.path, self.directory = path, local_directory(path)
+        self.lock: LocalWriterLock | None = None
         try:
-            self.lock = os.open(
-                ".artifact-writer.lock",
-                os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW | os.O_NONBLOCK,
-                0o600,
-                dir_fd=self.fd,
-            )
-            check_file(os.fstat(self.lock))
-            fcntl.flock(self.lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            self.lock = self.directory.writer_lock(".artifact-writer.lock")
         except BaseException:
             self.close()
             raise
 
     def verify(self) -> None:
-        verify_directory(self.path, self.fd)
+        self.directory.verify()
         assert self.lock is not None
-        held, current = (
-            os.fstat(self.lock),
-            os.stat(".artifact-writer.lock", dir_fd=self.fd, follow_symlinks=False),
-        )
-        check_file(current)
-        if (held.st_dev, held.st_ino) != (current.st_dev, current.st_ino):
-            _reject()
+        self.lock.verify()
 
     def bind(self, identity: RemoteRunIdentity, *, create: bool = True) -> None:
         raw = _encoded(identity.model_dump(mode="json", by_alias=True))
@@ -297,61 +283,39 @@ class _Cache:
             with os.fdopen(descriptor, "wb") as output:
                 output.write(raw)
                 output.flush()
-                os.fsync(output.fileno())
+                self.directory.sync_file(output.fileno())
             try:
                 if not create:
                     raise FileExistsError()
-                os.link(
-                    name,
-                    ".artifact-identity.json",
-                    src_dir_fd=self.fd,
-                    dst_dir_fd=self.fd,
-                    follow_symlinks=False,
-                )
-                os.fsync(self.fd)
+                self.directory.publish(name, ".artifact-identity.json")
             except FileExistsError:
                 pass
-            descriptor = os.open(
-                ".artifact-identity.json",
-                os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
-                dir_fd=self.fd,
-            )
+            descriptor = self.directory.open_file(".artifact-identity.json")
             with os.fdopen(descriptor, "rb") as source:
-                check_file(os.fstat(source.fileno()))
                 current = RemoteRunIdentity.model_validate(_decode(source.read(MAX_MANIFEST + 1)))
             if current != identity:
                 _reject()
             try:
-                existing = os.open(
-                    "artifact-index.json",
-                    os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
-                    dir_fd=self.fd,
-                )
+                existing = self.directory.open_file("artifact-index.json")
             except FileNotFoundError:
                 return
             with os.fdopen(existing, "rb") as source:
-                check_file(os.fstat(source.fileno()))
                 value = _decode(source.read(MAX_MANIFEST + 1))
             if RemoteRunIdentity.model_validate(value["identity"]) != identity:
                 _reject()
         finally:
-            os.unlink(name, dir_fd=self.fd)
+            self.directory.remove(name)
 
     def temporary(self) -> tuple[str, int]:
         self.verify()
         name = ".artifact-part-" + str(uuid4())
-        return name, os.open(
-            name, os.O_CREAT | os.O_EXCL | os.O_RDWR | os.O_NOFOLLOW, 0o600, dir_fd=self.fd
-        )
+        return name, self.directory.open_file(name, "exclusive")
 
     def blob(self, digest: str, size: int) -> bytes:
         self.verify()
-        descriptor = os.open(
-            "blob-" + digest, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=self.fd
-        )
+        descriptor = self.directory.open_file("blob-" + digest)
         with os.fdopen(descriptor, "rb") as source:
             info = os.fstat(source.fileno())
-            check_file(info)
             if info.st_size != size or size > MAX_FILE:
                 _reject()
             raw = source.read(size + 1)
@@ -361,9 +325,9 @@ class _Cache:
 
     def close(self) -> None:
         if self.lock is not None:
-            os.close(self.lock)
+            self.lock.close()
             self.lock = None
-        os.close(self.fd)
+        self.directory.close()
 
 
 def _content(record: ArtifactRecord, raw: bytes) -> None:
@@ -450,25 +414,19 @@ class SftpArtifactSync:
                             target.flush()
                             target.seek(0)
                             _content(record, target.read(record.size_bytes + 1))
-                            os.fsync(target.fileno())
+                            cache.directory.sync_file(target.fileno())
                         with self.mutex:
                             check()
                             cache.verify()
                             try:
-                                os.link(
-                                    name,
-                                    "blob-" + record.sha256,
-                                    src_dir_fd=cache.fd,
-                                    dst_dir_fd=cache.fd,
-                                    follow_symlinks=False,
-                                )
+                                cache.directory.publish(name, "blob-" + record.sha256)
                             except FileExistsError:
                                 _content(record, cache.blob(record.sha256, record.size_bytes))
-                            os.fsync(cache.fd)
+                            cache.directory.sync()
                         ready.append(record.model_copy(update={"sync_state": "ready"}, deep=True))
                     finally:
                         # Only the random temporary created by this worker is removable.
-                        os.unlink(name, dir_fd=cache.fd)
+                        cache.directory.remove(name)
                 # Cleanup the dedicated remote channel before publishing readiness.
                 # A failed SDK close leaves only verified unindexed blobs behind.
                 sftp.close()
@@ -495,27 +453,12 @@ class SftpArtifactSync:
                         with os.fdopen(descriptor, "wb") as target:
                             target.write(index)
                             target.flush()
-                            os.fsync(target.fileno())
-                        # Never follow or silently replace a hostile existing index.
-                        try:
-                            check_file(
-                                os.stat(
-                                    "artifact-index.json", dir_fd=cache.fd, follow_symlinks=False
-                                )
-                            )
-                        except FileNotFoundError:
-                            pass
+                            cache.directory.sync_file(target.fileno())
                         check()
-                        os.replace(
-                            name, "artifact-index.json", src_dir_fd=cache.fd, dst_dir_fd=cache.fd
-                        )
-                        os.fsync(cache.fd)
+                        cache.directory.publish(name, "artifact-index.json", replace=True)
                         values.append(ready)
                     finally:
-                        try:
-                            os.unlink(name, dir_fd=cache.fd)
-                        except FileNotFoundError:
-                            pass
+                        cache.directory.remove(name, missing_ok=True)
             except Exception:
                 failed.set()
             finally:
@@ -566,11 +509,8 @@ class SftpArtifactSync:
         cache = _Cache(cache_path)
         try:
             cache.bind(identity, create=False)
-            descriptor = os.open(
-                "artifact-index.json", os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=cache.fd
-            )
+            descriptor = cache.directory.open_file("artifact-index.json")
             with os.fdopen(descriptor, "rb") as source:
-                check_file(os.fstat(source.fileno()))
                 value = _decode(source.read(MAX_MANIFEST + 1))
             if (
                 set(value) != {"identity", "artifacts"}

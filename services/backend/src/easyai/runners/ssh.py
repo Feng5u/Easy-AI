@@ -11,7 +11,6 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import stat
 import threading
 import time
 from typing import TYPE_CHECKING, Any, BinaryIO, Literal, Protocol, ContextManager
@@ -25,7 +24,7 @@ from easyai.domain.remote_run import (
     RemoteRunObservation,
     RemoteStream,
 )
-from easyai.security.remote_cache import check_file, open_directory, verify_directory
+from easyai.security.remote_cache import local_directory
 from easyai.security.project_lock import ProjectLock
 from easyai.services.event_journal import EventJournal, MAX_LINE_BYTES
 
@@ -143,15 +142,11 @@ class SshRunCoordinator:
         if store_root.is_symlink() or not store_root.is_dir():
             raise RemoteProtocolError("REMOTE_CACHE_PATH_INVALID")
         self.root = store_root.absolute() / identity.target_id
-        parent = open_directory(store_root.absolute())
+        parent = local_directory(store_root.absolute())
         try:
-            try:
-                os.mkdir(identity.target_id, 0o700, dir_fd=parent)
-            except FileExistsError:
-                pass
+            self._store = parent.child(identity.target_id, create=True)
         finally:
-            os.close(parent)
-        self._fd = open_directory(self.root)
+            parent.close()
         self._lock: ProjectLock | None = None
         self._journal: EventJournal | None = None
         self._owns_journal = journal is None
@@ -217,43 +212,31 @@ class SshRunCoordinator:
                 self._journal.close()
             if self._lock is not None:
                 self._lock.close()
-            os.close(self._fd)
+            self._store.close()
             raise
 
     def _verify_store(self) -> None:
         if self._closed:
             raise RemoteProtocolError("REMOTE_COORDINATOR_CLOSED")
-        verify_directory(self.root, self._fd)
-        current, held = self.root.lstat(), os.fstat(self._fd)
-        if not stat.S_ISDIR(current.st_mode) or (current.st_dev, current.st_ino) != (
-            held.st_dev,
-            held.st_ino,
-        ):
-            raise RemoteProtocolError("REMOTE_CACHE_REPLACED")
+        self._store.verify()
         if self._lock is not None:
             self._lock.verify()
 
     def _read_record(self, name: str) -> bytes:
-        descriptor = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=self._fd)
+        descriptor = self._store.open_file(name)
         with os.fdopen(descriptor, "rb") as source:
-            check_file(os.fstat(source.fileno()))
             raw = source.read(CHUNK + 1)
             if len(raw) > CHUNK:
                 raise RemoteProtocolError("REMOTE_CACHE_RECORD_LIMIT")
             return raw
 
     def _start_marker(self) -> None:
-        descriptor = os.open(
-            "start-intent.json",
-            os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW,
-            0o600,
-            dir_fd=self._fd,
-        )
+        descriptor = self._store.open_file("start-intent.json", "exclusive")
         with os.fdopen(descriptor, "wb") as output:
             output.write(self.identity.model_dump_json(by_alias=True).encode())
             output.flush()
-            os.fsync(output.fileno())
-        os.fsync(self._fd)
+            self._store.sync_file(output.fileno())
+        self._store.sync()
 
     def _verify_committed_cache(self) -> None:
         observed = self._checkpoint.last_observation
@@ -275,21 +258,15 @@ class SshRunCoordinator:
     def _persist(self) -> None:
         self._verify_store()
         temporary = ".checkpoint-" + str(uuid4())
-        descriptor = os.open(
-            temporary, os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW, 0o600, dir_fd=self._fd
-        )
+        descriptor = self._store.open_file(temporary, "exclusive")
         try:
             with os.fdopen(descriptor, "wb") as output:
                 output.write(self._checkpoint.model_dump_json(by_alias=True).encode())
                 output.flush()
-                os.fsync(output.fileno())
-            os.replace(temporary, "checkpoint.json", src_dir_fd=self._fd, dst_dir_fd=self._fd)
-            os.fsync(self._fd)
+                self._store.sync_file(output.fileno())
+            self._store.publish(temporary, "checkpoint.json", replace=True)
         finally:
-            try:
-                os.unlink(temporary, dir_fd=self._fd)
-            except FileNotFoundError:
-                pass
+            self._store.remove(temporary, missing_ok=True)
 
     def checkpoint(self) -> RemoteRunCheckpoint:
         with self._mutex:
@@ -545,15 +522,7 @@ class SshRunCoordinator:
                 self._persist()  # ACK alone is not CANCELLED. Future polls retry same owner.
 
     def _file(self, name: str) -> BinaryIO:
-        descriptor = os.open(
-            name, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600, dir_fd=self._fd
-        )
-        try:
-            check_file(os.fstat(descriptor))
-        except Exception:
-            os.close(descriptor)
-            raise
-        return os.fdopen(descriptor, "r+b")
+        return os.fdopen(self._store.open_file(name, "update"), "r+b")
 
     def _sync_stream(self, binding: _Binding, stream: str, stamp: RemoteStream) -> None:
         self._guard(binding)
@@ -589,7 +558,7 @@ class SshRunCoordinator:
                         output.seek(offset)
                         output.write(chunk.data)
                         output.flush()
-                        os.fsync(output.fileno())
+                        self._store.sync_file(output.fileno())
                         digest.update(chunk.data)
                         offset += len(chunk.data)
                 if digest.hexdigest() != stamp.sha256:
@@ -597,7 +566,7 @@ class SshRunCoordinator:
             except BaseException:
                 output.truncate(original_size)
                 output.flush()
-                os.fsync(output.fileno())
+                self._store.sync_file(output.fileno())
                 raise
 
     def _replay_events(self, *, sealed: bool, limit: int | None = None) -> list[Event]:
@@ -734,7 +703,7 @@ class SshRunCoordinator:
                     self._journal.close()
                 if self._lock is not None:
                     self._lock.close()
-                os.close(self._fd)
+                self._store.close()
                 self._closed = True
         finally:
             self._busy.release()

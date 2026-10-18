@@ -80,6 +80,9 @@ class RemoteRuns:
         auth: AuthenticatedConnection,
         environment: dict[str, Any],
     ) -> Run:
+        from easyai.security.remote_cache import require_local_cache
+
+        require_local_cache()
         from easyai.compiler.pipeline import compile_project
         from easyai.compiler.bundle import export_bundle
         from easyai.services.remote_bundle import RemoteBundle

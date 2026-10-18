@@ -9,7 +9,7 @@ from easyai.compiler.bundle import runtime_sources
 from easyai.domain.contracts import RunConfig
 from easyai.domain.environment import remote_path
 from easyai.domain.remote_run import RemoteRunIdentity
-from easyai.security.remote_cache import check_file, open_directory, verify_directory
+from easyai.security.remote_cache import LocalDirectory, local_directory
 from easyai.services.remote_artifacts import _decode, _encoded
 
 BUNDLE_FILES = frozenset(
@@ -34,15 +34,16 @@ def digest(raw: bytes) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
-def _local(descriptor: int, name: str, limit: int) -> bytes:
-    fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=descriptor)
+def _local(directory: LocalDirectory, name: str, limit: int) -> bytes:
+    fd = directory.open_file(name)
     with os.fdopen(fd, "rb") as source:
         before = os.fstat(source.fileno())
-        check_file(before)
+        directory.verify_file(name, source.fileno())
         if before.st_size > limit:
             raise ValueError("REMOTE_BUNDLE_LIMIT")
         raw = source.read(limit + 1)
         after = os.fstat(source.fileno())
+        directory.verify_file(name, source.fileno())
     if len(raw) != before.st_size or (
         before.st_dev,
         before.st_ino,
@@ -110,10 +111,10 @@ class RemoteBundle:
             )
         ):
             raise ValueError("REMOTE_BUNDLE_IDENTITY_INVALID")
-        descriptor = open_directory(root.absolute())
+        descriptor = local_directory(root.absolute())
         code = None
         try:
-            code = open_directory(root.absolute() / "code")
+            code = descriptor.child("code")
             persisted_config = RunConfig.model_validate(
                 _decode(_local(descriptor, "run-config.json", 65536))
             )
@@ -125,7 +126,7 @@ class RemoteBundle:
             expected_code = {
                 name.removeprefix("code/") for name in BUNDLE_FILES if name.startswith("code/")
             }
-            if set(os.listdir(code)) != expected_code:
+            if set(code.names()) != expected_code:
                 raise ValueError("REMOTE_BUNDLE_UNHASHED_CODE")
             manifest_raw = _local(descriptor, "bundle.json", 65536)
             manifest = _decode(manifest_raw)
@@ -168,10 +169,10 @@ class RemoteBundle:
             )
             if sum(map(len, files.values())) > MAX_BUNDLE:
                 raise ValueError("REMOTE_BUNDLE_LIMIT")
-            verify_directory(root.absolute(), descriptor)
-            verify_directory(root.absolute() / "code", code)
+            descriptor.verify()
+            code.verify()
             return cls(identity, config.python_executable, tuple(sorted(files.items())))
         finally:
             if code is not None:
-                os.close(code)
-            os.close(descriptor)
+                code.close()
+            descriptor.close()

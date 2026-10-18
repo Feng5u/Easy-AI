@@ -607,6 +607,9 @@ class LocalWorkspace:
     def bind_remote(self, project_id: str, request: RemoteBindingRequest) -> RemoteBinding:
         with self._mutex:
             self._identity_project(project_id)
+            from easyai.security.remote_cache import require_local_cache
+
+            require_local_cache()
             if request.project_id != project_id:
                 raise ValueError("REMOTE_BINDING_PROJECT_INVALID")
             manager = self.connections()
