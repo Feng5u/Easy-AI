@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { freezeSourceMap, sourceAtLine } from "./monaco-mapping.js";
 import { createReadOnlyCodeController } from "./monaco-controller.js";
 import type { ReadOnlyCodeController } from "./monaco-controller.js";
-import type { CompileResult, RunSource } from "../electron/bridge.js";
+import type { CompileResult } from "../electron/bridge.js";
 
 type Span = NonNullable<CompileResult["sourceMap"]>[number];
 export function CodeView({
@@ -12,7 +12,7 @@ export function CodeView({
   onSelectBlock,
 }: {
   code: string;
-  spans?: Span[];
+  spans?: readonly Span[];
   selectedBlock?: string | null;
   onSelectBlock?: (id: string) => void;
 }) {
@@ -127,39 +127,5 @@ export function CodeView({
         })}
       </ol>
     </div>
-  );
-}
-export function SnapshotCode({
-  source,
-  selectedBlock,
-  onSelectBlock,
-}: {
-  source: RunSource;
-  selectedBlock: string | null;
-  onSelectBlock: (id: string) => void;
-}) {
-  return (
-    <section className="panel">
-      <details open={Boolean(selectedBlock)}>
-        <summary>
-          本次运行的代码与来源 · revision {source.projectRevision}
-        </summary>
-        <p className="muted">
-          以下代码和映射属于本次运行的保存快照。当前工程后续修改不改变这份映射。
-        </p>
-        {selectedBlock && (
-          <p role="status">
-            源积木 ID：<code>{selectedBlock}</code>
-            。对应代码行已高亮，此处使用本次运行快照的积木映射。
-          </p>
-        )}
-        <CodeView
-          code={source.code}
-          spans={source.sourceMap}
-          selectedBlock={selectedBlock}
-          onSelectBlock={onSelectBlock}
-        />
-      </details>
-    </section>
   );
 }

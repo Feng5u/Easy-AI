@@ -15,7 +15,8 @@ import {
   statusLabel,
 } from "./runEvents.js";
 import type { EpochPoint, RunEventState } from "./runEvents.js";
-import { SnapshotCode } from "./CodeView.js";
+import { SnapshotCode } from "./RunSnapshot.js";
+import type { SnapshotRequest } from "./RunSnapshot.js";
 
 const LOG_WINDOW = 120_000;
 export function MetricSeries({ points }: { points: EpochPoint[] }) {
@@ -172,17 +173,21 @@ export function RunSummary({
   );
 }
 
-export function RunDashboard({
-  api,
-  initialRun,
-  onRunUpdate,
-  remoteSession,
-}: {
+interface RunDashboardProps {
   api: DesktopAPI;
   initialRun: Run;
   onRunUpdate: (run: Run) => void;
   remoteSession?: AuthenticatedConnection | null;
-}) {
+}
+export function RunDashboard(props: RunDashboardProps) {
+  return <RunDashboardForRun key={props.initialRun.runId} {...props} />;
+}
+function RunDashboardForRun({
+  api,
+  initialRun,
+  onRunUpdate,
+  remoteSession,
+}: RunDashboardProps) {
   const initial = useRef(initialRun).current;
   const runId = initial.runId;
   const [run, setRun] = useState(initial);
@@ -200,7 +205,26 @@ export function RunDashboard({
     dataUrl: string;
     label: string;
   } | null>(null);
-  const [selectedBlock, setSelectedBlock] = useState<string | null>(null);
+  const [snapshotRequest, setSnapshotRequest] =
+    useState<SnapshotRequest | null>(null);
+  const snapshotVersion = useRef(0);
+  function verifyRunIdentity(value: Run) {
+    if (
+      value.runId !== runId ||
+      value.projectId !== initial.projectId ||
+      value.config.runId !== runId ||
+      value.config.projectId !== initial.projectId ||
+      value.config.projectRevision !== initial.config.projectRevision ||
+      value.config.programHash !== initial.config.programHash ||
+      value.config.codeHash !== initial.config.codeHash
+    )
+      throw new Error("返回的运行身份与本次运行不一致，未更新运行或来源。");
+  }
+  function setSelectedBlock(id: string | null) {
+    setSnapshotRequest(
+      id === null ? null : { blockId: id, version: ++snapshotVersion.current },
+    );
+  }
   const [stopping, setStopping] = useState(false);
   const [resuming, setResuming] = useState(false);
   const [readGeneration, setReadGeneration] = useState(0);
@@ -221,7 +245,6 @@ export function RunDashboard({
     setArtifacts([]);
     setImage(null);
     setSelectedBlock(null);
-    setError("");
     setConnection("reconnecting");
     let unsubscribe: () => void = () => {};
     try {
@@ -256,7 +279,20 @@ export function RunDashboard({
     void api.runs
       .source(runId)
       .then((value) => {
-        if (active) setSource(value);
+        if (!active) return;
+        if (
+          value.projectRevision !== initial.config.projectRevision ||
+          value.programHash !== initial.config.programHash ||
+          value.codeHash !== initial.config.codeHash ||
+          value.snapshot.projectId !== initial.projectId ||
+          value.snapshot.revision !== initial.config.projectRevision
+        ) {
+          setError(
+            "运行快照与本次运行身份不一致，未载入来源。请重新读取该运行。",
+          );
+          return;
+        }
+        setSource(structuredClone(value));
       })
       .catch((reason) => {
         if (active) setError(`无法读取运行快照：${String(reason)}`);
@@ -269,6 +305,7 @@ export function RunDashboard({
           api.runs.artifacts(runId),
         ]);
         if (!active) return;
+        verifyRunIdentity(latest);
         setRun(latest);
         onRunUpdate(latest);
         setReadError("");
@@ -311,6 +348,7 @@ export function RunDashboard({
     try {
       const updated = await api.runs.cancel(runId);
       if (mounted.current) {
+        verifyRunIdentity(updated);
         setRun(updated);
         onRunUpdate(updated);
       }
@@ -331,6 +369,7 @@ export function RunDashboard({
         remoteSession.scope.connectionId,
       );
       if (mounted.current) {
+        verifyRunIdentity(value);
         setRun(value);
         onRunUpdate(value);
       }
@@ -524,7 +563,7 @@ export function RunDashboard({
       {source && (
         <SnapshotCode
           source={source}
-          selectedBlock={selectedBlock}
+          request={snapshotRequest}
           onSelectBlock={setSelectedBlock}
         />
       )}

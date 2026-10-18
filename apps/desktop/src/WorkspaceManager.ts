@@ -294,7 +294,8 @@ export const browserWorkspaceFactory: WorkspaceFactory = (
     select: (id) => {
       workspace.highlightBlock(id);
       if (id) {
-        (workspace.getBlockById(id) as Blockly.BlockSvg | null)?.select();
+        if (!workspace.options.readOnly)
+          (workspace.getBlockById(id) as Blockly.BlockSvg | null)?.select();
         workspace.centerOnBlock(id);
       }
     },

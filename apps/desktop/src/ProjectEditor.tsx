@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import type { ProjectEditorProps, WorkspaceTab } from "./editor-contract.js";
 import { WorkspaceManager, workspaceTabs } from "./WorkspaceManager.js";
 import type { SymbolRecord } from "../../../packages/block-library/symbols.mjs";
@@ -11,6 +11,7 @@ const labels: Record<WorkspaceTab, string> = {
 };
 
 export function ProjectEditor(props: ProjectEditorProps) {
+  const workspaceId = useId();
   const callbacks = useRef(props);
   callbacks.current = props;
   const manager = useRef<WorkspaceManager | null>(null);
@@ -119,7 +120,7 @@ export function ProjectEditor(props: ProjectEditorProps) {
               key={tab}
               role="tab"
               aria-selected={props.activeTab === tab}
-              aria-controls={`easyai-workspace-${tab}`}
+              aria-controls={`${workspaceId}-${tab}`}
               onClick={() => props.onTabChange(tab)}
             >
               {labels[tab]}
@@ -155,7 +156,7 @@ export function ProjectEditor(props: ProjectEditorProps) {
       <div className="project-editor-body">
         <div className="project-editor-canvases" ref={container}>
           <div
-            id="easyai-workspace-data"
+            id={`${workspaceId}-data`}
             role="tabpanel"
             aria-label="数据处理"
             hidden={props.activeTab !== "data"}
@@ -163,7 +164,7 @@ export function ProjectEditor(props: ProjectEditorProps) {
             ref={data}
           />
           <div
-            id="easyai-workspace-model"
+            id={`${workspaceId}-model`}
             role="tabpanel"
             aria-label="模型结构"
             hidden={props.activeTab !== "model"}
@@ -171,7 +172,7 @@ export function ProjectEditor(props: ProjectEditorProps) {
             ref={model}
           />
           <div
-            id="easyai-workspace-training"
+            id={`${workspaceId}-training`}
             role="tabpanel"
             aria-label="训练管线"
             hidden={props.activeTab !== "training"}
