@@ -28,6 +28,7 @@ export const OFFLINE_DOCS = [
   "install-cv-sources.md",
   "install-source-picker.md",
   "install-history.md",
+  "electron-builder.md",
 ];
 const repository = resolve(import.meta.dirname, "..");
 export const defaultOutput = (root) =>

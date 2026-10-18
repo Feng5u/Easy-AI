@@ -8,7 +8,11 @@ import { createInterface } from "node:readline";
 import assert from "node:assert/strict";
 
 const repository = resolve(import.meta.dirname, "..");
-const build = join(repository, "services/backend/dist/easyai-sidecar");
+if (process.argv.length > 3)
+  throw Error("Usage: node scripts/test-frozen.mjs [backend-directory]");
+const build = process.argv[2]
+  ? resolve(process.argv[2])
+  : join(repository, "services/backend/dist/easyai-sidecar");
 const resources = join(build, "_internal/easyai/resources");
 for (const name of ["entry.py", "easyai_runtime.py"])
   assert.deepEqual(
