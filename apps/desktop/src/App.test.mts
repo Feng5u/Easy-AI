@@ -805,3 +805,69 @@ it("successful explicit history refresh clears only its recovered read error", a
   expect(container.querySelector('[role="alert"]')).toBeNull();
   expect(api.runs.list).toHaveBeenCalledTimes(2);
 });
+
+it.each(["start", "save", "export"] as const)(
+  "history failure then recovery preserves unresolved %s failure",
+  async (stage) => {
+    const { api, save, exported } = bridge();
+    api.runs.list = vi.fn<DesktopAPI["runs"]["list"]>().mockResolvedValue([]);
+    api.runs.start = vi.fn(async () => {
+      // Model a lost ACK after the service could already have accepted work.
+      throw new Error("private start acknowledgement lost");
+    });
+    save.mockRejectedValue(new Error("private save failure"));
+    exported.mockRejectedValue(new Error("private export failure"));
+    api.selections.pick = vi.fn(async (kind) => ({
+      kind,
+      selectionId: `${kind}-selected`,
+      label: "selected",
+    }));
+    api.projects.compile = vi.fn(async () => ({
+      revision: 1,
+      programHash: "a".repeat(64),
+      runnable: true,
+      diagnostics: [],
+    }));
+    await mount(api);
+    const message =
+      stage === "start"
+        ? "启动运行未确认"
+        : stage === "save"
+          ? "保存工程未完成"
+          : "导出工程未完成";
+    if (stage === "start") {
+      await click("选择现有 Python");
+      await click("选择数据目录");
+      await click("检查与编译");
+      await click("开始本次运行");
+    } else if (stage === "save") {
+      await click("画布新增层");
+      await advance(800);
+    } else await click("导出当前工程");
+    expect(container.textContent).toContain(message);
+    vi.mocked(api.runs.list).mockRejectedValueOnce(
+      new Error("private history failure"),
+    );
+    await click("刷新运行历史");
+    const afterFailedRefresh = container.textContent;
+    await click("刷新运行历史");
+    const afterSuccessfulRefresh = container.textContent;
+    expect(afterSuccessfulRefresh).not.toContain("读取历史未完成");
+    expect(afterSuccessfulRefresh).toContain(message);
+    expect(afterFailedRefresh).toContain("读取历史未完成");
+    expect(afterFailedRefresh).toContain(message);
+    expect(container.textContent).not.toContain("private");
+    expect(api.runs.list).toHaveBeenCalledTimes(3);
+    expect(api.runs.start).toHaveBeenCalledTimes(stage === "start" ? 1 : 0);
+    expect(save).toHaveBeenCalledTimes(stage === "save" ? 1 : 0);
+    expect(exported).toHaveBeenCalledTimes(stage === "export" ? 1 : 0);
+    if (stage === "save") {
+      await advance(4000);
+      expect(save).toHaveBeenCalledTimes(1);
+      expect(container.textContent).toContain("自动保存已暂停");
+      expect(
+        container.querySelector('[data-testid="visible-blocks"]')?.textContent,
+      ).toBe("1");
+    }
+  },
+);

@@ -67,6 +67,9 @@ export function App({ api }: { api?: DesktopAPI }) {
   const [history, setHistory] = useState<Run[]>([]);
   const [historyOffset, setHistoryOffset] = useState(0);
   const [historyRefresh, setHistoryRefresh] = useState(0);
+  const [historyError, setHistoryError] = useState<OperationFailure | null>(
+    null,
+  );
   const [viewTab, setViewTab] = useState<WorkspaceTab>("data");
   const [identityVisible, setIdentityVisible] = useState(false);
   const [viewCode, setViewCode] = useState(false);
@@ -235,6 +238,7 @@ export function App({ api }: { api?: DesktopAPI }) {
     setViewCode(value.project?.ui?.codeVisible ?? false);
     setHistoryOffset(0);
     setHistory([]);
+    setHistoryError(null);
     setRun(null);
     setAutosaveStopped(false);
     setCompilation(null);
@@ -379,13 +383,11 @@ export function App({ api }: { api?: DesktopAPI }) {
       .then((values) => {
         if (valid) {
           setHistory(values);
-          setError((previous) =>
-            previous?.stage === "history" ? null : previous,
-          );
+          setHistoryError(null);
         }
       })
       .catch((reason) => {
-        if (valid) setError(operationFailure("history", reason));
+        if (valid) setHistoryError(operationFailure("history", reason));
       });
     return () => {
       valid = false;
@@ -988,6 +990,9 @@ export function App({ api }: { api?: DesktopAPI }) {
             运行历史（只读快照）
           </h2>
           <p className="muted">查看旧运行不会替换当前编辑工程或映射。</p>
+          {historyError && (
+            <FailureCard failure={historyError} onNavigate={navigate} />
+          )}
           <button
             type="button"
             disabled={!ready}
