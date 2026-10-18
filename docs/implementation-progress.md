@@ -627,3 +627,34 @@ CI 独立证据来自父级：`59034d7b58707fba3e65f1a46c48a64c7bd1eb60` 的 [ru
 本轮 NOT RUN：旧完整450后端/94前端矩阵、无改动前端/合同再生成、真实Electron/E2E、Windows、真实SSH/SFTP、数据上传、torch/训练和硬件。未请求/重试 Actions API，旧desktop CI具体失败步骤/根因仍未知，新提交CI状态未知。无新拒绝或不明执行；没有main写入、强推、部署、Release、PR、付费或凭据变更。
 
 Windows缺口保持：remote_artifacts顶层fcntl、remote_cache明确POSIX、coordinator/Bundle对本地dir_fd/O_NOFOLLOW/目录fsync的直接依赖不能只换flock解决。最小设计是安全本地目录/文件/身份/内核锁/发布接口分层，保留POSIX门，再实现原生Windows handle/reparse/ACL/身份与发布语义；Linux可做接口与拒绝合同测试，Windows原生锁、NTFS ACL/junction、替换竞态、崩溃耐久与冻结桌面必须实际验证。修复scope后再按父级审查结论接续，**M5整体、A、B继续未验收**。
+
+## 2026-10-18 — M5 本地 SSH 存储接口与受支持平台最小切片
+
+代码提交 `e3b9f454fbb6c807b362edcb8daf5661f149281f`，父提交 `ee3671686e88034e24698381e09e05dc3baa8932`。开始前父级原审查者已对 ee36716 源码独立复核，确认原 scope P2 关闭且未见残留明确P1/P2；该确认是源码审查，不把旧450/94、主路径84与最终专项25相加。进入本轮时工作区干净；同一环境单写入者，既有代理只读审查。
+
+本轮实现的是 **平台存储接口/早期能力拒绝，不是 Windows SSH backend**。新增 LocalDirectory/LocalWriterLock 合同与现有 POSIX 实现，集中目录身份、单文件名组件、受保护普通文件、永久 artifact writer lock、非覆盖发布、替换、文件与目录 fsync。Bundle 冻结、coordinator缓存及artifact cache都消费目录接口，移除这些调用者中的直接dir_fd/O_NOFOLLOW/fsync和artifact模块顶层fcntl导入；fcntl只在POSIX writer_lock建立时加载。**coordinator仍使用既有 ProjectLock 作为owner锁**，不冒称所有锁都已迁移至LocalWriterLock。远端Linux supervisor和SFTP远端路径检查保持原协议，不把客户端本地路径规则施加给远端。
+
+POSIX门保持/加强：逐级目录FD、UID与no022、NOFOLLOW/NONBLOCK、普通文件、handle/path身份复核、拒绝父目录替换；固定文件名拒绝绝对路径/drive/冒号/分隔符/点组件/控制字符。非覆盖发布使用link，不覆盖已有目标；可替换记录先验证源与现有目标，拒绝symlink/非普通文件。临时文件先flush+文件fsync，发布后目录fsync；flush失败不返回成功收据，可能已发布的状态保持不确定，不能据此重试start。永久kernel writer锁不unlink、不换inode，关闭释放内核所有权。不会chmod修复已有不安全目录/文件。
+
+require_local_cache 在创建远端binding和prepare前运行，未实现的客户端平台返回 `REMOTE_CACHE_PLATFORM_UNVERIFIED`，不落新Run/目录、不进行SDK stage/exec。桌面对该固定错误说明“当前客户端平台尚未支持安全的SSH本地存储”，不误导用户重试环境/数据。未实现Windows原生文件/ACL/锁或持久化，没有用Path.resolve、chmod、getattr忽略缺失flags等弱降级替代安全门。POSIX能力分支也不是macOS产品支持声明。
+
+只读独审确认无明确P1/P2，独跑存储21项与API拒绝1项共22 PASS，指出上述ProjectLock迁移边界，已据实记录。作者另外验证marker目录flush失败后恢复为unknown、只inspect、不再次stage/start；这是POSIX接口故障注入，不是断电耐久或Windows验证。
+
+实际命令（`/workspace/Easy-AI`，pnpm Python子任务沿用既有workspace UV/XDG缓存）：
+
+| 命令 | 最终结果与范围 |
+| --- | --- |
+| `services/backend/.venv/bin/pytest -q services/backend/tests/test_ssh_run_coordinator.py services/backend/tests/test_owner_transport.py services/backend/tests/test_remote_artifacts.py services/backend/tests/test_remote_run_api.py` | **121 PASS**，14.04秒；迁移后受影响的协调器/adapter/产物/API窗口。后续仅增加platform拒绝及marker故障用例，分别定向补测，不重复整个窗口刷数 |
+| `services/backend/.venv/bin/pytest -q services/backend/tests/test_local_ssh_storage.py services/backend/tests/test_remote_run_api.py -k 'storage or unverified or native_lock'` | **22 PASS/6 deselected**，0.87秒；21存储合同+1API早期拒绝。实际POSIX文件/FIFO/symlink/权限/目录替换、两个有界标准库子进程的kernel锁排他与释放、永久inode、不覆盖和fsync顺序/失败；新解释器证明Easy-AI模块不在导入时直接加载fcntl。Python标准库/第三方在POSIX上的条件import不等于Windows依赖证明 |
+| 上述API拒绝测试 | 仅注入“nt能力不可用”的provider，不模拟Windows文件系统。断言无新增binding、Run、目录、channel调用、stage/exec，不能称Windows实际通过。POSIX专属fixture在非POSIX明确跳过，不为Windows通过数 |
+| `services/backend/.venv/bin/pytest -q services/backend/tests/test_ssh_run_coordinator.py -k 'storage_marker_flush_failure or crash_after_start_marker'` | **2 PASS/37 deselected**，0.12秒；新目录flush收据失败+原marker/crash回归。远端假端点没有实际进程/SSH，start总0；恢复unknown只inspect |
+| `pnpm exec vitest run apps/desktop/src/AuthenticatedPanel.test.mts` | **8 PASS**，1.11秒；包含新增平台拒绝说明/清binding/恢复控件用例。不是旧94前端矩阵重跑 |
+| `pnpm check` | PASS；mypy44源文件、ruff/格式、TS、合同与真实Blockly fixtures漂移。没有新DTO/依赖/lockfile/CI权限变更 |
+| `pnpm build`、`node scripts/test-frozen-ssh.mjs` | PASS；最新桌面Vite与后端PyInstaller；既有大chunk提示，冻结HTTP鉴权/DTO/拒绝和EOF退出0。没有启动实际Electron或有效SSH |
+| `git diff --check`、三原件hash | PASS；README、原v0.0.0、116185字节原计划均未变，hash与前轮一致 |
+
+中途FAIL：首次新解释器测试一律阻止fcntl，误伤Linux标准库subprocess的条件import；改为精确阻止Easy-AI模块在平台门前直接import，随后通过。另有unused test import已删除。没有为通过而取消文件安全校验或允许Windows降级。
+
+本轮 **NOT RUN**：旧450/94全矩阵、scope25/84重复运行、原生Windows、实际Electron/E2E、真实SSH/SFTP/上传、数据/torch/训练/硬件、断电或目标服务器崩溃耐久。旧desktop CI失败根因仍未知，新提交CI未知，未重试被拒Actions或绕路；无新工具拒绝/不明执行。没有main写入、强推、发布、PR、付费/凭据/权限变更。
+
+下一项是实现并原生验证Windows LocalDirectory backend，包括受持handle的目录身份与reparse拒绝、owner/DACL、native kernel锁、源/目标保护发布、崩溃恢复收据和PyInstaller资源/ABI；既有ProjectLock也须在该平台的同一保护边界内实测。Linux只能继续做调用合同、故障门与POSIX回归；不能将当前能力注入或Windows跳过项算作原生支持。**Windows SSH仍不可用，M5整体、A、B均未验收。**
