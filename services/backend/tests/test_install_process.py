@@ -13,6 +13,7 @@ from easyai.domain.install import InstallConfirmation, InstallInspection, Instal
 from easyai.services.install_process import (
     HEADER,
     LOG_LIMIT,
+    PIP_ENVIRONMENT,
     ManagedInstallCommand,
     ManagedInstallInspector,
     OfflineWheelInstaller,
@@ -436,3 +437,67 @@ def test_preexisting_instance_rechecks_durable_writer_after_kernel_lease_disappe
         assert not other._leases
     finally:
         other.close()
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Install process adapter remains POSIX only")
+def test_real_pip_parser_ignores_polluted_global_site_and_explicit_config(tmp_path):
+    # Use an existing base interpreter only. Never install pip or invoke install.run.
+    import subprocess
+
+    python = sys._base_executable
+    available = subprocess.run([python, "-I", "-c", "import pip"], capture_output=True)
+    if available.returncode:
+        pytest.skip("Existing base Python has no pip; read-only parser compatibility NOT RUN")
+    configurations = []
+    for name in ("global", "site", "explicit"):
+        path = tmp_path / (name + ".conf")
+        path.write_text(
+            "[global]\nfind-links = https://synthetic.invalid/"
+            + name
+            + "\n[install]\ntarget = /synthetic-outside-owned\nprefix = /synthetic-wrong-prefix\n"
+        )
+        configurations.append(str(path))
+    setup = (
+        HEADER
+        + "os.environ.update({'PIP_CONFIG_FILE':"
+        + repr(configurations[2])
+        + ",'PIP_TARGET':'/synthetic-env-target','PIP_PREFIX':'/synthetic-env-prefix',"
+        + "'PIP_FIND_LINKS':'https://synthetic.invalid/environment'})\n"
+    )
+    parse = (
+        "import pip\nimport pip._internal.configuration as configuration\n"
+        + "configuration.get_configuration_files=lambda:{configuration.kinds.GLOBAL:["
+        + repr(configurations[0])
+        + "],configuration.kinds.SITE:["
+        + repr(configurations[1])
+        + "],configuration.kinds.USER:[]}\n"
+        + "from pip._internal.commands import create_command\n"
+        + "command=create_command('install',isolated=True)\n"
+        + "options,args=command.parse_args(['--no-index','--find-links','/synthetic-provided-wheels','--require-hashes','--only-binary=:all:','--no-input','--no-cache-dir','-r','/synthetic-reviewed.lock'])\n"
+        + "report={'links':options.find_links,'target':options.target_dir,'prefix':options.prefix_path,'extra':options.extra_index_urls,'noIndex':options.no_index,'version':pip.__version__,'config':dict(command.parser.config.items())}\n"
+        + _event("progress", "report")
+        + _event("pipeline_completed")
+    )
+    commands = ManagedInstallCommand(tmp_path, seconds=5)
+    # Red control: isolated + no-index still leaves hostile find-links/target.
+    outcome, events = commands.run(
+        [python, "-I", "-B", "-c", setup + parse], tmp_path, threading.Event(), lambda: None
+    )
+    assert outcome == "completed"
+    red = next(item.payload for item in events if item.type == "progress")
+    assert red["target"] == "/synthetic-outside-owned"
+    assert any(link.startswith("https://synthetic.invalid/") for link in red["links"])
+    # Same real parser, all three polluted file scopes and env variables retained
+    # as fixture inputs, but production child preamble runs before pip import.
+    outcome, events = commands.run(
+        [python, "-I", "-B", "-c", setup + PIP_ENVIRONMENT + parse],
+        tmp_path,
+        threading.Event(),
+        lambda: None,
+    )
+    assert outcome == "completed"
+    green = next(item.payload for item in events if item.type == "progress")
+    assert green["links"] == ["/synthetic-provided-wheels"]
+    assert green["target"] is None and green["prefix"] is None
+    assert green["extra"] == [] and green["noIndex"]
+    assert not any(key.endswith((".find-links", ".target", ".prefix")) for key in green["config"])

@@ -42,6 +42,15 @@ HEADER = (
     "os.dup2(2,1)\nsys.stdout=sys.stderr\n"
 ) + _event("runtime_started")
 
+# --isolated skips user config/PIP option variables, but global/site config can
+# still supply install.target/prefix or additional find-links. Set the documented
+# devnull sentinel before importing pip; remove every inherited PIP_* first.
+PIP_ENVIRONMENT = (
+    "for key in list(os.environ):\n"
+    " if key.upper().startswith('PIP_'): del os.environ[key]\n"
+    "os.environ['PIP_CONFIG_FILE']=os.devnull\n"
+)
+
 
 class ManagedInstallCommand:
     """One synchronous internal command, owned cancellation and durable raw logs."""
@@ -132,13 +141,17 @@ class OfflineWheelInstaller:
         if not self.authorized:
             raise ValueError("INSTALL_EXECUTION_NOT_AUTHORIZED")
         if (
-            plan.new_environment
-            or plan.blockers
+            plan.blockers
             or not self.wheelhouse.is_absolute()
             or self.wheelhouse.is_symlink()
             or not self.wheelhouse.is_dir()
         ):
             raise ValueError("INSTALL_OFFLINE_TARGET_INVALID")
+        if json.loads(read_regular(prefix / ".easyai-owned.json", 2048)) != {
+            "ownedByEasyAI": True,
+            "environmentId": plan.environment_id,
+        }:
+            raise ValueError("INSTALL_ENVIRONMENT_FORBIDDEN")
         # Copy the reviewed lock bytes into this command's trusted, private root.
         # A unique immutable pathname avoids another attempt replacing its input.
         lock = self.commands.root / f"{uuid4()}.lock"
@@ -171,6 +184,7 @@ class OfflineWheelInstaller:
         ]
         source = (
             HEADER
+            + PIP_ENVIRONMENT
             + "import runpy\nsys.argv="
             + repr(argv)
             + "\n"
