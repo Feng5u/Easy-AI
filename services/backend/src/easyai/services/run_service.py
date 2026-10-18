@@ -7,14 +7,16 @@ import json
 import os
 import threading
 from pathlib import Path, PurePosixPath
+from typing import Callable
 from uuid import uuid4
 
 from easyai.compiler.bundle import export_bundle
-from easyai.compiler.pipeline import compile_project
+from easyai.compiler.pipeline import Compilation, compile_project
 from easyai.domain.contracts import ArtifactRecord, Contract, Event, Run, RunConfig
 from easyai.domain.program import ProgramIR
 from easyai.domain.remote_run import RemoteRunIdentity
 from easyai.security.project_lock import ProjectLock
+from easyai.security.remote_cache import LocalDirectory, LocalOwnerLock, local_directory
 from easyai.security.files import read_regular, digest_regular
 from easyai.services.event_journal import EventJournal, read_runtime_events
 from easyai.services.project_service import ProjectService
@@ -49,27 +51,50 @@ def digest(raw: bytes) -> str:
 class RunService:
     """One local owner; restart replays records and never starts an old process."""
 
-    def __init__(self, root: Path):
-        self.root = root.resolve(strict=True)
+    def __init__(self, root: Path, *, storage: Callable[[Path], LocalDirectory] | None = None):
+        # Windows local application startup retains its existing persistence path.
+        # SSH is separately denied there; experimental native injection is internal.
+        self._storage = storage or (local_directory if os.name == "posix" else None)
+        self.root = root.absolute() if self._storage is not None else root.resolve(strict=True)
         self._mutex = threading.RLock()
-        self._lock = ProjectLock(self.root / ".runs.lock")
-        if self._lock.fd is None:
-            raise ValueError("RUN_STORE_HELD")
+        self._store: LocalDirectory | None = None
+        self._lock: LocalOwnerLock | None = None
+        self._run_directories: dict[str, LocalDirectory] = {}
+        self._log_directories: dict[str, LocalDirectory] = {}
         self._supervisors: dict[str, object] = {}
         self._journals: dict[str, EventJournal] = {}
         self._closed = False
+        self._write_uncertain = False
         from easyai.services.remote_runs import RemoteRuns
 
         self.remote = RemoteRuns(self)
         try:
-            path = self.root / "catalog.json"
-            if path.is_symlink():
-                raise ValueError("RUN_PATH_FORBIDDEN")
-            self._ledger = (
-                RunLedger.model_validate_json(read_regular(path, 16 * 1024 * 1024))
-                if path.exists()
-                else RunLedger(entries={})
+            if self._storage is not None:
+                self._store = self._storage(self.root)
+            self._lock = (
+                self._store.owner_lock(".runs.lock")
+                if self._store is not None
+                else ProjectLock(self.root / ".runs.lock")
             )
+            if self._lock.fd is None:
+                raise ValueError("RUN_STORE_HELD")
+            self._verify()
+            path = self.root / "catalog.json"
+            if self._store is not None:
+                try:
+                    raw = self._read_store(self._store, "catalog.json", 16 * 1024 * 1024)
+                except FileNotFoundError:
+                    self._ledger = RunLedger(entries={})
+                else:
+                    self._ledger = RunLedger.model_validate_json(raw)
+            else:
+                if path.is_symlink():
+                    raise ValueError("RUN_PATH_FORBIDDEN")
+                self._ledger = (
+                    RunLedger.model_validate_json(read_regular(path, 16 * 1024 * 1024))
+                    if path.exists()
+                    else RunLedger(entries={})
+                )
             for run_id, entry in self._ledger.entries.items():
                 self._directory(run_id)
                 if entry.run.run_id != run_id or entry.run.config.run_id != run_id:
@@ -77,20 +102,124 @@ class RunService:
                 if entry.run.status not in TERMINAL:
                     entry.run.connection_state = "disconnected"
             self.remote.recover()
+            self._verify()
             # Recovered active processes are intentionally unknown: no PID-based kill,
             # automatic rerun or fabricated INTERRUPTED/exit code.
         except BaseException:
             self.remote.close()
-            for journal in self._journals.values():
-                journal.close()
-            self._lock.close()
+            self._close_persistence()
             raise
+
+    @staticmethod
+    def _read_store(directory: LocalDirectory, name: str, limit: int) -> bytes:
+        with os.fdopen(directory.open_file(name), "rb") as source:
+            before = os.fstat(source.fileno())
+            directory.verify_file(name, source.fileno())
+            raw = source.read(limit + 1)
+            after = os.fstat(source.fileno())
+            directory.verify_file(name, source.fileno())
+            if len(raw) > limit or len(raw) != before.st_size:
+                raise ValueError("RUN_STORE_RECORD_LIMIT_OR_CHANGED")
+            if (
+                before.st_dev,
+                before.st_ino,
+                before.st_size,
+                before.st_mtime_ns,
+                before.st_ctime_ns,
+            ) != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns):
+                raise ValueError("RUN_STORE_RECORD_CHANGED")
+            return raw
+
+    @staticmethod
+    def _write_store(
+        directory: LocalDirectory, name: str, content: bytes, *, replace: bool = True
+    ) -> None:
+        temporary = ".record-" + str(uuid4())
+        try:
+            with os.fdopen(directory.open_file(temporary, "exclusive"), "wb") as output:
+                if output.write(content) != len(content):
+                    raise OSError("RUN_STORE_WRITE_INCOMPLETE")
+                output.flush()
+                directory.sync_file(output.fileno())
+            directory.publish(temporary, name, replace=replace)
+        finally:
+            directory.remove(temporary, missing_ok=True)
+
+    def _run_store(self, run_id: str) -> LocalDirectory:
+        with self._mutex:
+            return self._held_run_store(run_id)
+
+    def _held_run_store(self, run_id: str) -> LocalDirectory:
+        self._verify()
+        self._directory(run_id)
+        if self._store is None:
+            raise ValueError("REMOTE_CACHE_PLATFORM_UNVERIFIED")
+        if run_id not in self._run_directories:
+            self._run_directories[run_id] = self._store.child(run_id)
+        result = self._run_directories[run_id]
+        result.verify()
+        return result
+
+    def _open_storage(self, path: Path) -> LocalDirectory:
+        """Owned child for a coordinator; shared root/run handles remain borrowed."""
+        with self._mutex:
+            return self._open_storage_locked(path)
+
+    def _open_storage_locked(self, path: Path) -> LocalDirectory:
+        self._verify()
+        parts = path.relative_to(self.root).parts
+        if not parts or any(part in ("", ".", "..") for part in parts):
+            raise ValueError("RUN_PATH_FORBIDDEN")
+        parent = self._run_store(parts[0])
+        owned: LocalDirectory | None = None
+        try:
+            # Current callers request a descendant of a run (cache/coordinator).
+            if len(parts) == 1:
+                assert self._store is not None
+                return self._store.child(parts[0])
+            for part in parts[1:]:
+                child = parent.child(part)
+                try:
+                    if owned is not None:
+                        owned.close()
+                except BaseException:
+                    child.close()
+                    raise
+                parent = owned = child
+            self._verify()
+            self._run_store(parts[0]).verify()
+            assert owned is not None
+            result, owned = owned, None
+            return result
+        finally:
+            if owned is not None:
+                owned.close()
+
+    def _close_persistence(self) -> None:
+        # Do not release directories while journals/locks can still use them.
+        for run_id in list(self._journals):
+            self._journals[run_id].close()
+            del self._journals[run_id]
+        if self._lock is not None:
+            self._lock.close()
+            self._lock = None
+        for directories in (self._log_directories, self._run_directories):
+            for run_id in list(directories):
+                directories[run_id].close()
+                del directories[run_id]
+        if self._store is not None:
+            self._store.close()
+            self._store = None
 
     def _directory(self, run_id: str) -> Path:
         from uuid import UUID
 
         if str(UUID(run_id)) != run_id:
             raise ValueError("RUN_ID_INVALID")
+        if self._store is not None:
+            self._store.verify()
+        if run_id in self._run_directories:
+            self._run_directories[run_id].verify()
         path = self.root / run_id
         if path.is_symlink():
             raise ValueError("RUN_PATH_FORBIDDEN")
@@ -110,28 +239,112 @@ class RunService:
     def _verify(self) -> None:
         if self._closed:
             raise ValueError("RUN_SERVICE_CLOSED")
+        if self._write_uncertain:
+            raise ValueError("RUN_STORE_WRITE_UNCERTAIN")
+        if self._store is not None:
+            self._store.verify()
+        if self._lock is None:
+            raise ValueError("RUN_STORE_OWNER_CLOSED")
         self._lock.verify()
 
     def _persist(self) -> None:
         self._verify()
-        ProjectService.atomic_write(
-            self.root / "catalog.json",
-            self._ledger.model_dump_json(by_alias=True, indent=2).encode(),
-        )
+        try:
+            content = self._ledger.model_dump_json(by_alias=True, indent=2).encode()
+            if self._store is not None:
+                self._write_store(self._store, "catalog.json", content)
+            else:
+                ProjectService.atomic_write(self.root / "catalog.json", content)
+        except BaseException:
+            self._write_uncertain = True
+            raise
 
     def _journal(self, run_id: str) -> EventJournal:
+        with self._mutex:
+            return self._open_journal(run_id)
+
+    def _open_journal(self, run_id: str) -> EventJournal:
+        self._verify()
         path = self._safe_path(run_id, "logs/events.jsonl")
         if run_id not in self._journals:
-            journal = EventJournal(path, run_id, "application")
+            directory = None
+            if self._store is not None:
+                directory = self._run_store(run_id).child("logs")
+                self._log_directories[run_id] = directory
+            try:
+                journal = EventJournal(path, run_id, "application", directory=directory)
+            except BaseException:
+                if directory is not None:
+                    directory.close()
+                    del self._log_directories[run_id]
+                raise
             self._journals[run_id] = journal
             try:
                 if self._ledger.entries[run_id].run.config.runner == "local":
                     self._fold_status(run_id, journal.after(0))
                     self._write_views(run_id, journal.after(0))
             except BaseException:
-                self._journals.pop(run_id).close()
+                self._journals[run_id].close()
+                del self._journals[run_id]
+                if directory is not None:
+                    directory.close()
+                    del self._log_directories[run_id]
                 raise
+        if run_id in self._log_directories:
+            self._log_directories[run_id].verify()
         return self._journals[run_id]
+
+    def _write_run_file(
+        self, run_id: str, relative: str, content: bytes, *, replace: bool = True
+    ) -> None:
+        self._verify()
+        path = self._safe_path(run_id, relative)
+        if self._store is None:
+            ProjectService.atomic_write(path, content)
+            return
+        directory = self._run_store(run_id)
+        owned = None
+        try:
+            if path.parent != directory.path:
+                owned = self._open_storage(path.parent)
+                directory = owned
+            self._write_store(directory, path.name, content, replace=replace)
+        except BaseException:
+            self._write_uncertain = True
+            raise
+        finally:
+            if owned is not None:
+                owned.close()
+
+    def _create_run_directory(self, run_id: str, relative: str) -> None:
+        path = self._safe_path(run_id, relative)
+        if self._store is None:
+            path.mkdir()
+            return
+        parent = self._run_store(run_id)
+        owned = None
+        try:
+            if path.parent != parent.path:
+                owned = self._open_storage(path.parent)
+                parent = owned
+            child = parent.new_child(path.name)
+            child.close()
+        finally:
+            if owned is not None:
+                owned.close()
+
+    def _export_bundle(self, compiled: Compilation, run_id: str) -> dict[str, str]:
+        self._verify()
+        path = self._directory(run_id)
+        if self._store is None:
+            return export_bundle(compiled, path)
+        if run_id in self._run_directories:
+            raise ValueError("RUN_DIRECTORY_ALREADY_CLAIMED")
+        # Retain the identity from the exclusive claim through bundle creation,
+        # snapshots, journal and the lifetime of this owner. Never re-adopt a name.
+        directory = self._store.new_child(run_id)
+        self._run_directories[run_id] = directory
+        return export_bundle(compiled, path, directory=directory)
 
     def prepare(
         self,
@@ -195,10 +408,10 @@ class RunService:
                 raise ValueError("PROGRAM_HASH_CONFLICT")
             run_id = str(uuid4())
             directory = self._directory(run_id)
-            manifest = export_bundle(compiled, directory)
+            manifest = self._export_bundle(compiled, run_id)
             for child in ("snapshot", "logs", "metrics", "cache"):
-                (directory / child).mkdir()
-            ProjectService.atomic_write(directory / "snapshot/project.easyai.json", opened.raw)
+                self._create_run_directory(run_id, child)
+            self._write_run_file(run_id, "snapshot/project.easyai.json", opened.raw, replace=False)
             config = RunConfig(
                 run_id=run_id,
                 project_id=document.project_id,
@@ -215,9 +428,11 @@ class RunService:
                 seed=document.settings.seed,
                 num_workers=0,
             )
-            ProjectService.atomic_write(
-                directory / "run-config.json",
+            self._write_run_file(
+                run_id,
+                "run-config.json",
                 config.model_dump_json(by_alias=True, indent=2).encode(),
+                replace=False,
             )
             run = Run(
                 run_id=run_id,
@@ -421,12 +636,9 @@ class RunService:
         writer = csv.DictWriter(output, fieldnames=METRICS)
         writer.writeheader()
         writer.writerows(epochs.values())
-        ProjectService.atomic_write(
-            self._safe_path(run_id, "metrics/epochs.csv"), output.getvalue().encode()
-        )
-        ProjectService.atomic_write(
-            self._safe_path(run_id, "artifacts.json"),
-            json.dumps(artifacts, ensure_ascii=False, indent=2).encode(),
+        self._write_run_file(run_id, "metrics/epochs.csv", output.getvalue().encode())
+        self._write_run_file(
+            run_id, "artifacts.json", json.dumps(artifacts, ensure_ascii=False, indent=2).encode()
         )
 
     def _refresh(self, run_id: str) -> None:
@@ -550,13 +762,10 @@ class RunService:
         with self._mutex:
             if self._closed:
                 return
-            try:
-                for run_id, supervisor in self._supervisors.items():
-                    if isinstance(supervisor, ManagedSupervisor):
-                        supervisor.close()
+            for run_id, supervisor in self._supervisors.items():
+                if isinstance(supervisor, ManagedSupervisor):
+                    supervisor.close()
+                    if not self._write_uncertain:
                         self._refresh(run_id)
-            finally:
-                for journal in self._journals.values():
-                    journal.close()
-                self._closed = True
-                self._lock.close()
+            self._close_persistence()
+            self._closed = True

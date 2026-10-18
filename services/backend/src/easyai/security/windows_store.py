@@ -562,14 +562,18 @@ class WindowsDirectory:
                     self.api.close(probe)
 
     def child(self, name: str, *, create: bool = False) -> LocalDirectory:
+        return self._child(name, "update" if create else "open")
+
+    def new_child(self, name: str) -> LocalDirectory:
+        return self._child(name, "create")
+
+    def _child(self, name: str, disposition: str) -> LocalDirectory:
         self.verify()
         name = component(name)
-        handle = self.api.child(
-            self._handle, name, directory=True, create="update" if create else "open", write=True
-        )
+        handle = self.api.child(self._handle, name, directory=True, create=disposition, write=True)
         try:
             self._check(handle, True)
-            if create:
+            if disposition != "open":
                 self.sync()
             result = WindowsDirectory(self.path / name, api=self.api)
             try:

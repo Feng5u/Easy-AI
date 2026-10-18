@@ -339,6 +339,17 @@ class SshRunCoordinator:
             retiring.done = True
 
     def disconnect(self) -> None:
+        self._disconnect(persist=True)
+
+    def retire_transport(self) -> None:
+        """Release local transport ownership without needing a cache write receipt.
+
+        Shutdown is not a run transition. Recovery always begins disconnected;
+        failed/replaced storage must not prevent confirmed-quiescent cleanup.
+        """
+        self._disconnect(persist=False)
+
+    def _disconnect(self, *, persist: bool) -> None:
         retiring = None
         try:
             with self._mutex:
@@ -346,7 +357,8 @@ class SshRunCoordinator:
                 if binding is not None:
                     retiring = self._retire(binding)
                 self._checkpoint.connection_state = "disconnected"
-                self._persist()
+                if persist:
+                    self._persist()
         finally:
             if retiring is not None:
                 self._close_retiring(retiring)
@@ -695,7 +707,7 @@ class SshRunCoordinator:
         if not self._busy.acquire(blocking=False):
             raise RemoteProtocolError("REMOTE_IO_BUSY")
         try:
-            self.disconnect()
+            self.retire_transport()
             with self._mutex:
                 if self._retiring is not None and not self._retiring.ready:
                     raise RemoteProtocolError("REMOTE_CLEANUP_UNCONFIRMED")

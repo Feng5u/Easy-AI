@@ -84,7 +84,6 @@ class RemoteRuns:
 
         require_local_cache()
         from easyai.compiler.pipeline import compile_project
-        from easyai.compiler.bundle import export_bundle
         from easyai.services.remote_bundle import RemoteBundle
         from easyai.services.run_service import RunEntry
 
@@ -112,7 +111,7 @@ class RemoteRuns:
                 raise ValueError("PROGRAM_HASH_CONFLICT")
             run_id = str(uuid4())
             directory = self.runs._directory(run_id)
-            manifest = export_bundle(compiled, directory)
+            manifest = self.runs._export_bundle(compiled, run_id)
             for name in (
                 "snapshot",
                 "logs",
@@ -121,7 +120,7 @@ class RemoteRuns:
                 "cache/coordinator",
                 "cache/artifacts",
             ):
-                (directory / name).mkdir(mode=0o700)
+                self.runs._create_run_directory(run_id, name)
             config = RunConfig(
                 run_id=run_id,
                 project_id=document.project_id,
@@ -151,7 +150,7 @@ class RemoteRuns:
                 ("run-config.json", config.model_dump_json(by_alias=True).encode()),
                 ("remote-identity.json", identity.model_dump_json(by_alias=True).encode()),
             ):
-                ProjectService.atomic_write(directory / name, raw)
+                self.runs._write_run_file(run_id, name, raw, replace=False)
             RemoteBundle.freeze(
                 directory, config, identity
             )  # complete local proof before any network work
@@ -188,6 +187,9 @@ class RemoteRuns:
         from easyai.runners.ssh import SshRunCoordinator
 
         with self._gate:
+            self.runs._verify()
+            if self.runs._store is None:
+                raise ValueError("REMOTE_CACHE_PLATFORM_UNVERIFIED")
             if run_id not in self._cores:
                 if self._closing:
                     raise ValueError("REMOTE_SERVICE_CLOSED")
@@ -198,6 +200,7 @@ class RemoteRuns:
                     self.runs._safe_path(run_id, "cache/coordinator"),
                     entry.remote_identity,
                     journal=self.runs._journal(run_id),
+                    storage=self.runs._open_storage,
                 )
             return self._cores[run_id]
 
@@ -212,6 +215,7 @@ class RemoteRuns:
         with self.runs._mutex:
             if self.runs._closed:
                 return
+            self.runs._verify()
             run = self.runs._ledger.entries[run_id].run
             before = run.model_dump()
             state = checkpoint.execution_state
@@ -509,7 +513,7 @@ class RemoteRuns:
             for run_id, core in cores:
                 if run_id not in self._retiring_threads:
                     thread = threading.Thread(
-                        target=core.disconnect, name="easyai-retire-" + run_id, daemon=True
+                        target=core.retire_transport, name="easyai-retire-" + run_id, daemon=True
                     )
                     self._retiring_threads[run_id] = thread
                     thread.start()

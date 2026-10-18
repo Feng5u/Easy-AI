@@ -198,3 +198,26 @@ def test_native_coordinator_unknown_start_never_restarts(tmp_path, monkeypatch):
         assert owner.start_calls == owner.stage_calls == 1
     finally:
         restored.close()
+
+
+def test_native_runservice_catalog_and_shared_journal_lifecycle(owned):
+    from easyai.services.run_service import RunService
+    from test_run_service import prepare
+
+    project, previous, doc, phash, data = owned
+    previous.close()
+    service = RunService(previous.root, storage=WindowsDirectory)
+    try:
+        run = prepare((project, service, doc, phash, data))
+        assert service._journals[run.run_id]._directory is service._log_directories[run.run_id]
+        with pytest.raises(ValueError, match="RUN_STORE_HELD"):
+            RunService(previous.root, storage=WindowsDirectory)
+        assert service.cancel(run.run_id).status == "CANCELLED"  # No process ever started.
+    finally:
+        service.close()
+    reopened = RunService(previous.root, storage=WindowsDirectory)
+    try:
+        assert reopened.get(run.run_id).status == "CANCELLED"
+        assert reopened.events(run.run_id, 0)[-1].payload["status"] == "CANCELLED"
+    finally:
+        reopened.close()

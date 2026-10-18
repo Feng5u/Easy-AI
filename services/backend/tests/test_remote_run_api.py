@@ -450,6 +450,153 @@ def test_consumed_start_lost_ack_explicit_fresh_resume_never_restarts(harness):
     assert len((endpoint.run_base / run_id / "fixture-starts").read_text().splitlines()) == 1
 
 
+def test_shared_protected_journal_provider_reopens_unknown_without_start(harness):
+    from easyai.domain.connections import SessionControl
+    from easyai.domain.remote_execution import RemoteRunStartRequest
+    from easyai.runners.ssh import RemoteProtocolError, RemoteUnavailable
+    from easyai.services.run_service import RunService
+    from test_ssh_run_coordinator import Owner, Transport, auth_for
+
+    workspace, endpoint, _, project = harness
+    _, _, request = binding(harness)
+    bound, _, _, _, evidence = workspace._remote_bindings[request["bindingId"]]
+    auth = workspace.connections().current(
+        SessionControl(project_id=project.project_id, connection_id=bound.connection_id)
+    )
+    run = workspace.runs.remote.prepare(
+        workspace._projects[project.project_id],
+        RemoteRunStartRequest.model_validate(request),
+        "protected-unknown",
+        bound,
+        auth,
+        evidence,
+    )
+    service = workspace.runs
+    core = service.remote.core(run.run_id)
+    journal = service._journal(run.run_id)
+    assert core._journal is journal and not core._owns_journal
+    assert journal._directory is service._log_directories[run.run_id]
+    assert service._store is not None and core._store.path.is_relative_to(service.root)
+    owner = Owner(core.identity)  # Synthetic owner, no remote or local execution.
+    current = [auth_for(owner.identity)]
+    core.attach(current[0], Transport(owner), lambda: current[0])
+
+    def lost_ack():
+        raise RemoteUnavailable("synthetic consumed start, lost ACK")
+
+    owner.start_hook = lost_ack
+    with pytest.raises(RemoteProtocolError, match="STATE_UNKNOWN"):
+        core.start()
+    service.remote._publish(run.run_id, core.checkpoint())
+    assert service.get(run.run_id).remote.start_outcome == "unknown"
+    workspace.close()
+    assert journal._fd is None and not endpoint.commands
+    restored = RunService(service.root)
+    try:
+        recovered = restored.get(run.run_id)
+        assert recovered.remote.start_outcome == "unknown"
+        assert recovered.connection_state == "disconnected"
+        assert owner.start_calls == owner.stage_calls == 1 and owner.inspect_calls == 0
+        recovered_core = restored.remote.core(run.run_id)
+        assert recovered_core._journal is restored._journal(run.run_id)
+        current[0] = auth_for(owner.identity)
+        recovered_core.attach(current[0], Transport(owner), lambda: current[0])
+        assert recovered_core.start().execution_state == "RUNNING"  # inspect only
+        assert owner.start_calls == owner.stage_calls == 1 and owner.inspect_calls > 0
+    finally:
+        restored.close()
+
+
+@pytest.mark.parametrize("replacement", ["root_symlink", "run_directory"])
+def test_remote_prepare_root_swap_cannot_redirect_bundle_output(
+    harness, tmp_path, monkeypatch, replacement
+):
+    import easyai.services.run_service as bundle
+    from easyai.domain.connections import SessionControl
+    from easyai.domain.remote_execution import RemoteRunStartRequest
+
+    workspace, endpoint, _, project = harness
+    _, _, request = binding(harness)
+    bound, _, _, _, evidence = workspace._remote_bindings[request["bindingId"]]
+    auth = workspace.connections().current(
+        SessionControl(project_id=project.project_id, connection_id=bound.connection_id)
+    )
+    root = workspace.runs.root
+    outside = tmp_path / "outside-run"
+    outside.mkdir()
+    original = bundle.export_bundle
+    replacement_path = []
+
+    def redirected(*args, **kwargs):
+        if replacement == "root_symlink":
+            root.rename(root.with_name("held-runs"))
+            root.symlink_to(outside, target_is_directory=True)
+            return original(*args, **kwargs)
+        result = original(*args, **kwargs)
+        path = kwargs["directory"].path
+        path.rename(path.with_name("held-run"))
+        path.mkdir(mode=0o700)
+        replacement_path.append(path)
+        return result
+
+    monkeypatch.setattr(bundle, "export_bundle", redirected)
+    with pytest.raises((ValueError, OSError)):
+        workspace.runs.remote.prepare(
+            workspace._projects[project.project_id],
+            RemoteRunStartRequest.model_validate(request),
+            "root-swap",
+            bound,
+            auth,
+            evidence,
+        )
+    assert list(outside.iterdir()) == []
+    assert all(list(path.iterdir()) == [] for path in replacement_path)
+    assert not workspace.runs._ledger.entries and not endpoint.commands
+
+
+def test_initialization_failure_after_core_root_swap_releases_all_quiescent_resources(
+    harness, monkeypatch
+):
+    from easyai.domain.connections import SessionControl
+    from easyai.domain.remote_execution import RemoteRunStartRequest
+    from easyai.services.remote_runs import RemoteRuns
+    from easyai.services.run_service import RunService
+    from test_run_storage import Monitor
+
+    workspace, endpoint, _, project = harness
+    _, _, request = binding(harness)
+    bound, _, _, _, evidence = workspace._remote_bindings[request["bindingId"]]
+    auth = workspace.connections().current(
+        SessionControl(project_id=project.project_id, connection_id=bound.connection_id)
+    )
+    run = workspace.runs.remote.prepare(
+        workspace._projects[project.project_id],
+        RemoteRunStartRequest.model_validate(request),
+        "init-root-swap",
+        bound,
+        auth,
+        evidence,
+    )
+    root = workspace.runs.root
+    workspace.close()
+    captured = []
+
+    def fail_after_core(remote):
+        core = remote.core(run.run_id)
+        captured.append((core, remote.runs._journal(run.run_id)))
+        root.rename(root.with_name("held-runs"))
+        root.mkdir()
+        raise OSError("test original recovery error")
+
+    monkeypatch.setattr(RemoteRuns, "recover", fail_after_core)
+    monitor = Monitor()
+    with pytest.raises(OSError, match="original recovery error"):
+        RunService(root, storage=monitor)
+    monitor.assert_closed()
+    assert captured[0][0]._closed and captured[0][1]._fd is None
+    assert list(root.iterdir()) == [] and not endpoint.commands
+
+
 def test_ssh_cancel_scope_commits_after_core_lock_and_rejects_project_switch(harness, monkeypatch):
     from concurrent.futures import ThreadPoolExecutor
     from contextlib import contextmanager
@@ -510,21 +657,22 @@ def test_unverified_cache_platform_refuses_binding_and_prepare_without_staging(
     bindings = set(workspace._remote_bindings)
     calls = sum(session.channel_calls for session in endpoint.sessions)
     # Capability-provider injection only, not Windows filesystem emulation.
-    monkeypatch.setattr(storage, "os", SimpleNamespace(name="nt"))
-    refused = api.post(f"/api/v1/projects/{project.project_id}/run-bindings", json=body)
-    assert (
-        refused.status_code == 422
-        and refused.json()["error"]["code"] == "REMOTE_CACHE_PLATFORM_UNVERIFIED"
-    )
-    refused = api.post(
-        f"/api/v1/projects/{project.project_id}/runs",
-        json=request,
-        headers={"Idempotency-Key": "unsupported"},
-    )
-    assert (
-        refused.status_code == 422
-        and refused.json()["error"]["code"] == "REMOTE_CACHE_PLATFORM_UNVERIFIED"
-    )
+    with monkeypatch.context() as capability:
+        capability.setattr(storage, "os", SimpleNamespace(name="nt"))
+        refused = api.post(f"/api/v1/projects/{project.project_id}/run-bindings", json=body)
+        assert (
+            refused.status_code == 422
+            and refused.json()["error"]["code"] == "REMOTE_CACHE_PLATFORM_UNVERIFIED"
+        )
+        refused = api.post(
+            f"/api/v1/projects/{project.project_id}/runs",
+            json=request,
+            headers={"Idempotency-Key": "unsupported"},
+        )
+        assert (
+            refused.status_code == 422
+            and refused.json()["error"]["code"] == "REMOTE_CACHE_PLATFORM_UNVERIFIED"
+        )
     assert not workspace.runs._ledger.entries
     assert set(workspace.runs.root.iterdir()) == entries
     assert set(workspace._remote_bindings) == bindings

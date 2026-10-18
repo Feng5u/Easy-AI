@@ -3,10 +3,15 @@
 import ast
 import hashlib
 import json
+import os
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from easyai.compiler.pipeline import Compilation
 from easyai.domain.catalog import RUNTIME_ROOT
+
+if TYPE_CHECKING:
+    from easyai.security.remote_cache import LocalDirectory
 
 
 def runtime_sources() -> dict[str, str]:
@@ -22,16 +27,18 @@ def runtime_sources() -> dict[str, str]:
     return sources
 
 
-def export_bundle(compilation: Compilation, destination: Path) -> dict[str, str]:
+def export_bundle(
+    compilation: Compilation, destination: Path, *, directory: "LocalDirectory | None" = None
+) -> dict[str, str]:
     result, program = compilation.result, compilation.program
     if not result.runnable or result.code is None or result.source_map is None or program is None:
         raise ValueError("BUNDLE_NOT_RUNNABLE")
-    # mkdir(exist_ok=False) is the single claim point. Never merge into or replace
-    # a user directory, including a pre-existing empty directory or symlink.
-    parent = destination.parent.resolve(strict=True)
+    # Standalone export exclusively claims the destination. Internal run export
+    # borrows the owner's already exclusive claim; neither merges user output.
     if destination.name in ("", ".", "..") or destination.is_symlink():
         raise ValueError("OUTPUT_PATH_FORBIDDEN")
-    target = parent / destination.name
+    if directory is not None and destination != directory.path:
+        raise ValueError("OUTPUT_DIRECTORY_IDENTITY_INVALID")
     files: dict[str, str] = {
         "code/train.py": result.code,
         "code/source-map.json": json.dumps(
@@ -80,12 +87,34 @@ def export_bundle(compilation: Compilation, destination: Path) -> dict[str, str]
         )
         + "\n"
     )
-    target.mkdir(exist_ok=False)
-    for path, text in sorted(files.items()):
-        output = target / path
-        output.parent.mkdir(parents=True, exist_ok=True)
-        with output.open("x", encoding="utf-8", newline="\n") as stream:
-            stream.write(text)
+    if directory is None:
+        target = destination.parent.resolve(strict=True) / destination.name
+        target.mkdir(exist_ok=False)
+        for path, text in sorted(files.items()):
+            output = target / path
+            output.parent.mkdir(parents=True, exist_ok=True)
+            with output.open("x", encoding="utf-8", newline="\n") as stream:
+                stream.write(text)
+    else:
+        # Borrow the caller's exclusively claimed, continuously held run directory.
+        directory.verify()
+        code = None
+        try:
+            code = directory.new_child("code")
+            for path, text in sorted(files.items()):
+                output_directory = code if path.startswith("code/") else directory
+                name = path.removeprefix("code/")
+                with os.fdopen(output_directory.open_file(name, "exclusive"), "wb") as stream:
+                    raw = text.encode("utf-8")
+                    if stream.write(raw) != len(raw):
+                        raise OSError("BUNDLE_WRITE_INCOMPLETE")
+                    stream.flush()
+                    output_directory.sync_file(stream.fileno())
+            code.sync()
+            directory.sync()
+        finally:
+            if code is not None:
+                code.close()
     return {
         "bundleHash": bundle_hash,
         "programHash": result.program_hash,

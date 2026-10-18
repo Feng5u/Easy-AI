@@ -79,6 +79,7 @@ class LocalDirectory(Protocol):
 
     def verify(self) -> None: ...
     def child(self, name: str, *, create: bool = False) -> "LocalDirectory": ...
+    def new_child(self, name: str) -> "LocalDirectory": ...
     def names(self) -> list[str]: ...
     def open_file(self, name: str, access: Access = "read") -> int: ...
     def verify_file(self, name: str, descriptor: int) -> None: ...
@@ -144,6 +145,13 @@ class _PosixDirectory:
             result.close()
             raise
         return result
+
+    def new_child(self, name: str) -> LocalDirectory:
+        self.verify()
+        name = _name(name)
+        os.mkdir(name, 0o700, dir_fd=self._fd)  # Exclusive claim; never merge existing output.
+        self.sync()
+        return self.child(name)
 
     def names(self) -> list[str]:
         self.verify()
