@@ -162,7 +162,7 @@ export async function packageBuilder(root = repository) {
   const output = join(
     root,
     "dist",
-    `easyai-builder-${sourceCommit.slice(0, 12)}-linux-x64`,
+    `easyai-builder-${sourceCommit.slice(0, 12)}-${Date.now()}-linux-x64`,
   );
   await mkdir(join(root, "dist"), { recursive: true });
   await mkdir(output); // Exclusive: keep existing or failed evidence, never overwrite.

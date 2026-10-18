@@ -4,7 +4,7 @@
 
 入口：先 `pnpm build`，再 `pnpm package:builder`。当前仅同主机 Linux x64；其他平台提前拒绝。真实调用 electron-builder API，显式 Linux dir 与 tar.gz，publish=never、publish配置null、不签名、不原生重建、不下载替代Electron。使用已安装、版本与ELF匹配的Electron目录；builder默认目标、自动发布和系统安装器不在本入口范围。
 
-打包前复用原stagePortable的资源/架构/hash、显式应用/离线文档/教程/示例与notices allowlist。暂存位于独立dist/easyai-builder-<完整HEAD前12位>-linux-x64/input；此处临时复制完整Electron以复用已验证的流程，增加磁盘占用，不改旧便携包或缓存。输出目录独占mkdir，已有或失败目录原样保留，不覆盖重跑。
+打包前复用原stagePortable的资源/架构/hash、显式应用/离线文档/教程/示例与notices allowlist。暂存位于独立dist/easyai-builder-<完整HEAD前12位>-<本次时间戳>-linux-x64/input；此处临时复制完整Electron以复用已验证的流程，增加磁盘占用，不改旧便携包或缓存。输出目录独占mkdir，已有或失败目录原样保留，不覆盖重跑。
 
 builder将应用dist、dist-electron及最小package.json置于resources/app.asar；PyInstaller目录完整复制到resources/backend（包括_internal），供既有Main backendLocation使用，不放进ASAR；offline/notices独立resources目录，Electron许可证在产品根保留。无checkout node_modules/用户配置/运行数据/密钥进入app stage。应用依赖已由Vite打入dist，Main仅使用Electron/Node内置模块。
 
