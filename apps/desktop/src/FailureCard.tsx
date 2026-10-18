@@ -1,6 +1,41 @@
 import type { GuideDestination } from "./GettingStarted.js";
 
 const stages = {
+  runSubscribe: [
+    "运行事件订阅未完成",
+    "事件通道不可用不代表训练失败。请查看当前运行状态与只读日志。",
+    "history",
+  ],
+  runSource: [
+    "读取运行快照未完成",
+    "当前无法载入旧运行来源；请保留本次记录，不使用当前工程替代。",
+    "history",
+  ],
+  runSourceIdentity: [
+    "运行快照与本次运行身份不一致",
+    "未载入来源；请核对本次记录，不使用当前工程替代。",
+    "history",
+  ],
+  runRead: [
+    "读取运行结果失败",
+    "不会因此将训练判为失败。若返回身份与本次运行不一致，不采纳该结果；请查看当前运行状态。",
+    "history",
+  ],
+  runCancel: [
+    "停止请求未确认",
+    "若返回身份与本次运行不一致，不采纳该结果。请等待运行状态确认停止，不要据此认为任务已停止。",
+    "history",
+  ],
+  runResume: [
+    "接续读取未确认",
+    "不会重新启动任务。若返回身份与本次运行不一致，不采纳该结果；请核对原目标会话与运行状态。",
+    "history",
+  ],
+  runImage: [
+    "图片尚不可用",
+    "请查看本次运行的已登记输出文件和同步状态。",
+    "history",
+  ],
   service: [
     "连接本地服务未完成",
     "请查看顶部服务状态；服务就绪后再操作工程。",
@@ -75,9 +110,11 @@ export function operationFailure(
 export function FailureCard({
   failure,
   onNavigate,
+  actionLabel,
 }: {
   failure: OperationFailure;
   onNavigate(destination: GuideDestination): void;
+  actionLabel?: string;
 }) {
   const [title, suggestion, destination] = stages[failure.stage];
   const labels: Record<GuideDestination, string> = {
@@ -91,7 +128,7 @@ export function FailureCard({
       <strong>{title}</strong>
       <p>{suggestion}</p>
       <button type="button" onClick={() => onNavigate(destination)}>
-        {labels[destination]}
+        {actionLabel ?? labels[destination]}
       </button>
       <details>
         <summary>技术详情</summary>

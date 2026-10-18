@@ -1,3 +1,6 @@
+import { FailureCard, operationFailure } from "./FailureCard.js";
+import type { OperationFailure } from "./FailureCard.js";
+import { RuntimeErrorCard } from "./RuntimeErrorCard.js";
 import { useEffect, useRef, useState } from "react";
 import type {
   ArtifactRecord,
@@ -193,9 +196,13 @@ function RunDashboardForRun({
   const [run, setRun] = useState(initial);
   const [events, setEvents] = useState<RunEventState>(() => emptyEvents(runId));
   const [connection, setConnection] = useState<ConnectionState>("reconnecting");
-  const [connectionMessage, setConnectionMessage] = useState("");
-  const [error, setError] = useState("");
-  const [readError, setReadError] = useState("");
+  const [subscriptionError, setSubscriptionError] =
+    useState<OperationFailure | null>(null);
+  const [cancelError, setCancelError] = useState<OperationFailure | null>(null);
+  const [resumeError, setResumeError] = useState<OperationFailure | null>(null);
+  const [imageError, setImageError] = useState<OperationFailure | null>(null);
+  const [readError, setReadError] = useState<OperationFailure | null>(null);
+  const [sourceError, setSourceError] = useState<OperationFailure | null>(null);
   const [source, setSource] = useState<RunSource | null>(null);
   const [artifacts, setArtifacts] = useState<ArtifactRecord[]>([]);
   const [stdout, setStdout] = useState("");
@@ -242,6 +249,8 @@ function RunDashboardForRun({
     setStdout("");
     setStderr("");
     setSource(null);
+    setSourceError(null);
+    setSubscriptionError(null);
     setArtifacts([]);
     setImage(null);
     setSelectedBlock(null);
@@ -265,16 +274,18 @@ function RunDashboardForRun({
               terminalEventReceived = true;
           }
         },
-        (state, message) => {
+        (state) => {
           if (active) {
             setConnection(state);
-            setConnectionMessage(message ?? "");
+            setSubscriptionError(
+              state === "error" ? operationFailure("runSubscribe", null) : null,
+            );
           }
         },
       );
     } catch (reason) {
       setConnection("error");
-      setConnectionMessage(`无法订阅运行事件：${String(reason)}`);
+      setSubscriptionError(operationFailure("runSubscribe", reason));
     }
     void api.runs
       .source(runId)
@@ -287,15 +298,13 @@ function RunDashboardForRun({
           value.snapshot.projectId !== initial.projectId ||
           value.snapshot.revision !== initial.config.projectRevision
         ) {
-          setError(
-            "运行快照与本次运行身份不一致，未载入来源。请重新读取该运行。",
-          );
+          setSourceError(operationFailure("runSourceIdentity", null));
           return;
         }
         setSource(structuredClone(value));
       })
       .catch((reason) => {
-        if (active) setError(`无法读取运行快照：${String(reason)}`);
+        if (active) setSourceError(operationFailure("runSource", reason));
       });
     const poll = async () => {
       try {
@@ -308,7 +317,7 @@ function RunDashboardForRun({
         verifyRunIdentity(latest);
         setRun(latest);
         onRunUpdate(latest);
-        setReadError("");
+        setReadError(null);
         stdoutAfter = logs.stdoutAfter;
         stderrAfter = logs.stderrAfter;
         setStdout((previous) => (previous + logs.stdout).slice(-LOG_WINDOW));
@@ -322,9 +331,7 @@ function RunDashboardForRun({
         }
       } catch (reason) {
         if (!active) return;
-        setReadError(
-          `读取运行结果失败；不会因此将训练判为失败：${String(reason)}`,
-        );
+        setReadError(operationFailure("runRead", reason));
       }
       if (active)
         timer = setTimeout(() => {
@@ -344,7 +351,7 @@ function RunDashboardForRun({
 
   async function cancel() {
     setStopping(true);
-    setError("");
+    setCancelError(null);
     try {
       const updated = await api.runs.cancel(runId);
       if (mounted.current) {
@@ -353,7 +360,8 @@ function RunDashboardForRun({
         onRunUpdate(updated);
       }
     } catch (reason) {
-      if (mounted.current) setError(`停止请求未确认：${String(reason)}`);
+      if (mounted.current)
+        setCancelError(operationFailure("runCancel", reason));
     } finally {
       if (mounted.current) setStopping(false);
     }
@@ -361,7 +369,7 @@ function RunDashboardForRun({
   async function resume() {
     if (!remoteSession) return;
     setResuming(true);
-    setError("");
+    setResumeError(null);
     try {
       const value = await api.runs.resume(
         runId,
@@ -375,7 +383,7 @@ function RunDashboardForRun({
       }
     } catch (reason) {
       if (mounted.current)
-        setError(`接续读取未确认；不会重新启动任务：${String(reason)}`);
+        setResumeError(operationFailure("runResume", reason));
     } finally {
       if (mounted.current) {
         setResuming(false);
@@ -395,7 +403,7 @@ function RunDashboardForRun({
     remoteSession.scope.hostFingerprint === run.remote?.hostFingerprint;
   async function preview(artifact: ArtifactRecord) {
     const request = ++imageRequest.current;
-    setError("");
+    setImageError(null);
     setSelectedBlock(artifact.producerBlockId);
     try {
       const result = await api.runs.image(runId, artifact.artifactId);
@@ -409,7 +417,7 @@ function RunDashboardForRun({
         });
     } catch (reason) {
       if (mounted.current && imageRequest.current === request)
-        setError(`图片尚不可用：${String(reason)}`);
+        setImageError(operationFailure("runImage", reason));
     }
   }
   return (
@@ -417,7 +425,9 @@ function RunDashboardForRun({
       <div className="section-heading">
         <div>
           <p className="eyebrow">运行记录</p>
-          <h2 id="run-heading">本次运行</h2>
+          <h2 id="run-heading" tabIndex={-1}>
+            本次运行
+          </h2>
         </div>
         <button
           type="button"
@@ -478,33 +488,35 @@ function RunDashboardForRun({
           个测试样本。指标不代表正式 MNIST 学习效果。
         </p>
       )}
-      {connectionMessage && (
-        <p className="notice" role="status">
-          {connectionMessage}
-        </p>
-      )}
-      {readError && (
-        <p className="notice" role="status">
-          {readError}
-        </p>
-      )}
-      {error && (
-        <p className="error" role="alert">
-          {error}
-        </p>
+      {[
+        subscriptionError,
+        sourceError,
+        readError,
+        cancelError,
+        resumeError,
+        imageError,
+      ].map(
+        (failure, index) =>
+          failure && (
+            <FailureCard
+              key={index}
+              failure={failure}
+              actionLabel="查看运行状态"
+              onNavigate={() => {
+                const target = document.getElementById("run-heading");
+                target?.focus();
+                target?.scrollIntoView?.({ block: "start" });
+              }}
+            />
+          ),
       )}
       {events.errors.map((item) => (
-        <div className="error" role="alert" key={item.seq}>
-          <p>{item.message}</p>
-          {item.blockId && (
-            <button
-              type="button"
-              onClick={() => setSelectedBlock(item.blockId)}
-            >
-              查看源积木 {item.blockId}
-            </button>
-          )}
-        </div>
+        <RuntimeErrorCard
+          key={item.seq}
+          diagnostic={item}
+          sourceReady={Boolean(source)}
+          onLocate={() => setSelectedBlock(item.blockId)}
+        />
       ))}
       <section className="panel">
         <h3>训练指标</h3>

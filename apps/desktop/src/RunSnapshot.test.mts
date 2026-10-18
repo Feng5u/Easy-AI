@@ -429,7 +429,7 @@ it("artifact and runtime-error clicks open the actual run snapshot and synchroni
       payload: { message: "old model failure" },
     }),
   );
-  await click("查看源积木 " + id(saved, "model"));
+  await click("定位旧运行积木");
   expect(
     container.querySelector("[role=tab][aria-selected=true]")?.textContent,
   ).toBe("模型结构");
@@ -557,4 +557,216 @@ it("rejects a source response belonging to another revision/hash", async () => {
   expect(container.textContent).toContain("运行快照与本次运行身份不一致");
   expect(captured.managers).toHaveLength(0);
   expect(container.textContent).not.toContain("old training code");
+});
+
+it.each([
+  ["subscribe", "运行事件订阅未完成"],
+  ["connection", "运行事件订阅未完成"],
+  ["source", "读取运行快照未完成"],
+  ["get", "读取运行结果失败"],
+  ["cancel", "停止请求未确认"],
+  ["resume", "接续读取未确认"],
+  ["image", "图片尚不可用"],
+] as const)(
+  "safe %s failure preserves uncertainty and only navigates",
+  async (operation, title) => {
+    const h = dashboard(source(), "safe-run");
+    const secret =
+      "alice@private.example /home/alice C:\\Users\\Alice password=secret token=key";
+    h.run.status = "RUNNING";
+    h.run.syncState = "pending";
+    h.api.runs.start = vi.fn();
+    const failed = async (): Promise<never> => {
+      throw new Error(secret);
+    };
+    let session: AuthenticatedConnection | undefined;
+    if (operation === "subscribe")
+      vi.mocked(h.api.runs.subscribe).mockImplementation(() => {
+        throw new Error(secret);
+      });
+    if (operation === "connection")
+      vi.mocked(h.api.runs.subscribe).mockImplementation(
+        (_run, _seq, _event, state) => {
+          state("error", secret);
+          return vi.fn();
+        },
+      );
+    if (operation === "source")
+      vi.mocked(h.api.runs.source).mockImplementation(failed);
+    if (operation === "get")
+      vi.mocked(h.api.runs.get).mockImplementation(failed);
+    if (operation === "image")
+      vi.mocked(h.api.runs.image).mockImplementation(failed);
+    h.api.runs.cancel = vi.fn(failed);
+    h.api.runs.resume = vi.fn(failed);
+    if (operation === "resume") {
+      h.run.config.runner = "ssh";
+      h.run.connectionState = "disconnected";
+      h.run.remote = {
+        host: "synthetic.invalid",
+        port: 22,
+        username: "synthetic",
+        hostFingerprint: "SHA256:" + "A".repeat(43),
+        executionState: "RUNNING",
+        startOutcome: "acknowledged",
+        cancelState: "none",
+        artifactsVerified: false,
+      };
+      session = {
+        projectId: h.run.projectId,
+        username: "synthetic",
+        scope: {
+          connectionId: "session",
+          endpoint: { host: "synthetic.invalid", port: 22 },
+          hostFingerprint: h.run.remote.hostFingerprint,
+        },
+      } as AuthenticatedConnection;
+    }
+    await render(
+      createElement(RunDashboard, {
+        api: h.api,
+        initialRun: h.run,
+        onRunUpdate: vi.fn(),
+        remoteSession: session,
+      }),
+    );
+    if (operation === "cancel") await click("停止本次运行");
+    if (operation === "resume") await click("接续原任务（不重跑）");
+    if (operation === "image") {
+      await click("查看图片");
+    }
+    expect(container.textContent).toContain(title);
+    for (const privateText of [
+      "private.example",
+      "/home/alice",
+      "Alice",
+      "password=",
+      "token=",
+    ])
+      expect(container.textContent).not.toContain(privateText);
+    const card = [...container.querySelectorAll('[role="alert"]')].find(
+      (node) => node.textContent?.includes(title),
+    )!;
+    expect(card.querySelector("details")?.open).toBe(false);
+    await act(async () => {
+      card.querySelector("details")!.open = true;
+      card.querySelector("button")!.click();
+    });
+    expect(document.activeElement?.id).toBe("run-heading");
+    expect(card.textContent).not.toContain("secret");
+    expect(h.run.status).toBe("RUNNING");
+    expect(h.api.runs.start).not.toHaveBeenCalled();
+    expect(h.api.runs.cancel).toHaveBeenCalledTimes(
+      operation === "cancel" ? 1 : 0,
+    );
+    expect(h.api.runs.resume).toHaveBeenCalledTimes(
+      operation === "resume" ? 1 : 0,
+    );
+    if (operation === "get")
+      expect(card.textContent).toContain("不会因此将训练判为失败");
+    if (operation === "resume")
+      expect(card.textContent).toContain("不会重新启动任务");
+  },
+);
+
+it("structured NameError uses a safe explanation and locates only the frozen run snapshot", async () => {
+  const saved = source(),
+    h = dashboard(saved, "structured-old");
+  const original = JSON.stringify(saved);
+  await render(
+    createElement(RunDashboard, {
+      api: h.api,
+      initialRun: h.run,
+      onRunUpdate: vi.fn(),
+    }),
+  );
+  await act(async () =>
+    h.emit({
+      runId: h.run.runId,
+      seq: 1,
+      source: "runtime",
+      sourceSeq: 1,
+      timestamp: "2026-10-18T00:00:00Z",
+      type: "runtime_error",
+      blockId: id(saved, "model"),
+      payload: {
+        exceptionType: "NameError",
+        variableName: "token=private",
+        message: "secret alice@private.example /home/alice",
+        file: "train.py",
+        line: 2,
+      },
+    }),
+  );
+  expect(container.textContent).toContain("尚未定义的名称");
+  expect(container.textContent).toContain("可能是生成器缺陷");
+  expect(container.textContent).toContain("RUNTIME_NAME_ERROR");
+  expect(container.textContent).toContain("第 2 行");
+  for (const secret of [
+    "token=private",
+    "private.example",
+    "/home/alice",
+    "secret",
+  ])
+    expect(container.textContent).not.toContain(secret);
+  await click("定位旧运行积木");
+  expect(
+    container.querySelector("[role=tab][aria-selected=true]")?.textContent,
+  ).toBe("模型结构");
+  expect(container.querySelector(".code-selected")?.textContent).toContain(
+    "old model code",
+  );
+  expect(JSON.stringify(saved)).toBe(original);
+});
+
+it("read and source recovery cannot clear unconfirmed stop or image failures", async () => {
+  const saved = source(),
+    h = dashboard(saved, "separate-errors");
+  h.run.status = "RUNNING";
+  h.run.syncState = "pending";
+  h.api.runs.start = vi.fn();
+  vi.mocked(h.api.runs.get).mockRejectedValue(new Error("private read"));
+  vi.mocked(h.api.runs.source).mockRejectedValue(new Error("private source"));
+  h.api.runs.cancel = vi.fn(async () => {
+    throw new Error("private stop");
+  });
+  vi.mocked(h.api.runs.image).mockRejectedValue(new Error("private image"));
+  await render(
+    createElement(RunDashboard, {
+      api: h.api,
+      initialRun: h.run,
+      onRunUpdate: vi.fn(),
+    }),
+  );
+  await click("停止本次运行");
+  // Polling failed, so no artifact list was accepted. Make a successful read
+  // restart to expose the image, while the stop/source errors must survive.
+  vi.mocked(h.api.runs.get).mockResolvedValue(h.run);
+  await render(
+    createElement(RunDashboard, {
+      api: h.api,
+      initialRun: h.run,
+      onRunUpdate: vi.fn(),
+    }),
+  );
+  expect(container.textContent).not.toContain("读取运行结果失败");
+  expect(container.textContent).toContain("读取运行快照未完成");
+  expect(container.textContent).toContain("停止请求未确认");
+  await click("查看图片");
+  expect(container.textContent).toContain("图片尚不可用");
+  expect(container.textContent).toContain("停止请求未确认");
+  vi.mocked(h.api.runs.source).mockResolvedValue(saved);
+  await render(
+    createElement(RunDashboard, {
+      api: h.api,
+      initialRun: h.run,
+      onRunUpdate: vi.fn(),
+    }),
+  );
+  expect(container.textContent).not.toContain("读取运行快照未完成");
+  expect(container.textContent).toContain("停止请求未确认");
+  expect(container.textContent).toContain("图片尚不可用");
+  expect(container.textContent).not.toContain("private");
+  expect(h.api.runs.cancel).toHaveBeenCalledTimes(1);
+  expect(h.api.runs.start).not.toHaveBeenCalled();
 });

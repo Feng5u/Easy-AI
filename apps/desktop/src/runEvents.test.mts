@@ -172,3 +172,90 @@ it("remote completion waits for artifact settlement and keeps independent execut
     }),
   ).toBe(false);
 });
+
+it("retains structured runtime exception and original record without aliasing caller data", () => {
+  const event = {
+    runId: "structured",
+    seq: 1,
+    source: "runtime",
+    sourceSeq: 1,
+    timestamp: "2026-10-18T00:00:00Z",
+    type: "runtime_error",
+    blockId: "old-block",
+    payload: {
+      exceptionType: "NameError",
+      message: "private raw error",
+      variableName: "train_data",
+      file: "train.py",
+      line: 42,
+      frames: [
+        { filename: "/private/train.py", lineno: 42, function: "train" },
+      ],
+    },
+  } as import("../electron/bridge.js").Event;
+  const original = structuredClone(event);
+  const result = applyRunEvent(emptyEvents("structured"), event).errors[0];
+  expect(result).toMatchObject({
+    exceptionType: "NameError",
+    variableName: "train_data",
+    file: "train.py",
+    line: 42,
+    message: "private raw error",
+    blockId: "old-block",
+  });
+  expect(result.original).toEqual(original);
+  event.payload.message = "caller changed later";
+  expect(result.original).toEqual(original);
+  expect(result.message).toBe("private raw error");
+});
+
+it("unknown runtime types and private fields cannot enter the safe card, including prototype names", async () => {
+  const { RuntimeErrorCard } = await import("./RuntimeErrorCard.js");
+  for (const exceptionType of [
+    "__proto__",
+    "constructor",
+    "private-exception",
+  ]) {
+    const event = {
+      runId: "safe",
+      seq: 1,
+      source: "runtime",
+      sourceSeq: 1,
+      timestamp: "2026-10-18T00:00:00Z",
+      type: "runtime_error",
+      blockId: "token=secret",
+      payload: {
+        exceptionType,
+        message: "alice@private.example /home/alice",
+        variableName: "password=secret",
+        file: "C:\\Users\\Alice\\private.py",
+        line: -1,
+      },
+    } as import("../electron/bridge.js").Event;
+    const diagnostic = applyRunEvent(emptyEvents("safe"), event).errors[0];
+    const locate = () => {
+      throw new Error("must not automatically locate");
+    };
+    const markup = renderToStaticMarkup(
+      createElement(RuntimeErrorCard, {
+        diagnostic,
+        sourceReady: false,
+        onLocate: locate,
+      }),
+    );
+    for (const text of [
+      exceptionType,
+      "private.example",
+      "/home/alice",
+      "Alice",
+      "password=",
+      "token=",
+      "secret",
+    ])
+      expect(markup).not.toContain(text);
+    expect(markup).toContain("RUNTIME_UNCLASSIFIED");
+    expect(markup).toContain("disabled");
+    expect(diagnostic.original).toEqual(event);
+    expect(diagnostic.line).toBeNull();
+  }
+});

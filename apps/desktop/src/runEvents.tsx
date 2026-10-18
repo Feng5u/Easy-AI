@@ -7,12 +7,23 @@ export interface EpochPoint {
   trainSamples: number;
   testSamples: number;
 }
+export interface RuntimeDiagnostic {
+  seq: number;
+  blockId: string | null;
+  message: string;
+  exceptionType: string | null;
+  variableName: string | null;
+  file: string | null;
+  line: number | null;
+  // Keep the original structured record for local diagnosis; never render it as a summary.
+  original: RuntimeEvent;
+}
 export interface RunEventState {
   runId: string;
   after: number;
   points: EpochPoint[];
   device: string | null;
-  errors: { seq: number; blockId: string | null; message: string }[];
+  errors: RuntimeDiagnostic[];
 }
 export const isTerminal = (status: Run["status"]) =>
   ["SUCCEEDED", "FAILED", "CANCELLED", "INTERRUPTED"].includes(status);
@@ -98,7 +109,28 @@ export function applyRunEvent(
         : "运行过程报告了错误，请查看 stderr。";
     next.errors = [
       ...state.errors,
-      { seq: event.seq, blockId: event.blockId ?? null, message },
+      {
+        seq: event.seq,
+        blockId: event.blockId ?? null,
+        message,
+        exceptionType:
+          typeof event.payload.exceptionType === "string"
+            ? event.payload.exceptionType
+            : null,
+        variableName:
+          typeof event.payload.variableName === "string"
+            ? event.payload.variableName
+            : null,
+        file:
+          typeof event.payload.file === "string" ? event.payload.file : null,
+        line:
+          typeof event.payload.line === "number" &&
+          Number.isSafeInteger(event.payload.line) &&
+          event.payload.line > 0
+            ? event.payload.line
+            : null,
+        original: structuredClone(event),
+      },
     ].slice(-20);
   }
   return next;
