@@ -1096,3 +1096,31 @@ NOT RUN：真实Electron/SVG/Monaco/原生picker和SaveDialog/课堂E2E、Window
 合同数目经Python `DiagnosticReport.model_json_schema(by_alias=True)`、schema properties、safeReport keys和独审独立枚举确认仍为**12字段**（前段12记载正确，不改成13）：reportVersion、scope、code、runId、eventSeq、codeHash、projectRevision、precision、nameState、referenceCheck、objectsTotal、registeredTotal。schema生成有**8 required + 4 defaults**（reportVersion=1、scope=local_safe_summary、两counts=null）；TS对应四项optional表示Pydantic可补默认的输入形态，认证GET使用完整model_dump(by_alias=True)响应始终包含全部12项，safeReport有意只接受完整响应、不补缺字段。未改变权威合同/生成器或降低白名单。
 
 NOT RUN：Windows实际hard-link/NTFS/原生SaveDialog/Electron、断电后目录持久性、真实训练/MNIST/SSH/下载。407da99/run39149608836仍check SUCCESS/desktop FAILURE，2 annotations，剩余步骤正文未知，未盲猜或重试被拒接口；后续SHA CI分别待新证据。原件/README保持，无main/强推/PR/发布/部署/费用/凭据/权限变化。修复及本证据正常开发分支推送后续接M7.3，不因CI等候停独立功能。
+
+## 2026-10-18 — M7.3 离线七主题与真实数值卷积教学纵切
+
+源码完整SHA：`3cc9a0c2f016ea7ed51165967b5f4d49f9679bb4`，基线`960f95fae6c71dcd8c04ea3b10f488a4db90bcc8`（其源码`1eabc62ec6b1200614116d9d0ea894c77cccc576`已先关闭报告原子发布P2并正常推送）。父级要求先读全文§16.5/M7.3，复用现有编译与映射，完成教程入口→本地真实交互→关联积木/只读代码；没有重做训练链或用假指标。一个写入者，两个独审仅只读。
+
+本地` tutorials/zh-CN/ `七篇精简Markdown覆盖Dataset/DataLoader、batch/epoch、卷积/池化/Flatten、loss/accuracy、训练/测试模式、设备/环境、错误/输出。静态catalog含relevantBlockTypes，21项manifest helpKey均有关联；通过Vite raw import随桌面assets打包，不加载任意文件/网址。仅文本与标题的React Markdown子集，不执行HTML、不创建外链或第四计算工作区。说明区分train_loss/test_accuracy、正式10轮与quick子集、固定seed的边界、默认不下载数据、只读代码、教师环境、CIFAR本机预检未闭合等现有能力。
+
+`ConvolutionLab`固定5×5输入1～25、可编辑3×3核，每项有限[-10,10]；单通道互相关stride1/padding0/bias0，不翻核，明确非完整模型/训练引擎。九个合法窗口随前后按钮或输出格选择，实时计算九项输入×核、求和与全部3×3输出；核改变立即全量重算，无效/空值隐藏旧结果，重置不改工程。纯算术单元测试全1输入/全1核全部窗口=9，改一个核项后=10；非对称核检验不翻转，固定输入九项/完整输出与小数运算有独立预期，不生成曲线。
+
+App有显式离线教程入口，所选真实Blockly积木有“查看此积木教程”入口；本工程关联积木采用固定manifest标签和稳定ID，遍历有界500项，导航只改视觉tab/选中状态、不edit或保存工程。代码仅消费已有Python CompileResult.sourceMap，要求非dirty、同revision且目标有映射；只读CodeView复用既有semantic高亮，不在JS生成代码、不自动compile/start。无工程/无块仍可读教程/计算；旧或未核实编译不猜代码。
+
+教学副本调用原native选择目录+原项目创建服务，创建独立projectId而非替换原文件。dirty/saving/busy/activeRun/启动恢复未完成时禁用；创建入口再次核门，picker后核同draft引用/value且未dirty，取消不create。启动恢复门避免status已ready但current()未结束时先建新副本被迟到restore覆盖；不提供静默丢弃草稿。真实owned目录集成验证从教程入口、移动窗口到Main/FastAPI/Python实际编译，再定位Conv2d/显示其真实生成代码，整个阅读导航无save/start、原JSON字节不变，最后在新目录真实创建MNIST教学副本并清除旧代码视图。没有torch导入、训练或数据下载；SVG host/picker仍为替身，不能算真实Electron验收。
+
+独审关闭两项P2：设备初稿无条件说CUDA→MPS→CPU，实际emit.py只在device=auto自动选择，显式绑定不可用会阻断。文案现明确auto与显式设备、不静默回退，workers/pin_memory实际值称运行记录，不冒称全写RunConfig。另一项tutorialTargets在停用块上continue丢失其next启用链；新增真实fixture red **1 FAIL/9 skipped**，857ms，`/tmp/easyai-tutorial-disabled-red.log`，随后先遍历next、只跳当前停用块与inputs，对齐Python decoder，独审原fixture ReLU layer-1仍可定位。
+
+实际命令（cwd `/workspace/Easy-AI`；涉及原应用环境时使用`UV_CACHE_DIR=/workspace/.uv-cache UV_PYTHON_INSTALL_DIR=/workspace/.python XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/.cache`）：
+
+| 命令 | 结果及边界 |
+| --- | --- |
+| `pnpm exec vitest run apps/desktop/src/convolution.test.mts apps/desktop/src/TutorialPanel.test.mts apps/desktop/src/App.test.mts apps/desktop/src/RunSnapshot.test.mts` | 最终 **88 PASS**，4.16秒，`/tmp/easyai-tutorial-targeted.log`：数值12、教程内容/DOM/安全/停用链10、App23（原19+新4）、Snapshot43（原42+真实Blockly帮助1）。相关文件窗口，不与前片92、Main38或后端610累加。App真owned文件/Main/HTTP/Python编译器链如上；坏HTML只作为文本、全部manifest help覆盖、dirty/陈旧/缺失map代码禁用、kernel重算/无效无旧结果、取消不create、草稿仍按原800ms保存都受检 |
+| 独立只读审查 | 数值 **12 PASS**，160ms；新App3 **3 PASS/19 skipped**，2.15秒；关闭设备与disabled两项 **2 PASS/8 skipped**；最终disabled/恢复门 **2 PASS/31 skipped**，1.05秒，另实际原fixture复验。均与88重合不累加；无编辑/安装/Actions/真实训练或SSH。有限源码审查无剩余明确新增P1/P2 |
+| 同缓存`pnpm check` | **PASS**，TS/Main/测试TS、strict mypy47、85 Python文件格式、ruff、权威合同/真实Blockly fixture漂移、Prettier；日志`/tmp/easyai-tutorial-check.log`。本片未改后端/合同/依赖，没有重跑后端610或构建新训练环境 |
+| `pnpm --filter @easyai/desktop build` | **PASS**，1.23秒静态assets，原>500KB chunk提示仍在，`/tmp/easyai-tutorial-build.log`。`rg -l '自动模式（auto）\|5×5 输入与 3×3 核\|Dataset 与 DataLoader' apps/desktop/dist/assets/*.js`命中index-CvX6AFyV.js，证明本地内容进入bundle，不代表已验安装包/Electron |
+| `git diff --check`；`sha256sum 'docs/v0.0.0 plan.md' docs/v0.0.0.md README.md`；`wc -c 'docs/v0.0.0 plan.md'` | **PASS**；plan116185字节，SHA `dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43`；原规格`5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190`，README`befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852`不变 |
+
+其他中途FAIL保留：首次App新3项 **2 PASS/1 FAIL/19 skipped**，测试未等待实际HTTP编译就点击仍禁用的代码按钮；改为await实际compile返回且断言runnable、按钮启用，没有降低映射断言或改生产编译流程。新restore门首次整窗 **87 PASS/1 FAIL**，状态已创建但漏接按钮/入口；补双门后最终88PASS，日志`/tmp/easyai-tutorial-restoring-red.log`。初数值/教程20与App3均被最终88覆盖，不累计。
+
+NOT RUN：原阶段命令`pnpm test:e2e`及真实Electron/Blockly SVG/Monaco Worker/CSP/原生picker/课堂修复流；此前Electron sandbox拒绝边界仍保留，不重试或放宽系统权限。Windows/NTFS/冻结ABI、安装包资源、真实MNIST/10轮训练/SSH/取消重连/数据下载/包安装/个人PC均未执行。M7.3代码与定向纵切完成，不等于M7阶段或完整B验收。最新已获精确CI仍407da99/run39149608836的check SUCCESS/desktop FAILURE（2 annotations），剩余步骤正文未知；后续960f95f及本次最终新SHA CI未获证据，不套旧失败、不重复同SHA或绕被拒Actions日志。无新拒绝/未决写入、无main/强推/PR/Release/部署/费用/新凭据/权限变化。正常dev分支推送源码+证据后，下一项按原关键路径补M6.3受控安装合同/计划与M8打包骨架，先冻结独立合同，真实资源动作仍需具体授权条件。
