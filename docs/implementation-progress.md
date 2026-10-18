@@ -1272,3 +1272,28 @@ UI明确选择密码/私钥，口令可空；Main原生picker独占选择路径�
 NOT RUN/范围限制：真实用户密钥、真实SSH/远端训练/数据上传/运行中远端同步/重连、实际原生picker/Electron窗口、Windows/NTFS/干净机、环境安装/数据下载/MNIST/训练/个人PC均未执行。既有sandbox及Actions端点拒绝不重试、不绕过。旧M8便携目录仍对应7b91c46且**不含本轮功能**，未重打包、上传或发布；许可/精确来源绑定、干净Windows及distributionReady/legalReviewComplete仍未验收。源码/静态build不等于完整M5、M8或B通过。
 
 最新精确CI证据仍父级认证的 `736b984b57861499f66f40a9b490080eb1f6bbb5` / run39154349633（18:31:16UTC completed，check SUCCESS、desktop FAIL，各2 annotations），失败步骤正文缺失、根因未知；本片新SHA无可判定CI证据。不重跑同SHA/绕拒绝/猜根因。下一项沿原M5补数据上传/运行中远端同步的受控代码与合成测试，真实SSH及训练需明确最小条件授权；同时等待desktop首错证据。无main/强推/PR/Release/部署/费用/新凭据或权限变化，无本轮新增拒绝或未决外部写入。
+
+## 2026-10-18 — CIFAR10 本机结构预检与安全构造阻断
+
+源码完整SHA：`a292187c2f8be0529da60633d344357d2fab7e34`；基线 `146c9b38ae7765bd755c2fa61d330e266d6e5697`。按父级新指示继续原D10/§9.1/M6.1数据前置，读取原计划与现有MNIST本地读取、编译/start/环境报告路径；不下载/解压数据、不安装包、不读取真实数据、不执行训练或pickle。单写入者root，既有worker独立只读设计/代码审查。
+
+交付：Main授权data selection→保存工程编译IR→CIFAR固定目录/七文件双split初检→固定未就绪报告→本机start同门拒绝。文件仅读2字节前缀，检查非链接普通文件、fd/路径身份、size/mtime、重复inode、粗大小；不会把貌似protocol2的恶意reducer执行或转成READY。新增CIFAR_FORMAT_INVALID/SAFE_PROBE_REQUIRED固定错误与UI说明。合成fixture为稀疏文件且故意含恶意字节，不是CIFAR数据。编译输出合同实测CIFAR双split、三通道Conv、2048而非MNIST1568、download=False。未改原编译语义：plan§460只要求角色/输入格式/类别一致，撤回一度拟加的“MNIST/Fashion同名”约束；最终lower源码无差异，测试只补CIFAR与IDX格式混用拒绝。
+
+**准确未完成/阻塞**：冻结训练profile torchvision0.25.0官方CIFAR10构造在download=False时仍先全train/test MD5，再pickle.load批次/meta；官方固定版本 https://raw.githubusercontent.com/pytorch/vision/v0.25.0/torchvision/datasets/cifar.py 。直接构造目标与本轮禁止不可信pickle、原计划§9.1禁止全数据散列预检无法同时满足，**该动作未执行，是安全设计/计划兼容裁决待定，不是新增工具拒绝或执行结果不明**。当前七文件初检不足以证明完整性/shape/dtype/label；完整布局也始终data.ok=false/SAFE_PROBE_REQUIRED，不能开始本机CIFAR训练。原远端probe同类构造风险同步阻断为unsafe_format_blocked/ok=false/空sample摘要，公开DatasetCheck合同及生成物同步；无正向远端data binding。生成Bundle原CIFAR调用依然未验，不能把本片当作任意pickle运行授权。详见 `docs/cifar10-preflight.md`；未自换数据格式、许可、哈希白名单或反序列化器冒称官方适配器通过。下一步先落实安全解析/执行与原全哈希限制的兼容方案、独审后再闭合官方构造；真实数据/环境/桌面另需明确条件，当前不用以下载或修改共享环境解除这个代码设计阻塞。
+
+**独审P2及修复**：新data checkpoint可抛PROJECT_REVISION_CONFLICT，却被数据ValueError处理吞掉，旧选择Python探测仍启动一次，最后scope才拒绝；独审仅用合成probe计数复现1次。修后catch先核scope、解释器前再核scope，revision/ABA立即退出。独审新增2 PASS/12 deselected/0.30s，原复现重新跑返回冲突、probe调用0，关闭P2；相关初42 PASS窗口与最终120重合不累计，有限独审无剩余明确新增P1/P2。
+
+实际命令（cwd `/workspace/Easy-AI`）：
+
+| 命令 | PASS / FAIL / NOT RUN与证据 |
+| --- | --- |
+| `services/backend/.venv/bin/python -m pytest services/backend/tests/test_cifar_preflight.py services/backend/tests/test_local_preflight.py services/backend/tests/test_local_workspace.py services/backend/tests/test_lowering.py services/backend/tests/test_compilation.py services/backend/tests/test_environment_probe_payload.py services/backend/tests/test_environment_service.py -q` | 最终 **120 PASS**，2.09s、1第三方弃用warning；`/tmp/easyai-cifar-backend-final.log`。固定布局/缺split/meta/异常格式/超限/链接/FIFO/别名/取消、鉴权HTTP selection及start未建Run、实际编译文本契约、无远端CIFAR构造调用、stale checkpoint不探测。全为合成文件/模块，不是训练 |
+| `pnpm exec vitest run apps/desktop/src/LocalPreflight.test.mts apps/desktop/electron/backend.test.mts` | 最终 **11 PASS**，2.11s；`/tmp/easyai-cifar-ui-final.log`，包含结构未就绪UI说明及原React→Main→真实本机sidecar检查链，不是Electron窗口/真实数据 |
+| `UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache node scripts/check-contracts.mjs`；同环境变量 `pnpm check` | **PASS**；`/tmp/easyai-cifar-contracts.log`、`/tmp/easyai-cifar-check-final.log`。复用既有缓存且强制offline，无依赖解析联网/安装；TS/Main/测试TS、strict mypy53、96Python格式/ruff、合同/真实Blocklyfixture漂移、Prettier |
+| `UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache node scripts/python-task.mjs build`；`pnpm --filter @easyai/desktop build` | 均 **PASS**；`/tmp/easyai-cifar-frozen-build.log`、`/tmp/easyai-cifar-desktop-build.log`。实际重冻应用后端与编译桌面，新模块/远端probe纳入；既有bundle体积提示保留，不是新便携包或窗口启动 |
+| `node scripts/test-frozen-ssh.mjs` | **PASS**；`/tmp/easyai-cifar-frozen-ssh.log`，既有冻结路由/鉴权/strict DTO/固定错误/cancel与scope/环境拒绝/lazy Paramiko、EOF exit0；仅合成请求无outbound SSH |
+| `git diff --check`；原件bytes/hash；`git ls-remote origin refs/heads/main refs/heads/codex/demo-v0.0.0` | **PASS**。原plan116185字节/hash `dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43`、旧规格 `5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190`、README `befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852`不变；推前dev=146c9b3、main=`5323f86232529efcfb52131168ad049f01b219f3`，最终普通dev push后另核 |
+
+中途FAIL/修正：首次未设UV_CACHE_DIR的合同生成因默认`/home/agent/.cache/uv/CACHEDIR.TAG`只读失败，没有依赖安装或合同产出；改用已存在本执行器workspace缓存并强制offline后成功，不是绕过审批拒绝。首UI **9 PASS/1 FAIL** 是原错误文案断言仍要求“IDX”，而固定missing错误现在同时用于CIFAR，改为准确通用文案断言，新增CIFAR未就绪说明由最终11覆盖。后端首117、后118及独审42/2与最终120均不叠加；P2修前复现不隐去。pnpm check最终通过，无降低门或删测。
+
+NOT RUN：官方CIFAR安全构造/完整性及样本摘要正向验收、真实CIFAR/MNIST训练/指标、数据下载/环境安装、真实SSH/上传/重连、原生picker/桌面/Windows/干净机/个人PC；M6或B未验收。旧M8本地产物固定7b91c46，不含私钥及本片新功能，未重打包上传发布；distributionReady/legalReviewComplete仍false。最新精确CI仍父级认证736b984b57861499f66f40a9b490080eb1f6bbb5/run39154349633（check SUCCESS、desktop FAIL各2annotations），新SHA暂无可判定证据，首错缺失/根因未知，Actions与sandbox既有拒绝不重试、不绕过。无本轮新增拒绝/未决外部写入，无main/强推/PR/Release/部署/费用/凭据/权限变化。
