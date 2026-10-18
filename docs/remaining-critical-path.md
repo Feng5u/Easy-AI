@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | M5 SSH | 指纹、密码认证、owner、幂等执行、接续/取消、sealed产物同步已有 | 私钥正常入口（当前method仅password）；显式本地数据上传任务；运行中远端产物同步（当前sealed后）；正常`test:ssh`入口及真实链收口 |
 | M6 数据/图表 | 21类积木、三数据集编译、SGD/Adam/Dropout、shape、图表字段与布局已有 | CIFAR10本机preflight当前明确拒绝，运行覆盖未闭合；桌面完整Bundle导出仍缺（现为工程JSON导出） |
-| M6.3 受控包管理 | 两份CPU profile lock/来源；17包4组、离线计划/确认/取消UI；内部owned lease/受管进程/固定离线pip与真实probe适配器、持久任务/保守重启隔离已有，真实执行关闭 | 新owned conda provisioner；许可/来源/目标授权及生产接线；可选包解析；任务历史/保留策略、存活安装重连/未知停止安全解除；远端安装与真实新环境纵向验收。固定pip只验证命令未实际安装，probe仅负向实测；不是“只缺安装验证” |
+| M6.3 受控包管理 | 两份CPU profile lock/来源；17包4组、离线计划/确认/取消UI；内部owned lease/受管进程/固定离线pip与真实probe适配器、持久任务/保守重启隔离；新UUID独占FS创建、bootstrap→安装→终检接线与半成品隔离已有，真实执行关闭 | 真实conda bootstrap adapter；许可/来源/目标授权及生产接线；可选包解析；任务历史/保留策略、存活安装重连/未知停止安全解除；远端安装与真实新环境纵向验收。固定pip只验证命令/配置解析未实际安装，probe仅负向实测；不是“只缺安装验证” |
 | M7 | 向导、安全错误卡、旧运行精确来源、冻结对象解释/本地报告及原子新文件发布；七主题本地Markdown、块帮助/只读代码/新目录示例副本入口、5×5/3×3真实数值卷积已实现并定向验证（3cc9a0c） | 真实Electron/原生对话框/课堂错误修复与环境恢复E2E仍未验；不把定向组件链当M7阶段通过 |
 | M8 | 桌面静态构建、PyInstaller onedir、冻结sidecar smoke已有 | electron-builder/`package`入口、完整资源布置及安装包；课堂/失败恢复桌面E2E，当前仅startup smoke；teacher-setup/release-checklist、更新已过时developer-guide、性能记录与最终支持矩阵 |
 
@@ -34,6 +34,6 @@
 1. **A真实MNIST/安全桌面**：可保留原Electron sandbox的目标桌面；用户/教师已准备的真实train/test数据路径；已准备的独立训练Python及明确CPU/GPU。没有批准前不下载数据、不在应用Python装torch、不操作个人PC，也不使用`--no-sandbox`或改系统权限。
 2. **B真实SSH**：明确授权的隔离Linux目标/账号范围、通过可信渠道核验的指纹、已有训练环境和真实数据路径，以及允许正式运行/取消/断连/恢复的测试窗口。凭据走安全会话，不进入仓库或公开日志。当前不执行这些动作。
 3. **受控安装实测**：一次性owned新环境/应用受控prefix、明确包源及下载范围/预算授权；预览具体计划后再确认执行。不得借用或修改老师共享环境；代码/协议/纯计划测试可先继续。
-4. **CI**：用户已提供旧f1ecaf7首错日志，因此不再以“缺原日志”暂停修复。本轮407da99/run39149608836已获认证通知：check SUCCESS、desktop FAILURE（2 annotations），不再状态未知。剩余desktop失败步骤正文尚未取得，不能套旧根因；本次新功能SHA的CI仍须另核。此前Actions端点拒绝仍不重试、不绕路、不扩大账号权限。Node20 action警告和ubuntu迁移通知不是已证实失败根因。
+4. **CI**：最新已核父级认证邮件为 **736b984b57861499f66f40a9b490080eb1f6bbb5 / run39154349633，18:31:16 UTC completed，check SUCCESS、desktop FAIL，各2 annotations**，来源 https://github.com/T1doo/Easy-AI/actions/runs/39154349633 。中间3fbdd02/run39153498677曾双失败，已非最新；407da99结果仅保留作历史。邮件无失败步骤正文，根因仍未知，不能归因旧四类或本轮pip P2。本次后续SHA CI另核；此前Actions端点拒绝仍不重试、不绕路、不扩大账号权限、不重跑同SHA。Node20 action警告和ubuntu迁移通知不是已证实失败根因。
 
 本轮CI修复在隔离工作树完成，原工作区的符号/报告WIP已保留后完成定向验证并提交为9f417561c75c49c163752a3ad21a76f4b4fc79d8，未称M7或B整体验收。M7.3教学纵切已提交3cc9a0c2f016ea7ed51165967b5f4d49f9679bb4。后续交付受控包管理合同与打包骨架时，仍须合同冻结、单一集成者和独立模块边界。上述预算暂不因一个已有基础切片机械递减；安装器/打包首个纵切后重估。

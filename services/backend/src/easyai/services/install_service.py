@@ -29,6 +29,7 @@ from easyai.domain.install import (
 from easyai.security.files import read_regular
 from easyai.security.project_lock import ProjectLock
 from easyai.services.event_journal import EventJournal, read_events
+from easyai.services.owned_creation import OwnedCreation, require_ready, read_install_job
 
 RESOURCE_ROOT = Path(getattr(sys, "_MEIPASS", SOURCE_ROOT))
 PACKAGES_PATH = RESOURCE_ROOT / (
@@ -56,10 +57,20 @@ class InstallExecutor(Protocol):
     ) -> Literal["completed", "cancelled", "unknown", "failed"]: ...
 
 
+class EnvironmentProvisioner(Protocol):
+    def create(
+        self, prefix: Path, plan: InstallPlan, cancel: threading.Event, progress: Callable[[], None]
+    ) -> Literal["completed", "cancelled", "unknown", "failed"]: ...
+
+
 @dataclass
 class _Plan:
     value: InstallPlan
     deadline: float
+
+
+class _ProvisionCancelled(Exception):
+    pass
 
 
 class InstallService:
@@ -112,7 +123,7 @@ class InstallService:
             for event in events:
                 if event.type != "status_changed":
                     raise ValueError("INSTALL_LEDGER_INVALID")
-                job = InstallJob.model_validate(event.payload)
+                job, _ = read_install_job(event.payload)
                 if job.job_id != path.name:
                     raise ValueError("INSTALL_LEDGER_INVALID")
             if job.state == "AWAITING_EXECUTION":
@@ -138,7 +149,11 @@ class InstallService:
                 path.mkdir(mode=0o700)  # Exclusive; never attach to a different writer.
                 journal = EventJournal(path / "events.jsonl", job.job_id, "application")
                 self._journals[job.job_id] = journal
-            journal.append("status_changed", None, job.model_dump(by_alias=True))
+            payload = job.model_dump(by_alias=True)
+            plan = self._plans.get(job.plan_id)
+            if plan is not None and plan.value.new_environment:
+                payload["creationRequired"] = True
+            journal.append("status_changed", None, payload)
         except Exception:
             self._persistence_failed = True
             raise ValueError("INSTALL_LEDGER_WRITE_FAILED") from None
@@ -167,7 +182,7 @@ class InstallService:
             events = read_events(source, path.name, "application")
             if not events:
                 raise ValueError("INSTALL_LEDGER_INVALID")
-            previous = InstallJob.model_validate(events[-1].payload)
+            previous, _ = read_install_job(events[-1].payload)
             if previous.job_id != path.name:
                 raise ValueError("INSTALL_LEDGER_INVALID")
             if previous.environment_id == job.environment_id and previous.state in {
@@ -228,17 +243,22 @@ class InstallService:
             raise ValueError("INSTALL_ENVIRONMENT_FORBIDDEN")
         return path
 
-    def _owned(self, environment_id: str) -> Path:
+    def _owned(self, environment_id: str, *, allow_partial: bool = False) -> Path:
         path = self._prefix(environment_id)
         if not path.is_dir():
             raise ValueError("INSTALL_ENVIRONMENT_FORBIDDEN")
-        marker = json.loads(read_regular(path / ".easyai-owned.json", 2048))
+        try:
+            marker = json.loads(read_regular(path / ".easyai-owned.json", 2048))
+        except (OSError, ValueError):
+            raise ValueError("INSTALL_ENVIRONMENT_FORBIDDEN") from None
         if marker != {"ownedByEasyAI": True, "environmentId": environment_id}:
             raise ValueError("INSTALL_ENVIRONMENT_FORBIDDEN")
+        if not allow_partial:
+            require_ready(self.app_root, environment_id, path)
         return path
 
-    def _inspect(self, environment_id: str) -> InstallInspection:
-        path = self._owned(environment_id)
+    def _inspect(self, environment_id: str, *, allow_partial: bool = False) -> InstallInspection:
+        path = self._owned(environment_id, allow_partial=allow_partial)
         if self._inspector is None:
             raise ValueError("INSTALL_INSPECTION_NOT_ENABLED")
         nonce = str(uuid4())
@@ -415,7 +435,13 @@ class InstallService:
                 self._record(job)
             return job.model_copy(deep=True)
 
-    def execute(self, job_id: str, executor: InstallExecutor) -> InstallJob:
+    def execute(
+        self,
+        job_id: str,
+        executor: InstallExecutor,
+        *,
+        provisioner: EnvironmentProvisioner | None = None,
+    ) -> InstallJob:
         """Internal lifecycle seam only. No production caller/HTTP route exists."""
         with self._mutex:
             self._verify_root()
@@ -426,10 +452,19 @@ class InstallService:
             if saved.deadline <= self._clock():
                 raise ValueError("INSTALL_PLAN_STALE")
             plan = saved.value
-            if plan.new_environment:
+            if plan.new_environment and (provisioner is None or self._inspector is None):
                 raise ValueError("INSTALL_PROVISIONER_NOT_ENABLED")
-            prefix = self._owned(plan.environment_id)
-            lease = ProjectLock(prefix / ".easyai-install.lock")
+            if plan.new_environment and sys.platform == "win32":
+                raise ValueError("INSTALL_CREATION_PLATFORM_UNVERIFIED")
+            creation = (
+                OwnedCreation(self.app_root, plan.environment_id, job_id, plan.plan_hash)
+                if plan.new_environment
+                else None
+            )
+            prefix = (
+                self._prefix(plan.environment_id) if creation else self._owned(plan.environment_id)
+            )
+            lease = creation.reserve() if creation else ProjectLock(prefix / ".easyai-install.lock")
             if lease.fd is None:
                 lease.close()
                 raise ValueError("INSTALL_ENVIRONMENT_CONFLICT")
@@ -462,6 +497,55 @@ class InstallService:
             if saved.deadline <= self._clock():
                 quiescent, failure_code = True, "INSTALL_PLAN_STALE"
                 raise ValueError(failure_code)
+            if creation is not None:
+                quiescent, failure_code = True, "INSTALL_PROVISION_FAILED"
+                creation.allocate()
+                creation.verify()
+                if token.is_set():
+                    outcome = "cancelled"
+                else:
+                    if saved.deadline <= self._clock():
+                        failure_code = "INSTALL_PLAN_STALE"
+                        raise ValueError(failure_code)
+                    assert provisioner is not None
+                    quiescent = False
+                    outcome = provisioner.create(
+                        prefix, plan.model_copy(deep=True), token, progress
+                    )
+                    quiescent = outcome in {"completed", "cancelled", "failed"}
+                if not quiescent:
+                    raise ValueError("INSTALL_STOP_UNCONFIRMED")
+                if outcome == "failed":
+                    raise ValueError(failure_code)
+                if token.is_set() or outcome == "cancelled":
+                    raise _ProvisionCancelled
+                creation.verify()
+                assert self._inspector is not None
+                nonce = str(uuid4())
+                bootstrap = self._inspector(prefix, nonce)
+                if (
+                    bootstrap.nonce != nonce
+                    or bootstrap.prefix != str(prefix)
+                    or not bootstrap.python_version.startswith("3.11.")
+                ):
+                    raise ValueError("INSTALL_PROVISION_PROBE_FAILED")
+                creation.verify()
+                if token.is_set():
+                    raise _ProvisionCancelled
+                if saved.deadline <= self._clock() or self._profile_hash() != plan.constraints_hash:
+                    failure_code = "INSTALL_PLAN_STALE"
+                    raise ValueError(failure_code)
+                creation.mark_owned()
+                failure_code = "INSTALL_REPROBE_FAILED"
+            if token.is_set():
+                quiescent = True
+                raise _ProvisionCancelled
+            if saved.deadline <= self._clock():
+                quiescent, failure_code = True, "INSTALL_PLAN_STALE"
+                raise ValueError(failure_code)
+            if creation is not None:
+                creation.verify()
+            quiescent = False
             outcome = executor.install(prefix, plan.model_copy(deep=True), token, progress)
             quiescent = outcome in {"completed", "cancelled", "failed"}
             if not quiescent:
@@ -478,7 +562,9 @@ class InstallService:
                     if len(job.logs) < 128:
                         job.logs.append("INSTALL_REPROBE_STARTED")
                     self._record(job)
-                report = self._inspect(plan.environment_id)
+                report = self._inspect(plan.environment_id, allow_partial=creation is not None)
+                if creation is not None:
+                    creation.verify()
                 expected = {item.package_id: item.target_version for item in plan.package_changes}
                 if (
                     not report.python_version.startswith("3.11.")
@@ -499,12 +585,17 @@ class InstallService:
                             "INSTALL_CANCELLED_REPROBE_REQUIRED",
                         )
                     else:
+                        if creation is not None:
+                            creation.mark_ready()
                         job.state, job.status_code, job.verified, job.needs_reprobe = (
                             "SUCCEEDED",
                             "INSTALL_VERIFIED",
                             True,
                             False,
                         )
+        except _ProvisionCancelled:
+            with self._mutex:
+                job.state, job.status_code = "CANCELLED", "INSTALL_CANCELLED_REPROBE_REQUIRED"
         except Exception:
             with self._mutex:
                 job.state = "FAILED" if quiescent else "CANCEL_REQUESTED"
