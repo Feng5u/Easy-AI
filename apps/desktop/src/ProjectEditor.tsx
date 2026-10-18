@@ -1,3 +1,4 @@
+import { FigureInspector } from "./FigureInspector.js";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import type { ProjectEditorProps, WorkspaceTab } from "./editor-contract.js";
 import { WorkspaceManager, workspaceTabs } from "./WorkspaceManager.js";
@@ -94,6 +95,9 @@ export function ProjectEditor(props: ProjectEditorProps) {
   const selected = props.selectedBlock
     ? manager.current?.block(props.selectedBlock)
     : null;
+  const figure = props.selectedBlock
+    ? manager.current?.figure(props.selectedBlock)
+    : null;
   const entry = symbols.find((symbol) => symbol.id === props.selectedBlock);
   const selectedName = entry?.name ?? "";
   useEffect(() => {
@@ -181,6 +185,23 @@ export function ProjectEditor(props: ProjectEditorProps) {
           />
         </div>
         <aside className="project-editor-inspector" aria-label="对象注册与引用">
+          {figure && (
+            <FigureInspector
+              key={`${props.project.projectId}:${figure.id}`}
+              figure={figure}
+              selectedBlock={props.selectedBlock}
+              readOnly={readOnly}
+              onApply={(layout, size) =>
+                action((instance) =>
+                  instance.configureFigure(figure.id, layout, size),
+                )
+              }
+              onSelect={(id) => {
+                props.onSelect(id);
+                manager.current?.select(id);
+              }}
+            />
+          )}
           <h3>所选积木</h3>
           {selected ? (
             <>

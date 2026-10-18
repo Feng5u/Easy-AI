@@ -35,6 +35,18 @@ const catalog: Record<string, BlockSpec> = Object.fromEntries(
   manifest.blocks.map((spec) => [spec.id, spec]),
 );
 
+export const figureLayouts = catalog["viz.figure"].fields.LAYOUT?.options ?? [];
+export const figureSizes = catalog["viz.figure"].fields.SIZE?.options ?? [];
+export interface FigureView {
+  id: string;
+  layout: string;
+  size: string;
+  rows: number;
+  columns: number;
+  disabled: boolean;
+  panels: { id: string; chartType: string; disabled: boolean }[];
+}
+
 function object(value: unknown): value is JsonObject {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
@@ -496,6 +508,78 @@ export class WorkspaceManager {
         this.handles[tab].select(id);
         return;
       }
+  }
+  figure(id: string): FigureView | null {
+    if (this.disposed || this.blocked) return null;
+    let block = this.block(id);
+    const ancestors = new Set<string>();
+    while (block && block.type !== "viz.figure") {
+      if (ancestors.has(block.id) || ancestors.size >= 500) return null;
+      ancestors.add(block.id);
+      block = block.getParent();
+    }
+    if (!block) return null;
+    const layout = String(block.getFieldValue("LAYOUT"));
+    const size = String(block.getFieldValue("SIZE"));
+    if (!figureLayouts.includes(layout) || !figureSizes.includes(size))
+      return null;
+    const [rows, columns] = layout.split(",").map(Number);
+    const panels: FigureView["panels"] = [];
+    const seen = new Set<string>();
+    let panel = block.getInputTargetBlock("panels");
+    while (panel) {
+      if (panel.type !== "viz.panel" || seen.has(panel.id) || seen.size >= 500)
+        return null;
+      seen.add(panel.id);
+      panels.push({
+        id: panel.id,
+        chartType: String(panel.getFieldValue("CHART_TYPE")),
+        disabled: !panel.isEnabled(),
+      });
+      panel = panel.getNextBlock();
+    }
+    let container: Blockly.Block | null = block;
+    let disabled = false;
+    const surrounding = new Set<string>();
+    while (container) {
+      if (surrounding.has(container.id) || surrounding.size >= 500) return null;
+      surrounding.add(container.id);
+      disabled ||= !container.isEnabled();
+      container = container.getSurroundParent();
+    }
+    return { id: block.id, layout, size, rows, columns, disabled, panels };
+  }
+  configureFigure(id: string, layout: string, size: string): void {
+    if (this.disposed || this.readOnly || this.blocked) return;
+    const block = this.block(id);
+    const figure = this.figure(id);
+    if (!block || block.type !== "viz.figure" || !figure)
+      throw new Error("画布结构不可安全编辑，请检查积木连接。");
+    if (!figureLayouts.includes(layout) || !figureSizes.includes(size))
+      throw new Error("请选择支持的画布布局和尺寸。");
+    const capacity = layout
+      .split(",")
+      .map(Number)
+      .reduce((rows, columns) => rows * columns);
+    if (layout !== figure.layout && figure.panels.length > capacity)
+      throw new Error(
+        `此布局只有 ${capacity} 个格子，已连接 ${figure.panels.length} 个子图（含停用块）。请选择更大布局；所有积木已保留。`,
+      );
+    const tab = workspaceTabs.find(
+      (value) => this.handles[value].workspace === block.workspace,
+    );
+    if (tab && tab !== this.active) {
+      this.setActive(tab);
+      this.callbacks.onTabChange(tab);
+    }
+    const group = Blockly.Events.getGroup();
+    Blockly.Events.setGroup(group || true);
+    try {
+      block.setFieldValue(layout, "LAYOUT");
+      block.setFieldValue(size, "SIZE");
+    } finally {
+      Blockly.Events.setGroup(group);
+    }
   }
   rename(id: string, name: string): void {
     if (this.readOnly || this.blocked) return;
