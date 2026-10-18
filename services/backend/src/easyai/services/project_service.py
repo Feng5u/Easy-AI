@@ -10,6 +10,12 @@ from pydantic import ValidationError
 
 from easyai.compiler.decode import DecodeError, decode
 from easyai.domain.contracts import ProjectDocument
+from easyai.security.project_lock import ProjectLock
+
+MAX_PROJECT_BYTES = 5 * 1024 * 1024
+# Raw JSON container depth, including Blockly next/block wrappers. This is
+# separate from Decoder's semantic input-nesting limit and 500 total blocks.
+MAX_JSON_DEPTH = 64
 
 
 @dataclass
@@ -20,41 +26,44 @@ class OpenedProject:
     reason: str | None = None
 
 
+def validate_project_bytes(raw: bytes) -> ProjectDocument:
+    """One authoritative read/write gate, including the exact serialized byte size."""
+    if len(raw) > MAX_PROJECT_BYTES:
+        raise ValueError("PROJECT_SIZE_LIMIT")
+
+    def unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, item in pairs:
+            if key in result:
+                raise ValueError("PROJECT_DUPLICATE_JSON_KEY")
+            result[key] = item
+        return result
+
+    value = json.loads(raw, object_pairs_hook=unique_object)
+    pending = [(value, 0)]
+    while pending:
+        item, level = pending.pop()
+        if level > MAX_JSON_DEPTH:
+            raise ValueError("PROJECT_DEPTH_LIMIT")
+        if isinstance(item, dict):
+            pending.extend((child, level + 1) for child in item.values())
+        elif isinstance(item, list):
+            pending.extend((child, level + 1) for child in item)
+    document = ProjectDocument.model_validate(value)
+    decode(document)
+    return document
+
+
 def read_project(path: Path) -> OpenedProject:
     if path.is_symlink():
         raise ValueError("PROJECT_PATH_FORBIDDEN")
     with path.open("rb") as stream:
-        raw = stream.read(5 * 1024 * 1024 + 1)
-    if len(raw) > 5 * 1024 * 1024:
-        return OpenedProject(raw, None, True, "PROJECT_SIZE_LIMIT")
+        raw = stream.read(MAX_PROJECT_BYTES + 1)
     try:
-
-        def unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
-            result: dict[str, Any] = {}
-            for key, item in pairs:
-                if key in result:
-                    raise ValueError("PROJECT_DUPLICATE_JSON_KEY")
-                result[key] = item
-            return result
-
-        value = json.loads(raw, object_pairs_hook=unique_object)
-
-        def depth(item: Any, level: int = 0) -> None:
-            if level > 64:
-                raise ValueError("PROJECT_DEPTH_LIMIT")
-            if isinstance(item, dict):
-                for child in item.values():
-                    depth(child, level + 1)
-            elif isinstance(item, list):
-                for child in item:
-                    depth(child, level + 1)
-
-        depth(value)
-        document = ProjectDocument.model_validate(value)
-        decode(document)
-        return OpenedProject(raw, document, False)
+        return OpenedProject(raw, validate_project_bytes(raw), False)
     except (ValueError, ValidationError, DecodeError, RecursionError) as error:
-        return OpenedProject(raw, None, True, type(error).__name__)
+        reason = str(error) if str(error).startswith("PROJECT_") else type(error).__name__
+        return OpenedProject(raw, None, True, reason)
 
 
 class ProjectService:
@@ -68,28 +77,27 @@ class ProjectService:
             raise ValueError("PROJECT_PATH_FORBIDDEN")
         meta.mkdir(exist_ok=True)
         self.lock = meta / "project.lock"
-        self.owned = False
         self._save_lock = threading.Lock()
-        try:
-            fd = os.open(self.lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-            os.close(fd)
-            self.owned = True
-        except FileExistsError:
-            pass
+        self._project_lock = ProjectLock(self.lock)
+
+    @property
+    def owned(self) -> bool:
+        return self._project_lock.fd is not None
+
+    @property
+    def lock_reason(self) -> str | None:
+        return self._project_lock.reason
 
     def close(self) -> None:
         with self._save_lock:
-            if self.owned:
-                self.lock.unlink()
-                self.owned = False
+            self._project_lock.close()
 
     def save(self, document: ProjectDocument, expected_revision: int) -> ProjectDocument:
         with self._save_lock:
             return self._save(document, expected_revision)
 
     def _save(self, document: ProjectDocument, expected_revision: int) -> ProjectDocument:
-        if not self.owned:
-            raise ValueError("PROJECT_READ_ONLY")
+        self._project_lock.verify()
         current = read_project(self.path)
         if current.read_only or current.document is None:
             raise ValueError("PROJECT_READ_ONLY")
@@ -100,6 +108,7 @@ class ProjectService:
         decode(document)  # Unknown blocks cannot be silently discarded on save.
         saved = document.model_copy(update={"revision": expected_revision + 1})
         payload = (saved.model_dump_json(by_alias=True, indent=2) + "\n").encode()
+        validate_project_bytes(payload)  # Before touching either backup or project.
         meta = self.root / ".easyai"
         backup = meta / "backup"
         if backup.is_symlink():

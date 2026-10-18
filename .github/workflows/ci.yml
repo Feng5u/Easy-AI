@@ -38,5 +38,8 @@ jobs:
           version: 0.12.23
       - run: pnpm install --frozen-lockfile
       - run: pnpm setup
+      - name: Project persistence and native lock lifecycle
+        working-directory: services/backend
+        run: uv run --frozen pytest -q tests/test_project_persistence.py
       - run: pnpm --filter @easyai/desktop build
       - run: pnpm test:e2e
