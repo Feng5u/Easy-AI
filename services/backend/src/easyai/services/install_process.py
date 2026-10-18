@@ -18,7 +18,13 @@ from easyai.domain.install import InstallInspection, InstallPlan
 from easyai.runtime.supervisor import ManagedSupervisor
 from easyai.security.files import read_regular
 from easyai.services.install_service import PROFILE_ROOT, ProbeReceipt
-from easyai.services.install_sources import IMPORTS, ML_ROOTS, constraints_hash, lock_bytes, wheels
+from easyai.services.install_sources import (
+    IMPORTS,
+    OPTIONAL_ROOTS,
+    constraints_hash,
+    lock_bytes,
+    wheels,
+)
 
 LOG_LIMIT = 1024 * 1024
 
@@ -235,7 +241,7 @@ class ManagedInstallInspector:
         receipt.quiescent = True  # Fixed input validation has not spawned an owner.
         if not set(receipt.import_names).issubset(IMPORTS.values()):
             raise ValueError("INSTALL_INSPECTION_INVALID")
-        names = [item["name"] for item in wheels(PROFILE_ROOT, set(ML_ROOTS))]
+        names = [item["name"] for item in wheels(PROFILE_ROOT, set(OPTIONAL_ROOTS))]
         source = (
             HEADER
             + "import importlib.metadata,platform\n"

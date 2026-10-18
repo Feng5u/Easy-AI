@@ -13,7 +13,7 @@
 | 至少一个干净目标机包 | NOT RUN | 无Node/开发Python/本机torch，能启动编辑并连接已准备环境 |
 | 真实MNIST正式10轮 | NOT RUN | 机器/环境/数据来源、seed/模式、实际指标与截图，非合成曲线 |
 | SSH取消/断线/接续/重启/日志与产物映射 | NOT RUN | 授权隔离目标及真实生命周期记录；不以接受请求代替退出 |
-| 受控安装 | 受控验证PASS／真实NOT RUN（默认禁用） | 四项生产接线与ML组元数据闭包已有，8卡可解析/9卡未解析；Main原生来源picker仍缺；实际可信来源/许可/owned目标授权、conda兼容/真实安装/退出/import/tensor仍未验；不以合成inventory代替 |
+| 受控安装 | 受控验证PASS／真实NOT RUN（默认禁用） | 四项生产接线、ML与scikit-image元数据闭包已有，9卡可解析/8卡未支持（OpenCV native未核）；Main原生来源picker仍缺；实际可信来源/许可/owned目标授权、conda兼容/真实安装/退出/import/tensor仍未验；不以合成inventory代替 |
 | 私钥正常入口 | PASS（合成/受控代码链），真实NOT RUN | 明确选择、秘密不持久、pin/取消；真实私钥/SSH/native picker仍需授权目标机验证 |
 | 完整代码Bundle桌面导出 | PASS（定向Main/HTTP/文件链）／TST34 NOT RUN | 已保存编译快照、新目录/辅助文件/hash；真实独立训练运行/原生picker/Windows仍缺，见code-bundle-export.md |
 | 显式本地数据上传 | PASS（合成SFTP/协议/组件）／真实NOT RUN | source/target/预算确认、owned任务、取消和回读已接；新增私有持久历史、重选源/认证、只读核验与同slot缺失补传合成链；真实服务器仍未验，见data-upload.md |

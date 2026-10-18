@@ -22,7 +22,7 @@
 
 出现错误先查看积木定位、生成代码及本地日志；七主题离线教程和数值卷积实验不启动训练。脱敏诊断导出仅固定字段，但原始日志仍可能含本机路径；分享前人工检查。取消/失败保留日志和已有产物，不承诺环境事务回滚。
 
-包管理源码已有离线CondaBootstrap、inspector与确认后唯一安装worker，默认执行禁用。只有可信操作者提供完整私有来源/预算/时效授权，具体计划才可明确确认执行；ML组现有固定候选闭包（不是实际兼容验收），17卡中8卡可解析、其余9卡仍未解析；Main原生来源选择器仍缺，目前仅operator私有manifest。见install-ml-sources.md。本轮没有实际安装验收。新owned半成品不能作可用环境，不删除未知目录、不盲解锁。实际来源/许可/目标授权、真实兼容与安装复检、活安装重连和未知停止安全解除仍缺，见install-runtime-configuration.md。
+包管理源码已有离线CondaBootstrap、inspector与确认后唯一安装worker，默认执行禁用。只有可信操作者提供完整私有来源/预算/时效授权，具体计划才可明确确认执行；ML及scikit-image现有固定候选闭包（不是实际兼容验收），17卡中9卡可解析、其余8卡未支持（含OpenCV native要求未核）；Main原生来源选择器仍缺，目前仅operator私有manifest。见install-ml-sources.md及install-cv-sources.md。本轮没有实际安装验收。新owned半成品不能作可用环境，不删除未知目录、不盲解锁。实际来源/许可/目标授权、真实兼容与安装复检、活安装重连和未知停止安全解除仍缺，见install-runtime-configuration.md。
 
 ## 本地产物
 

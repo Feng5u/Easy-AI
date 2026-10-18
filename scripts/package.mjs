@@ -23,6 +23,9 @@ export const OFFLINE_DOCS = [
   "teacher-setup.md",
   "release-checklist.md",
   "install-contract.md",
+  "install-runtime-configuration.md",
+  "install-ml-sources.md",
+  "install-cv-sources.md",
 ];
 const repository = resolve(import.meta.dirname, "..");
 export const defaultOutput = (root) =>
@@ -187,6 +190,14 @@ export const resourcePairs = [
   [
     "packages/training-profiles/easyai-ml-linux-cp311.lock",
     "training-profiles/easyai-ml-linux-cp311.lock",
+  ],
+  [
+    "packages/training-profiles/easyai-cv-sources.json",
+    "training-profiles/easyai-cv-sources.json",
+  ],
+  [
+    "packages/training-profiles/easyai-cv-linux-cp311.lock",
+    "training-profiles/easyai-cv-linux-cp311.lock",
   ],
   ["examples/mnist-cnn/project.easyai.json", "templates/project.easyai.json"],
   ["packages/contracts/fixtures/blank.json", "templates/blank.json"],

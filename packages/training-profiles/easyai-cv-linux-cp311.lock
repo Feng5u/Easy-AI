@@ -1,0 +1,9 @@
+# Optional CV wheels; CPython 3.11 / Linux x86_64; no extras. Requires core and selected ML pins.
+imageio==2.38.1 \
+    --hash=sha256:36d23eb7423d2fb63f637098758edb3d2df3687f7125e0a5ce8596572022dcf9
+lazy-loader==0.6 \
+    --hash=sha256:77253be3391b06124a0e16105bd663b6c54470af1a9ca8e1cf026f38d58ed056
+scikit-image==0.26.0 \
+    --hash=sha256:74aa5518ccea28121f57a95374581d3b979839adc25bb03f289b1bc9b99c58af
+tifffile==2025.10.16 \
+    --hash=sha256:41463d979c1c262b0a5cdef2a7f95f0388a072ad82d899458b154a48609d759c

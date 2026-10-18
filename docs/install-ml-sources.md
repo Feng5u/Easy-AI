@@ -1,6 +1,6 @@
 # M6.3 ML 可选依赖来源合同
 
-本片为原计划14.3/14.5的ML白名单组补固定发行元数据、闭包和受控执行接线。17张卡中现在8张有可解析的目标版本：原5核心加scipy/pandas/scikit-learn；其余9张仍unresolved，不能凭展示卡片宣称支持。完整ML组为numpy、scipy、pandas、matplotlib、scikit-learn。
+本片为原计划14.3/14.5的ML白名单组补固定发行元数据、闭包和受控执行接线。ML纵切提供原5核心加scipy/pandas/scikit-learn共8张可解析卡；后续CV的scikit-image使当前共9张可解析，其余8张仍未支持，见install-cv-sources.md，不能凭展示卡片宣称支持。完整ML组为numpy、scipy、pandas、matplotlib、scikit-learn。
 
 仅支持既有Linux x86_64 / CPython3.11.17 CPU核心。核心文件及版本不变；新增锁是可选补充，不把ML加进MNIST最小安装。元数据约束兼容不等于实际ABI/import/tensor兼容验收。默认executionEnabled仍false，教师环境仍只读，应用sidecar不安装或导入这些训练依赖。
 
@@ -30,10 +30,10 @@
 
 ## 原执行门和复检
 
-constraintsHash绑定核心与ML两对来源/锁文件，planHash还绑定具体闭包、字节、基线、runtimeFingerprint、bootstrap和磁盘/时间预算。既有核心计划只验证核心本地wheel；具体ML计划额外验证其选择闭包的operator wheelhouse文件，实际SHA/字节进入runtimeFingerprint及预算。可选文件缺失/变更或预算不够拒绝，不把core capability当ML来源授权。计划仍需本次明确确认。
+constraintsHash绑定核心、ML与CV三对来源/锁文件，planHash还绑定具体闭包、字节、基线、runtimeFingerprint、bootstrap和磁盘/时间预算。既有核心计划只验证核心本地wheel；具体ML计划额外验证其选择闭包的operator wheelhouse文件，实际SHA/字节进入runtimeFingerprint及预算。可选文件缺失/变更或预算不够拒绝，不把core capability当ML来源授权。计划仍需本次明确确认。
 
 同一OfflineWheelInstaller只把本次精确闭包的补充pin加到核心锁副本；固定no-index/require-hashes/only-binary命令、私有配置禁用和原owner/lease/WAL/取消/未知停止合同保持。没有第二套writer或自由命令入口。Main原生来源picker仍未实现，目前只有operator私有manifest；本片没有创建实际配置或启用本机安装。
 
 固定inspector对已知distribution读取metadata版本（不因此导入模块）；基线/规划只导入原核心3模块。最终receipt指定本计划所需模块，用显式distribution→import映射，scikit-learn→sklearn；未选的ML模块不导入。最终须完整版本闭包、选中模块真实import及原CPU tensor检查全部通过，才可verified/ready。未知probe仍保留owner/lease/journal，同prefix阻重入；单job取消保持隔离。
 
-NOT RUN：实际ML wheel获取、环境创建/安装、ML实际import/ABI与tensor正向验收、训练、SSH、新许可接受。仍需真实来源/许可与一次性owned目标/预算/窗口的独立授权。其余9卡、原生source picker、远端安装和完整M6.3/B均未完成；本片不把元数据可解析当真实安装完成。
+NOT RUN：实际ML wheel获取、环境创建/安装、ML实际import/ABI与tensor正向验收、训练、SSH、新许可接受。仍需真实来源/许可与一次性owned目标/预算/窗口的独立授权。其余8卡、原生source picker、远端安装和完整M6.3/B均未完成；本片不把元数据可解析当真实安装完成。

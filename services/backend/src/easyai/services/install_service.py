@@ -30,7 +30,14 @@ from easyai.security.files import read_regular
 from easyai.security.project_lock import ProjectLock
 from easyai.services.event_journal import EventJournal, read_events
 from easyai.services.owned_creation import OwnedCreation, require_ready, read_install_job
-from easyai.services.install_sources import IMPORTS, ML_ROOTS, constraints_hash, wheels, Wheel
+from easyai.services.install_sources import (
+    IMPORTS,
+    OPTIONAL_ROOTS,
+    UNSUPPORTED,
+    constraints_hash,
+    wheels,
+    Wheel,
+)
 
 if TYPE_CHECKING:
     from easyai.services.install_runtime import InstallRuntime
@@ -237,7 +244,7 @@ class InstallService:
 
     def catalog(self) -> PackageCatalog:
         self._verify_root()
-        versions = {item["name"]: item["version"] for item in self._wheels(set(ML_ROOTS))}
+        versions = {item["name"]: item["version"] for item in self._wheels(set(OPTIONAL_ROOTS))}
         raw = json.loads(read_regular(PACKAGES_PATH, 50_000))
         capability = self._runtime.snapshot() if self._runtime else None
         self._verify_root()
@@ -376,6 +383,7 @@ class InstallService:
                 blockers.append("INSTALL_PROFILE_PLATFORM_UNSUPPORTED")
             if any(item not in locked for item in selected):
                 blockers.append("INSTALL_DEPENDENCIES_UNRESOLVED")
+            blockers.extend(code for name, code in UNSUPPORTED.items() if name in selected)
             if any(versions.get(name, version) != version for name, version in locked.items()):
                 blockers.append("INSTALL_VERSION_CONFLICT")
             changes = [
@@ -397,7 +405,7 @@ class InstallService:
             capability = (
                 (
                     self._runtime.snapshot(selected)
-                    if selected.intersection(ML_ROOTS)
+                    if selected.intersection(OPTIONAL_ROOTS)
                     else self._runtime.snapshot()
                 )
                 if self._runtime
@@ -450,7 +458,7 @@ class InstallService:
             selected = {item.package_id for item in plan.package_changes if item.requested}
             capability = (
                 self._runtime.snapshot(selected)
-                if selected.intersection(ML_ROOTS)
+                if selected.intersection(OPTIONAL_ROOTS)
                 else self._runtime.snapshot()
             )
             if capability.fingerprint != plan.runtime_fingerprint or (

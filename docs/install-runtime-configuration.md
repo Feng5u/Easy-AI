@@ -14,7 +14,7 @@
 | launcher | 已获准base Python的绝对规范path、实际sha256和bytes；无默认launcher或PATH猜测 |
 | moduleRoot / moduleTreeSha256 | 显式conda及其依赖模块目录，全树相对路径+实际文件SHA256的规范digest，最多10000项/1GiB；无symlink及不安全祖先；需要可信操作者确认来源，版本字符串不替代来源信任 |
 | bootstrap | 完整已备本地conda档案清单，每项path/实际sha256/bytes；包含python-3.11.17和pip及完整依赖；只允许.conda/.tar.bz2；不解析网络包源、不猜缺失依赖 |
-| wheelhouse | 已获准的本机目录，必须包含现有CPU sources清单全部精确filename/hash/bytes；具体ML计划还必须包含其补充闭包的本地wheel及实际hash/字节，按选择加入预算；其余9个未解析可选卡仍block |
+| wheelhouse | 已获准的本机目录，必须包含现有CPU sources清单全部精确filename/hash/bytes；具体ML/scikit-image计划还必须包含其补充闭包的本地wheel及实际hash/字节，按选择加入预算；其余8个未支持可选卡仍block，OpenCV native门不能由manifest解除 |
 | diskBudgetBytes / seconds | 明确磁盘预算上限和每个受管进程1–3600秒预算；均进入runtime指纹/planHash，UI展示；不是总磁盘占用的虚构估计 |
 | executionAuthorized / authorizationExpires | 默认false、严格布尔及有时区失效时间；表示此主机具体来源的独立授权，仍需本次计划确认。过期/来源漂移拒绝，不自动刷新授权 |
 
@@ -33,3 +33,5 @@ baseline/bootstrap/final probe各有自己的owner收据；上一条bootstrap/pi
 UI按具体计划显示离线来源、bootstrap字节、未知实际解包占用、磁盘/时间预算和“确认执行”或“仅登记”。catalog能力不是全局授权，每份计划还受包锁、来源、基线、时效与明确确认约束。完整M6.3/B还需实际一次性owned目标上真实bootstrap/pip/复检验收；本轮没有该执行授权。
 
 ML固定来源与marker闭包见[ML合同](install-ml-sources.md)。没有新增实际来源配置；Main原生source picker仍缺，目前仅operator私有manifest，不把本片解析能力当来源选择UI或真实安装验收。
+
+CV固定闭包与OpenCV专门unsupported门见[CV合同](install-cv-sources.md)。三对来源/锁均进入constraintsHash；没有提供CV本地wheel不影响只选core/ML时的来源核验。OpenCV候选证据不属于可安装wheel清单，不因私有manifest或NumPy匹配自动启用。

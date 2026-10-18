@@ -111,6 +111,22 @@ try {
   const expectedMlLock = await readFile(
     join(repository, "packages/training-profiles/easyai-ml-linux-cp311.lock"),
   );
+  const expectedCvSources = await readFile(
+    join(repository, "packages/training-profiles/easyai-cv-sources.json"),
+  );
+  const expectedCvLock = await readFile(
+    join(repository, "packages/training-profiles/easyai-cv-linux-cp311.lock"),
+  );
+  assert.deepEqual(
+    await readFile(join(resources, "training-profiles/easyai-cv-sources.json")),
+    expectedCvSources,
+  );
+  assert.deepEqual(
+    await readFile(
+      join(resources, "training-profiles/easyai-cv-linux-cp311.lock"),
+    ),
+    expectedCvLock,
+  );
   assert.deepEqual(
     await readFile(join(resources, "training-profiles/easyai-ml-sources.json")),
     expectedMlSources,
@@ -151,6 +167,8 @@ try {
       .update(expectedLock)
       .update(expectedMlSources)
       .update(expectedMlLock)
+      .update(expectedCvSources)
+      .update(expectedCvLock)
       .digest("hex"),
   );
   const ml = await request("POST", "/environments/install-plan", {
@@ -170,6 +188,30 @@ try {
       .targetVersion,
     "1.8.0",
   );
+  const cv = await request("POST", "/environments/install-plan", {
+    targetId: "local",
+    profileId: "easyai-cpu",
+    packageIds: ["scikit-image"],
+    newEnvironmentSpec: { name: "frozen_cv" },
+  });
+  assert.equal(cv.response.status, 200);
+  assert.equal(cv.value.executionEnabled, false);
+  assert.equal(cv.value.installedBytes, null);
+  if (process.platform === "linux" && process.arch === "x64") {
+    assert.deepEqual(cv.value.blockers, []);
+  }
+  const opencv = await request("POST", "/environments/install-plan", {
+    targetId: "local",
+    profileId: "easyai-cpu",
+    packageIds: ["opencv-python"],
+    newEnvironmentSpec: { name: "frozen_opencv" },
+  });
+  assert.equal(opencv.response.status, 200);
+  assert.ok(
+    opencv.value.blockers.includes("INSTALL_NATIVE_REQUIREMENTS_UNVERIFIED"),
+  );
+  assert.equal(opencv.value.downloadBytes, null);
+  assert.equal(opencv.value.executionEnabled, false);
   const acknowledged = {
     planId: planned.value.planId,
     planHash: planned.value.planHash,

@@ -69,14 +69,14 @@
       "importName": "cv2",
       "group": "cv",
       "purpose": "计算机视觉",
-      "dependencyNote": "完整依赖须受控解析；MNIST核心组合采用CPU profile锁定约束。"
+      "dependencyNote": "不支持安装：cv2目标GUI/系统动态库要求未可靠核实；候选元数据不等于可安装，不替换headless。"
     },
     {
       "packageId": "scikit-image",
       "importName": "skimage",
       "group": "cv",
       "purpose": "图像处理",
-      "dependencyNote": "完整依赖须受控解析；MNIST核心组合采用CPU profile锁定约束。"
+      "dependencyNote": "Linux CPython 3.11固定0.26.0；复用NumPy/SciPy/Pillow，附带锁定imageio/tifffile/lazy-loader，无data或codec extras。"
     },
     {
       "packageId": "nltk",
