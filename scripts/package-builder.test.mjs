@@ -13,6 +13,7 @@ import {
 import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { verifyBuilder } from "./package-builder.mjs";
+import { treeRecords } from "./package-inputs.mjs";
 import { OFFLINE_DOCS, hash } from "./package.mjs";
 const req = createRequire(import.meta.url);
 const builder = createRequire(req.resolve("electron-builder"));
@@ -26,6 +27,7 @@ async function fixture(t, extra) {
   const files = [
     "linux-unpacked/easyai",
     "linux-unpacked/LICENSE",
+    "linux-unpacked/LICENSE.electron.txt",
     "linux-unpacked/LICENSES.chromium.html",
     "linux-unpacked/resources/app.asar",
     "linux-unpacked/resources/backend/easyai-sidecar",
@@ -65,8 +67,15 @@ async function fixture(t, extra) {
       mode: (await lstat(join(root, "artifacts", file))).mode & 0o777,
       sha256: await hash(join(root, "artifacts", file)),
     });
+  const base = join(root, "artifacts/linux-unpacked");
+  const vendor = (await treeRecords(base))
+    .filter(
+      (r) =>
+        !r.path.startsWith("resources/") && r.path !== "LICENSE.electron.txt",
+    )
+    .map((r) => ({ ...r, path: r.path === "easyai" ? "electron" : r.path }));
   const manifest = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     kind: "unsigned-electron-builder-local",
     sourceCommit: "a".repeat(40),
     builderVersion: "26.15.3",
@@ -75,6 +84,21 @@ async function fixture(t, extra) {
     arch: "x64",
     distributionReady: false,
     legalReviewComplete: false,
+    approvedInputs: {
+      schemaVersion: 1,
+      origin: "exclusive-clean-build",
+      sourceCommit: "a".repeat(40),
+      appMetadata: JSON.stringify(
+        JSON.parse(await readFile(join(app, "package.json"), "utf8")),
+      ),
+      groups: {
+        app: await treeRecords(app),
+        backend: await treeRecords(join(base, "resources/backend")),
+        offline: await treeRecords(join(base, "resources/offline")),
+        notices: await treeRecords(join(base, "resources/notices")),
+        vendor,
+      },
+    },
     records,
   };
   const save = () =>
@@ -116,4 +140,19 @@ test("builder verifier rejects private environment files even when hashes match"
     "dist/.env.local": "SYNTHETIC_SECRET_ONLY",
   });
   await assert.rejects(verifyBuilder(root), /BUILDER_ASAR_UNEXPECTED_INPUT/);
+});
+
+test("output inventory cannot approve an extra resource with an ordinary name", async (t) => {
+  const { root, manifest, save } = await fixture(t);
+  const file = join(
+    root,
+    "artifacts/linux-unpacked/resources/offline/additional-reading.json",
+  );
+  await writeFile(file, "SYNTHETIC_UNREGISTERED_CONTENT");
+  manifest.records = await treeRecords(join(root, "artifacts"));
+  await save();
+  await assert.rejects(
+    verifyBuilder(root),
+    /BUILDER_UNAPPROVED_RESOURCE: offline/,
+  );
 });

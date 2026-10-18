@@ -1,17 +1,19 @@
 # M8.2 electron-builder 本地打包合同
 
-精确开发依赖 electron-builder 26.15.3，来自 npm 正规注册表，完整 integrity/transitive graph 在 pnpm-lock.yaml。安装时使用 --ignore-scripts；不新增 lifecycle 白名单，不安装训练依赖。Node/Electron 等原直接版本保持；pnpm 自动解析的可选 peer 绑定变化保留于锁文件并定向复检。MIT 依赖声明不代表项目或所有捆绑资源已完成法律审查。
+精确开发依赖electron-builder26.15.3及完整npm integrity在pnpm-lock.yaml。仅同主机Linux x64、unsigned dir+tar.gz，publish=never与配置null，不签名、不部署、不修改sandbox。原appId io.easyai.desktop保留。distributionReady和legalReviewComplete恒false。
 
-入口：先 `pnpm build`，再 `pnpm package:builder`。当前仅同主机 Linux x64；其他平台提前拒绝。根electron-builder.json保存固定基础选项，保留原appId io.easyai.desktop；其默认app路径为未准备目录，避免裸CLI跳过资源门。包装入口绑定独占暂存目录，真实调用 electron-builder API，显式 Linux dir 与 tar.gz（首个本地验证包使用compression=store以约束压缩CPU耗时，归档尺寸据实记录），publish=never、publish配置null、不签名、不原生重建、不下载替代Electron。使用已安装、版本与ELF匹配的Electron目录；builder默认目标、自动发布和系统安装器不在本入口范围。tar.gz使用builder内置固定7zip@1.0.0工具集，首次可能从官方electron-userland/electron-builder-binaries下载；26.15.3代码内含精确SHA256，不是离线复制流程。无训练依赖、数据或模型下载。
+`pnpm package:builder` 现在自动在独占新目录执行干净构建，不再采用现有apps/desktop/dist、dist-electron、services/backend/dist或已安装Electron dist树。tsc、Vite、PyInstaller均输出到新建的dist/builder-inputs-<SHA>-<UUID>；Python的dist/work/spec路径分离，资源路径绝对绑定原仓库。Vite关闭ambient publicDir复制，应用资源只来自构建的明确import。生成目录不覆盖旧构建或用户文件。要求已提交的受控源码；若有未提交源码修改先拒绝而不重置用户工作。
 
-打包前复用原stagePortable的资源/架构/hash、显式应用/离线文档/教程/示例与notices allowlist。暂存位于独立dist/easyai-builder-<完整HEAD前12位>-<本次时间戳>-linux-x64/input；此处临时复制完整Electron以复用已验证的流程，增加磁盘占用，不改旧便携包或缓存。输出目录独占mkdir，已有或失败目录原样保留，不覆盖重跑。
+Electron来自精确npm依赖注册的44.9.0 archive，官方get以包内checksums校验后解压到新vendor目录，不采用可能污染的已安装dist。构建可能使用官方缓存或正常工具下载，不下载训练依赖、模型或数据。tar工具沿用builder官方7zip@1.0.0固定校验；没有新增需接受的许可/费用/权限。
 
-builder将应用dist、dist-electron及最小package.json置于resources/app.asar；PyInstaller目录完整复制到resources/backend（包括_internal），供既有Main backendLocation使用，不放进ASAR；offline/notices独立resources目录，Electron许可证在产品根保留。无checkout node_modules/用户配置/运行数据/密钥进入app stage。应用依赖已由Vite打入dist，Main仅使用Electron/Node内置模块。
+手工教程只批准代码中TUTORIAL_FILES列出的七个zh-CN文件，遍历发现任何额外普通文件就拒绝，包括名字不在任何黑名单中的文件；不把整个tutorials树复制进包。离线docs和示例仍按明确单文件集合复制。notices由原许可生成器写入全新目录；第三方依赖和许可审查仍是独立信任边界，不是任意秘密扫描。
 
-生成物在artifacts/linux-unpacked及easyai-0.0.0-linux-x64.tar.gz。builder-manifest.json绑定完整源码HEAD、builder/Electron版本及所有输出文件的相对路径/字节/hash/mode；它是完整性清单，不是签名或可信来源证明。`pnpm package:builder:verify <输出目录>` 检查实际完整清单、额外文件、ASAR入口及开发目录排除。构建完成额外对比ASAR关键入口和sidecar内置资源与当前输入；读取不发布、不运行窗口。临时stage和构建日志不属于分发归档。
+干净构建结束封存approved-inputs.json：五个固定组app/backend/offline/notices/vendor、完整sourceCommit、vendor archive hash，以及每个已生成或明确批准文件的path/bytes/hash/mode。打包不能把后来目录遍历结果重新批准为输入。stage前核完整集合，逐登记文件独占复制后再次核验；builder后核stage没有变化，输出backend/offline/notices必须与批准集合逐项相同，ASAR也须精确匹配批准应用文件和字节。vendor仅允许已知electron→easyai、LICENSE复制/改名及移除默认app变换。额外文件即使加入输出inventory也不能通过批准输入校验。
 
-`node scripts/test-frozen.mjs <artifacts/linux-unpacked/resources/backend>` 可从临时cwd验证实际包内sidecar的鉴权、资源、17卡离线计划、禁执行登记/取消、项目创建、黄金编译及EOF退出；不会启动训练、探测训练环境或连接SSH。不将直接启动sidecar当作真实Electron桌面验收。
+builder-manifest schemaVersion=2保存批准输入收据和输出完整性记录。`pnpm package:builder:verify <输出目录>` 同时校验两层。它不是签名，也不检测源码/依赖中主动嵌入的任意秘密。此前schemaVersion=1实际包及原始证据原样保留；旧PASS只证明当时输出完整性，不证明输入封闭，不是本轮批准候选。旧pnpm package递归复制流程仍保留兼容，亦不据此声称已获新输入封闭保证。
 
-所有本地包为unsigned-local，distributionReady=false、legalReviewComplete=false。原生Electron窗口沿用已知sandbox阻塞，不重试/绕过；无Node/开发Python的干净目标机、课堂编辑/已备训练环境连接和平台签名/系统兼容仍NOT RUN，不能宣称完整M8.2/B通过。正式Release/部署/上传/费用/许可接受或安全权限变化不由本入口授权。
+应用在resources/app.asar；完整PyInstaller目录在resources/backend，offline/notices独立于ASAR。产物为artifacts/linux-unpacked和easyai-0.0.0-linux-x64.tar.gz，使用compression=store限制验证耗时。每次独占输出SHA+时间戳目录，已有/失败产物保留；不自动覆盖、清理或发布。
 
-官方依据：官网默认文档目前标注next v27，稳定入口为https://www.electron.build/v26/；配置概念参考https://www.electron.build/docs/contents/（files与extraResources），最终选项以本地26.15.3自带configuration.d.ts、PlatformSpecificBuildOptions.d.ts及build API为准。npm元数据确认26.15.3/Node>=14/MIT，未采用next选项。
+`node scripts/test-frozen.mjs <artifacts/linux-unpacked/resources/backend>` 只证明包内sidecar在临时cwd完成鉴权、资源/离线计划、禁执行登记取消、项目创建/黄金编译和EOF退出。不证明真实Electron编辑、原生picker或干净机。原生sandbox已有拒绝仍不重试/绕过。完整M8.2/TST33的最小条件与当前缺口见release-checklist.md；剩余包卡与远端安装仍有代码范围，不能概括成只差环境。
+
+官方依据：稳定入口https://www.electron.build/v26/；概念文档https://www.electron.build/docs/contents/默认next，实际选项以已装26.15.3配置类型/API为准。

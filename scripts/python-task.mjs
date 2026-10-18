@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { resolve, join } from "node:path";
 const command = process.argv[2];
 const operations = {
   check: [
@@ -70,7 +71,33 @@ const operations = {
   ],
 };
 if (!(command in operations)) throw new Error("Unknown development task");
-for (const args of operations[command]) {
+if (process.argv.length > (command === "build" ? 4 : 3))
+  throw Error("Invalid task arguments");
+for (const original of operations[command]) {
+  const args = [...original];
+  if (command === "build" && process.argv[3]) {
+    const output = resolve(process.argv[3]);
+    // A spec in the new build directory must not reinterpret resource paths.
+    for (let index = 0; index < args.length; index++) {
+      if (args[index] === "--paths")
+        args[index + 1] = resolve("services/backend", args[index + 1]);
+      if (args[index] === "--add-data") {
+        const separator = args[index + 1].indexOf(":");
+        args[index + 1] =
+          resolve("services/backend", args[index + 1].slice(0, separator)) +
+          args[index + 1].slice(separator);
+      }
+    }
+    args[args.length - 1] = resolve("services/backend", args.at(-1));
+    args.push(
+      "--distpath",
+      join(output, "dist"),
+      "--workpath",
+      join(output, "work"),
+      "--specpath",
+      join(output, "spec"),
+    );
+  }
   const result = spawnSync("uv", ["run", "--frozen", ...args], {
     cwd: "services/backend",
     stdio: "inherit",

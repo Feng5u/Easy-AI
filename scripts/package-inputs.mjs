@@ -1,0 +1,301 @@
+// Packaging approvals come from fresh exclusive build outputs, never existing dist trees.
+import { spawnSync, execFileSync } from "node:child_process";
+import { createRequire } from "node:module";
+import { randomUUID } from "node:crypto";
+import {
+  mkdir,
+  readFile,
+  writeFile,
+  readdir,
+  lstat,
+  copyFile,
+  chmod,
+  rename,
+} from "node:fs/promises";
+import { join, resolve } from "node:path";
+import {
+  hash,
+  collectNotices,
+  resourcePairs,
+  OFFLINE_DOCS,
+} from "./package.mjs";
+export const TUTORIAL_FILES = [
+  "zh-CN/batch-epoch.md",
+  "zh-CN/convolution.md",
+  "zh-CN/dataset-loader.md",
+  "zh-CN/device-environment.md",
+  "zh-CN/errors-output.md",
+  "zh-CN/loss-accuracy.md",
+  "zh-CN/train-test.md",
+];
+export const INPUT_GROUPS = ["app", "backend", "offline", "notices", "vendor"];
+export async function treeRecords(root, prefix = "") {
+  if ((await lstat(join(root, prefix))).isSymbolicLink())
+    throw Error("PACKAGE_INPUT_LINK_FORBIDDEN");
+  const result = [];
+  for (const name of (await readdir(join(root, prefix))).sort()) {
+    const path = prefix ? `${prefix}/${name}` : name;
+    const full = join(root, path),
+      info = await lstat(full);
+    if (info.isSymbolicLink()) throw Error("PACKAGE_INPUT_LINK_FORBIDDEN");
+    if (info.isDirectory()) result.push(...(await treeRecords(root, path)));
+    else if (info.isFile())
+      result.push({
+        path,
+        bytes: info.size,
+        mode: info.mode & 0o777,
+        sha256: await hash(full),
+      });
+    else throw Error("PACKAGE_INPUT_SPECIAL_FORBIDDEN");
+  }
+  return result;
+}
+export async function validateTutorials(root) {
+  const names = (await treeRecords(join(root, "tutorials")))
+    .map((r) => r.path)
+    .sort();
+  if (JSON.stringify(names) !== JSON.stringify([...TUTORIAL_FILES].sort()))
+    throw Error("PACKAGE_TUTORIAL_INPUT_UNREGISTERED");
+}
+export async function copyRecords(source, destination, records) {
+  await mkdir(destination); // New controlled group, no adoption or merge.
+  for (const record of records) {
+    if (
+      typeof record.path !== "string" ||
+      record.path.split("/").some((p) => !p || p === "." || p === "..") ||
+      record.path.includes("\\")
+    )
+      throw Error("PACKAGE_INPUT_PATH_INVALID");
+    const target = join(destination, record.path);
+    await mkdir(resolve(target, ".."), { recursive: true });
+    await copyFile(join(source, record.path), target, 1);
+    await chmod(target, record.mode);
+  }
+  if (
+    JSON.stringify(await treeRecords(destination)) !== JSON.stringify(records)
+  )
+    throw Error("PACKAGE_INPUT_COPY_MISMATCH");
+}
+export async function verifyInputs(input, sourceCommit) {
+  const manifest = JSON.parse(
+    await readFile(join(input, "approved-inputs.json"), "utf8"),
+  );
+  if (
+    manifest.schemaVersion !== 1 ||
+    manifest.origin !== "exclusive-clean-build" ||
+    manifest.sourceCommit !== sourceCommit ||
+    !/^[0-9a-f]{40}$/.test(manifest.sourceCommit) ||
+    JSON.stringify(Object.keys(manifest.groups)) !==
+      JSON.stringify(INPUT_GROUPS)
+  )
+    throw Error("PACKAGE_INPUT_MANIFEST_INVALID");
+  for (const group of INPUT_GROUPS) {
+    const actual = await treeRecords(join(input, "payload", group));
+    if (JSON.stringify(actual) !== JSON.stringify(manifest.groups[group]))
+      throw Error(`PACKAGE_INPUT_UNREGISTERED_OR_CHANGED: ${group}`);
+  }
+  return manifest;
+}
+export async function stageInputs(input, stage, sourceCommit) {
+  const manifest = await verifyInputs(input, sourceCommit);
+  await mkdir(stage);
+  await mkdir(join(stage, "resources"));
+  for (const group of INPUT_GROUPS) {
+    const target =
+      group === "vendor"
+        ? join(stage, "vendor")
+        : join(stage, "resources", group);
+    await copyRecords(
+      join(input, "payload", group),
+      target,
+      manifest.groups[group],
+    );
+  }
+  await verifyInputs(input, sourceCommit);
+  return manifest;
+}
+function run(command, args, cwd) {
+  const result = spawnSync(command, args, {
+    cwd,
+    shell: false,
+    stdio: "inherit",
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0) throw Error("PACKAGE_CLEAN_BUILD_FAILED");
+}
+async function put(source, destination) {
+  await mkdir(resolve(destination, ".."), { recursive: true });
+  await copyFile(source, destination, 1);
+}
+function requireSource(root, sourceCommit) {
+  try {
+    if (
+      execFileSync("git", ["rev-parse", "HEAD"], {
+        cwd: root,
+        encoding: "utf8",
+      }).trim() !== sourceCommit
+    )
+      throw Error();
+    execFileSync(
+      "git",
+      [
+        "diff",
+        "--quiet",
+        "HEAD",
+        "--",
+        ".",
+        ":!docs/implementation-progress.md",
+      ],
+      { cwd: root, stdio: "pipe" },
+    );
+    if (
+      execFileSync("git", ["ls-files", "--others", "--exclude-standard"], {
+        cwd: root,
+        encoding: "utf8",
+      }).trim()
+    )
+      throw Error();
+  } catch {
+    throw Error("PACKAGE_SOURCE_UNCOMMITTED_OR_CHANGED");
+  }
+}
+export async function cleanBuildInputs(root, sourceCommit) {
+  await validateTutorials(root); // Reject arbitrary manual additions before any build.
+  requireSource(root, sourceCommit);
+  await mkdir(join(root, "dist"), { recursive: true });
+  const input = join(
+    root,
+    "dist",
+    `builder-inputs-${sourceCommit.slice(0, 12)}-${randomUUID()}`,
+  );
+  await mkdir(input);
+  const payload = join(input, "payload");
+  await mkdir(payload);
+  const app = join(payload, "app");
+  await mkdir(app);
+  run(
+    "pnpm",
+    [
+      "--filter",
+      "@easyai/desktop",
+      "exec",
+      "tsc",
+      "-p",
+      "tsconfig.electron.json",
+      "--outDir",
+      join(app, "dist-electron"),
+    ],
+    root,
+  );
+  run(
+    "pnpm",
+    [
+      "--filter",
+      "@easyai/desktop",
+      "exec",
+      "vite",
+      "build",
+      "--outDir",
+      join(app, "dist"),
+    ],
+    root,
+  );
+  const scratch = join(input, "python-build");
+  run(
+    process.execPath,
+    [join(root, "scripts/python-task.mjs"), "build", scratch],
+    root,
+  );
+  await rename(join(scratch, "dist/easyai-sidecar"), join(payload, "backend"));
+  const metadata = JSON.parse(
+    await readFile(join(root, "apps/desktop/package.json"), "utf8"),
+  );
+  await writeFile(
+    join(app, "package.json"),
+    JSON.stringify(
+      {
+        name: "easyai-desktop",
+        productName: "Easy-AI",
+        version: metadata.version,
+        type: "module",
+        main: "dist-electron/main.mjs",
+        private: true,
+      },
+      null,
+      2,
+    ) + "\n",
+    { flag: "wx" },
+  );
+  const offline = join(payload, "offline");
+  await mkdir(offline);
+  await validateTutorials(root);
+  for (const name of TUTORIAL_FILES)
+    await put(join(root, "tutorials", name), join(offline, "tutorials", name));
+  for (const name of OFFLINE_DOCS)
+    await put(join(root, "docs", name), join(offline, "docs", name));
+  await put(
+    join(root, "examples/mnist-cnn/project.easyai.json"),
+    join(offline, "examples/project.easyai.json"),
+  );
+  await collectNotices(root, join(payload, "notices"));
+  // Get the registered vendor archive and extract into a NEW directory. Existing
+  // installed Electron dist is not adopted or inventoried as an approved input.
+  const desktopRequire = createRequire(join(root, "apps/desktop/package.json"));
+  const electronRequire = createRequire(
+    desktopRequire.resolve("electron/package.json"),
+  );
+  const checksums = electronRequire("./checksums.json");
+  const { downloadArtifact } = electronRequire("@electron/get");
+  const { extract } = electronRequire("@electron-internal/extract-zip");
+  const zip = await downloadArtifact({
+    version: metadata.devDependencies.electron,
+    artifactName: "electron",
+    platform: "linux",
+    arch: "x64",
+    checksums,
+    cacheRoot: join(
+      process.env.XDG_CACHE_HOME || join(root, "dist/tool-cache"),
+      "electron",
+    ),
+  });
+  const vendor = join(payload, "vendor");
+  await mkdir(vendor);
+  await extract(zip, { dir: vendor });
+  if (
+    (await readFile(join(vendor, "version"), "utf8")).trim() !==
+    metadata.devDependencies.electron
+  )
+    throw Error("PACKAGE_ELECTRON_VERSION_MISMATCH");
+  for (const [source, target] of resourcePairs)
+    if (
+      (await hash(join(root, source))) !==
+      (await hash(join(payload, "backend/_internal/easyai/resources", target)))
+    )
+      throw Error("PACKAGE_STALE_RESOURCE");
+  requireSource(root, sourceCommit);
+  await validateTutorials(root);
+  const groups = {};
+  for (const group of INPUT_GROUPS)
+    groups[group] = await treeRecords(join(payload, group));
+  await writeFile(
+    join(input, "approved-inputs.json"),
+    JSON.stringify(
+      {
+        schemaVersion: 1,
+        origin: "exclusive-clean-build",
+        sourceCommit,
+        electronVersion: metadata.devDependencies.electron,
+        vendorArchiveSha256: await hash(zip),
+        appMetadata: JSON.stringify(
+          JSON.parse(await readFile(join(app, "package.json"), "utf8")),
+        ),
+        groups,
+      },
+      null,
+      2,
+    ) + "\n",
+    { flag: "wx" },
+  );
+  await verifyInputs(input, sourceCommit);
+  return input;
+}
