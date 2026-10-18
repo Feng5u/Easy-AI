@@ -89,10 +89,19 @@ class LocalDirectory(Protocol):
     def sync(self) -> None: ...
     def sync_file(self, descriptor: int) -> None: ...
     def writer_lock(self, name: str) -> "LocalWriterLock": ...
+    def owner_lock(self, name: str) -> "LocalOwnerLock": ...
     def close(self) -> None: ...
 
 
 class LocalWriterLock(Protocol):
+    def verify(self) -> None: ...
+    def close(self) -> None: ...
+
+
+class LocalOwnerLock(Protocol):
+    fd: int | None
+    reason: str | None
+
     def verify(self) -> None: ...
     def close(self) -> None: ...
 
@@ -207,6 +216,18 @@ class _PosixDirectory:
 
     def writer_lock(self, name: str) -> LocalWriterLock:
         return _PosixWriterLock(self, name)
+
+    def owner_lock(self, name: str) -> LocalOwnerLock:
+        from easyai.security.project_lock import ProjectLock
+
+        self.verify()
+        result = ProjectLock(self.path / _name(name))
+        try:
+            self.verify()
+        except BaseException:
+            result.close()
+            raise
+        return result
 
     def close(self) -> None:
         if self._fd >= 0:

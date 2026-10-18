@@ -24,8 +24,7 @@ from easyai.domain.remote_run import (
     RemoteRunObservation,
     RemoteStream,
 )
-from easyai.security.remote_cache import local_directory
-from easyai.security.project_lock import ProjectLock
+from easyai.security.remote_cache import LocalDirectory, LocalOwnerLock, local_directory
 from easyai.services.event_journal import EventJournal, MAX_LINE_BYTES
 
 if TYPE_CHECKING:
@@ -136,18 +135,19 @@ class SshRunCoordinator:
         identity: RemoteRunIdentity,
         clock: Callable[[], float] = time.monotonic,
         journal: EventJournal | None = None,
+        storage: Callable[[Path], LocalDirectory] = local_directory,
     ):
         self.identity = RemoteRunIdentity.model_validate(identity.model_dump())
         self._clock, self._deadline = clock, 0.0
         if store_root.is_symlink() or not store_root.is_dir():
             raise RemoteProtocolError("REMOTE_CACHE_PATH_INVALID")
         self.root = store_root.absolute() / identity.target_id
-        parent = local_directory(store_root.absolute())
+        parent = storage(store_root.absolute())
         try:
             self._store = parent.child(identity.target_id, create=True)
         finally:
             parent.close()
-        self._lock: ProjectLock | None = None
+        self._lock: LocalOwnerLock | None = None
         self._journal: EventJournal | None = None
         self._owns_journal = journal is None
         self._mutex = threading.RLock()
@@ -156,7 +156,7 @@ class SshRunCoordinator:
         self._retiring: _Retiring | None = None
         self._closed = False
         try:
-            self._lock = ProjectLock(self.root / ".owner.lock")
+            self._lock = self._store.owner_lock(".owner.lock")
             if self._lock.fd is None:
                 raise RemoteProtocolError("REMOTE_TARGET_BUSY")
             self._verify_store()
@@ -194,7 +194,7 @@ class SshRunCoordinator:
             self._verify_committed_cache()
             self._checkpoint.connection_state = "disconnected"
             self._journal = journal or EventJournal(
-                self.root / "events.jsonl", identity.run_id, "application"
+                self.root / "events.jsonl", identity.run_id, "application", directory=self._store
             )
             recovered = self._replay_events(
                 sealed=self._checkpoint.execution_state in TERMINAL,

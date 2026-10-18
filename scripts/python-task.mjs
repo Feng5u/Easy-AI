@@ -27,6 +27,8 @@ const operations = {
       "easyai-sidecar",
       "--hidden-import",
       "easyai.services.environment_service",
+      "--hidden-import",
+      "easyai.security.windows_store",
       "--paths",
       "src",
       "--add-data",

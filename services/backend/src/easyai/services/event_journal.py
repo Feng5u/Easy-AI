@@ -10,6 +10,7 @@ from typing import Any, Literal
 
 from easyai.domain.contracts import Event
 from easyai.security.project_lock import ProjectLock
+from easyai.security.remote_cache import LocalDirectory, LocalOwnerLock
 
 MAX_LINE_BYTES = 64 * 1024
 
@@ -39,12 +40,26 @@ def _encoded(event: Event) -> bytes:
 
 
 class EventJournal:
-    def __init__(self, path: Path, run_id: str, kind: Literal["runtime", "application"]):
+    def __init__(
+        self,
+        path: Path,
+        run_id: str,
+        kind: Literal["runtime", "application"],
+        *,
+        directory: LocalDirectory | None = None,
+    ):
         if not isinstance(run_id, str) or not run_id or kind not in ("runtime", "application"):
             raise ValueError("JOURNAL_IDENTITY_INVALID")
         if path.is_symlink():
             raise ValueError("JOURNAL_PATH_FORBIDDEN")
-        self.path = path.parent.resolve(strict=True) / path.name
+        if directory is not None and path.parent.absolute() != directory.path:
+            raise ValueError("JOURNAL_DIRECTORY_IDENTITY_INVALID")
+        self._directory = directory
+        self.path = (
+            path.absolute()
+            if directory is not None
+            else path.parent.resolve(strict=True) / path.name
+        )
         self.run_id = run_id
         self.kind = kind
         self.recovery_info: dict[str, int] | None = None
@@ -53,26 +68,36 @@ class EventJournal:
         self._runtime: dict[int, Event] = {}
         self._failed = False
         self._fd: int | None = None
-        self._lock = ProjectLock(self.path.with_name(self.path.name + ".writer.lock"))
+        self._lock: LocalOwnerLock = (
+            directory.owner_lock(self.path.name + ".writer.lock")
+            if directory is not None
+            else ProjectLock(self.path.with_name(self.path.name + ".writer.lock"))
+        )
         if self._lock.fd is None:
             self._lock.close()
             raise ValueError("JOURNAL_WRITER_HELD")
         try:
-            self._fd = os.open(
-                self.path,
-                os.O_CREAT
-                | os.O_RDWR
-                | os.O_APPEND
-                | getattr(os, "O_NOFOLLOW", 0)
-                | getattr(os, "O_BINARY", 0)
-                | getattr(os, "O_NONBLOCK", 0),
-                0o600,
-            )
+            if directory is not None:
+                self._fd = directory.open_file(self.path.name, "update")
+            else:
+                self._fd = os.open(
+                    self.path,
+                    os.O_CREAT
+                    | os.O_RDWR
+                    | os.O_APPEND
+                    | getattr(os, "O_NOFOLLOW", 0)
+                    | getattr(os, "O_BINARY", 0)
+                    | getattr(os, "O_NONBLOCK", 0),
+                    0o600,
+                )
             os.set_inheritable(self._fd, False)
             if not stat.S_ISREG(os.fstat(self._fd).st_mode):
                 raise ValueError("JOURNAL_PATH_FORBIDDEN")
             self._verify()
             self._recover()
+            if directory is not None:
+                directory.sync_file(self._fd)
+                directory.sync()
         except BaseException:
             self.close()
             raise
@@ -83,6 +108,9 @@ class EventJournal:
         if self._failed:
             raise ValueError("JOURNAL_WRITE_UNCERTAIN")
         self._lock.verify()
+        if self._directory is not None:
+            self._directory.verify_file(self.path.name, self._fd)
+            return self._fd
         current, held = self.path.lstat(), os.fstat(self._fd)
         if not stat.S_ISREG(current.st_mode) or (current.st_dev, current.st_ino) != (
             held.st_dev,
@@ -136,19 +164,29 @@ class EventJournal:
                 complete += length
         if self.recovery_info is not None:
             os.ftruncate(fd, complete)
-            os.fsync(fd)
+            self._sync(fd)
+
+    def _sync(self, descriptor: int) -> None:
+        if self._directory is not None:
+            self._directory.sync_file(descriptor)
+        else:
+            os.fsync(descriptor)
 
     def _write(self, event: Event) -> Event:
         content = _encoded(event)
         fd = self._verify()
         try:
+            if self._directory is not None:
+                os.lseek(
+                    fd, 0, os.SEEK_END
+                )  # Permanent writer lock + journal mutex serialize appends.
             remaining = memoryview(content)
             while remaining:
                 count = os.write(fd, remaining)
                 if count <= 0:
                     raise OSError("Journal write made no progress")
                 remaining = remaining[count:]
-            os.fsync(fd)
+            self._sync(fd)
         except BaseException:
             self._failed = True
             raise

@@ -41,5 +41,19 @@ jobs:
       - name: Project persistence and native lock lifecycle
         working-directory: services/backend
         run: uv run --frozen pytest -q tests/test_project_persistence.py
+      - name: Experimental NTFS storage readiness (production gate remains off)
+        if: ${{ !cancelled() }}
+        timeout-minutes: 3
+        working-directory: services/backend
+        run: uv run --frozen pytest -q tests/test_windows_storage_contract.py tests/test_windows_native_store.py
+      - name: Freeze backend including experimental native ABI module
+        id: freeze_backend
+        if: ${{ !cancelled() }}
+        timeout-minutes: 4
+        run: node scripts/python-task.mjs build
+      - name: Frozen backend HTTP and resource gates
+        if: ${{ !cancelled() && steps.freeze_backend.outcome == 'success' }}
+        timeout-minutes: 2
+        run: node scripts/test-frozen-ssh.mjs
       - run: pnpm --filter @easyai/desktop build
       - run: pnpm test:e2e
