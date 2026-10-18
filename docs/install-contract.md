@@ -38,7 +38,7 @@ pip的isolated不等于禁用global/site配置，no-index也不移除配置追�
 
 ## 尚缺与真实验证条件
 
-四项代码接线、ML与scikit-image固定可选闭包已实现；尚需确切可信conda/base模块及bootstrap来源配置、许可/目标/预算的真实执行授权，以及正向真实环境probe、其余8可选卡来源/系统要求核验、Main原生source picker（当前仅operator私有manifest）、任务历史/保留策略、存活安装子进程重连和未知停止安全解除、远端目标以及实际owned环境纵向验收。实际安装器、probe及持久日志现在已有代码基础，但尚未完成真实依赖安装纵向验证。目录fsync仅用于本地origin先于owned marker的顺序，未据此签完整跨目录断电恢复保证。
+四项代码接线、ML与scikit-image固定可选闭包已实现；尚需确切可信conda/base模块及bootstrap来源配置、许可/目标/预算的真实执行授权，以及正向真实环境probe、其余8可选卡来源/系统要求核验、Main来源原生对话框真实验收（源码选择/预览/明确登记已有，见install-source-picker.md）、任务历史/保留策略、存活安装子进程重连和未知停止安全解除、远端目标以及实际owned环境纵向验收。实际安装器、probe及持久日志现在已有代码基础，但尚未完成真实依赖安装纵向验证。目录fsync仅用于本地origin先于owned marker的顺序，未据此签完整跨目录断电恢复保证。
 
 真实执行前需明确一次性 owned 环境范围、包源和下载预算，展示具体计划后再获得执行授权；SDK/许可另核。不使用教师共享环境、不在应用 Python 安装 torch、不下载训练数据。当前合同/组件/Main/冻结 sidecar 测试均不执行这些动作。
 

@@ -118,6 +118,14 @@ const workflow = new MainWorkflow(
       window.webContents.send("easyai:runs:message", message);
   },
   {
+    async installSources() {
+      const selected = await dialog.showOpenDialog(window, {
+        title: "选择可信操作者准备的本地离线来源清单（先核验，不安装）",
+        properties: ["openFile"],
+        filters: [{ name: "Easy-AI 离线来源清单", extensions: ["json"] }],
+      });
+      return selected.canceled ? null : (selected.filePaths[0] ?? null);
+    },
     async privateKey() {
       const selected = await dialog.showOpenDialog(window, {
         title: "选择本次认证使用的 SSH 私钥（不复制、不记住）",

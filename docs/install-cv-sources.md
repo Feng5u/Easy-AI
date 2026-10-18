@@ -39,4 +39,4 @@ scikit-image要求NumPy>=1.24、SciPy>=1.11.4、NetworkX>=3、Pillow>=10.1、ima
 
 constraintsHash绑定核心、ML、CV三对来源/锁；具体计划只合并实际闭包，同名依赖去重。补充锁与来源须一致。原runtime只为选中闭包核本地文件真实hash/字节、身份和预算，core/ML计划不要求CV wheel。固定no-index/require-hashes/only-binary命令和同一installer/probe复用，没有第二writer或网络解析器。
 
-Main原生source picker仍未实现，目前只有operator私有manifest；未创建实际配置或打开默认执行门。真实scikit-image/ML安装、系统库验证、imports/ABI/tensor正向、下载/训练/SSH/新许可均NOT RUN。其余可选卡、OpenCV native证明、来源选择器及完整M6.3/B仍待完成。
+Main原生来源清单选择/来源预算预览/明确登记已接，登记不搬迁执行授权；真实对话框未验，见install-source-picker.md；未创建实际配置或打开默认执行门。真实scikit-image/ML安装、系统库验证、imports/ABI/tensor正向、下载/训练/SSH/新许可均NOT RUN。其余可选卡、OpenCV native证明、原生来源对话框真实验收及完整M6.3/B仍待完成。

@@ -76,6 +76,10 @@ from easyai.services.run_service import RunService
 from easyai.services.local_workspace import LocalWorkspace, RunScope
 from easyai.services.run_views import RunViews
 from easyai.domain.install import (
+    InstallSourceRequest,
+    InstallSourcePreview,
+    InstallSourceConfirmation,
+    InstallSourceResult,
     PackageCatalog,
     InstallPlanRequest,
     InstallPlan,
@@ -145,7 +149,11 @@ def create_app(
                 status_code=422, content={"error": {"code": "DATA_TRANSFER_REQUEST_INVALID"}}
             )
         if request.url.path.startswith(
-            ("/api/v1/install-jobs", "/api/v1/environments/install-plan")
+            (
+                "/api/v1/install-jobs",
+                "/api/v1/environments/install-plan",
+                "/api/v1/environments/install-source",
+            )
         ):
             return JSONResponse(
                 status_code=422, content={"error": {"code": "INSTALL_REQUEST_INVALID"}}
@@ -505,6 +513,14 @@ def create_app(
     @app.post("/api/v1/environments/install-plan", response_model=InstallPlan)
     async def install_plan(request: InstallPlanRequest) -> InstallPlan:
         return await asyncio.to_thread(local().installs().plan, request)
+
+    @app.post("/api/v1/environments/install-source/preview", response_model=InstallSourcePreview)
+    async def preview_install_sources(request: InstallSourceRequest) -> InstallSourcePreview:
+        return await asyncio.to_thread(local().installs().preview_sources, request)
+
+    @app.post("/api/v1/environments/install-source/confirm", response_model=InstallSourceResult)
+    async def confirm_install_sources(request: InstallSourceConfirmation) -> InstallSourceResult:
+        return await asyncio.to_thread(local().installs().confirm_sources, request)
 
     @app.post("/api/v1/install-jobs", response_model=InstallJob, status_code=202)
     async def confirm_install(request: InstallConfirmation) -> InstallJob:

@@ -73,6 +73,11 @@ class Capability:
 
 
 def private_file(path: Path, limit: int) -> bytes:
+    return private_snapshot(path, limit)[0]
+
+
+def private_snapshot(path: Path, limit: int) -> tuple[bytes, tuple[int, ...]]:
+    protected(path)
     fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
     with os.fdopen(fd, "rb") as source:
         info = os.fstat(source.fileno())
@@ -98,7 +103,15 @@ def private_file(path: Path, limit: int) -> bytes:
         current = path.lstat()
         if (current.st_dev, current.st_ino) != (info.st_dev, info.st_ino):
             raise ValueError("INSTALL_RUNTIME_CONFIG_INVALID")
-        return raw
+        return raw, (
+            info.st_dev,
+            info.st_ino,
+            info.st_size,
+            info.st_mtime_ns,
+            info.st_ctime_ns,
+            info.st_uid,
+            info.st_mode,
+        )
 
 
 def protected(path: Path, *, directory: bool = False) -> os.stat_result:
@@ -304,9 +317,13 @@ class InstallRuntime:
         )
 
     def _read(self, selected: set[str] | None = None) -> tuple[OfflineConfiguration, str]:
-        config = OfflineConfiguration.model_validate_json(
-            private_file(self.configuration_path, 65536)
-        )
+        return self.inspect_source(self.configuration_path, selected)
+
+    def inspect_source(
+        self, path: Path, selected: set[str] | None = None
+    ) -> tuple[OfflineConfiguration, str]:
+        raw, identity = private_snapshot(path, 65536)
+        config = OfflineConfiguration.model_validate_json(raw)
         if (
             sys.platform != "linux"
             or platform.machine().lower() not in {"x86_64", "amd64"}
@@ -348,9 +365,12 @@ class InstallRuntime:
             > config.disk_budget_bytes
         ):
             raise ValueError("INSTALL_DISK_BUDGET_EXCEEDED")
+        if private_snapshot(path, 65536) != (raw, identity):
+            raise ValueError("INSTALL_SOURCE_CHANGED")
         return config, digest(
             {
                 "configuration": config.model_dump(mode="json"),
+                "configurationIdentity": identity,
                 "launcher": launcher,
                 "moduleIdentity": (module_root.stat().st_dev, module_root.stat().st_ino),
                 "bootstrap": stamps,

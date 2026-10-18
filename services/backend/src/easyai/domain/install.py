@@ -1,12 +1,70 @@
 """Local controlled-install planning and lifecycle contracts; no commands or paths in requests."""
 
 from typing import Annotated, Literal, Self
+from datetime import datetime
 from pydantic import Field, model_validator, field_validator
 from easyai.domain.contracts import Contract
 from easyai.domain.environment import Identifier
 
 Digest = Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
 PackageId = Annotated[str, Field(pattern=r"^[a-z][a-z0-9-]{0,63}$")]
+
+
+class InstallSourceSelection(Contract):
+    package_ids: list[PackageId] = Field(min_length=1, max_length=17)
+
+
+class InstallSourceRequest(InstallSourceSelection):
+    # Only Main's native picker supplies this; never an IPC renderer argument.
+    manifest_path: str = Field(min_length=1, max_length=4096)
+
+
+class InstallSourceArtifact(Contract):
+    name: str
+    sha256: Digest
+    bytes: int = Field(ge=1)
+
+
+class InstallSourcePreview(Contract):
+    preview_id: str = Field(pattern=r"^[a-f0-9-]{36}$")
+    preview_hash: Digest
+    package_ids: list[PackageId]
+    source_name: str
+    manifest_sha256: Digest
+    launcher: InstallSourceArtifact
+    module_name: str
+    module_tree_sha256: Digest
+    bootstrap: list[InstallSourceArtifact]
+    wheels: list[InstallSourceArtifact]
+    source_bytes: int
+    installed_bytes: None = None
+    disk_budget_bytes: int
+    execution_seconds: int
+    authorization_expires: datetime
+    declared_execution_authorized: bool
+    execution_enabled: Literal[False] = False
+    expires_at: datetime
+
+
+class InstallSourceConfirmation(Contract):
+    preview_id: str = Field(pattern=r"^[a-f0-9-]{36}$")
+    preview_hash: Digest
+    confirmed: Literal[True]
+
+    @field_validator("confirmed", mode="before")
+    @classmethod
+    def explicit_confirmation(cls, value: object) -> Literal[True]:
+        if value is not True:
+            raise ValueError("INSTALL_SOURCE_CONFIRMATION_REQUIRED")
+        return True
+
+
+class InstallSourceResult(Contract):
+    preview_id: str
+    manifest_sha256: Digest
+    runtime_fingerprint: Digest
+    execution_enabled: Literal[False] = False
+    authorization_expires: datetime
 
 
 class PackageCard(Contract):

@@ -25,6 +25,8 @@ export const WORKFLOW_CHANNELS = [
   "easyai:dataTransfers:cancel",
   "easyai:packages:catalog",
   "easyai:packages:plan",
+  "easyai:packages:chooseSources",
+  "easyai:packages:confirmSources",
   "easyai:installJobs:confirm",
   "easyai:installJobs:get",
   "easyai:installJobs:cancel",
@@ -99,6 +101,8 @@ function project(value: unknown): ProjectDocument {
   return value as ProjectDocument;
 }
 export class MainWorkflow {
+  private sourceEpoch = 0;
+  private sourceReceipt?: { id: string; hash: string; backend: Backend };
   private reportEpoch = 0;
   private sessions: SessionWorkflow;
   private transfers: DataTransferWorkflow;
@@ -117,6 +121,7 @@ export class MainWorkflow {
       exportBundle?(): Promise<string | null>;
       exportDiagnostic?(): Promise<string | null>;
       privateKey?(): Promise<string | null>;
+      installSources?(): Promise<string | null>;
     },
   ) {
     this.identity = new IdentityWorkflow(backend);
@@ -164,6 +169,8 @@ export class MainWorkflow {
     const counts: Record<string, number> = {
       "easyai:packages:catalog": 0,
       "easyai:packages:plan": 1,
+      "easyai:packages:chooseSources": 1,
+      "easyai:packages:confirmSources": 1,
       "easyai:installJobs:confirm": 1,
       "easyai:installJobs:get": 1,
       "easyai:installJobs:cancel": 1,
@@ -215,6 +222,82 @@ export class MainWorkflow {
       this.identity.invalidate();
     }
     switch (channel) {
+      case "easyai:packages:chooseSources": {
+        const value = object(args[0], ["packageIds"]);
+        if (
+          !Array.isArray(value.packageIds) ||
+          value.packageIds.length < 1 ||
+          value.packageIds.length > 17 ||
+          new Set(value.packageIds).size !== value.packageIds.length ||
+          value.packageIds.some(
+            (item) =>
+              typeof item !== "string" || !/^[a-z][a-z0-9-]{0,63}$/.test(item),
+          )
+        )
+          throw Error("来源预览包选择无效。");
+        const epoch = ++this.sourceEpoch;
+        this.sourceReceipt = undefined;
+        if (!this.files?.installSources) throw Error("本地来源选择器不可用。");
+        const selected = await this.files.installSources();
+        if (epoch !== this.sourceEpoch || backend !== this.backend())
+          throw Error("来源会话已变化。");
+        if (!selected) return null;
+        const result = await backend.request(
+          "POST",
+          "/api/v1/environments/install-source/preview",
+          {
+            manifestPath: selected,
+            packageIds: [...value.packageIds],
+          },
+        );
+        if (epoch !== this.sourceEpoch || backend !== this.backend())
+          throw Error("来源会话已变化。");
+        const preview = object(result);
+        if (
+          typeof preview.previewHash !== "string" ||
+          !/^[a-f0-9]{64}$/.test(preview.previewHash)
+        )
+          throw Error("来源预览标识无效。");
+        this.sourceReceipt = {
+          id: id(preview.previewId),
+          hash: preview.previewHash,
+          backend,
+        };
+        return result;
+      }
+      case "easyai:packages:confirmSources": {
+        const value = object(args[0], [
+          "previewId",
+          "previewHash",
+          "confirmed",
+        ]);
+        const receipt = this.sourceReceipt;
+        if (
+          !receipt ||
+          receipt.backend !== backend ||
+          value.confirmed !== true ||
+          id(value.previewId) !== receipt.id ||
+          value.previewHash !== receipt.hash
+        )
+          throw Error("请重新选择并明确核对来源预览。");
+        const epoch = this.sourceEpoch;
+        const result = await backend.request(
+          "POST",
+          "/api/v1/environments/install-source/confirm",
+          {
+            previewId: receipt.id,
+            previewHash: receipt.hash,
+            confirmed: true,
+          },
+        );
+        if (
+          epoch !== this.sourceEpoch ||
+          this.backend() !== backend ||
+          this.sourceReceipt !== receipt
+        )
+          throw Error("来源会话已变化，登记结果需重新核对。");
+        return result;
+      }
       case "easyai:connections:listProfiles":
         return backend.request("GET", "/api/v1/connections");
       case "easyai:connections:createProfile":
@@ -738,6 +821,8 @@ export class MainWorkflow {
     this.subscriptions.delete(key);
   }
   dispose(): void {
+    this.sourceEpoch++;
+    this.sourceReceipt = undefined;
     this.reportEpoch += 1;
     this.transfers.invalidate();
     this.sessions.invalidate();

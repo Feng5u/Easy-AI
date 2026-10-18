@@ -32,6 +32,6 @@ baseline/bootstrap/final probe各有自己的owner收据；上一条bootstrap/pi
 
 UI按具体计划显示离线来源、bootstrap字节、未知实际解包占用、磁盘/时间预算和“确认执行”或“仅登记”。catalog能力不是全局授权，每份计划还受包锁、来源、基线、时效与明确确认约束。完整M6.3/B还需实际一次性owned目标上真实bootstrap/pip/复检验收；本轮没有该执行授权。
 
-ML固定来源与marker闭包见[ML合同](install-ml-sources.md)。没有新增实际来源配置；Main原生source picker仍缺，目前仅operator私有manifest，不把本片解析能力当来源选择UI或真实安装验收。
+ML固定来源与marker闭包见[ML合同](install-ml-sources.md)。没有新增实际来源配置；Main原生清单选择/来源预算预览/明确登记已接，登记保持执行授权false；真实对话框仍未验，见install-source-picker.md，不把本片解析能力当来源选择UI或真实安装验收。
 
 CV固定闭包与OpenCV专门unsupported门见[CV合同](install-cv-sources.md)。三对来源/锁均进入constraintsHash；没有提供CV本地wheel不影响只选core/ML时的来源核验。OpenCV候选证据不属于可安装wheel清单，不因私有manifest或NumPy匹配自动启用。

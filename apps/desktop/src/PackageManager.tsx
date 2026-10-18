@@ -5,6 +5,7 @@ import type {
   InstallPlan,
   InstallPlanRequest,
   PackageCatalog,
+  InstallSourcePreview,
 } from "../electron/bridge.js";
 
 type API = NonNullable<DesktopAPI["packages"]>;
@@ -64,6 +65,10 @@ export function PackageManager({ api }: { api: API }) {
   const [acknowledged, setAcknowledged] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [sourcePreview, setSourcePreview] =
+    useState<InstallSourcePreview | null>(null);
+  const [sourceAcknowledged, setSourceAcknowledged] = useState(false);
+  const [sourceStatus, setSourceStatus] = useState("");
   const mounted = useRef(false),
     generation = useRef(0),
     pending = useRef(false);
@@ -94,8 +99,13 @@ export function PackageManager({ api }: { api: API }) {
     setPlan(null);
     setAcknowledged(false);
     setError("");
+    setSourcePreview(null);
+    setSourceAcknowledged(false);
   }
-  async function operation(invoke: () => Promise<void>) {
+  async function operation(
+    invoke: () => Promise<void>,
+    failureMessage?: string,
+  ) {
     if (pending.current) return;
     pending.current = true;
     setBusy(true);
@@ -105,12 +115,56 @@ export function PackageManager({ api }: { api: API }) {
     } catch {
       if (mounted.current)
         setError(
-          "操作结果尚未确认。请核对或刷新；同一计划重复登记是幂等的，不代表已经安装。不会自动重试。",
+          failureMessage ??
+            "操作结果尚未确认。请核对或刷新；同一计划重复登记是幂等的，不代表已经安装。不会自动重试。",
         );
     } finally {
       pending.current = false;
       if (mounted.current) setBusy(false);
     }
+  }
+  function chooseSources() {
+    const ticket = generation.current;
+    setSourcePreview(null);
+    setSourceAcknowledged(false);
+    void operation(async () => {
+      const result = await api.chooseSources({
+        packageIds: [...selected] as Parameters<
+          API["chooseSources"]
+        >[0]["packageIds"],
+      });
+      if (mounted.current && ticket === generation.current && result) {
+        setSourcePreview(result);
+        setSourceStatus("");
+      }
+    }, "来源校验未完成，现配置未获替换确认。请核对来源权限、有效期和预算；不会安装或自动重试。");
+  }
+  function registerSources() {
+    if (!sourcePreview || !sourceAcknowledged || activeJob) return;
+    const expected = sourcePreview,
+      ticket = generation.current;
+    void operation(async () => {
+      const result = await api.confirmSources({
+        previewId: expected.previewId,
+        previewHash: expected.previewHash,
+        confirmed: true,
+      });
+      if (
+        result.previewId !== expected.previewId ||
+        result.manifestSha256 !== expected.manifestSha256 ||
+        result.executionEnabled !== false
+      )
+        throw Error("来源登记身份不符");
+      if (mounted.current && ticket === generation.current) {
+        invalidate();
+        setCatalog(null);
+        setSourceStatus(
+          "本地来源已登记，执行授权仍关闭。请经独立授权后重新生成安装计划；不会自动安装。",
+        );
+        const updated = await api.catalog();
+        if (mounted.current) setCatalog(updated);
+      }
+    }, "来源登记结果尚未确认；不会自动重试或安装。请核对现配置与来源，必要时重新预览。");
   }
   function makePlan() {
     const ticket = generation.current;
@@ -179,6 +233,82 @@ export function PackageManager({ api }: { api: API }) {
         目标是本机应用管理的新环境，独立于当前工程。任务状态保存在本机，重启不自动恢复执行；此界面只显示本次打开的任务。
       </p>
       {error && <p role="alert">{error}</p>}
+      <section aria-label="本地离线来源">
+        <h3>本地离线来源</h3>
+        <p>
+          由可信操作者准备来源清单及本地文件。选择后只读校验，不下载或运行文件；登记不创建或搬入执行授权，预算与授权截止时间不会延长。
+        </p>
+        <button
+          type="button"
+          disabled={
+            locked || !selected.length || profile === "teacher-existing"
+          }
+          onClick={chooseSources}
+        >
+          选择本地离线来源
+        </button>
+        {sourceStatus && <p role="status">{sourceStatus}</p>}
+        {sourcePreview && (
+          <div aria-label="来源核验预览">
+            <p>
+              来源清单：{sourcePreview.sourceName}；SHA256：
+              <code>{sourcePreview.manifestSha256}</code>
+            </p>
+            <p>
+              解释器：{sourcePreview.launcher.name}，
+              {size(sourcePreview.launcher.bytes)}；SHA256：
+              <code>{sourcePreview.launcher.sha256}</code>
+            </p>
+            <p>
+              运行组件：{sourcePreview.moduleName}；完整目录校验：
+              <code>{sourcePreview.moduleTreeSha256}</code>
+            </p>
+            <p>
+              启动档案 {sourcePreview.bootstrap.length} 个，wheel{" "}
+              {sourcePreview.wheels.length} 个；档案和wheel合计{" "}
+              {size(sourcePreview.sourceBytes)}，实际解包占用未知。磁盘预算{" "}
+              {size(sourcePreview.diskBudgetBytes)}，每条命令时限{" "}
+              {sourcePreview.executionSeconds} 秒。
+            </p>
+            <p>
+              来源校验通过；原授权截止 {sourcePreview.authorizationExpires}
+              ，本预览截止 {sourcePreview.expiresAt}
+              。无论清单是否声明执行授权，本次登记都保持执行授权关闭；安装须另行授权并明确确认具体计划。
+            </p>
+            <details>
+              <summary>查看文件核验清单</summary>
+              <ul>
+                {[...sourcePreview.bootstrap, ...sourcePreview.wheels].map(
+                  (item) => (
+                    <li key={item.name}>
+                      {item.name}，{size(item.bytes)}；SHA256：
+                      <code>{item.sha256}</code>
+                    </li>
+                  ),
+                )}
+              </ul>
+            </details>
+            <label>
+              <input
+                type="checkbox"
+                checked={sourceAcknowledged}
+                disabled={locked}
+                onChange={(event) =>
+                  setSourceAcknowledged(event.target.checked)
+                }
+              />
+              我已确认来源来自可信操作者；仅登记来源，不授权执行。
+            </label>
+            <button
+              type="button"
+              disabled={locked || !sourceAcknowledged}
+              onClick={registerSources}
+            >
+              确认登记本地来源
+            </button>
+          </div>
+        )}
+      </section>
       {!catalog ? (
         <p role="status">正在读取本地包目录…</p>
       ) : (

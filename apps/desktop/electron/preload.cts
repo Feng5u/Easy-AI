@@ -15,6 +15,10 @@ const api: DesktopAPI = {
       ipcRenderer.invoke("easyai:dataTransfers:cancel", id, scope),
   },
   packages: {
+    chooseSources: (request) =>
+      ipcRenderer.invoke("easyai:packages:chooseSources", request),
+    confirmSources: (request) =>
+      ipcRenderer.invoke("easyai:packages:confirmSources", request),
     catalog: () => ipcRenderer.invoke("easyai:packages:catalog"),
     plan: (request) => ipcRenderer.invoke("easyai:packages:plan", request),
     confirm: (request) =>

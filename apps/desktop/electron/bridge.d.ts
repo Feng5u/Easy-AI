@@ -4,12 +4,20 @@ import type { InstallPlanRequest } from "../../../packages/contracts/types/Insta
 import type { InstallPlan } from "../../../packages/contracts/types/InstallPlan.js";
 import type { InstallConfirmation } from "../../../packages/contracts/types/InstallConfirmation.js";
 import type { InstallJob } from "../../../packages/contracts/types/InstallJob.js";
+import type { InstallSourceSelection } from "../../../packages/contracts/types/InstallSourceSelection.js";
+import type { InstallSourcePreview } from "../../../packages/contracts/types/InstallSourcePreview.js";
+import type { InstallSourceConfirmation } from "../../../packages/contracts/types/InstallSourceConfirmation.js";
+import type { InstallSourceResult } from "../../../packages/contracts/types/InstallSourceResult.js";
 export type {
   PackageCatalog,
   InstallPlanRequest,
   InstallPlan,
   InstallConfirmation,
   InstallJob,
+  InstallSourceSelection,
+  InstallSourcePreview,
+  InstallSourceConfirmation,
+  InstallSourceResult,
 };
 import type { DiagnosticReport } from "../../../packages/contracts/types/DiagnosticReport.js";
 import type { BundleExportResult } from "../../../packages/contracts/types/BundleExportResult.js";
@@ -123,6 +131,12 @@ export interface DesktopAPI {
     ): Promise<TransferJob>;
   };
   packages?: {
+    chooseSources(
+      request: InstallSourceSelection,
+    ): Promise<InstallSourcePreview | null>;
+    confirmSources(
+      request: InstallSourceConfirmation,
+    ): Promise<InstallSourceResult>;
     catalog(): Promise<PackageCatalog>;
     plan(request: InstallPlanRequest): Promise<InstallPlan>;
     confirm(request: InstallConfirmation): Promise<InstallJob>;

@@ -1,7 +1,7 @@
 // Real packaged sidecar, launched outside the checkout. No training or Electron window.
 import { spawn } from "node:child_process";
 import { randomBytes, createHash } from "node:crypto";
-import { mkdtemp, mkdir, readFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { createInterface } from "node:readline";
@@ -99,6 +99,33 @@ try {
   assert.equal(packages.response.status, 200);
   assert.equal(packages.value.executionEnabled, false);
   assert.equal(packages.value.packages.length, 17);
+  const invalidSource = join(root, "synthetic-invalid-source.json");
+  await writeFile(invalidSource, "{}", { mode: 0o600, flag: "wx" });
+  const sourceBody = { manifestPath: invalidSource, packageIds: ["torch"] };
+  assert.equal(
+    (
+      await request(
+        "POST",
+        "/environments/install-source/preview",
+        sourceBody,
+        false,
+      )
+    ).response.status,
+    401,
+  );
+  const rejectedSource = await request(
+    "POST",
+    "/environments/install-source/preview",
+    sourceBody,
+  );
+  assert.equal(rejectedSource.response.status, 422);
+  assert.equal(
+    JSON.stringify(rejectedSource.value).includes(invalidSource),
+    false,
+  );
+  await assert.rejects(readFile(join(root, "state/install-runtime.json")), {
+    code: "ENOENT",
+  });
   const expectedSources = await readFile(
     join(repository, "packages/training-profiles/easyai-cpu-sources.json"),
   );

@@ -37,6 +37,10 @@ from easyai.domain.install import (
     InstallPlan,
     InstallConfirmation,
     InstallJob,
+    InstallSourceSelection,
+    InstallSourcePreview,
+    InstallSourceConfirmation,
+    InstallSourceResult,
 )
 
 MODELS: list[type[BaseModel]] = [
@@ -51,6 +55,10 @@ MODELS: list[type[BaseModel]] = [
     InstallPlan,
     InstallConfirmation,
     InstallJob,
+    InstallSourceSelection,
+    InstallSourcePreview,
+    InstallSourceConfirmation,
+    InstallSourceResult,
     ArtifactManifest,
     RemoteBinding,
     RemoteBindingRequest,

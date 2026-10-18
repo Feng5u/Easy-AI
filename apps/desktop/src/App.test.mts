@@ -1144,7 +1144,15 @@ it("package planning entry stays read-only and hiding it preserves the opened pa
   );
   const plan = vi.fn(),
     confirm = vi.fn();
-  h.api.packages = { catalog, plan, confirm, job: vi.fn(), cancel: vi.fn() };
+  h.api.packages = {
+    catalog,
+    plan,
+    confirm,
+    job: vi.fn(),
+    cancel: vi.fn(),
+    chooseSources: vi.fn(),
+    confirmSources: vi.fn(),
+  };
   await mount(h.api);
   expect(catalog).not.toHaveBeenCalled();
   await click("打开包安装计划");

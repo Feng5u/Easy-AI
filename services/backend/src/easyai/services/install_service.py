@@ -25,6 +25,10 @@ from easyai.domain.install import (
     PackageCard,
     PackageCatalog,
     PackageChange,
+    InstallSourceRequest,
+    InstallSourcePreview,
+    InstallSourceConfirmation,
+    InstallSourceResult,
 )
 from easyai.security.files import read_regular
 from easyai.security.project_lock import ProjectLock
@@ -41,6 +45,7 @@ from easyai.services.install_sources import (
 
 if TYPE_CHECKING:
     from easyai.services.install_runtime import InstallRuntime
+    from easyai.services.install_source_selection import SourceSelection
 
 RESOURCE_ROOT = Path(getattr(sys, "_MEIPASS", SOURCE_ROOT))
 PACKAGES_PATH = RESOURCE_ROOT / (
@@ -108,6 +113,7 @@ class InstallService:
         self.app_root = application_root
         self.root = application_root / "training-environments"
         self._runtime = runtime
+        self._sources: SourceSelection | None = None
         self._workers: dict[str, threading.Thread] = {}
         self._executing: set[threading.Thread] = set()
         self._probe_gate = threading.Lock()
@@ -238,6 +244,54 @@ class InstallService:
 
     def _profile_hash(self) -> str:
         return constraints_hash(PROFILE_ROOT)
+
+    def _source_guard(self) -> None:
+        self._verify_root()
+        with self._probe_gate:
+            probes = bool(self._probes)
+        if self._active or self._executing or self._leases or probes:
+            raise ValueError("INSTALL_SOURCE_BUSY")
+        for job in self._jobs.values():
+            if job.state in {"INSTALLING", "VERIFYING", "CANCEL_REQUESTED"}:
+                raise ValueError("INSTALL_SOURCE_BUSY")
+        ledger = self.app_root / "install-jobs"
+        if ledger.exists() or ledger.is_symlink():
+            if ledger.is_symlink() or not ledger.is_dir():
+                raise ValueError("INSTALL_LEDGER_FORBIDDEN")
+            paths = list(ledger.iterdir())
+            if len(paths) > 64:
+                raise ValueError("INSTALL_JOB_LIMIT")
+            for path in paths:
+                if path.is_symlink() or not path.is_dir() or str(UUID(path.name)) != path.name:
+                    raise ValueError("INSTALL_LEDGER_FORBIDDEN")
+                source = path / "events.jsonl"
+                if not source.exists():
+                    continue
+                events = read_events(source, path.name, "application")
+                if not events:
+                    raise ValueError("INSTALL_LEDGER_INVALID")
+                observed, _ = read_install_job(events[-1].payload)
+                if observed.job_id != path.name:
+                    raise ValueError("INSTALL_LEDGER_INVALID")
+                if observed.state in {"INSTALLING", "VERIFYING", "CANCEL_REQUESTED"}:
+                    raise ValueError("INSTALL_SOURCE_BUSY")
+
+    def _source_selection(self) -> "SourceSelection":
+        if self._runtime is None:
+            raise ValueError("INSTALL_RUNTIME_NOT_AVAILABLE")
+        if self._sources is None:
+            from easyai.services.install_source_selection import SourceSelection
+
+            self._sources = SourceSelection(self._runtime, self._source_guard)
+        return self._sources
+
+    def preview_sources(self, request: InstallSourceRequest) -> InstallSourcePreview:
+        with self._mutex:
+            return self._source_selection().preview(request)
+
+    def confirm_sources(self, request: InstallSourceConfirmation) -> InstallSourceResult:
+        with self._mutex:
+            return self._source_selection().confirm(request)
 
     def _wheels(self, selected: set[str] | None = None) -> list[Wheel]:
         return wheels(PROFILE_ROOT, selected)
@@ -626,6 +680,17 @@ class InstallService:
             except BaseException:
                 lease.close()
                 raise
+            try:
+                configuration_lease = ProjectLock(self.app_root / ".install-source.lock")
+            except BaseException:
+                lease.close()
+                raise
+            try:
+                configuration_lease.verify()
+            except BaseException:
+                configuration_lease.close()
+                lease.close()
+                raise ValueError("INSTALL_SOURCE_BUSY") from None
             self._leases[job_id] = lease
             self._executing.add(threading.current_thread())
             previous_status = job.status_code
@@ -638,6 +703,8 @@ class InstallService:
                 self._leases.pop(job_id).close()
                 self._executing.discard(threading.current_thread())
                 raise
+            finally:
+                configuration_lease.close()  # WAL is visible before a configuration commit can check it.
 
         def progress() -> None:
             lease.verify()

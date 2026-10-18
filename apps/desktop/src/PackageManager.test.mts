@@ -15,6 +15,7 @@ import type {
   InstallJob,
   InstallPlan,
   PackageCatalog,
+  InstallSourcePreview,
 } from "../electron/bridge.js";
 const require = createRequire(import.meta.url),
   { JSDOM } = require(
@@ -68,6 +69,28 @@ function job(): InstallJob {
     executionEnabled: false,
   };
 }
+function sourcePreview(): InstallSourcePreview {
+  return {
+    previewId: planId,
+    previewHash: "e".repeat(64),
+    packageIds: ["torch", "torchvision", "matplotlib"],
+    sourceName: "operator.json",
+    manifestSha256: "f".repeat(64),
+    launcher: { name: "python", sha256: "1".repeat(64), bytes: 1024 },
+    moduleName: "conda-modules",
+    moduleTreeSha256: "2".repeat(64),
+    bootstrap: [{ name: "python.conda", sha256: "3".repeat(64), bytes: 2048 }],
+    wheels: [{ name: "torch.whl", sha256: "4".repeat(64), bytes: 4096 }],
+    sourceBytes: 6144,
+    installedBytes: null,
+    diskBudgetBytes: 1048576,
+    executionSeconds: 60,
+    authorizationExpires: "2026-10-18T23:00:00Z",
+    declaredExecutionAuthorized: true,
+    executionEnabled: false,
+    expiresAt: "2026-10-18T12:01:00Z",
+  };
+}
 function setup() {
   const raw = JSON.parse(
     readFileSync(
@@ -87,6 +110,8 @@ function setup() {
     executionEnabled: false,
   };
   const api = {
+    chooseSources: vi.fn<API["chooseSources"]>(async () => null),
+    confirmSources: vi.fn<API["confirmSources"]>(),
     catalog: vi.fn<API["catalog"]>(async () => catalog),
     plan: vi.fn<API["plan"]>(async () => plan()),
     confirm: vi.fn<API["confirm"]>(async () => job()),
@@ -318,6 +343,8 @@ it("actual Main and authenticated sidecar generate and confirm/cancel without cr
   );
   const workflow = new MainWorkflow(() => backend, vi.fn(), vi.fn());
   const api = {
+    chooseSources: vi.fn<API["chooseSources"]>(async () => null),
+    confirmSources: vi.fn<API["confirmSources"]>(),
     catalog: vi.fn(
       async () =>
         (await workflow.invoke(
@@ -419,4 +446,57 @@ it("an enabled host still requires the exact plan and a fresh explicit install c
     confirmed: true,
     networkAcknowledged: true,
   });
+});
+
+it("native source preview shows checked files and budgets, needs fresh explicit registration, then invalidates the old plan", async () => {
+  const h = setup(),
+    preview = sourcePreview();
+  h.api.chooseSources.mockResolvedValue(preview);
+  h.api.confirmSources.mockResolvedValue({
+    previewId: preview.previewId,
+    manifestSha256: preview.manifestSha256,
+    runtimeFingerprint: "9".repeat(64),
+    executionEnabled: false,
+    authorizationExpires: preview.authorizationExpires,
+  });
+  await mount(h.api);
+  await click("只生成安装计划");
+  await click("选择本地离线来源");
+  expect(h.api.chooseSources).toHaveBeenCalledWith({
+    packageIds: ["torch", "torchvision", "matplotlib"],
+  });
+  expect(container.textContent).toContain("operator.json");
+  expect(container.textContent).toContain(preview.launcher.sha256);
+  expect(container.textContent).toContain("实际解包占用未知");
+  expect(button("确认登记本地来源").disabled).toBe(true);
+  expect(h.api.confirmSources).not.toHaveBeenCalled();
+  await checkbox("我已确认来源来自可信操作者");
+  await click("确认登记本地来源");
+  expect(h.api.confirmSources).toHaveBeenCalledWith({
+    previewId: preview.previewId,
+    previewHash: preview.previewHash,
+    confirmed: true,
+  });
+  expect(container.textContent).toContain("本地来源已登记，执行授权仍关闭");
+  expect(container.querySelector('[aria-label="来源核验预览"]')).toBeNull();
+  expect(h.api.confirm).not.toHaveBeenCalled();
+  expect(h.api.plan).toHaveBeenCalledTimes(1);
+});
+
+it("native cancellation preserves the existing plan and source errors cannot expose paths or authorize execution", async () => {
+  const h = setup();
+  await mount(h.api);
+  await click("只生成安装计划");
+  const previous = container.textContent;
+  await click("选择本地离线来源");
+  expect(container.textContent).toBe(previous);
+  expect(h.api.confirmSources).not.toHaveBeenCalled();
+  h.api.chooseSources.mockRejectedValue(
+    Error("private source path must not leak"),
+  );
+  await click("选择本地离线来源");
+  expect(container.textContent).toContain("来源校验未完成");
+  expect(container.textContent).not.toContain("private source path");
+  expect(container.querySelector('input[type="file"]')).toBeNull();
+  expect(h.api.confirm).not.toHaveBeenCalled();
 });

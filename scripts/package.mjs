@@ -26,6 +26,7 @@ export const OFFLINE_DOCS = [
   "install-runtime-configuration.md",
   "install-ml-sources.md",
   "install-cv-sources.md",
+  "install-source-picker.md",
 ];
 const repository = resolve(import.meta.dirname, "..");
 export const defaultOutput = (root) =>
