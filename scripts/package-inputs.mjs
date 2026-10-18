@@ -115,11 +115,12 @@ export async function stageInputs(input, stage, sourceCommit) {
   await verifyInputs(input, sourceCommit);
   return manifest;
 }
-function run(command, args, cwd) {
+function run(command, args, cwd, env = process.env) {
   const result = spawnSync(command, args, {
     cwd,
     shell: false,
     stdio: "inherit",
+    env,
   });
   if (result.error) throw result.error;
   if (result.status !== 0) throw Error("PACKAGE_CLEAN_BUILD_FAILED");
@@ -194,17 +195,23 @@ export async function cleanBuildInputs(root, sourceCommit) {
   await mkdir(input);
   const source = join(input, "source");
   await sourceSnapshot(root, source, sourceCommit);
-  // Dependency installations remain separately trusted, lock-bound tools. No
-  // ignored/untracked working-tree source is exposed to the build.
-  await symlink(
-    join(root, "node_modules"),
-    join(source, "node_modules"),
-    "dir",
-  );
-  await symlink(
-    join(root, "apps/desktop/node_modules"),
-    join(source, "apps/desktop/node_modules"),
-    "dir",
+  // Install the same registered development dependencies into a REAL directory.
+  // pnpm correctly refuses a symlink as its task-state node_modules root.
+  run(
+    "pnpm",
+    [
+      "install",
+      "--frozen-lockfile",
+      "--offline",
+      "--ignore-scripts",
+      "--store-dir",
+      join(root, ".pnpm-store"),
+    ],
+    source,
+    {
+      ...process.env,
+      XDG_DATA_HOME: process.env.XDG_DATA_HOME || join(input, "tool-data"),
+    },
   );
   await symlink(
     join(root, "services/backend/.venv"),

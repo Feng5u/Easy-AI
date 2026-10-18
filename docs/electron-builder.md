@@ -2,7 +2,7 @@
 
 精确开发依赖electron-builder26.15.3及完整npm integrity在pnpm-lock.yaml。仅同主机Linux x64、unsigned dir+tar.gz，publish=never与配置null，不签名、不部署、不修改sandbox。原appId io.easyai.desktop保留。distributionReady和legalReviewComplete恒false。
 
-`pnpm package:builder` 现在自动在独占新目录执行干净构建，不再采用现有apps/desktop/dist、dist-electron、services/backend/dist或已安装Electron dist树。tsc、Vite、PyInstaller均输出到新建的dist/builder-inputs-<SHA>-<UUID>；Python的dist/work/spec路径分离，资源路径绝对绑定原仓库。Vite关闭ambient publicDir复制，应用资源只来自构建的明确import。生成目录不覆盖旧构建或用户文件。构建源码从固定完整commit的Git archive导出，只允许普通tracked文件，拒source symlink/submodule；忽略文件或未跟踪文件不会被tsc或PyInstaller读取。仅已锁定开发依赖链接到现有node_modules/应用venv，属于独立依赖信任边界；隔离Python直接使用已装应用解释器且PYTHONPATH指向快照，不运行uv同步或改原venv。原工作区构建前/封存前再次核HEAD与源码clean，发现修改拒绝而不重置用户工作。
+`pnpm package:builder` 现在自动在独占新目录执行干净构建，不再采用现有apps/desktop/dist、dist-electron、services/backend/dist或已安装Electron dist树。tsc、Vite、PyInstaller均输出到新建的dist/builder-inputs-<SHA>-<UUID>；Python的dist/work/spec路径分离，资源路径绝对绑定原仓库。Vite关闭ambient publicDir复制，应用资源只来自构建的明确import。生成目录不覆盖旧构建或用户文件。构建源码从固定完整commit的Git archive导出，只允许普通tracked文件，拒source symlink/submodule；忽略文件或未跟踪文件不会被tsc或PyInstaller读取。Node开发依赖按原frozen lock从现有store离线安装到快照内真实node_modules目录（ignore-scripts，不链接任务状态根）；应用venv仍使用已装解释器，属于独立依赖信任边界，不能称完全hermetic构建；隔离Python直接使用已装应用解释器且PYTHONPATH指向快照，不运行uv同步或改原venv。原工作区构建前/封存前再次核HEAD与源码clean，发现修改拒绝而不重置用户工作。
 
 Electron来自精确npm依赖注册的44.9.0 archive，官方get以包内checksums校验后解压到新vendor目录，不采用可能污染的已安装dist。构建可能使用官方缓存或正常工具下载，不下载训练依赖、模型或数据。tar工具沿用builder官方7zip@1.0.0固定校验；没有新增需接受的许可/费用/权限。
 
