@@ -883,3 +883,53 @@ def test_sync_diagnostic_event_is_application_only_and_strictly_fixed(case):
     ):
         with pytest.raises(ValueError):
             Event.model_validate(invalid)
+
+
+@pytest.mark.parametrize("cleanup_stage", ["channel_cleanup", "cache_cleanup"])
+def test_first_failure_survives_deadline_during_resource_cleanup(case, monkeypatch, cleanup_stage):
+    from easyai.services.remote_artifacts import _Cache
+
+    entered, release = threading.Event(), threading.Event()
+    secret = "SYNC_DEADLINE SECRET_SENTINEL /private/remote"
+    original_cache_close = _Cache.close
+
+    def fail_read(path):
+        if (cleanup_stage == "channel_cleanup" and Path(path).name == "remote-artifacts.json") or (
+            cleanup_stage == "cache_cleanup" and str(path).endswith(".png")
+        ):
+            raise OSError(secret)
+
+    def blocked_close(*args):
+        entered.set()
+        assert release.wait(3)
+        if cleanup_stage == "cache_cleanup":
+            original_cache_close(args[0])
+
+    case.sftp.before_read = fail_read
+    if cleanup_stage == "channel_cleanup":
+        case.sftp.close = blocked_close
+    else:
+        monkeypatch.setattr(_Cache, "close", blocked_close)
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        operation = executor.submit(case.sync, None, 0.2)
+        try:
+            assert entered.wait(1)
+            with pytest.raises(ArtifactFailure, match="CLEANUP_UNCONFIRMED") as caught:
+                operation.result(1)
+            assert caught.value.failure.model_dump() == {
+                "stage": "receipt_read" if cleanup_stage == "channel_cleanup" else "artifact_read",
+                "code": "SYNC_IO_FAILED",
+            }
+            assert caught.value.cleanup_failure.model_dump() == {
+                "stage": cleanup_stage,
+                "code": "SYNC_CLEANUP_UNCONFIRMED",
+            }
+            assert (
+                "SECRET_SENTINEL" not in str(caught.value) + caught.value.failure.model_dump_json()
+            )
+            assert case.session.io_lock.locked() and not case.service.quiescent
+            assert not (case.cache / "artifact-index.json").exists()
+        finally:
+            release.set()
+    case.service._worker.join(2)
+    assert case.service.quiescent and not case.session.io_lock.locked()

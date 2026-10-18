@@ -435,6 +435,18 @@ class SftpArtifactSync:
         phase: ArtifactSyncStage = "scope"
         failures: list[ArtifactSyncFailure] = []
         cleanup_failures: list[ArtifactSyncFailure] = []
+        cleanup_phase: ArtifactSyncStage | None = None
+        watcher_closing = threading.Event()
+
+        def close_owned(resource: Any, stage: ArtifactSyncStage) -> None:
+            nonlocal cleanup_phase
+            with self.mutex:
+                cleanup_phase = stage
+            try:
+                resource.close()
+            finally:
+                with self.mutex:
+                    cleanup_phase = None
 
         def report() -> None:
             check()
@@ -472,16 +484,19 @@ class SftpArtifactSync:
             while not finished.wait(0.01):
                 if abandoned.is_set() or cancel.is_set() or time.monotonic() >= deadline:
                     for owned_channel in channels:
+                        watcher_closing.set()
                         try:
                             owned_channel.close()
                         except Exception:
                             interrupted.set()  # No SDK text from background threads.
+                        finally:
+                            watcher_closing.clear()
                     return
 
         watcher = threading.Thread(target=interrupt, name="easyai-artifact-interrupt", daemon=True)
 
         def worker() -> None:
-            nonlocal received_bytes, verified_bytes, phase
+            nonlocal received_bytes, verified_bytes, phase, cleanup_phase
             channel, sftp, cache = None, None, None
             try:
                 check()
@@ -599,9 +614,9 @@ class SftpArtifactSync:
                 # Cleanup the dedicated remote channel before publishing readiness.
                 # A failed SDK close leaves only verified unindexed blobs behind.
                 phase = "channel_cleanup"
-                sftp.close()
+                close_owned(sftp, "channel_cleanup")
                 sftp = None
-                channel.close()
+                close_owned(channel, "channel_cleanup")
                 channel = None
                 phase = "cache_commit"
                 with self.mutex:
@@ -632,18 +647,20 @@ class SftpArtifactSync:
                     finally:
                         cache.directory.remove(name, missing_ok=True)
             except Exception as error:
-                failures.append(sync_failure(error, phase))
-                failed.set()
+                with self.mutex:
+                    failures.append(sync_failure(error, phase))
+                    failed.set()
             finally:
                 cleanup_failed = False
-                for resource, cleanup_stage in (
+                resources: tuple[tuple[Any, ArtifactSyncStage], ...] = (
                     (sftp, "channel_cleanup"),
                     (channel, "channel_cleanup"),
                     (cache, "cache_cleanup"),
-                ):
+                )
+                for resource, cleanup_stage in resources:
                     if resource is not None:
                         try:
-                            resource.close()
+                            close_owned(resource, cleanup_stage)
                         except Exception:
                             failed.set()
                             cleanup_failed = True
@@ -653,7 +670,11 @@ class SftpArtifactSync:
                                 )
                             )
                 finished.set()
+                with self.mutex:
+                    cleanup_phase = "watcher_cleanup"
                 watcher.join()  # Keep the physical gate until the interrupt owner also exits.
+                with self.mutex:
+                    cleanup_phase = None
                 cleanup_failed = cleanup_failed or interrupted.is_set()
                 if interrupted.is_set():
                     cleanup_failures.append(
@@ -663,7 +684,7 @@ class SftpArtifactSync:
                 if cleanup_failed or not quiet:
                     failed.set()
                     try:
-                        self.session.close()
+                        close_owned(self.session, "channel_cleanup")
                     except Exception:
                         quiet = False
                     if not quiet:
@@ -700,17 +721,31 @@ class SftpArtifactSync:
             if abandoned.is_set():
                 # The SDK close may itself block. Retain the physical gate/cache lock
                 # in the worker until it has actually quiesced; never kill the owner.
+                with self.mutex:
+                    # An elapsed wait budget does not replace a failure already
+                    # observed by the owned worker. Cleanup remains unconfirmed.
+                    primary = (
+                        failures[0]
+                        if failures
+                        else cleanup_failures[0]
+                        if cleanup_failures
+                        else ArtifactSyncFailure(
+                            stage=phase,
+                            code="SYNC_DEADLINE"
+                            if time.monotonic() >= deadline and not cancel.is_set()
+                            else "SYNC_CANCELLED",
+                        )
+                    )
+                    pending_stage = cleanup_phase or (
+                        "watcher_cleanup" if watcher_closing.is_set() else "unknown"
+                    )
+                    cleanup_detail = ArtifactSyncFailure(
+                        stage=pending_stage, code="SYNC_CLEANUP_UNCONFIRMED"
+                    )
                 raise ArtifactFailure(
                     "REMOTE_ARTIFACT_CLEANUP_UNCONFIRMED",
-                    failure=ArtifactSyncFailure(
-                        stage=phase,
-                        code="SYNC_DEADLINE"
-                        if time.monotonic() >= deadline and not cancel.is_set()
-                        else "SYNC_CANCELLED",
-                    ),
-                    cleanup_failure=ArtifactSyncFailure(
-                        stage="watcher_cleanup", code="SYNC_CLEANUP_UNCONFIRMED"
-                    ),
+                    failure=primary.model_copy(deep=True),
+                    cleanup_failure=cleanup_detail,
                 )
         with self.mutex:
             if failed.is_set() or not values:
