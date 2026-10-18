@@ -478,3 +478,40 @@ portable journal有严格64KiB/finite/epoch类型与范围/单写sourceSeq门，
 原计划仍116185字节、SHA256 `dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43`；原v0.0.0 hash `5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190`、README hash `befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852`均复核未变。推送前开发origin仍1259b3e，main仍 `5323f86232529efcfb52131168ad049f01b219f3`；只正常推开发分支，最终HEAD/远端一致及工作区在最终回执核验，无main写入/强推/Release/PR/部署。
 
 下一最高价值切片是基于已核身份/短时认证的具体SSH/SFTP transport：仅固定Bundle原子stage、固定owner命令、受控三流/manifest读取与完整scope guard，先离线文件/transport夹具核验，再接运行API/UI和artifact hash同步。真实SSH全链路仍须明确获准目标/独立指纹/认证与执行范围，不能自动配置或修改教师环境。
+
+## M5.4 受控只读 SFTP 产物同步（本机接口夹具，非真实 SFTP）
+
+起点完整 SHA `6695d67f6422abfacaa405ca280b57754b8d9d56`，`/workspace/Easy-AI` / T1doo origin / `codex/demo-v0.0.0`，起点干净；功能完整 SHA **`47738aa2d2ea07053736a123b7a964377803374e`**。按父级续令选取“具体产物读取与本地原子同步”这一项，接既有 owner/协调器而不重复状态机；没有把此切片说成 M5.3 上传/启动适配已完成。仅常规代码、本机文件/标准库子进程与合成 SFTP API 夹具；没有真实 SSH/SFTP、远端上传/执行、用户凭据、安装、数据下载或训练。
+
+owner 现在先原子写入并 fsync `remote-artifacts.json`，才发布 sealed status。权威 ArtifactManifest 合同及生成的 schema/TS 镜像包含完整 identity、owner euid、最后 sourceSeq、最终事件流 SHA256 和所有 artifact_created 原始记录；超量或清单落盘失败不能宣称 sealed。清单只是来源收据，远端 syncState/输出文本不构成下载指令或本地就绪证据。执行 COMPLETED 与 `artifactsVerified=False` 的原有门保留。
+
+`SshRunCoordinator.artifact_snapshot` 在锁内先核缓存已提交前缀，再复制 sealed checkpoint 和已持久化 journal；冻结 Bundle 的 canonical manifest/hash/codeHash 及 source-map 内容 hash 绑定到本次运行，稳定 block IDs 核 producer、contributors 与 event.blockId。新 `SftpArtifactSync` 逐项比对清单与全部产物事件（顺序、完整字段、ID/path 唯一、不能省略/追加），拒绝来源错配及非封存快照。应用通过 `ConnectionManager.artifact_sync` 获内部服务，前后核同一个仍有效的 lease、project、username、endpoint、host fingerprint；没有新增 renderer/HTTP/IPC 的任意路径读取入口。
+
+具体 Paramiko 适配通过已有 fresh-pin/auth 门 `open_probe_channel`，先设 timeout，再固定请求 `sftp` subsystem 并构造 SFTPClient；不用 from_transport 另开未守卫 channel，不调用 get/prefetch 或远端命令/写接口。环境探测与同步共用真实 VerifiedSshSession.io_lock；物理 worker 未静止、关闭未确认时，环境操作/另一次同步和新会话均不能绕开 owner。watchdog 超时/取消只关闭自己的 I/O/session，不取消 detached owner、不杀远端 PID、不重新 start。迟返 worker 仍持物理门与本地 cache writer，失效 lease/取消后不能发布迟到索引。
+
+读取仅限两个固定控制记录与已验证 artifactId 所对应的 outputs 路径；拒绝绝对路径、..、反斜杠/驱动器、空或点组件、控制字符、symlink、非普通文件、不安全 UID/mode、缺失属性、声明长度与 EOF 不符。每级 lstat、handle stat 及读后路径/大小/时间属性复核，数据逐次最多64KiB，核实际总量与内容 SHA256。边界为清单64KiB、最多256产物、单产物按原计划100MiB、总256MiB，PNG8MiB且限制尺寸/总像素并核完整 chunk/CRC/IEND；source-map 独立允许8MiB，不能被清单64KiB上限误拒。模型 pt/pth 只保存原始字节，绝不 torch.load/pickle 执行；文本仅有界 UTF-8，不执行远端输出指令。
+
+本地 POSIX 私有 cache 逐级目录 FD/uid/no022/nofollow 核验，固定 kernel writer lock 不删除未知锁/目录。永久完整 identity marker 和现有 index 身份门防止跨 run/launch 接管；随机600 `.part` 经大小/hash/格式/fsync 后发布内容寻址 blob，复用已有 blob 也重新核验。远端 SFTP/channel 成功关闭后，才在有效 lease 守卫内原子提交 ready index；失败可留下未索引的已验 blob，不冒充 ready。按 opaque artifactId 读回，每次重新核 blob/hash/PNG，不单信 index 的 ready。取消线性化点为最终共享锁内的 guard：边界前取消拒提交；通过该点并完成提交后，迟到取消不能把已提交成功改为失败。精确 replace 入口取消回归覆盖此竞态。
+
+能力边界：SFTPv3 没有 O_NOFOLLOW，lstat/open 之间无法对恶意 sameUID 并发替换给出原子保证；私有 owner 目录、读前后属性与内容 hash 提供当前约束，不宣称解决该协议能力边界。本机 cache 的实现/实测为 POSIX，Windows 仍未验。当前只同步 sealed 产物，运行中的持续产物同步、完整最终必需产物成功门及公开运行 API/UI 尚未实现。
+
+独立只读审查发现并修复：跨身份 index 被覆盖、SDK 关闭失败却已有 ready、合法大 source-map 被64KiB误拒，以及最后 guard/replace 瞬间取消导致返回失败但已就绪。两位审查者均未写实现文件或联网，单一集成者写入。首轮新夹具/实现曾 FAIL（错误包装与容器根 UID anchor、测试 import/ACK 时序及清单夹具未同步修改），修复并保留严格拒绝门后下表最终通过；没有放宽安全测试。一次命令误写不存在 `test_ssh_client.py` 导致 **ERROR/no tests ran**，随后按实际 `test_ssh_identity.py` 路径执行下表，不计前者为测试成功。
+
+实际命令（沿用既有 UV/XDG workspace 缓存，不改 HOME）：
+
+| 命令 | 最终结果与范围 |
+| --- | --- |
+| `services/backend/.venv/bin/pytest -q services/backend/tests/test_remote_artifacts.py services/backend/tests/test_portable_owner.py services/backend/tests/test_connection_manager.py services/backend/tests/test_environment_transport.py services/backend/tests/test_ssh_identity.py` | **134 PASS**，10.10秒，Starlette弃用warning；含43新增产物用例、owner及受影响共享会话/认证/探测门。覆盖清单/来源/块ID、遍历/链接/FIFO/权限、size/hash/PNG、原子缓存/跨身份/锁保留、raw模型分块、关闭失败、cancel/lease/timeout停滞与gate、最终提交竞态 |
+| 上述43用例中的组合验证 | 真实本机基础Python启动 detached owner 和标准库非训练 child，生成明确的结构PNG夹具；启动 ACK 丢失→新lease coordinator恢复→完整snapshot→本地 SFTP API fixture→文件读回。start一次/重连start零次，实际日志及来源hash校验，artifactsVerified仍False。不是实际网络/SFTP E2E或科学结果 |
+| 独立只读验证 | 审查者一 **63 PASS**（43 artifact+20 owner）；审查者二 **48 PASS/12 deselected**（43 artifact+5 exact lease accessor），此前另25 env/manager通过。范围分别记录，不能累加冒充不同用例总数 |
+| `services/backend/.venv/bin/pytest -q services/backend/tests/test_compilation.py services/backend/tests/test_ssh_run_coordinator.py` | **61 PASS**，0.87秒，Starlette弃用warning；因owner Bundle/协调器snapshot变化执行受影响编译与持久协调门 |
+| `pnpm contracts`、`pnpm check` | PASS；权威 ArtifactManifest 镜像、mypy39源文件、ruff/格式、TS、合同漂移、原Blockly fixtures。首轮mypy consumer返回类型和ruff lambda曾FAIL，已修，无依赖/锁/工作流变更 |
+| `node scripts/python-task.mjs build` | PASS；最新 owner/SFTP 服务源码重建后端冻结包，未重复桌面 build |
+| `node scripts/test-frozen-ssh.mjs`、PyInstaller PYZ模块检查、应用 Python torch探测 | PASS；owner/probe/journal/core资源逐字核对，既有本机HTTP鉴权/DTO/拒绝有效SSH前操作/EOF退出；remote_artifacts、remote_run、connection_manager在包内，torch仍不存在。未调用真实SFTP下载 |
+| `git diff --check`、原件字节/hash、分支/远端核验 | PASS；原文件不变，无凭据/机器配置/数据入库 |
+
+本轮 **NOT RUN**：整体pnpm test、真实Electron/E2E、Windows、真实SSH/SFTP/远端上传或owner执行、远端断网恢复及进程清理、实际数据/torch/训练/硬件、最终真实PNG/权重验收、运行中产物持续同步。没有新增工具拒绝或结果不明；真实远端动作按本轮授权范围不执行。远端CI未查询，当前commit结果未知；继续保留父级提供1259b3eb2972b23ac374f0f84be2b926e1888092/run39126092935的check succeeded/desktop failed（job级、各2annotations、具体失败步骤未知），不重试被拒Actions、不绕路、不宣称全CI通过。
+
+原计划116185字节，SHA256 `dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43`；原v0.0.0 hash `5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190`、README hash `befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852`实际复核不变。推送前 origin 开发分支仍6695d67，main仍 `5323f86232529efcfb52131168ad049f01b219f3`；只正常推开发分支，最终完整HEAD/远端/工作区在回执核验。没有main写入、强推、部署、Release、PR、新增付费/权限或Feng5u原仓库写入。
+
+下一项仍为 M5.3 受控 Bundle 原子 SFTP stage 和固定 owner 命令/三流网络适配（start未知必须只inspect，不重发），然后接 scoped run API/UI、运行中同步与最终产物门；稳定profile/私钥和数据绑定仍未完整。实现继续按代码与本地协议夹具推进；真实验证需另有具体目标、独立指纹、认证与执行范围授权，不能自动安装/下载或改教师环境。**M5整体与A/B均未验收。**
