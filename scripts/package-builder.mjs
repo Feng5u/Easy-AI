@@ -155,7 +155,6 @@ export async function verifyApprovedOutput(output, approved) {
   }
   const expectedVendor = approved.groups.vendor
     .flatMap((record) => {
-      if (record.path === "resources/default_app.asar") return [];
       if (record.path === "electron") return [{ ...record, path: "easyai" }];
       if (record.path === "LICENSE")
         return [record, { ...record, path: "LICENSE.electron.txt" }];

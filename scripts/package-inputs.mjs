@@ -11,7 +11,6 @@ import {
   copyFile,
   chmod,
   rename,
-  symlink,
 } from "node:fs/promises";
 import { join, resolve, dirname } from "node:path";
 import {
@@ -217,10 +216,24 @@ export async function cleanBuildInputs(root, sourceCommit) {
       XDG_DATA_HOME: process.env.XDG_DATA_HOME || dirname(dirname(store)),
     },
   );
-  await symlink(
-    join(root, "services/backend/.venv"),
-    join(source, "services/backend/.venv"),
-    "dir",
+  // A fresh application build venv avoids editable .pth fallback to the user's
+  // working source. It uses the existing frozen application lock, never torch.
+  run(
+    "uv",
+    [
+      "sync",
+      "--offline",
+      "--frozen",
+      "--project",
+      join(source, "services/backend"),
+      "--python",
+      join(
+        root,
+        "services/backend/.venv",
+        process.platform === "win32" ? "Scripts/python.exe" : "bin/python",
+      ),
+    ],
+    source,
   );
   const payload = join(input, "payload");
   await mkdir(payload);
