@@ -93,3 +93,19 @@ def test_restart_without_process_exit_keeps_unknown_identity_and_never_relaunche
         assert not (Path(original.config.run_root) / "logs/train.log").exists()
     finally:
         recovered.close()
+
+
+def test_execution_evidence_never_grants_restart_even_with_created_cache(owned):
+    root, original = checkpoint(owned, finished=False)
+    catalog = json.loads((root / "catalog.json").read_bytes())
+    catalog["entries"][original.run_id]["run"]["status"] = "CREATED"
+    (root / "catalog.json").write_text(json.dumps(catalog))
+    recovered = RunService(root)
+    try:
+        with pytest.raises(ValueError, match="RUN_PROCESS_IDENTITY_UNKNOWN"):
+            recovered.start(original.run_id)
+        current = recovered.get(original.run_id)
+        assert current.status == "RUNNING" and current.connection_state == "disconnected"
+        assert not (Path(original.config.run_root) / "logs/train.log").exists()
+    finally:
+        recovered.close()

@@ -11,6 +11,7 @@ from pydantic import ValidationError
 from easyai.compiler.decode import DecodeError, decode
 from easyai.domain.contracts import ProjectDocument
 from easyai.security.project_lock import ProjectLock
+from easyai.security.files import read_regular
 
 MAX_PROJECT_BYTES = 5 * 1024 * 1024
 # Raw JSON container depth, including Blockly next/block wrappers. This is
@@ -57,8 +58,7 @@ def validate_project_bytes(raw: bytes) -> ProjectDocument:
 def read_project(path: Path) -> OpenedProject:
     if path.is_symlink():
         raise ValueError("PROJECT_PATH_FORBIDDEN")
-    with path.open("rb") as stream:
-        raw = stream.read(MAX_PROJECT_BYTES + 1)
+    raw = read_regular(path, MAX_PROJECT_BYTES + 1, prefix=True)
     try:
         return OpenedProject(raw, validate_project_bytes(raw), False)
     except (ValueError, ValidationError, DecodeError, RecursionError) as error:

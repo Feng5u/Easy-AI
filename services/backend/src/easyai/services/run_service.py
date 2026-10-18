@@ -14,6 +14,7 @@ from easyai.compiler.pipeline import compile_project
 from easyai.domain.contracts import ArtifactRecord, Contract, Event, Run, RunConfig
 from easyai.domain.program import ProgramIR
 from easyai.security.project_lock import ProjectLock
+from easyai.security.files import read_regular, digest_regular
 from easyai.services.event_journal import EventJournal, read_runtime_events
 from easyai.services.project_service import ProjectService
 
@@ -60,7 +61,7 @@ class RunService:
             if path.is_symlink():
                 raise ValueError("RUN_PATH_FORBIDDEN")
             self._ledger = (
-                RunLedger.model_validate_json(path.read_bytes())
+                RunLedger.model_validate_json(read_regular(path, 16 * 1024 * 1024))
                 if path.exists()
                 else RunLedger(entries={})
             )
@@ -115,6 +116,7 @@ class RunService:
             journal = EventJournal(path, run_id, "application")
             self._journals[run_id] = journal
             try:
+                self._fold_status(run_id, journal.after(0))
                 self._write_views(run_id, journal.after(0))
             except BaseException:
                 self._journals.pop(run_id).close()
@@ -222,9 +224,12 @@ class RunService:
         entry = self._ledger.entries[run_id]
         directory = self._directory(run_id)
         snapshot = self._safe_path(run_id, "snapshot/project.easyai.json")
-        if snapshot.is_symlink() or digest(snapshot.read_bytes()) != entry.snapshot_hash:
+        if (
+            snapshot.is_symlink()
+            or digest(read_regular(snapshot, 5 * 1024 * 1024)) != entry.snapshot_hash
+        ):
             raise ValueError("RUN_SNAPSHOT_CHANGED")
-        manifest = json.loads((directory / "bundle.json").read_bytes())
+        manifest = json.loads(read_regular(self._safe_path(run_id, "bundle.json"), 1024 * 1024))
         files = manifest["files"]
         if (
             digest(json.dumps(files, sort_keys=True, separators=(",", ":")).encode())
@@ -240,12 +245,17 @@ class RunService:
                 current = current / part
                 if current.is_symlink():
                     raise ValueError("RUN_PATH_FORBIDDEN")
-            if digest(current.read_bytes()) != expected:
+            if digest_regular(current, 8 * 1024 * 1024) != expected:
                 raise ValueError("BUNDLE_FILE_HASH_CONFLICT")
-        if digest((directory / "code/train.py").read_bytes()) != entry.run.config.code_hash:
+        if (
+            digest_regular(self._safe_path(run_id, "code/train.py"), 8 * 1024 * 1024)
+            != entry.run.config.code_hash
+        ):
             raise ValueError("CODE_HASH_CONFLICT")
         if (
-            RunConfig.model_validate_json(self._safe_path(run_id, "run-config.json").read_bytes())
+            RunConfig.model_validate_json(
+                read_regular(self._safe_path(run_id, "run-config.json"), 65536)
+            )
             != entry.run.config
         ):
             raise ValueError("RUN_CONFIG_CHANGED")
@@ -255,6 +265,7 @@ class RunService:
 
         with self._mutex:
             self._verify()
+            self.get(run_id)
             run = self._ledger.entries[run_id].run
             if run_id in self._supervisors:
                 return self.get(run_id)
@@ -304,7 +315,7 @@ class RunService:
     def _artifacts_complete(self, run_id: str, events: list[Event]) -> bool:
         directory = self._directory(run_id)
         program = ProgramIR.model_validate_json(
-            self._safe_path(run_id, "program.ir.json").read_bytes()
+            read_regular(self._safe_path(run_id, "program.ir.json"), 5 * 1024 * 1024)
         )
         expected_epochs = 1 if program.execution_mode == "quick" else program.training.epochs
         metrics = [event.payload for event in events if event.type == "epoch_completed"]
@@ -361,10 +372,58 @@ class RunService:
                 or item.size_bytes == 0
             ):
                 return False
-            if digest(target.read_bytes()) != item.sha256:
+            if digest_regular(target, min(item.size_bytes, 5_000_000_000)) != item.sha256:
                 return False
             actual.add((item.producer_block_id, item.kind, item.phase, item.epoch))
         return expected <= actual
+
+    def _fold_status(self, run_id: str, events: list[Event]) -> None:
+        # Application journal is the durable fact; catalog is its replaceable cache.
+        previous: str | None = None
+        for event in events:
+            if event.source != "application" or event.type != "status_changed":
+                continue
+            status = event.payload.get("status")
+            if not isinstance(status, str) or status not in {
+                "CREATED",
+                "PRECHECKING",
+                "STAGING",
+                "STARTING",
+                "RUNNING",
+                "CANCELLING",
+                *TERMINAL,
+            }:
+                raise ValueError("RUN_STATE_EVENT_INVALID")
+            if previous in TERMINAL and status != previous:
+                raise ValueError("RUN_TERMINAL_CONFLICT")
+            previous = status
+        run = self._ledger.entries[run_id].run
+        phases = {
+            "CREATED": 0,
+            "PRECHECKING": 1,
+            "STAGING": 2,
+            "STARTING": 3,
+            "RUNNING": 4,
+            "CANCELLING": 5,
+        }
+        if (
+            previous not in TERMINAL
+            and run.status not in TERMINAL
+            and (previous is None or phases[previous] <= phases[run.status])
+        ):
+            # A cache ahead of a recovered journal is uncertain, never permission
+            # to downgrade a potentially live process back to restartable CREATED.
+            return
+        if previous is not None and previous != run.status:
+            if run.status in TERMINAL:
+                raise ValueError("RUN_TERMINAL_CONFLICT")
+            # Revalidate the literal through the contract rather than type casting.
+            updated = run.model_dump()
+            updated["status"] = previous
+            if previous in TERMINAL:
+                updated["sync_state"] = "complete"
+            self._ledger.entries[run_id].run = Run.model_validate(updated)
+            self._persist()
 
     def _write_views(self, run_id: str, events: list[Event]) -> None:
         epochs: dict[int, dict[str, object]] = {}
@@ -397,6 +456,7 @@ class RunService:
 
         raw = self._supervisors.get(run_id)
         journal = self._journal(run_id)
+        self._fold_status(run_id, journal.after(0))
         events: list[Event] = []
         outcome: str | None = None
         run = self._ledger.entries[run_id].run
@@ -409,6 +469,15 @@ class RunService:
             if path.exists():
                 events = read_runtime_events(path, run_id)
                 exited = [event for event in events if event.type == "process_exited"]
+                if events and not exited and run.status == "CREATED":
+                    run.status = "RUNNING"
+                    run.connection_state = "disconnected"
+                    journal.append(
+                        "status_changed",
+                        None,
+                        {"status": "RUNNING", "reason": "EXECUTION_RESULT_UNKNOWN"},
+                    )
+                    self._persist()
                 if exited:
                     if (
                         len(exited) != 1
