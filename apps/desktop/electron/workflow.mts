@@ -1,5 +1,5 @@
 import { safeReport } from "./diagnostic-report.mjs";
-import { writeFile } from "node:fs/promises";
+import { publishNewReport } from "./atomic-report.mjs";
 import { isAbsolute } from "node:path";
 import { SessionWorkflow } from "./session-workflow.mjs";
 import { IdentityWorkflow, endpoint } from "./identity-workflow.mjs";
@@ -468,10 +468,13 @@ export class MainWorkflow {
         if (epoch !== this.reportEpoch) throw new Error("报告请求已过期。");
         if (JSON.stringify(report) !== JSON.stringify(current))
           throw new Error("报告已变化，请重新预览。");
-        await writeFile(path, JSON.stringify(current, null, 2) + "\n", {
-          flag: "wx",
-          mode: 0o600,
-        });
+        await publishNewReport(
+          path,
+          JSON.stringify(current, null, 2) + "\n",
+          () => {
+            if (epoch !== this.reportEpoch) throw new Error("报告请求已过期。");
+          },
+        );
         return { exported: true };
       }
       case "easyai:runs:source":
