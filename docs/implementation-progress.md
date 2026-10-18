@@ -1421,3 +1421,14 @@ CIFAR完整性窄化例外仍待用户答复，SAFE_PROBE_REQUIRED/unsafe_format
 - 修后12 PASS日志`/tmp/easyai-diag-target-1792355477805-421b53.log`、13 PASS日志`/tmp/easyai-diag-target-1792355524688-9597e0.log`均保留，被最终14覆盖范围、不累加；对应SHA256 `27d4d6929dcb5145a5e6b78e3d4851733a7ade7115ea99a569f8a208e94c6d88`、`472a9d14ac7fe348fb89fed3bd26cdc94347eb9b46bf16ce2a90089e148cc1e7`。
 
 NOT RUN：全套/大矩阵、构建/冻结smoke（本片无打包验收）、真实SSH/SFTP/用户文件下载、桌面/Windows/干净机、环境安装/数据下载/训练/个人PC。CIFAR裁决仍待答、保护门不变；旧便携包仍未含本片，未重打包或发布。上传重启恢复/manifest补传、安装真实接线和真实验收依赖不混入；完整M5/B未验。旧UNKNOWN需后续精确证据，不由绿灯关闭。最新精确CI仍父级认证d2ac2bf/run39158015941，check SUCCESS/desktop FAIL、首错未知；本片无新CI判定，既有Actions与sandbox拒绝未重试/绕过。无本轮新工具拒绝、未知外部写入、main/强推/PR/Release/部署/费用/凭据/权限变化。
+
+
+## 2026-10-18 — 父级诊断独审 P2：清理超时不得覆盖首错
+
+源码完整SHA **`af0a3d74f5456c2a69acd5f010e60d305f50bc07`**，基线c564ebe128d1c156f6730de4cd2a36062c700db3。上传恢复尚未代码改动时，父级指出提前CLEANUP_UNCONFIRMED分支无条件写DEADLINE/CANCELLED并固定watcher阶段。先加确定性barrier：receipt/artifact读取已抛OSError，随后channel/cache close阻塞过deadline；修前 **2 FAIL/61 deselected**，确实把SYNC_IO_FAILED误覆盖DEADLINE。失败原件 `/tmp/easyai-diag-first-cause-red-1792355861715-1070bf.log` SHA256 `a05854925dd046a3099baf66138feca7ba6f2d89f3731c62d930d5c028987f8a` 保全。
+
+最小修复只改诊断：首错记录与提前读同mutex，已有failures优先保留，不用等待超时覆盖已发生的IO错误；close_owned仅在锁内登记/清除资源阶段，实际close仍锁外，区分channel/cache清理；watcher关闭与join单独跟踪，无足够证据阶段保留unknown。CLEANUP_UNCONFIRMED控制结果不变，未知静止继续持有物理gate，不因诊断新字段放行；取消/训练/索引提交门未降低。
+
+实际命令：`services/backend/.venv/bin/python -m pytest services/backend/tests/test_remote_artifacts.py -k 'first_failure_survives_deadline or cancel_interrupt_worker or fixed_sync_failure_stages' -q`，最终 **11 PASS/52 deselected/0.86s**，日志 `/tmp/easyai-diag-first-cause-final-1792355931836-f68d2d.log`，SHA256 `37c9c4cd69d39ea43ea002a3943a2066600174c3844111ca32e2d1cd4b641eb4`。此前修后11项日志 `/tmp/easyai-diag-first-cause-green-1792355892861-359b42.log`保留但不累计；同时间戳 `/tmp/easyai-diag-first-cause-check-1792355892861-359b42.log` 的offline workspace缓存 `pnpm check` **PASS**（之后成功路径两处close也包同一已检查helper，最终11再次覆盖）。未重跑大矩阵/构建。独立只读两个barrier+旧watcher **3 PASS/60 deselected/0.60s**，`/tmp/easyai-first-cause-review-P3MfbH.log` SHA256 `b6f2d417b187e9d05748d187ec450c124ffb2b762b3684fc788bef5a775e1181`，确认关闭此P2、无明确新增P1/P2；与作者窗口重合不累计。
+
+旧226P1F特定根因仍UNKNOWN且原日志丢失，不把本次确定P2回溯当成它的已证原因。新验证均唯一noclobber文件，红/绿原件保全，无SDK原文/path/secret诊断。真实SSH/下载/安装/训练/桌面仍NOT RUN，CIFAR门不变，无新工具拒绝或未知外部写入。正常dev push，main和原件不改。接续原任务仍为上传本机持久恢复→显式重新选源/目标确认→只读inspect→同slot缺失文件补传；不自动网络或接管未知partial。
