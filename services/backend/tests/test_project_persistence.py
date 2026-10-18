@@ -58,7 +58,7 @@ service.close()
         stderr=subprocess.PIPE,
     )
     try:
-        assert child.stdout.readline() == b"True\n"
+        assert child.stdout.readline().replace(b"\r\n", b"\n") == b"True\n"
         live_contender = ProjectService(tmp_path)
         try:
             assert not live_contender.owned

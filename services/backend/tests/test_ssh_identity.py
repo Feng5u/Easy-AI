@@ -838,3 +838,127 @@ def test_sdk_secret_cleanup_on_failure_cancel_and_cleanup_refusal(tmp_path, mode
     else:
         assert handler.password is None and handler.private_key is None
         assert transport.saved_exception is None and session.closed_quiescent
+
+
+def test_cold_cancel_and_rejections_do_not_initialize_unavailable_trust_storage(
+    tmp_path, monkeypatch
+):
+    from easyai.security import host_keys
+
+    opened = []
+
+    def unavailable(*_args, **_kwargs):
+        opened.append(True)
+        raise ValueError("SSH_TRUST_PLATFORM_UNVERIFIED")
+
+    monkeypatch.setattr(host_keys, "HostKeyStore", unavailable)
+    workspace = LocalWorkspace(tmp_path / "cold-app")
+    api = TestClient(create_app("offline-token", workspace=workspace))
+    api.headers.update({"Authorization": "Bearer offline-token"})
+    request = {
+        "projectId": "11111111-1111-4111-8111-111111111111",
+        "requestId": "22222222-2222-4222-8222-222222222222",
+    }
+    try:
+        response = api.post("/api/v1/connections/identity/cancel", json=request)
+        assert response.status_code == 200, response.json()
+        assert response.json() == {"cancelled": True}
+        rejected = api.post(
+            "/api/v1/connections/identity/confirm",
+            json={
+                **request,
+                "confirmation": {
+                    "challengeId": "00000000-0000-0000-0000-000000000000",
+                    "fingerprint": "SHA256:" + "A" * 43,
+                },
+            },
+        )
+        assert (
+            rejected.status_code == 422
+            and rejected.json()["error"]["code"] == "SSH_IDENTITY_PROJECT_CHANGED"
+        )
+        auth = api.post(
+            "/api/v1/connections/auth/password",
+            json={
+                "request": {
+                    **request,
+                    "identityRequestId": request["requestId"],
+                    "expectedFingerprint": "SHA256:" + "A" * 43,
+                    "username": "synthetic",
+                },
+                "password": "synthetic-memory-only",
+            },
+        )
+        assert (
+            auth.status_code == 503
+            and auth.json()["error"]["code"] == "SSH_IDENTITY_PROJECT_CHANGED"
+        )
+        assert "synthetic-memory-only" not in auth.text
+        control = {
+            "projectId": request["projectId"],
+            "connectionId": "33333333-3333-4333-8333-333333333333",
+        }
+        current = api.get("/api/v1/connections/session", params=control)
+        assert current.status_code == 200 and current.json() is None
+        environment = api.post(
+            "/api/v1/environments/discover", json={**control, "requestId": request["requestId"]}
+        )
+        assert (
+            environment.status_code == 503
+            and environment.json()["error"]["code"] == "SSH_AUTHENTICATION_REQUIRED"
+        )
+        assert api.post("/api/v1/connections/session/close", json=control).status_code == 200
+        assert opened == []
+        # Cancellation remains a tombstone after a matching project is later opened.
+        root = tmp_path / "project"
+        root.mkdir()
+        import json
+        from easyai.domain.catalog import SOURCE_ROOT
+
+        document = json.loads((SOURCE_ROOT / "packages/contracts/fixtures/blank.json").read_text())
+        document["projectId"] = request["projectId"]
+        (root / "project.easyai.json").write_text(json.dumps(document))
+        project = workspace.open(workspace.select("project", root).selection_id).project
+        assert project is not None and project.project_id == request["projectId"]
+        retired = api.post(
+            "/api/v1/connections/identity/probe",
+            json={**request, "endpoint": {"host": "offline.invalid", "port": 22}},
+        )
+        assert (
+            retired.status_code == 422
+            and retired.json()["error"]["code"] == "SSH_IDENTITY_REQUEST_RETIRED"
+        )
+        assert opened == []
+        unsupported = api.post(
+            "/api/v1/connections/identity/probe",
+            json={
+                "projectId": request["projectId"],
+                "requestId": "44444444-4444-4444-8444-444444444444",
+                "endpoint": {"host": "offline.invalid", "port": 22},
+            },
+        )
+        assert unsupported.status_code == 422
+        assert unsupported.json()["error"]["code"] == "SSH_TRUST_PLATFORM_UNVERIFIED"
+        assert opened == [True]  # Gate still blocks a real operation before any dial.
+    finally:
+        workspace.close()
+
+
+def test_lazy_trust_store_factory_is_initialized_once_for_concurrent_readers():
+    from concurrent.futures import ThreadPoolExecutor
+    import time
+    from typing import cast
+
+    sentinel = cast(HostKeyStore, object())
+    calls = []
+
+    def factory():
+        calls.append(True)
+        time.sleep(0.02)  # Give competing readers a bounded opportunity to race.
+        return sentinel
+
+    ssh = SshClient(factory)
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        results = list(pool.map(lambda _: ssh.store, range(8)))
+    assert calls == [True]
+    assert all(result is sentinel for result in results)

@@ -259,15 +259,27 @@ class VerifiedSshSession:
 class SshClient:
     def __init__(
         self,
-        store: HostKeyStore,
+        store: HostKeyStore | Callable[[], HostKeyStore],
         dial: Callable[[SshEndpoint, float], Socket] = _dial,
         transport: Callable[[Socket], Transport] = _transport,
     ):
-        self.store = store
+        self._store = None if callable(store) else store
+        self._store_factory = store if callable(store) else None
+        self._store_lock = threading.Lock()
         self._dial = dial
         self._make_transport = transport
 
+    @property
+    def store(self) -> HostKeyStore:
+        with self._store_lock:
+            if self._store is None:
+                if self._store_factory is None:
+                    raise ValueError("SSH_TRUST_PLATFORM_UNVERIFIED")
+                self._store = self._store_factory()
+            return self._store
+
     def _open(self, endpoint: SshEndpoint, cancel: threading.Event | None) -> VerifiedSshSession:
+        store = self.store  # Capability/trust storage must be verified before any outbound dial.
         connection: Socket | None = None
         transport: Transport | None = None
         try:
@@ -285,7 +297,7 @@ class SshClient:
             transport.start_client(event=completed)
             # Identity not yet known; this temporary owner only waits/closes.
             session = VerifiedSshSession(
-                endpoint, PublicIdentity("", b""), self.store, connection, transport
+                endpoint, PublicIdentity("", b""), store, connection, transport
             )
             session._wait(completed, 10, cancel, "SSH_HANDSHAKE_FAILED")
             session._identity = PublicIdentity.from_key(transport.get_remote_server_key())

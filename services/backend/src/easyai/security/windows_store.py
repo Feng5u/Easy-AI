@@ -19,6 +19,9 @@ U8, U16, U32, I32, U64, I64 = C.c_uint8, C.c_uint16, C.c_uint32, C.c_int32, C.c_
 PTR = C.c_void_p
 READ_CONTROL, SYNCHRONIZE, DELETE = 0x20000, 0x100000, 0x10000
 REPARSE, DIRECTORY = 0x400, 0x10
+# Exact Microsoft Windows Modules Installer service identity, ancestors only.
+# https://learn.microsoft.com/en-us/archive/msdn-magazine/2008/november/access-control-understanding-windows-file-and-registry-permissions
+TRUSTED_INSTALLER = "S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464"
 TRUSTED = frozenset({"S-1-5-18", "S-1-5-32-544"})  # OS administrators are outside this boundary.
 
 
@@ -119,6 +122,8 @@ def validate_acl(owner: str, aces: list[Ace] | None, user: str, *, final: bool) 
     to justify otherwise unsafe grants; unusual enterprise ACLs fail closed.
     """
     trusted = TRUSTED | {user}
+    if not final:
+        trusted |= {TRUSTED_INSTALLER}
     if owner not in trusted or aces is None or len(aces) > 1024:
         raise ValueError("WINDOWS_CACHE_SECURITY_UNSAFE")
     dangerous = DELETE | 0x40000 | 0x80000 | 0x100 | 0x10 | 0x40

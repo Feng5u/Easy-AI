@@ -256,3 +256,18 @@ def test_owned_lock_cleanup_does_not_depend_on_namespace_revalidation(tmp_path):
     assert directory.verifies == 1
     with pytest.raises(OSError):
         os.fstat(directory.fd)
+
+
+def test_trustedinstaller_is_exact_ancestor_only_and_never_weakens_final_acl():
+    installer = "S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464"
+    validate_acl(installer, [Ace(0, 0, 0x1F01FF, installer)], USER, final=False)
+    for owner in [installer, installer + "0", "S-1-5-80-123", OTHER]:
+        with pytest.raises(ValueError, match="SECURITY_UNSAFE"):
+            validate_acl(owner, [], USER, final=True)
+    for owner in [installer + "0", "S-1-5-80-123", OTHER]:
+        with pytest.raises(ValueError, match="SECURITY_UNSAFE"):
+            validate_acl(owner, [], USER, final=False)
+    with pytest.raises(ValueError, match="SECURITY_UNSAFE"):
+        validate_acl(installer, [Ace(0, 0, 0x10000, OTHER)], USER, final=False)
+    with pytest.raises(ValueError, match="SECURITY_UNSAFE"):
+        validate_acl(USER, [Ace(0, 0, 2, installer)], USER, final=True)

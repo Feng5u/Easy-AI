@@ -284,7 +284,7 @@ class LocalWorkspace:
                 from easyai.security.host_keys import HostKeyStore
                 from easyai.services.ssh_client import SshClient
 
-                self._ssh_client = SshClient(HostKeyStore(self.root / "ssh-host-identity"))
+                self._ssh_client = SshClient(lambda: HostKeyStore(self.root / "ssh-host-identity"))
             return self._ssh_client
 
     def identity(self) -> "SshIdentityService":

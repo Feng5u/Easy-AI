@@ -19,8 +19,16 @@ def test_bounded_regular_read_and_oversized_file(tmp_path):
 
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX named pipe regression")
-@pytest.mark.parametrize("kind", ["catalog", "snapshot", "config", "bundle"])
-def test_persistent_fifo_rejected_without_blocking_owned_store(owned, kind):
+@pytest.mark.parametrize(
+    "kind, expected",
+    [
+        ("catalog", "REMOTE_CACHE_FILE_UNSAFE"),
+        ("snapshot", "FILE_NOT_REGULAR"),
+        ("config", "FILE_NOT_REGULAR"),
+        ("bundle", "FILE_NOT_REGULAR"),
+    ],
+)
+def test_persistent_fifo_rejected_without_blocking_owned_store(owned, kind, expected):
     from test_run_service import prepare
 
     _, service, _, _, _ = owned
@@ -45,14 +53,14 @@ try:
  service=RunService(Path(sys.argv[1]))
  service.start(sys.argv[2])
 except ValueError as error:
- assert str(error)=='FILE_NOT_REGULAR', str(error)
+ assert str(error)==sys.argv[3], str(error)
 else:
  raise AssertionError('FIFO not rejected')
 finally:
  if service: service.close()
 """
     result = subprocess.run(
-        [sys.executable, "-c", script, str(root), run.run_id],
+        [sys.executable, "-c", script, str(root), run.run_id, expected],
         capture_output=True,
         text=True,
         timeout=3,
