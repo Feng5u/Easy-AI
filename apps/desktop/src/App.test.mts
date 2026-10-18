@@ -606,3 +606,55 @@ it.each(["python", "data", "project", "dirty"] as const)(
     expect(container.textContent).not.toContain("正在检查本机环境与数据");
   },
 );
+
+it("beginner guide navigates without execution and SSH mode hides local-only selections", async () => {
+  const mocked = bridge(),
+    api = mocked.api;
+  api.selections.pick = vi.fn(api.selections.pick);
+  api.local.preflight = vi.fn(api.local.preflight);
+  api.runs.start = vi.fn(api.runs.start);
+  api.connections.probe = vi.fn(api.connections.probe);
+  api.connections.authenticate = vi.fn(api.connections.authenticate);
+  api.connections.listProfiles = vi.fn(async () => []);
+  api.environments.discover = vi.fn(api.environments.discover);
+  await mount(api);
+  await click("前往运行位置");
+  expect(document.activeElement?.id).toBe("environment-heading");
+  await act(async () => {
+    const select = [...container.querySelectorAll("label")]
+      .find((node) => node.textContent?.startsWith("运行位置"))!
+      .querySelector("select")!;
+    Object.getOwnPropertyDescriptor(
+      dom.window.HTMLSelectElement.prototype,
+      "value",
+    )!.set!.call(select, "ssh");
+    select.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+  });
+  expect(container.textContent).toContain("本机无需准备数据副本");
+  expect(
+    [...container.querySelectorAll("button")].some(
+      (node) => node.textContent === "选择现有 Python",
+    ),
+  ).toBe(false);
+  expect(
+    [...container.querySelectorAll("button")].some(
+      (node) => node.textContent === "选择数据目录",
+    ),
+  ).toBe(false);
+  await click("配置服务器环境与数据");
+  expect(api.connections.listProfiles).toHaveBeenCalledTimes(1);
+  expect(document.activeElement?.id).toBe("server-configuration");
+  for (const action of [
+    api.selections.pick,
+    api.local.preflight,
+    api.runs.start,
+    api.connections.probe,
+    api.connections.authenticate,
+    api.environments.discover,
+    mocked.save,
+  ])
+    expect(action).not.toHaveBeenCalled();
+  await click("前往检查与运行");
+  expect(document.activeElement?.id).toBe("compile-heading");
+  expect(container.textContent).toContain("先保存或选择服务器概要");
+});

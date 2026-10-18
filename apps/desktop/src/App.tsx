@@ -1,3 +1,5 @@
+import { GettingStarted } from "./GettingStarted.js";
+import type { GuideDestination } from "./GettingStarted.js";
 import { LocalPreflight } from "./LocalPreflight.js";
 import {
   lazy,
@@ -65,6 +67,30 @@ export function App({ api }: { api?: DesktopAPI }) {
   const [viewTab, setViewTab] = useState<WorkspaceTab>("data");
   const [identityVisible, setIdentityVisible] = useState(false);
   const [viewCode, setViewCode] = useState(false);
+  const serverFocusProject = useRef<string | null>(null);
+  const focusServer = () => {
+    const target = document.getElementById("server-configuration");
+    if (!target) return false;
+    target.focus();
+    target.scrollIntoView?.({ block: "start" });
+    return true;
+  };
+  function openServerSettings() {
+    if (!project) return;
+    if (!focusServer()) serverFocusProject.current = project.projectId;
+    setIdentityVisible(true);
+  }
+  useEffect(() => {
+    if (
+      identityVisible &&
+      ready &&
+      project &&
+      serverFocusProject.current === project.projectId
+    )
+      focusServer();
+    serverFocusProject.current = null;
+  }, [identityVisible, ready, project?.projectId]);
+
   const draft = useRef<ProjectDraft | null>(null);
   const compiledSemantic = useRef(-1);
   const compileRequest = useRef(0);
@@ -487,41 +513,91 @@ export function App({ api }: { api?: DesktopAPI }) {
           自动保存已暂停。未保存状态仍在内存中，请导出草稿或手动重试。
         </p>
       )}
+      <GettingStarted
+        projectName={project?.name ?? null}
+        readOnly={Boolean(session?.readOnly)}
+        dirty={dirty}
+        mode={runMode}
+        pythonSelected={Boolean(python)}
+        dataSelected={Boolean(data)}
+        remoteBound={Boolean(
+          remoteBinding &&
+          remoteSession &&
+          !dirty &&
+          remoteBinding.projectId === project?.projectId &&
+          remoteBinding.projectRevision === project.revision &&
+          remoteBinding.programHash === compilation?.programHash &&
+          remoteBinding.connectionId === remoteSession.scope.connectionId &&
+          remoteSession.projectId === project.projectId,
+        )}
+        compiled={Boolean(
+          !dirty &&
+          compilation?.runnable &&
+          compilation.revision === project?.revision,
+        )}
+        hasRun={Boolean(run || history.length)}
+        ready={ready}
+        blocked={Boolean(busy) || saving || activeRun}
+        onServer={openServerSettings}
+        onNavigate={(destination: GuideDestination) => {
+          const ids: Record<GuideDestination, string> = {
+            project: "project-heading",
+            environment: "environment-heading",
+            compile: "compile-heading",
+            history: "history-heading",
+          };
+          const target = document.getElementById(ids[destination]);
+          target?.focus();
+          target?.scrollIntoView?.({ block: "start" });
+        }}
+      />
       <div className="button-row">
         <button
           type="button"
           disabled={!ready || !project}
-          onClick={() => setIdentityVisible((value) => !value)}
+          onClick={() => {
+            if (identityVisible) setIdentityVisible(false);
+            else openServerSettings();
+          }}
         >
           SSH 主机身份设置
         </button>
       </div>
       {identityVisible && ready && bridge && project && (
-        <ServerProfiles
-          key={project.projectId}
-          api={bridge.connections}
-          environments={bridge.environments}
-          projectId={project.projectId}
-          remote={{
-            runs: bridge.runs,
-            authority:
-              !dirty &&
-              compilation?.runnable &&
-              compilation.revision === project.revision
-                ? {
-                    expectedRevision: project.revision,
-                    expectedProgramHash: compilation.programHash,
-                  }
-                : undefined,
-            onBinding: acceptRemoteBinding,
-            onSession: acceptRemoteSession,
-          }}
-          onClose={() => setIdentityVisible(false)}
-        />
+        <div
+          id="server-configuration"
+          role="region"
+          aria-label="服务器配置"
+          tabIndex={-1}
+        >
+          <ServerProfiles
+            key={project.projectId}
+            api={bridge.connections}
+            environments={bridge.environments}
+            projectId={project.projectId}
+            remote={{
+              runs: bridge.runs,
+              authority:
+                !dirty &&
+                compilation?.runnable &&
+                compilation.revision === project.revision
+                  ? {
+                      expectedRevision: project.revision,
+                      expectedProgramHash: compilation.programHash,
+                    }
+                  : undefined,
+              onBinding: acceptRemoteBinding,
+              onSession: acceptRemoteSession,
+            }}
+            onClose={() => setIdentityVisible(false)}
+          />
+        </div>
       )}
       <div className="setup-grid">
         <section className="panel" aria-labelledby="project-heading">
-          <h2 id="project-heading">1. 工程</h2>
+          <h2 id="project-heading" tabIndex={-1}>
+            1. 工程
+          </h2>
           <label className="field">
             新工程名称
             <input
@@ -653,7 +729,9 @@ export function App({ api }: { api?: DesktopAPI }) {
           )}
         </section>
         <section className="panel" aria-labelledby="environment-heading">
-          <h2 id="environment-heading">2. 运行环境与数据</h2>
+          <h2 id="environment-heading" tabIndex={-1}>
+            2. 运行环境与数据
+          </h2>
           <p>
             选择已安装训练依赖的
             Python，以及已准备好数据的目录。此页面不会安装包或下载数据。
@@ -678,32 +756,60 @@ export function App({ api }: { api?: DesktopAPI }) {
                 : "请在 SSH 设置中完成身份、认证、环境和数据检查，再绑定已保存工程。"}
             </p>
           )}
-          <div className="binding">
-            <span>训练 Python</span>
-            <strong>{python?.label ?? "尚未选择"}</strong>
-            <button
-              type="button"
-              disabled={!ready || Boolean(busy) || activeRun}
-              onClick={() => {
-                void choose("python");
-              }}
-            >
-              选择现有 Python
-            </button>
-          </div>
-          <div className="binding">
-            <span>数据目录</span>
-            <strong>{data?.label ?? "尚未选择"}</strong>
-            <button
-              type="button"
-              disabled={!ready || Boolean(busy) || activeRun}
-              onClick={() => {
-                void choose("data");
-              }}
-            >
-              选择数据目录
-            </button>
-          </div>
+          {runMode === "local" ? (
+            <>
+              <div className="binding">
+                <span>训练 Python</span>
+                <strong>{python?.label ?? "尚未选择"}</strong>
+                <button
+                  type="button"
+                  disabled={!ready || Boolean(busy) || activeRun}
+                  onClick={() => {
+                    void choose("python");
+                  }}
+                >
+                  选择现有 Python
+                </button>
+              </div>
+              <div className="binding">
+                <span>数据目录</span>
+                <strong>{data?.label ?? "尚未选择"}</strong>
+                <button
+                  type="button"
+                  disabled={!ready || Boolean(busy) || activeRun}
+                  onClick={() => {
+                    void choose("data");
+                  }}
+                >
+                  选择数据目录
+                </button>
+              </div>
+              <p className="muted">
+                训练 Python 是已安装训练依赖的解释器。MNIST 示例的数据目录内需有
+                MNIST/raw；数据由你或老师预先准备，选择目录不会下载。
+              </p>
+            </>
+          ) : (
+            <div aria-label="服务器环境与数据说明">
+              <p>
+                使用服务器已有的 Python
+                环境与数据目录，本机无需准备数据副本。老师环境只做检查，不安装或升级包；数据不会自动上传。
+              </p>
+              {remoteBinding && (
+                <p>
+                  服务器 Python：{remoteBinding.pythonExecutable}；服务器数据：
+                  {remoteBinding.dataRoot}
+                </p>
+              )}
+              <button
+                type="button"
+                disabled={!ready || !project || Boolean(busy) || activeRun}
+                onClick={openServerSettings}
+              >
+                打开服务器配置
+              </button>
+            </div>
+          )}
           {runMode === "local" && bridge && project && python && data && (
             <LocalPreflight
               key={`${project.projectId}:${project.revision}:${python.selectionId}:${data.selectionId}:${dirty}:${ready}`}
@@ -758,7 +864,9 @@ export function App({ api }: { api?: DesktopAPI }) {
       <section className="panel" aria-labelledby="compile-heading">
         <div className="section-heading">
           <div>
-            <h2 id="compile-heading">3. 检查与运行</h2>
+            <h2 id="compile-heading" tabIndex={-1}>
+              3. 检查与运行
+            </h2>
             <p className="muted">
               保存的工程与编译 revision 一致后，才能显式启动。
             </p>
@@ -863,7 +971,9 @@ export function App({ api }: { api?: DesktopAPI }) {
       </section>
       {project && (
         <section className="panel">
-          <h2>运行历史（只读快照）</h2>
+          <h2 id="history-heading" tabIndex={-1}>
+            运行历史（只读快照）
+          </h2>
           <p className="muted">查看旧运行不会替换当前编辑工程或映射。</p>
           {history.length ? (
             <ul className="history-list">
