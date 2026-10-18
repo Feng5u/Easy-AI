@@ -1,6 +1,10 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
 import type { DesktopAPI, SubscriptionMessage } from "./bridge.js";
 const api: DesktopAPI = {
+  local: {
+    preflight: (request) =>
+      ipcRenderer.invoke("easyai:local:preflight", request),
+  },
   connections: {
     authenticate: (
       projectId,

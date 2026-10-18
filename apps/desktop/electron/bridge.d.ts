@@ -1,3 +1,6 @@
+import type { LocalPreflightRequest } from "../../../packages/contracts/types/LocalPreflightRequest.js";
+import type { LocalPreflightResult } from "../../../packages/contracts/types/LocalPreflightResult.js";
+export type { LocalPreflightRequest, LocalPreflightResult };
 import type { RemoteBinding } from "../../../packages/contracts/types/RemoteBinding.js";
 import type { RemoteBindingRequest } from "../../../packages/contracts/types/RemoteBindingRequest.js";
 export type { RemoteBinding, RemoteBindingRequest };
@@ -101,6 +104,9 @@ export interface DesktopAPI {
     subscribe(
       onStatus: (status: { ready: boolean; message: string }) => void,
     ): () => void;
+  };
+  local: {
+    preflight(request: LocalPreflightRequest): Promise<LocalPreflightResult>;
   };
   selections: { pick(kind: SelectionKind): Promise<SelectionResult | null> };
   projects: {

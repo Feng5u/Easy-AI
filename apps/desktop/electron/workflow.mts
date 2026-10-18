@@ -10,6 +10,7 @@ import type {
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const WORKFLOW_CHANNELS = [
+  "easyai:local:preflight",
   "easyai:connections:authenticate",
   "easyai:connections:cancelAuth",
   "easyai:connections:close",
@@ -114,6 +115,7 @@ export class MainWorkflow {
     const backend = this.backend();
     if (!backend) throw new Error("本地服务未就绪。");
     const counts: Record<string, number> = {
+      "easyai:local:preflight": 1,
       "easyai:selections:pick": 1,
       "easyai:projects:current": 0,
       "easyai:projects:open": 1,
@@ -151,6 +153,22 @@ export class MainWorkflow {
       this.identity.invalidate();
     }
     switch (channel) {
+      case "easyai:local:preflight": {
+        const value = object(args[0], [
+          "projectId",
+          "expectedRevision",
+          "pythonSelectionId",
+          "dataSelectionId",
+        ]);
+        const request = {
+          projectId: id(value.projectId),
+          expectedRevision: integer(value.expectedRevision, 1),
+          pythonSelectionId: id(value.pythonSelectionId),
+          dataSelectionId: id(value.dataSelectionId),
+        };
+        return backend.request("POST", "/api/v1/local/preflight", request);
+      }
+
       case "easyai:selections:pick": {
         const kind = args[0];
         if (

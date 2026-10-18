@@ -117,3 +117,30 @@ it("SSH start forwards only a saved binding, including retries without an active
     expect(request).not.toHaveBeenCalled();
   }
 });
+
+it("local preflight forwards only project revision and native selection IDs", async () => {
+  const { bridge, request, choose } = setup();
+  const value = {
+    projectId: identity,
+    expectedRevision: 1,
+    pythonSelectionId: identity,
+    dataSelectionId: identity,
+  };
+  for (const invalid of [
+    { ...value, path: "/arbitrary" },
+    { ...value, pythonSelectionId: "/python" },
+    { ...value, expectedRevision: 0 },
+  ]) {
+    await expect(
+      bridge.invoke("easyai:local:preflight", [invalid]),
+    ).rejects.toThrow();
+  }
+  expect(request).not.toHaveBeenCalled();
+  await bridge.invoke("easyai:local:preflight", [value]);
+  expect(request).toHaveBeenCalledExactlyOnceWith(
+    "POST",
+    "/api/v1/local/preflight",
+    value,
+  );
+  expect(choose).not.toHaveBeenCalled();
+});

@@ -86,6 +86,15 @@ try {
     (await request("GET", "/local/session", undefined, false)).response.status,
     401,
   );
+  assert.equal(
+    (await request("POST", "/local/preflight", {}, false)).response.status,
+    401,
+  );
+  assert.equal(
+    (await request("POST", "/local/preflight", { pythonPath: "/arbitrary" }))
+      .response.status,
+    422,
+  );
   const selected = await request("POST", "/local/selections", {
     kind: "project",
     path: project,

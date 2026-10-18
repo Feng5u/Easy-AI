@@ -1,3 +1,4 @@
+import { LocalPreflight } from "./LocalPreflight.js";
 import {
   lazy,
   Suspense,
@@ -703,6 +704,21 @@ export function App({ api }: { api?: DesktopAPI }) {
               选择数据目录
             </button>
           </div>
+          {runMode === "local" && bridge && project && python && data && (
+            <LocalPreflight
+              key={`${project.projectId}:${project.revision}:${python.selectionId}:${data.selectionId}:${dirty}:${ready}`}
+              api={bridge.local}
+              request={{
+                projectId: project.projectId,
+                expectedRevision: project.revision,
+                pythonSelectionId: python.selectionId,
+                dataSelectionId: data.selectionId,
+              }}
+              pythonLabel={python.label}
+              dataLabel={data.label}
+              disabled={!ready || dirty || Boolean(busy) || activeRun}
+            />
+          )}
           <p className="muted">
             运行位置：{runMode === "ssh" ? "SSH 服务器" : "本机"}
             。服务器数据不会自动上传或下载。

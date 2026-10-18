@@ -20,6 +20,7 @@ test("secure desktop startup and normal shutdown", async () => {
     ).toEqual({
       node: "undefined",
       bridge: [
+        "local",
         "connections",
         "environments",
         "status",

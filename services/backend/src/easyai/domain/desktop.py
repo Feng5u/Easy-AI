@@ -41,3 +41,30 @@ class RunSource(Contract):
     code: str
     source_map: list[SourceSpan]
     snapshot: ProjectDocument
+
+
+class LocalPreflightRequest(Contract):
+    project_id: str = Field(pattern=r"^[0-9a-f-]{36}$")
+    expected_revision: int = Field(ge=1)
+    python_selection_id: str = Field(pattern=r"^[0-9a-f-]{36}$")
+    data_selection_id: str = Field(pattern=r"^[0-9a-f-]{36}$")
+
+
+class LocalPreflightCheck(Contract):
+    ok: bool
+    code: str
+
+
+class LocalPythonVersions(Contract):
+    python: str
+    prefix: str
+    torch: str
+    torchvision: str
+    matplotlib: str
+
+
+class LocalPreflightResult(LocalPreflightRequest):
+    environment: LocalPreflightCheck
+    data: LocalPreflightCheck
+    versions: LocalPythonVersions | None = None
+    dataset_names: list[str]

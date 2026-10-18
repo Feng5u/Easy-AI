@@ -43,6 +43,8 @@ from easyai.domain.contracts import (
     ArtifactRecord,
 )
 from easyai.domain.desktop import (
+    LocalPreflightRequest,
+    LocalPreflightResult,
     ProjectSession,
     RunStartRequest,
     RunSource,
@@ -258,6 +260,19 @@ def create_app(
     @app.get("/api/v1/local/session", response_model=ProjectSession | None)
     async def current() -> ProjectSession | None:
         return await asyncio.to_thread(local().current)
+
+    @app.post("/api/v1/local/preflight", response_model=LocalPreflightResult)
+    async def preflight_local(request: LocalPreflightRequest) -> LocalPreflightResult:
+        workspace = local()
+        generation = workspace.project_generation(request.project_id)
+        workspace.verify_preflight_scope(request, generation)
+        try:
+            result = await asyncio.to_thread(workspace.preflight_local, request)
+        except Exception:
+            workspace.verify_preflight_scope(request, generation)
+            raise
+        workspace.verify_preflight_scope(request, generation)
+        return result
 
     @app.get("/api/v1/local/activity")
     async def activity() -> dict[str, list[str]]:

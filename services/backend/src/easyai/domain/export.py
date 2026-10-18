@@ -58,6 +58,8 @@ MODELS: list[type[BaseModel]] = [
     contracts.ArtifactRecord,
     contracts.RunConfig,
     contracts.Run,
+    desktop.LocalPreflightRequest,
+    desktop.LocalPreflightResult,
     desktop.SelectionResult,
     desktop.ProjectSession,
     desktop.RunStartRequest,

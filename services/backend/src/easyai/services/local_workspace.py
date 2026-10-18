@@ -23,7 +23,15 @@ from easyai.domain.remote_execution import (
     RemoteBindingRequest,
     RemoteRunStartRequest,
 )
-from easyai.domain.desktop import ProjectSession, RunStartRequest, SelectionResult
+from easyai.domain.desktop import (
+    ProjectSession,
+    RunStartRequest,
+    SelectionResult,
+    LocalPreflightRequest,
+    LocalPreflightResult,
+    LocalPreflightCheck,
+    LocalPythonVersions,
+)
 from easyai.security.files import read_regular
 from easyai.services.project_service import ProjectService, read_project, validate_project_bytes
 from easyai.services.run_service import RunService
@@ -228,6 +236,7 @@ class LocalWorkspace:
         run_root.mkdir(exist_ok=True)
         self.runs = RunService(run_root)
         self._mutex = threading.RLock()
+        self._local_probe_lock = threading.Lock()
         self._selections: dict[str, tuple[SelectionKind, Path]] = {}
         self._projects: dict[str, ProjectService] = {}
         self._current: str | None = None
@@ -603,6 +612,78 @@ class LocalWorkspace:
                 value = self.runs.cancel(scope.run_id)
         self.verify_run_scope(scope)
         return value
+
+    def verify_preflight_scope(self, request: LocalPreflightRequest, generation: int) -> None:
+        with self._mutex:
+            self.verify_project_generation(request.project_id, generation)
+            self._projects[request.project_id].snapshot(request.expected_revision)
+
+    def preflight_local(self, request: LocalPreflightRequest) -> LocalPreflightResult:
+        # Capture authorized identities under the workspace lock, but never hold it
+        # across a selected executable. A result is informational, never a run grant.
+        with self._mutex:
+            generation = self.project_generation(request.project_id)
+            project = self._projects[request.project_id]
+            opened = project.snapshot(request.expected_revision)
+            assert opened.document is not None
+            python = self._selection(request.python_selection_id, "python")
+            data = self._selection(request.data_selection_id, "data")
+        if not self._local_probe_lock.acquire(blocking=False):
+            raise ValueError("LOCAL_PREFLIGHT_BUSY")
+        try:
+            compilation = compile_project(opened.document)
+            names: set[str] = (
+                {item.dataset_name for item in compilation.program.datasets}
+                if compilation.program is not None
+                else set()
+            )
+            data_check = LocalPreflightCheck(ok=False, code="DATASET_PROJECT_NOT_RUNNABLE")
+            if names:
+                try:
+                    preflight_data(data, names)
+                    data_check = LocalPreflightCheck(ok=True, code="DATASET_READY")
+                except (OSError, ValueError) as error:
+                    code = str(error)
+                    allowed = {
+                        "DATASET_PREFLIGHT_NOT_SUPPORTED",
+                        "DATA_PATH_FORBIDDEN",
+                        "DATASET_MISSING_NO_DOWNLOAD",
+                        "DATASET_IDX_INVALID",
+                    }
+                    data_check = LocalPreflightCheck(
+                        ok=False, code=code if code in allowed else "DATASET_UNREADABLE"
+                    )
+            versions = None
+            try:
+                versions = LocalPythonVersions.model_validate(
+                    probe_python(python, self.root / "probe-cache")
+                )
+                environment = LocalPreflightCheck(ok=True, code="ENVIRONMENT_READY")
+            except (OSError, ValueError) as error:
+                code = str(error)
+                allowed = {
+                    "ENVIRONMENT_PYTHON_UNAVAILABLE",
+                    "ENVIRONMENT_IMPORT_FAILED",
+                    "ENVIRONMENT_PROBE_TIMEOUT",
+                    "ENVIRONMENT_PROBE_INVALID",
+                    "ENVIRONMENT_PROBE_CLEANUP_PENDING",
+                    "LOCAL_STORAGE_FORBIDDEN",
+                }
+                environment = LocalPreflightCheck(
+                    ok=False, code=code if code in allowed else "ENVIRONMENT_PROBE_INVALID"
+                )
+            with self._mutex:
+                self.verify_project_generation(request.project_id, generation)
+                project.snapshot(request.expected_revision)
+                return LocalPreflightResult(
+                    **request.model_dump(),
+                    environment=environment,
+                    data=data_check,
+                    versions=versions,
+                    dataset_names=sorted(names),
+                )
+        finally:
+            self._local_probe_lock.release()
 
     def bind_remote(self, project_id: str, request: RemoteBindingRequest) -> RemoteBinding:
         with self._mutex:

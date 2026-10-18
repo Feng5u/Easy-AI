@@ -106,6 +106,7 @@ function bridge(readOnly = false) {
     throw new Error("Unexpected operation in component unit test");
   };
   const api: DesktopAPI = {
+    local: { preflight: unsupported },
     environments: {
       discover: unsupported,
       probe: unsupported,
@@ -178,15 +179,21 @@ async function advance(ms: number) {
   });
 }
 async function mount(api: DesktopAPI) {
+  await import("./ProjectEditor.js");
   const { createRoot } = await import("react-dom/client");
   root = createRoot(container);
   await act(async () => {
     root!.render(createElement(App, { api }));
   });
-  // Settle the lazy canvas import using the real React Suspense lifecycle.
-  await act(async () => {
-    await new Promise<void>((resolve) => setImmediate(resolve));
-  });
+  // Settle the actual lazy boundary, including React's deferred commit, within
+  // a bounded fake-clock window before any edits or autosave assertions.
+  for (let attempt = 0; attempt < 50; attempt++) {
+    if (container.querySelector('[data-testid="visible-tab"]')) break;
+    await act(async () => {
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      await vi.advanceTimersByTimeAsync(20);
+    });
+  }
   expect(container.querySelector('[data-testid="visible-tab"]')).not.toBeNull();
 }
 
@@ -519,3 +526,63 @@ it("opens normal SSH authentication and explicit environment discovery through A
   expect(close).toHaveBeenCalledWith(pid, cid);
   expect(container.textContent).not.toContain("synthetic-memory-only");
 });
+
+it.each(["python", "data", "project", "dirty"] as const)(
+  "App retires late local preflight on %s change",
+  async (change) => {
+    const mocked = bridge();
+    let choiceIndex = 0;
+    mocked.api.selections.pick = async (kind) => ({
+      kind,
+      label: `selected-${choiceIndex}`,
+      selectionId: `bb3aef16-eeda-4bb7-8ced-${String(++choiceIndex).padStart(12, "0")}`,
+    });
+    let resolve!: (
+      value: import("../electron/bridge.js").LocalPreflightResult,
+    ) => void;
+    const pending = new Promise<
+      import("../electron/bridge.js").LocalPreflightResult
+    >((done) => {
+      resolve = done;
+    });
+    const preflight = vi.fn<DesktopAPI["local"]["preflight"]>(() => pending);
+    mocked.api.local.preflight = preflight;
+    await mount(mocked.api);
+    await click("选择现有 Python");
+    await click("选择数据目录");
+    expect(preflight).not.toHaveBeenCalled();
+    await click("检查本机环境与数据");
+    expect(preflight).toHaveBeenCalledTimes(1);
+    const input = preflight.mock.calls[0][0];
+    if (change === "python") await click("选择现有 Python");
+    else if (change === "data") await click("选择数据目录");
+    else if (change === "dirty") await click("画布新增层");
+    else {
+      mocked.api.projects.importProject = async () => ({
+        project: {
+          ...project(),
+          projectId: "bc3aef16-eeda-4bb7-8ced-58d6563fb40e",
+        },
+        readOnly: false,
+      });
+      await click("导入 JSON 工程");
+    }
+    await act(async () =>
+      resolve({
+        ...input,
+        environment: { ok: true, code: "ENVIRONMENT_READY" },
+        data: { ok: true, code: "DATASET_READY" },
+        versions: {
+          python: "late-python",
+          prefix: "late",
+          torch: "late-torch",
+          torchvision: "late",
+          matplotlib: "late",
+        },
+        datasetNames: ["MNIST"],
+      }),
+    );
+    expect(container.textContent).not.toContain("late-torch");
+    expect(container.textContent).not.toContain("正在检查本机环境与数据");
+  },
+);
