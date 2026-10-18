@@ -5,16 +5,19 @@ from pathlib import Path
 from pydantic import BaseModel
 
 from easyai.domain import contracts
+from easyai.domain.program import ProgramIR
 
 MODELS: list[type[BaseModel]] = [
     contracts.ProjectDocument,
     contracts.Origin,
     contracts.BlockIR,
-    contracts.ProgramIR,
+    ProgramIR,
     contracts.Diagnostic,
     contracts.SourceSpan,
     contracts.SymbolEntry,
     contracts.CompileResult,
+    contracts.CompileRequest,
+    contracts.CompileResponse,
     contracts.Event,
     contracts.EpochMetrics,
     contracts.ArtifactRecord,

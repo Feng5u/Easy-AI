@@ -323,6 +323,399 @@
               "OPTIMIZER": "SGD",
               "LEARNING_RATE": 0.01,
               "EPOCHS": 10
+            },
+            "inputs": {
+              "before": {
+                "block": {
+                  "type": "viz.figure",
+                  "id": "before-figure",
+                  "extraState": {
+                    "easyai": {
+                      "version": 1,
+                      "registered": false
+                    }
+                  },
+                  "fields": {
+                    "LAYOUT": "1,1",
+                    "SIZE": "medium"
+                  },
+                  "inputs": {
+                    "panels": {
+                      "block": {
+                        "type": "viz.panel",
+                        "id": "before-0-panel",
+                        "extraState": {
+                          "easyai": {
+                            "version": 1,
+                            "registered": false
+                          }
+                        },
+                        "fields": {
+                          "CHART_TYPE": "image_grid",
+                          "COUNT": 5,
+                          "ROWS": 1,
+                          "COLS": 5
+                        },
+                        "inputs": {
+                          "data": {
+                            "block": {
+                              "type": "viz.data_source",
+                              "id": "before-0-source",
+                              "extraState": {
+                                "easyai": {
+                                  "version": 1,
+                                  "registered": false
+                                }
+                              },
+                              "fields": {
+                                "SOURCE": "train_samples",
+                                "X_SOURCE": "none"
+                              }
+                            }
+                          },
+                          "style": {
+                            "block": {
+                              "type": "viz.title",
+                              "id": "before-0-title",
+                              "extraState": {
+                                "easyai": {
+                                  "version": 1,
+                                  "registered": false
+                                }
+                              },
+                              "fields": {
+                                "TEXT": "train_samples",
+                                "COLOR": "black"
+                              },
+                              "next": {
+                                "block": {
+                                  "type": "viz.axis",
+                                  "id": "before-0-axis",
+                                  "extraState": {
+                                    "easyai": {
+                                      "version": 1,
+                                      "registered": false
+                                    }
+                                  },
+                                  "fields": {
+                                    "SHOW_TICKS": false
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "save": {
+                      "block": {
+                        "type": "viz.savefig",
+                        "id": "before-save",
+                        "extraState": {
+                          "easyai": {
+                            "version": 1,
+                            "registered": false
+                          }
+                        },
+                        "fields": {
+                          "PATH": "outputs/preview.png"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "body": {
+                "block": {
+                  "type": "viz.figure",
+                  "id": "body-figure",
+                  "extraState": {
+                    "easyai": {
+                      "version": 1,
+                      "registered": false
+                    }
+                  },
+                  "fields": {
+                    "LAYOUT": "1,2",
+                    "SIZE": "medium"
+                  },
+                  "inputs": {
+                    "panels": {
+                      "block": {
+                        "type": "viz.panel",
+                        "id": "body-0-panel",
+                        "extraState": {
+                          "easyai": {
+                            "version": 1,
+                            "registered": false
+                          }
+                        },
+                        "fields": {
+                          "CHART_TYPE": "line",
+                          "COUNT": 10,
+                          "ROWS": 2,
+                          "COLS": 5
+                        },
+                        "inputs": {
+                          "data": {
+                            "block": {
+                              "type": "viz.data_source",
+                              "id": "body-0-source",
+                              "extraState": {
+                                "easyai": {
+                                  "version": 1,
+                                  "registered": false
+                                }
+                              },
+                              "fields": {
+                                "SOURCE": "train_loss",
+                                "X_SOURCE": "epoch"
+                              }
+                            }
+                          },
+                          "style": {
+                            "block": {
+                              "type": "viz.title",
+                              "id": "body-0-title",
+                              "extraState": {
+                                "easyai": {
+                                  "version": 1,
+                                  "registered": false
+                                }
+                              },
+                              "fields": {
+                                "TEXT": "train_loss",
+                                "COLOR": "black"
+                              },
+                              "next": {
+                                "block": {
+                                  "type": "viz.axis",
+                                  "id": "body-0-axis",
+                                  "extraState": {
+                                    "easyai": {
+                                      "version": 1,
+                                      "registered": false
+                                    }
+                                  },
+                                  "fields": {
+                                    "SHOW_TICKS": true
+                                  },
+                                  "next": {
+                                    "block": {
+                                      "type": "viz.legend",
+                                      "id": "body-0-legend",
+                                      "extraState": {
+                                        "easyai": {
+                                          "version": 1,
+                                          "registered": false
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "next": {
+                          "block": {
+                            "type": "viz.panel",
+                            "id": "body-1-panel",
+                            "extraState": {
+                              "easyai": {
+                                "version": 1,
+                                "registered": false
+                              }
+                            },
+                            "fields": {
+                              "CHART_TYPE": "line",
+                              "COUNT": 10,
+                              "ROWS": 2,
+                              "COLS": 5
+                            },
+                            "inputs": {
+                              "data": {
+                                "block": {
+                                  "type": "viz.data_source",
+                                  "id": "body-1-source",
+                                  "extraState": {
+                                    "easyai": {
+                                      "version": 1,
+                                      "registered": false
+                                    }
+                                  },
+                                  "fields": {
+                                    "SOURCE": "test_accuracy",
+                                    "X_SOURCE": "epoch"
+                                  }
+                                }
+                              },
+                              "style": {
+                                "block": {
+                                  "type": "viz.title",
+                                  "id": "body-1-title",
+                                  "extraState": {
+                                    "easyai": {
+                                      "version": 1,
+                                      "registered": false
+                                    }
+                                  },
+                                  "fields": {
+                                    "TEXT": "test_accuracy",
+                                    "COLOR": "black"
+                                  },
+                                  "next": {
+                                    "block": {
+                                      "type": "viz.axis",
+                                      "id": "body-1-axis",
+                                      "extraState": {
+                                        "easyai": {
+                                          "version": 1,
+                                          "registered": false
+                                        }
+                                      },
+                                      "fields": {
+                                        "SHOW_TICKS": true
+                                      },
+                                      "next": {
+                                        "block": {
+                                          "type": "viz.legend",
+                                          "id": "body-1-legend",
+                                          "extraState": {
+                                            "easyai": {
+                                              "version": 1,
+                                              "registered": false
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "save": {
+                      "block": {
+                        "type": "viz.savefig",
+                        "id": "body-save",
+                        "extraState": {
+                          "easyai": {
+                            "version": 1,
+                            "registered": false
+                          }
+                        },
+                        "fields": {
+                          "PATH": "outputs/preview.png"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "after": {
+                "block": {
+                  "type": "viz.figure",
+                  "id": "after-figure",
+                  "extraState": {
+                    "easyai": {
+                      "version": 1,
+                      "registered": false
+                    }
+                  },
+                  "fields": {
+                    "LAYOUT": "1,1",
+                    "SIZE": "medium"
+                  },
+                  "inputs": {
+                    "panels": {
+                      "block": {
+                        "type": "viz.panel",
+                        "id": "after-0-panel",
+                        "extraState": {
+                          "easyai": {
+                            "version": 1,
+                            "registered": false
+                          }
+                        },
+                        "fields": {
+                          "CHART_TYPE": "image_grid",
+                          "COUNT": 10,
+                          "ROWS": 2,
+                          "COLS": 5
+                        },
+                        "inputs": {
+                          "data": {
+                            "block": {
+                              "type": "viz.data_source",
+                              "id": "after-0-source",
+                              "extraState": {
+                                "easyai": {
+                                  "version": 1,
+                                  "registered": false
+                                }
+                              },
+                              "fields": {
+                                "SOURCE": "predictions",
+                                "X_SOURCE": "none"
+                              }
+                            }
+                          },
+                          "style": {
+                            "block": {
+                              "type": "viz.title",
+                              "id": "after-0-title",
+                              "extraState": {
+                                "easyai": {
+                                  "version": 1,
+                                  "registered": false
+                                }
+                              },
+                              "fields": {
+                                "TEXT": "predictions",
+                                "COLOR": "black"
+                              },
+                              "next": {
+                                "block": {
+                                  "type": "viz.axis",
+                                  "id": "after-0-axis",
+                                  "extraState": {
+                                    "easyai": {
+                                      "version": 1,
+                                      "registered": false
+                                    }
+                                  },
+                                  "fields": {
+                                    "SHOW_TICKS": false
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "save": {
+                      "block": {
+                        "type": "viz.savefig",
+                        "id": "after-save",
+                        "extraState": {
+                          "easyai": {
+                            "version": 1,
+                            "registered": false
+                          }
+                        },
+                        "fields": {
+                          "PATH": "outputs/preview.png"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
             }
           }
         ]

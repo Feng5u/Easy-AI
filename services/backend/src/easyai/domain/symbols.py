@@ -1,3 +1,4 @@
+import builtins
 import keyword
 import re
 from collections import Counter
@@ -33,7 +34,77 @@ RESERVED = {
     "os",
     "sys",
     "json",
+    "range",
+    "len",
+    "print",
+    "enumerate",
+    "float",
+    "int",
+    "bool",
+    "list",
+    "tuple",
+    "zip",
+    "min",
+    "max",
+    "sum",
+    "getattr",
+    "Exception",
+    "BaseException",
+    "RuntimeError",
+    "ValueError",
+    "KeyboardInterrupt",
+    "math",
+    "platform",
+    "time",
+    "RunContext",
+    "PercentFormatter",
+    "hasattr",
+    "torchvision",
 }
+# Model class names share the generated module/main scopes. Protect every Python
+# builtin and the fixed teaching-code bindings; aliases for data objects start _.
+RESERVED.update(dir(builtins))
+RESERVED.update(
+    {
+        "started",
+        "selection_reason",
+        "generator",
+        "num_workers",
+        "pin_memory",
+        "execution_mode",
+        "epoch_history",
+        "train_loss_history",
+        "test_accuracy_history",
+        "last_progress",
+        "total_loss",
+        "total_samples",
+        "logits",
+        "loss",
+        "train_loss",
+        "correct",
+        "test_samples",
+        "predicted",
+        "test_accuracy",
+        "metrics",
+        "model_path",
+        "fig",
+        "grid",
+        "ax",
+        "image_grid",
+        "sample_dataset",
+        "sample_index",
+        "image",
+        "label",
+        "display_image",
+        "sample_ax",
+        "prediction",
+        "outcome",
+        "relative_path",
+        "figure_path",
+        "error",
+        "matplotlib",
+    }
+)
 
 
 def registry(roots: list[BlockIR]) -> tuple[list[SymbolEntry], list[Diagnostic]]:

@@ -10,6 +10,11 @@ CATALOG_PATH = (
     if getattr(sys, "frozen", False)
     else SOURCE_ROOT / "packages/block-library/manifest.json"
 )
+RUNTIME_ROOT = (
+    Path(getattr(sys, "_MEIPASS")) / "easyai/resources/runtime"
+    if getattr(sys, "frozen", False)
+    else SOURCE_ROOT / "runtime"
+)
 
 
 def load_catalog() -> dict[str, Any]:

@@ -1,0 +1,228 @@
+{
+  "$defs": {
+    "Diagnostic": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "severity": {
+          "default": "error",
+          "enum": [
+            "error",
+            "warning",
+            "info"
+          ],
+          "title": "Severity",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "origin": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Origin"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "field": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Field"
+        },
+        "suggestion": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Suggestion"
+        },
+        "details": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Details"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "Diagnostic",
+      "type": "object"
+    },
+    "Origin": {
+      "additionalProperties": false,
+      "properties": {
+        "blockId": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Blockid",
+          "type": "string"
+        },
+        "workspace": {
+          "enum": [
+            "data",
+            "model",
+            "training"
+          ],
+          "title": "Workspace",
+          "type": "string"
+        }
+      },
+      "required": [
+        "blockId",
+        "workspace"
+      ],
+      "title": "Origin",
+      "type": "object"
+    },
+    "SourceSpan": {
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "const": "train.py",
+          "default": "train.py",
+          "title": "File",
+          "type": "string"
+        },
+        "startLine": {
+          "minimum": 1,
+          "title": "Startline",
+          "type": "integer"
+        },
+        "endLine": {
+          "minimum": 1,
+          "title": "Endline",
+          "type": "integer"
+        },
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        },
+        "kind": {
+          "enum": [
+            "semantic",
+            "scaffold"
+          ],
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "startLine",
+        "endLine",
+        "origin",
+        "kind"
+      ],
+      "title": "SourceSpan",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "revision": {
+      "minimum": 1,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "programHash": {
+      "title": "Programhash",
+      "type": "string"
+    },
+    "compilerVersion": {
+      "default": "0.0.0",
+      "title": "Compilerversion",
+      "type": "string"
+    },
+    "diagnostics": {
+      "items": {
+        "$ref": "#/$defs/Diagnostic"
+      },
+      "title": "Diagnostics",
+      "type": "array"
+    },
+    "runnable": {
+      "title": "Runnable",
+      "type": "boolean"
+    },
+    "code": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Code"
+    },
+    "codeHash": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Codehash"
+    },
+    "sourceMap": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/SourceSpan"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Sourcemap"
+    },
+    "requestId": {
+      "minimum": 1,
+      "title": "Requestid",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "revision",
+    "programHash",
+    "diagnostics",
+    "runnable",
+    "requestId"
+  ],
+  "title": "CompileResponse",
+  "type": "object"
+}

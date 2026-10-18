@@ -110,7 +110,7 @@ const save = async (path, value) => {
 };
 await save("packages/contracts/fixtures/blank.json", project());
 await save("packages/contracts/fixtures/mnist.json", doc);
-await save("examples/mnist-cnn/project.easyai.json", doc);
+
 // Each declared type is actually created, saved, loaded and re-saved by frozen Blockly.
 const all = new Blockly.Workspace();
 for (const spec of manifest.blocks) add(all, spec.id, `fixture-${spec.id}`);
@@ -124,6 +124,60 @@ await save(
   "packages/contracts/fixtures/all-blocks.json",
   Blockly.serialization.workspaces.save(reloaded),
 );
+// The full example is also assembled from real blocks, with three execution phases.
+const visualTraining = new Blockly.Workspace();
+Blockly.serialization.workspaces.load(doc.workspaces.training, visualTraining);
+const loop = visualTraining.getBlockById("training");
+for (const phase of ["before", "body", "after"]) {
+  const figure = add(visualTraining, "viz.figure", phase + "-figure", {
+    LAYOUT: phase === "body" ? "1,2" : "1,1",
+  });
+  const sourceNames =
+    phase === "before"
+      ? ["train_samples"]
+      : phase === "body"
+        ? ["train_loss", "test_accuracy"]
+        : ["predictions"];
+  const panels = sourceNames.map((source, index) => {
+    const prefix = phase + "-" + index;
+    const metric = phase === "body";
+    const panel = add(visualTraining, "viz.panel", prefix + "-panel", {
+      CHART_TYPE: metric ? "line" : "image_grid",
+      COUNT: phase === "before" ? 5 : 10,
+      ROWS: phase === "before" ? 1 : 2,
+      COLS: 5,
+    });
+    connect(panel, "data", [
+      add(visualTraining, "viz.data_source", prefix + "-source", {
+        SOURCE: source,
+        X_SOURCE: metric ? "epoch" : "none",
+      }),
+    ]);
+    const styles = [
+      add(visualTraining, "viz.title", prefix + "-title", { TEXT: source }),
+      add(visualTraining, "viz.axis", prefix + "-axis", {
+        SHOW_TICKS: metric ? "TRUE" : "FALSE",
+      }),
+    ];
+    if (metric)
+      styles.push(add(visualTraining, "viz.legend", prefix + "-legend"));
+    connect(panel, "style", styles);
+    return panel;
+  });
+  connect(figure, "panels", panels);
+  connect(figure, "save", [
+    add(visualTraining, "viz.savefig", phase + "-save", {
+      PATH: "outputs/preview.png",
+    }),
+  ]);
+  connect(loop, phase, [figure]);
+}
+const visualDoc = structuredClone(doc);
+visualDoc.workspaces.training =
+  Blockly.serialization.workspaces.save(visualTraining);
+await save("packages/contracts/fixtures/mnist-figures.json", visualDoc);
+await save("examples/mnist-cnn/project.easyai.json", visualDoc);
+visualTraining.dispose();
 for (const ws of [all, reloaded, data, model, training]) ws.dispose();
 
 const shadowWorkspace = new Blockly.Workspace();
@@ -142,3 +196,34 @@ await save(
   Blockly.serialization.workspaces.save(shadowWorkspace),
 );
 shadowWorkspace.dispose();
+
+// A structurally different model/optimizer proves generation is not a fixed MNIST script.
+const sequentialModel = new Blockly.Workspace();
+Blockly.serialization.workspaces.load(doc.workspaces.model, sequentialModel);
+const sequentialRoot = sequentialModel.getBlockById("cnn");
+const firstConv = sequentialModel.getBlockById("layer-0");
+const flatten = sequentialModel.getBlockById("layer-6");
+sequentialRoot.getInput("body").connection.disconnect();
+sequentialModel.getBlockById("layer-5").nextConnection.disconnect();
+const sequential = add(sequentialModel, "model.sequential", "sequential-group");
+connect(sequential, "layers", [firstConv]);
+connect(sequentialRoot, "body", [sequential, flatten]);
+const lastLinear = sequentialModel.getBlockById("layer-9");
+const relu = sequentialModel.getBlockById("layer-8");
+relu.nextConnection.disconnect();
+const dropout = add(sequentialModel, "model.dropout", "extra-dropout", {
+  P: 0.25,
+});
+relu.nextConnection.connect(dropout.previousConnection);
+dropout.nextConnection.connect(lastLinear.previousConnection);
+const adamTraining = new Blockly.Workspace();
+Blockly.serialization.workspaces.load(doc.workspaces.training, adamTraining);
+adamTraining.getBlockById("training").setFieldValue("Adam", "OPTIMIZER");
+const sequentialDoc = structuredClone(doc);
+sequentialDoc.workspaces.model =
+  Blockly.serialization.workspaces.save(sequentialModel);
+sequentialDoc.workspaces.training =
+  Blockly.serialization.workspaces.save(adamTraining);
+await save("packages/contracts/fixtures/mnist-sequential.json", sequentialDoc);
+sequentialModel.dispose();
+adamTraining.dispose();

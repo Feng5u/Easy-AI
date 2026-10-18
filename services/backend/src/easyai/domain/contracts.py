@@ -121,16 +121,6 @@ class SymbolEntry(Contract):
     registered: bool
 
 
-class ProgramIR(Contract):
-    ir_version: Literal[1] = 1
-    symbols: list[SymbolEntry]
-    transforms: list[BlockIR]
-    datasets: list[BlockIR]
-    dataloaders: list[BlockIR]
-    model: BlockIR
-    training: BlockIR
-
-
 class CompileResult(Contract):
     revision: int = Field(ge=1)
     program_hash: str
@@ -244,3 +234,12 @@ class Run(Contract):
     connection_state: Literal["connected", "disconnected", "reconnecting"]
     sync_state: Literal["pending", "syncing", "complete", "error"]
     config: RunConfig
+
+
+class CompileRequest(Contract):
+    project: ProjectDocument
+    request_id: int = Field(ge=1)
+
+
+class CompileResponse(CompileResult):
+    request_id: int = Field(ge=1)
