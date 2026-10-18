@@ -817,3 +817,42 @@ Python定义LocalPreflightRequest/Result并生成合同；Main精确四字段、
 已在安全检查点只读核对9ab提交及工作区CI/setup/python-task/锁版本/E2E配置；check=Ubuntu、desktop=Windows，配置核对无法确定实际失败步骤或根因。执行器未发现这两run的已有步骤日志/annotation文件；未重试曾拒Actions端点、未换路取Actions、未触发workflow重跑。准确待提供证据：上述run的check和desktop首个失败step名称/exit信息、对应错误日志与annotation原文。新local bridge需同步E2E精确键白名单已补（仍检查node未暴露/sandbox/webSecurity等原门），但该新增键不存在于9ab，不能解释9ab失败。没有将远端失败归咎sandbox、Windows平台门或已修P2。当前片远端CI结果尚未知，正常开发提交不代表失败CI已修复。
 
 NOT RUN：真实MNIST/训练/新环境安装/数据下载、实际Electron/E2E/原生picker及SVG交互、SSH/SFTP/上传/硬件、原生Windows/NTFS或冻结ABI、历史450/94或38/6整套重复。真实数据路径和安全桌面仍待条件；Windows远程生产gate保持关闭，M5整体/A/B继续未验收。未操作个人电脑、未动main、未强推、未创建PR/Release/部署或新增费用/凭据/安全权限。下一项：父级独审本片并取得上述精确CI失败日志；可独立授权开发不被缺数据/桌面阻塞，但不得把外部验收记成通过。
+
+## 2026-10-18 — M5.1 非敏感服务器概要与稳定 targetId
+
+源码完整SHA：`92601983d1079f388b305f7b3cbde7f5be29cc0a`，父提交`c9a25e42235649487e08b0ec46a05d75964d289d`。父级有限接受预检片并明确授权本片；保持原预检/快照实现与计划裁决，不将本片当成M5整体或A/B验收。
+
+交付：正常App的SSH入口现在可保存/列出/选择服务器概要、编辑概要、刷新列表。仅持久化alias、规范化host/port、username、独立UUID targetId与revision；未持久化password/privateKey/privateKeyPath/passphrase/token或认证lease。选择只填入锁定的目标配置，不触发probe/auth/SSH或训练；指纹检查、确认、密码认证、环境检查仍分别显式操作。修改须带expectedRevision，冲突保留输入，不自动重试；编辑后的记录需要显式重新选择。App/组件generation隔离项目切换后的旧list/save成功和错误；字段更新期间有界busy，不丢草稿去接受旧响应。既有密码输入清理/lease期限/指纹与平台门保持，没有新增真实SSH授权。
+
+Python唯一合同生成Profile/Input/Update/TargetReference，并给短期认证请求/结果增加成对可选targetId/targetRevision；旧协议会话可兼容，但新远端bind必须引用已保存profile。认证前、认证后和每次lease使用复核profile的revision、endpoint、username；Main也核回传target身份。新bind/start沿用同一stable targetId，不再逐次随机生成。旧RunConfig与RemoteRunIdentity从不修改；历史重连继续按冻结的project/endpoint/username/fingerprint核认证，不能用当前概要改变旧run目标。暂时添加的“旧target UUID必须等于新profile UUID”比较已撤回，避免旧随机UUID记录失去原来的显式重连；原冻结身份安全比较保留逐字不降门。
+
+API新增GET/POST `/api/v1/connections`、PATCH `/api/v1/connections/{UUID}`；Main精确字段/类型/ID白名单，backend严格拒绝额外字段，base route也脱敏422以免回显拒绝的凭据值。配置仅位于应用私有状态根connections.json，不进可移植工程。列表/保存会创建或使用持久kernel锁文件，因此也不宣称这些操作文件系统零写。catalog最多128条且读写统一128KiB编码字节限制，受保护regular-file读取、坏版本/重复ID/坏JSON/symlink/FIFO拒绝，互斥下读取最新revision并原子发布；没有将Linux验证扩展成原生Windows耐久支持。
+
+父级要求的前片术语澄清：本机预检“只读”指不写工程或数据、不创建训练Run；复用的固定probe可能写既有probe-cache/Matplotlib缓存。前片24前端/50后端作者窗口和App10回归互有重叠，不累计为新增通过数。本片没有重跑这些旧矩阵为等待凑报告。
+
+独审发现并关闭三类P2：
+
+- 合法长UTF8字段可让catalog写到读取上限之外。现create/update共享写前字节门，拒绝时原文件/revision不变。初次只接通create、遗漏update原多行atomic_write调用；独审实际25PASS/2FAIL指出缺口，随后接通update `_write(catalog,before_publish)`，仅原两失败项独立复跑2PASS、0.62秒，未隐藏失败。
+- replace成功后目录fsync等报错时，旧lease/binding仍可能生效。现在通过大小/版本/活动身份门后，发布前定向撤权；不确定写入后旧授权不能启动。lease及start还重新核当前保存的profile。实际回归post-publish注入错误、外部catalog改动均拒旧binding且无新Run。
+- Main在PATCH await后全局invalidate会误关后来建立的B。现Main在发请求前仅撤销A旧operation，迟返无副作用；后端publication同样仅撤销A的auth/lease/bindings，无关B保持有效。前端deferred A→B认证→A返回与后端真实manager合成会话定向用例通过。
+
+活动Run引用的目标endpoint/username变更409拒绝；改alias可生成新revision但不改旧config/identity。副作用是撤销该目标的旧认证能力，不停止或重写已冻结任务。稳定绑定重复生成、重启读取、revision冲突、活动拒绝和旧快照原样保留均有定向证据。独审最终无剩余明确新P1/P2；这是有限代码审查，不是SSH网络/桌面/Windows验收。
+
+实际命令（cwd `/workspace/Easy-AI`；沿用workspace UV/XDG缓存，无安装依赖）：
+
+| 命令 | 最终结果与精确范围 |
+| --- | --- |
+| `pnpm exec vitest run apps/desktop/src/ServerProfiles.test.mts apps/desktop/src/ConnectionPanel.test.mts apps/desktop/src/AuthenticatedPanel.test.mts apps/desktop/src/App.test.mts apps/desktop/electron/workflow.test.mts apps/desktop/electron/session-workflow.test.mts` | **51 PASS**，2.77秒；含新概要组件7、profile IPC1、session2及既有相关回归。真实React→Main→认证开发sidecar执行元数据CRUD并关闭/重启，targetId与记录一致，零probe/auth；其他认证/会话均明确合成fixture，不是真实SSH |
+| `services/backend/.venv/bin/pytest -q services/backend/tests/test_connection_profiles.py services/backend/tests/test_connection_manager.py services/backend/tests/test_remote_run_api.py` | 最后完整作者窗口 **47 PASS/1 FAIL**，8.64秒；仅新B会话测试的fixture账号与FakeSession固定账号不一致。保持FakeSession原账号/密码断言，将两profile改为synthetic-user后，单跑`...test_remote_run_api.py::test_updating_profile_a_does_not_retire_unrelated_b_lease` **1 PASS**，0.45秒；独审同项1PASS、0.39秒。其余47不重复跑；不伪称一次48全绿。remote API沿用测试自有标准库子进程；新增freeze用例仅真实prepare，begin拦住，非SSH或训练 |
+| UUID路由修正后 `services/backend/.venv/bin/pytest -q services/backend/tests/test_connection_profiles.py` | **13 PASS**，0.74秒；与上窗口重合不加总。涵盖保存重开/规范化/412、凭据拒绝不回显、坏/未来/重复/非regular存储保护、UTF8写界、目标引用拒绝 |
+| 同缓存 `pnpm check` | **PASS**；TS、strict mypy46源码、ruff/格式、合同/真实Blockly fixture漂移、Prettier。UUID路由限缩后又仅`node scripts/python-task.mjs check` PASS，源码46不变 |
+| 同缓存 `pnpm build`，UUID路由限缩后 `node scripts/python-task.mjs build` | **PASS**；Main TS/Vite及Linux PyInstaller，保留既有chunk大小提示。日志分别`/tmp/easyai-connection-profiles-build.log`、`/tmp/easyai-connection-profiles-build-final.log`，未提交二进制或启动Electron |
+| `node scripts/test-frozen.mjs` | **PASS**；最终冻结资源/鉴权/golden编译/EOF退出0；新增真实HTTP概要创建201、规范化/GET、PATCH同ID升revision、旧revision412和凭据字段422不回显。不执行有效SSH/训练 |
+| `node scripts/test-frozen-ssh.mjs` | 最初 **FAIL**：新增无路径约束PATCH使旧禁用`/connections/probe`等返回405而非原404。将PATCH路径限缩UUID转换器（UUID参数→str传service），没有放宽原拒绝断言；重冻结后 **PASS**，原strict DTO/脱敏/平台与scope拒绝及EOF退出0。不是此前远端CI失败根因证据 |
+| `git diff --check`、原件字节/hash | **PASS**；计划116185字节，SHA256 `dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43`；原规格`5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190`、README`befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852`均不变 |
+
+其他失败/修正原样交代：首轮TS指出Backend method union缺PATCH及旧测试桥接缺CRUD，补齐固定接口，未开放renderer通用请求；ruff曾报测试多余Path import，移除。UTF8更新测试先未填完剩余空间，改为合法小记录填满后再断言扩容拒绝；随后确实抓到update漏接。前端作者首轮50PASS/1FAIL（旧App未先选择profile即查指纹区）；下一轮15PASS/2FAIL、独审29PASS/2FAIL分别揭示对非spy作调用次数断言、真实初始list尚未结束便点disabled保存。改为vi.fn包装保留0认证断言，并在act内await实际list、确认create1次再await真实保存；独审仅原两项复跑1PASS/9SKIP与1PASS/6SKIP，均重合不加总。B后端fixture先为profile用户名不符而SSH_TARGET_REFERENCE_STALE，改同profile后仍被FakeSession原用户名门拒绝；最终统一synthetic-user，未改生产认证或测试安全断言。
+
+CI保持：已知`5a34286`/run39137171929和`9abdfebb90a5ab961cd12c21fbeae8b479e3d66b`/[run39140446024](https://github.com/T1doo/Easy-AI/actions/runs/39140446024)的check与desktop均FAIL；当前源码CI结果未知。本轮没有允许的新错误日志来源，未重试/换路Actions、未触发workflow重跑。仍缺两个job首个失败step及exit/错误日志、annotation原文；本机通过和本轮冻结路由修复不能覆盖或解释旧远端失败。
+
+NOT RUN：真实SSH/SFTP/上传/训练/数据下载、新训练环境或桌面安装/SDK协议接受、个人电脑操作、实际Electron/SVG/原生picker/E2E、Windows/NTFS/冻结ABI、旧整套450/94及38/6/预检24/50矩阵。Windows远程生产gate关闭，真实MNIST/安全桌面条件仍缺，M5整体/A/B继续未验收。无main写入、强推、PR、部署、Release、新费用/凭据/安全权限。下一项：父级独审本片，继续取得精确CI日志与外部验收条件；本片不自动扩大网络授权。
