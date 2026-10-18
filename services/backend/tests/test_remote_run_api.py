@@ -1010,3 +1010,67 @@ def test_restart_cancel_sync_fault_records_only_fixed_diagnostic_and_can_reconne
     finally:
         armed[0] = False
         reopened.close()
+
+
+def test_acceptance_resume_waits_exact_old_worker_without_restarting(harness, monkeypatch):
+    from easyai.domain.connections import SessionControl
+    from easyai.domain.remote_execution import RemoteRunStartRequest
+    from test_ssh_acceptance_entry import entry
+
+    workspace, endpoint, api, project = harness
+    control, _, request = binding(harness)
+    started = workspace.start(
+        project.project_id,
+        RemoteRunStartRequest.model_validate(request),
+        "acceptance-worker-barrier",
+    )
+    wait_for(lambda: workspace.runs.get(started.run_id), lambda r: r.status == "RUNNING")
+    old = workspace.runs.remote._workers[started.run_id].thread
+    core = workspace.runs.remote.core(started.run_id)
+    entered, release = threading.Event(), threading.Event()
+    disconnect = core.disconnect
+    authentications = []
+
+    def blocked_disconnect():
+        if threading.current_thread() is old:
+            entered.set()
+            assert release.wait(5)
+        disconnect()
+
+    monkeypatch.setattr(core, "disconnect", blocked_disconnect)
+    original_wait = workspace.connections().wait_idle
+
+    def closed_connection():
+        original_wait()
+        assert entered.wait(2)
+
+    monkeypatch.setattr(workspace.connections(), "wait_idle", closed_connection)
+
+    def fresh():
+        authentications.append(True)
+        return SessionControl.model_validate(authorize(workspace, api, project))
+
+    # Release only through the new bounded wait seam. Old code attempts resume
+    # while the worker is deterministically alive and raises REMOTE_RUN_BUSY.
+    wait_owner = getattr(workspace.runs.remote, "wait_worker_exit", None)
+    if wait_owner is not None:
+
+        def release_then_wait(run_id, seconds):
+            assert run_id == started.run_id and old.is_alive()
+            with pytest.raises(ValueError, match="REMOTE_RUN_BUSY"):
+                wait_owner(run_id, 0.01)
+            assert old.is_alive() and workspace.runs.remote._workers[run_id].thread is old
+            assert endpoint.commands.count("--start") == 1
+            release.set()
+            return wait_owner(run_id, seconds)
+
+        monkeypatch.setattr(workspace.runs.remote, "wait_worker_exit", release_then_wait)
+    try:
+        restored = entry.resume_after_disconnect(
+            workspace, started.run_id, SessionControl.model_validate(control), fresh, lambda: None
+        )
+        assert restored.connection_id != control["connectionId"]
+        assert authentications == [True]
+        assert endpoint.commands.count("--start") == 1
+    finally:
+        release.set()

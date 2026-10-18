@@ -23,6 +23,7 @@ from easyai.domain.ssh import SshEndpoint
 
 if TYPE_CHECKING:
     from easyai.services.local_workspace import LocalWorkspace
+    from easyai.domain.connections import SessionControl
 
 OPERATIONS = frozenset(
     {"identity", "probe", "upload", "start", "logs", "disconnect", "resume", "cancel", "artifacts"}
@@ -167,6 +168,23 @@ def authorized_workspace(config: Configuration, root: Path) -> "LocalWorkspace":
             super()._verify()
 
     return WindowWorkspace(root)
+
+
+def resume_after_disconnect(
+    workspace: "LocalWorkspace",
+    run_id: str,
+    control: "SessionControl",
+    authorize: Callable[[], "SessionControl"],
+    check: Callable[[], None],
+) -> "SessionControl":
+    workspace.connections().close(control)
+    workspace.connections().wait_idle()
+    fresh = authorize()
+    check()
+    workspace.runs.remote.wait_worker_exit(run_id, 3)
+    check()
+    workspace.resume_remote(run_id, fresh)
+    return fresh
 
 
 def execute(config: Configuration, secret: dict[str, str]) -> dict[str, object]:
@@ -392,11 +410,7 @@ def execute(config: Configuration, secret: dict[str, str]) -> dict[str, object]:
         )
         assert running.status == "RUNNING"
         stage = "disconnect_resume"
-        workspace.connections().close(control)
-        workspace.connections().wait_idle()
-        control = authorize()
-        check()
-        workspace.resume_remote(run.run_id, control)
+        control = resume_after_disconnect(workspace, run.run_id, control, authorize, check)
         stage = "logs_artifacts"
         completed = wait(
             lambda: workspace.runs.get(run.run_id),

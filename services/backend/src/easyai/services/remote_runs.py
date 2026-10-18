@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 import codecs
 import hashlib
 import json
+import math
 from pathlib import PurePosixPath
 import threading
 import time
@@ -331,6 +332,33 @@ class RemoteRuns:
                 if checkpoint.execution_state in FINAL
                 else "pending",
             )
+
+    def wait_worker_exit(self, run_id: str, seconds: float = 3) -> None:
+        """Wait for this run's prior local worker only; never start, retire or unlock.
+
+        Call outside workspace/core/service locks. Connection cleanup alone is
+        insufficient: the old worker may still be polling or in its finalizer.
+        begin()/core.attach() remain authoritative for transport ownership.
+        """
+        if not math.isfinite(seconds) or not 0 < seconds <= 3:
+            raise ValueError("REMOTE_REQUEST_INVALID")
+        with self._gate:
+            self.runs._verify()
+            if run_id not in self.runs._ledger.entries:
+                raise KeyError("REMOTE_RUN_NOT_FOUND")
+            prior = self._workers.get(run_id)
+            thread = prior.thread if prior is not None else None
+        if thread is not None:
+            thread.join(seconds)
+        with self._gate:
+            if self._workers.get(run_id) is not prior or (thread is not None and thread.is_alive()):
+                raise ValueError("REMOTE_RUN_BUSY")
+            if (
+                prior is not None
+                and prior.sync_transport is not None
+                and not prior.sync_transport.quiescent
+            ):
+                raise ValueError("REMOTE_CLEANUP_UNCONFIRMED")
 
     def begin(
         self, run_id: str, manager: "ConnectionManager", control: SessionControl, *, initial: bool

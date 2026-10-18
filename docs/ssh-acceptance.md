@@ -2,7 +2,7 @@
 
 `pnpm test:ssh` 是原计划 M5 阶段入口。当前实现及本地守门验证不等于真实 SSH 验收；至少一次明确授权的真实全链路成功才可记 M5 PASS。`test-frozen-ssh.mjs` 只验证冻结 HTTP 拒绝/协议，不能代替它。
 
-本入口不安装应用/训练依赖、不创建凭据、不下载数据、不修改教师训练环境。仅支持已有 Linux 隔离账号、既有 Python/torch/torchvision/matplotlib 与本地已有 MNIST；应用 venv 不需要 torch。使用现有产品 LocalWorkspace、指纹确认/ConnectionManager、只读环境与Dataset probe、DataTransfers、编译器生成Bundle、owner start/resume/cancel、日志与产物缓存/RunViews，没有替代训练脚本或模拟曲线。
+本入口不安装应用/训练依赖、不创建凭据、不下载数据、不修改教师训练环境。仅支持已有 Linux 隔离账号、既有 Python/torch/torchvision/matplotlib 与本地已有 MNIST；应用 venv 不需要 torch。使用现有产品 LocalWorkspace、指纹确认/ConnectionManager、只读环境与Dataset probe、DataTransfers、编译器生成Bundle、owner start/resume/cancel、日志与产物缓存/RunViews，没有替代训练脚本或模拟曲线。连接管理器wait_idle只证明session/environment清理；新增RemoteRuns.wait_worker_exit另等同run旧owner线程，等待不stop/retire/unlock，不替代begin/core.attach的物理门复核。
 
 退出状态：
 
@@ -43,7 +43,7 @@
 
 先用 `EASYAI_SSH_TEST_CONFIG=/absolute/private-config.json pnpm test:ssh --check` 做本地检查（预期exit5），不要在公共仓库保存实际配置、数据路径、host或凭据。仅在得到真实测试授权后才用相同配置加 `--execute`。执行模式从stdin读一行、最多70000字节JSON凭据，只接受 `{"password":"..."}` 或 `{"privateKey":"...","passphrase":"..."}`；不要把内容放argv、配置、命令历史或公开日志，应由可信交互/secret注入渠道提供。无自动认证重试或凭据写盘；内存引用使用后丢弃，不承诺安全抹除不可变字符串。
 
-执行顺序：可信pin匹配才允许确认/认证；通过产品显式上传一个自建小型协议文本（不是数据集），回读并只读inspect同slot；从实际Blockly fixture经Python编译生成quick模式1024/256上限、1epoch课程Bundle，数据探测使用download=False；启动同幂等key重放仍同runId，关闭连接后新认证并resume同owner；要求SUCCEEDED、产物全部核验、唯一runtime_started/process_exited及真实epoch事件，日志读至EOF、PNG内容长度/SHA256核验；再启动最多2epoch full模式同课程Bundle并对该owned run明确取消，要求CANCELLED执行证据及唯一process_exited。任何观察不到运行态、取消竞态输给自然完成、环境/数据不满足、同步错误或预算不足都FAIL，不伪造成功。
+执行顺序：可信pin匹配才允许确认/认证；通过产品显式上传一个自建小型协议文本（不是数据集），回读并只读inspect同slot；从实际Blockly fixture经Python编译生成quick模式1024/256上限、1epoch课程Bundle，数据探测使用download=False；启动同幂等key重放仍同runId，关闭连接后新认证，最多3秒等待同run旧worker实际退场后仅resume一次同owner；超时/owner替换/未知同步清理拒绝，不重start或再次认证；要求SUCCEEDED、产物全部核验、唯一runtime_started/process_exited及真实epoch事件，日志读至EOF、PNG内容长度/SHA256核验；再启动最多2epoch full模式同课程Bundle并对该owned run明确取消，要求CANCELLED执行证据及唯一process_exited。任何观察不到运行态、取消竞态输给自然完成、环境/数据不满足、同步错误或预算不足都FAIL，不伪造成功。
 
 最后仅在窗口内按新私有ledger里的精确owned runId请求取消；不杀任意PID、不删除远端文件、不清理教师目录。取消请求本身不是静止证明，未知结果/清理不明为FAIL。私有`acceptance.json`只输出阶段、状态、run/slot UUID和计数；详细产品状态留在私有localRoot。再次执行必须提供新localRoot与新的明确授权，不能把FAIL当作安全重试依据。
 
