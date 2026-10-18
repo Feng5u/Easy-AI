@@ -9,7 +9,7 @@ import threading
 import signal
 import time
 from pathlib import Path
-from typing import Any, Literal, BinaryIO
+from typing import Any, Literal, BinaryIO, TYPE_CHECKING
 from uuid import uuid4
 
 from easyai.compiler.pipeline import compile_project
@@ -21,6 +21,8 @@ from easyai.services.project_service import ProjectService, read_project, valida
 from easyai.services.run_service import RunService, TERMINAL
 
 SelectionKind = Literal["project", "python", "data"]
+if TYPE_CHECKING:
+    from easyai.services.ssh_client import SshClient
 
 
 def probe_python(python: Path, cache: Path) -> dict[str, Any]:
@@ -209,6 +211,7 @@ class LocalWorkspace:
         self._projects: dict[str, ProjectService] = {}
         self._current: str | None = None
         self._closed = False
+        self._ssh_client: SshClient | None = None
         self._readonly: tuple[Path, bytes, ProjectSession] | None = None
         self._restore_error = False
         remembered = self.root / "last-project.json"
@@ -227,6 +230,16 @@ class LocalWorkspace:
     def _verify(self) -> None:
         if self._closed:
             raise ValueError("LOCAL_WORKSPACE_CLOSED")
+
+    def ssh(self) -> "SshClient":
+        with self._mutex:
+            self._verify()
+            if self._ssh_client is None:
+                from easyai.security.host_keys import HostKeyStore
+                from easyai.services.ssh_client import SshClient
+
+                self._ssh_client = SshClient(HostKeyStore(self.root / "ssh-host-identity"))
+            return self._ssh_client
 
     def select(self, kind: SelectionKind, path: Path) -> SelectionResult:
         with self._mutex:

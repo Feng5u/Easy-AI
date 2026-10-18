@@ -2,12 +2,15 @@ import secrets
 import asyncio
 import time
 import re
+import threading
 from pathlib import Path
 from typing import Literal
 from uuid import uuid4
 from collections.abc import AsyncIterator
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.responses import StreamingResponse, JSONResponse, Response
 from pydantic import Field
 
@@ -27,6 +30,7 @@ from easyai.domain.desktop import (
     RunLogs,
     SelectionResult,
 )
+from easyai.domain.ssh import SshEndpoint, HostKeyObservation, HostKeyConfirmation, SshFailure
 from easyai.compiler.pipeline import compile_project
 from easyai.services.run_service import RunService, TERMINAL
 from easyai.services.local_workspace import LocalWorkspace
@@ -80,6 +84,13 @@ def create_app(
         docs_url=None, redoc_url=None, openapi_url=None, dependencies=[Depends(authorize)]
     )
 
+    @app.exception_handler(RequestValidationError)
+    async def invalid_request(request: Request, error: RequestValidationError) -> Response:
+        if request.url.path.startswith("/api/v1/connections/"):
+            # Validation errors normally echo input, including rejected secret fields.
+            return JSONResponse(status_code=422, content={"error": {"code": "SSH_REQUEST_INVALID"}})
+        return await request_validation_exception_handler(request, error)
+
     @app.exception_handler(ValueError)
     async def value_error(_request: Request, error: ValueError) -> JSONResponse:
         raw = str(error)
@@ -99,6 +110,13 @@ def create_app(
             content={"error": {"code": code, "message": code, "requestId": str(uuid4())}},
         )
 
+    @app.exception_handler(SshFailure)
+    async def ssh_failure(_request: Request, error: SshFailure) -> JSONResponse:
+        code = str(error)
+        if not re.fullmatch(r"SSH_[A-Z_]{1,80}", code):
+            code = "SSH_CONNECTION_FAILED"
+        return JSONResponse(status_code=503, content={"error": {"code": code, "message": code}})
+
     @app.exception_handler(KeyError)
     async def unknown_resource(_request: Request, _error: KeyError) -> JSONResponse:
         return JSONResponse(status_code=404, content={"error": {"code": "RESOURCE_NOT_FOUND"}})
@@ -115,6 +133,21 @@ def create_app(
         if workspace is None:
             raise HTTPException(status_code=404, detail="Local workspace is not configured")
         return workspace
+
+    @app.post("/api/v1/connections/probe", response_model=HostKeyObservation)
+    async def probe_host(endpoint: SshEndpoint) -> HostKeyObservation:
+        # Pre-authentication only. No username/password/key fields are accepted.
+        cancel = threading.Event()
+        try:
+            return await asyncio.to_thread(lambda: local().ssh().probe(endpoint, cancel))
+        finally:
+            cancel.set()
+
+    @app.post("/api/v1/connections/trust-host-key", response_model=HostKeyObservation)
+    async def trust_host(request: HostKeyConfirmation) -> HostKeyObservation:
+        return await asyncio.to_thread(
+            lambda: local().ssh().store.confirm(request.challenge_id, request.fingerprint)
+        )
 
     @app.post("/api/v1/local/selections", response_model=SelectionResult)
     async def select(request: SelectionRequest) -> SelectionResult:

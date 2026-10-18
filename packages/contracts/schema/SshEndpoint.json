@@ -1,0 +1,21 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "host": {
+      "title": "Host",
+      "type": "string"
+    },
+    "port": {
+      "default": 22,
+      "maximum": 65535,
+      "minimum": 1,
+      "title": "Port",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "host"
+  ],
+  "title": "SshEndpoint",
+  "type": "object"
+}
