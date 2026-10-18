@@ -150,8 +150,17 @@ class _PosixDirectory:
         self.verify()
         name = _name(name)
         os.mkdir(name, 0o700, dir_fd=self._fd)  # Exclusive claim; never merge existing output.
-        self.sync()
-        return self.child(name)
+        # Hold the first opened identity before the directory flush boundary.
+        # Never reopen by name after that receipt and adopt a different child.
+        result = self.child(name)
+        try:
+            self.sync()
+            result.verify()
+            self.verify()
+            return result
+        except BaseException:
+            result.close()
+            raise
 
     def names(self) -> list[str]:
         self.verify()
