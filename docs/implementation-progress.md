@@ -1483,3 +1483,39 @@ NOT RUN：全套/大矩阵、构建/冻结smoke（本片无打包验收）、真
 旧226 PASS/1 FAIL的确切根因仍 **UNKNOWN**，原始日志丢失，不重建或用本轮绿灯/新P2回溯关闭。NOT RUN：完整大矩阵、真实SSH/SFTP及跨进程/目标机故障、真实用户数据/原生picker/Electron/Windows/干净机、训练环境安装/下载/训练/个人PC。旧344MiB便携目录仍source7b91c46，不含本片，未重打包/发布；distributionReady/legalReviewComplete均false。既有Actions读取/桌面sandbox拒绝未重试或绕过，最新父级认证CI仍d2ac2bf2ba5562a85276a2a856f894a8a1cda492/run39158015941：check SUCCESS、desktop FAIL各2annotations，无step body/rootcause，不推断本片CI。无新工具拒绝、未知外部写入、main/强推/PR/Release/部署/费用/凭据/权限变化。
 
 下一项仍按原M5收口：盘点与准备正常test:ssh入口及目标机验证的最小授权条件；真实服务器、环境安装接线/训练、CIFAR裁决不能由合成绿灯放行。旧UNKNOWN需新精确证据而非猜测。
+
+
+## 2026-10-18 — 原M5阶段 `pnpm test:ssh` 显式集成入口（真实执行仍NOT RUN）
+
+源码完整SHA **`ac477dd4dc5dbcca6821a4e9251d3219907e3e1e`**，基线 `3af519b65c3dae1100e40afc124b86178048638f`。父级有限接受上传恢复后，按原计划1294–1305行补缺失阶段命令；不扩合成矩阵、不把frozen-ssh称为真实验收。单写入者，既有worker只读独审。原计划/main不改。
+
+新增package脚本→Node固定锁定venv入口→Python集成驱动；无需安装、无自动skip，Python用-I/-B避免环境优化关闭assert。仓库外私有显式目标配置，同fd核owner/mode/regular/大小/稳定身份；新localRoot、规范UUID runBase、隔离账号严格布尔attestation、可信pin、已有Python/MNIST路径、exact操作清单、明确时区窗口及maxSeconds+30秒清理余量。默认不执行，只有--execute且stdin有界凭据可进入产品服务；不配置/保存新凭据，不打印SDK/路径/secret。配置声明不替代真实授权。
+
+真实模式代码复用现有LocalWorkspace/ConnectionManager/pin确认/环境与Dataset probe/DataTransfers/编译器Bundle/owner start幂等/resume/日志/RunViews图像hash/精确owned取消；没有另造训练脚本或假链。小型协议文本上传独立于既有MNIST数据，quick1epoch成功路径、显式断开并新认证恢复同owner、日志EOF及唯一runtime_started/process_exited、epoch证据/图像内容核验；第二个最多2epoch full模式run须实际取消。观察不到RUNNING、取消输给完成、缺环境/数据、同步/清理不明一律FAIL。start回执丢失时从新私有产品ledger取owned IDs，不静默重试、不删远端输出。详见ssh-acceptance.md。
+
+独审指出并关闭两P2与配置fd风险：LiteralTrue原先接受1，改before is True；原只有主线程窗口check，改workspace._verify→身份/lease→上传/owner/artifact实际I/O guard含后台，并补start前复核；配置原分两次stat/open，改同fd核权限和identity。SDK在途调用、已启动远端进程不承诺窗口硬实时停止，窗口过期不再发新网络cancel，未知owner留证据且FAIL。有限独审无新增明确P1/P2。
+
+| 实际命令 | 结果 |
+| --- | --- |
+| `env -u EASYAI_SSH_TEST_CONFIG pnpm test:ssh` | **预期NOT RUN / NOT_CONFIGURED，exit2**，不是PASS；`/tmp/easyai-ssh-entry-normal-1792357674266-225181.log`。无配置、无工作区/凭据/网络。pnpm的ELIFECYCLE非0提示保留 |
+| `services/backend/.venv/bin/pytest services/backend/tests/test_ssh_acceptance_entry.py -q` | **7 PASS/0.60s**；`/tmp/easyai-ssh-entry-entry-1792357674266-225181.log`。本地配置缺失/默认与check不execute/权限与exact scope/窗口过期不读凭据/Node退出状态、严格True与实际fd非私有拒绝、产品身份callback窗口门；无mock SSH通过 |
+| `MYPYPATH=services/backend/src services/backend/.venv/bin/mypy --strict services/backend/integration/ssh_acceptance.py` | **PASS**；`/tmp/easyai-ssh-entry-types-1792357674266-225181.log`。集成驱动不在src常规mypy路径，因此单独strict检查 |
+| `UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache pnpm check` | **PASS**；`/tmp/easyai-ssh-entry-check-1792357674266-225181.log`；108Python ruff/format（含integration）、strict mypy60生产源、TS/Main/tests/合同/真实Blocklyfixture/Prettier |
+| `services/backend/.venv/bin/pytest services/backend/tests/test_remote_run_api.py -k 'public_start_real_owner_cached_reads or consumed_start_lost_ack or ssh_cancel_scope_commits' -q` | **3 PASS/15 deselected/3.59s**；`/tmp/easyai-ssh-entry-product-protocol-1792357674266-225181.log`。复用既有产品HTTP/coordinator/本机stdlib合成owner fixture定向核幂等/日志/已消费start丢回执显式resume/取消scope；不是新入口真实正向链，非SSH/torch验收 |
+| 独立 `pytest services/backend/tests/test_ssh_acceptance_entry.py -q` | **7 PASS/0.62s**，`/tmp/easyai-ssh-entry-review-9YCWmP.log`。与作者重合不累计；只读独审，无真实SSH/训练 |
+| `git diff --check`、原件hash、`git ls-remote origin refs/heads/main refs/heads/codex/demo-v0.0.0` | **PASS**；推前dev=3af519b65c3dae1100e40afc124b86178048638f、main=5323f86232529efcfb52131168ad049f01b219f3。正常开发分支提交，随后push再核 |
+
+中间失败保留：首次从仓库根直接mypy未配置MYPYPATH，控制台23项包含模块解析/未typed辅助函数；按源路径strict检查后剩4项实际错误（Optional code和同名binary/text output变量），原件 `/tmp/easyai-testssh-types-20261018-unique1.log` 保留，修正后strict PASS。后续唯一日志，不覆盖或重建。入口数字1/窗口/fd缺陷由独审本地复现与新守门收口，不把通过当真实SSH证据。
+
+- `/tmp/easyai-ssh-entry-check-1792357674266-225181.log` SHA256 `79ef6c192c3f60411c73a59c727796deed1c08f85079ab69ad7ed25d3fd4cffa`。
+- `/tmp/easyai-ssh-entry-entry-1792357674266-225181.log` SHA256 `916ddb13211334b25780438aacd2191905839a229597c7e4ea25b2520859b345`。
+- `/tmp/easyai-ssh-entry-normal-1792357674266-225181.log` SHA256 `45bbbba0dbb398a3178bef425ab0d1cfe3a25391cdd5428881cb47d70fec61d0`。
+- `/tmp/easyai-ssh-entry-product-protocol-1792357674266-225181.log` SHA256 `ad9b00a1dffd145b6d7d022d56af450ff22a74da4af69c485d5caa8604a6a65b`。
+- `/tmp/easyai-ssh-entry-review-9YCWmP.log` SHA256 `5aca16efb287fb5b13d535f45123318879a523ba8807605bb8e3c3006ce4db0b`。
+- `/tmp/easyai-ssh-entry-types-1792357674266-225181.log` SHA256 `5d4b6d285b77932e3d08212c3b4974d0a803f98ec60408ac6ccf6a063fa6c19e`。
+- `/tmp/easyai-testssh-types-20261018-unique1.log` SHA256 `eff1dca7a1a6ab3fd6b4f3096b68a48acecff18ee86d91f12534f310d6e0a0db`。
+
+
+NOT RUN：配置后的真实 `pnpm test:ssh --execute`（准确目标未提供且未获真实执行窗口）、真实SSH/上传/启动/断线恢复/取消/产物核验、训练/安装/下载/新凭据、Electron/Windows/干净机/构建重打包/全套大矩阵。原plan116185字节SHA dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43、旧规格5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190、README befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852未改。CIFAR待用户裁决；旧226 PASS/1 FAIL根因UNKNOWN且原始日志丢失，不借本轮关闭。既有Actions读取/sandbox拒绝未重试/绕过，CI最新精确认证仍d2ac2bf/run39158015941 check SUCCESS/desktop FAIL，首错未知。本片无新拒绝/未知外部写入/main/强推/PR/Release/部署/费用/凭据/权限变化。
+
+下一项/真实阻塞：M5至少一次真实全链目前 **未授权且未执行**，不是失败后重试。需隔离Linux目标与账号范围、可信独立指纹、既有训练Python/课程MNIST、受保护runBase父目录、明确上述操作起止窗口、可信stdin凭据注入和私有新localRoot；不要求在公开仓库填写。文档与本地门可独立推进已完成，后续未经新实质授权不连接。源码不等于M5/B通过。
