@@ -11,6 +11,7 @@ import {
   copyFile,
   chmod,
   rename,
+  symlink,
 } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import {
@@ -159,6 +160,28 @@ function requireSource(root, sourceCommit) {
     throw Error("PACKAGE_SOURCE_UNCOMMITTED_OR_CHANGED");
   }
 }
+export async function sourceSnapshot(root, destination, sourceCommit) {
+  const entries = execFileSync("git", ["ls-tree", "-r", "-z", sourceCommit], {
+    cwd: root,
+    encoding: "utf8",
+  })
+    .split("\0")
+    .filter(Boolean);
+  if (
+    entries.some(
+      (entry) => !entry.startsWith("100644 ") && !entry.startsWith("100755 "),
+    )
+  )
+    throw Error("PACKAGE_SOURCE_LINK_OR_SUBMODULE_FORBIDDEN");
+  await mkdir(destination);
+  const archive = destination + ".tar";
+  execFileSync(
+    "git",
+    ["archive", "--format=tar", "--output", archive, sourceCommit],
+    { cwd: root },
+  );
+  run("tar", ["-xf", archive, "-C", destination], root);
+}
 export async function cleanBuildInputs(root, sourceCommit) {
   await validateTutorials(root); // Reject arbitrary manual additions before any build.
   requireSource(root, sourceCommit);
@@ -169,6 +192,25 @@ export async function cleanBuildInputs(root, sourceCommit) {
     `builder-inputs-${sourceCommit.slice(0, 12)}-${randomUUID()}`,
   );
   await mkdir(input);
+  const source = join(input, "source");
+  await sourceSnapshot(root, source, sourceCommit);
+  // Dependency installations remain separately trusted, lock-bound tools. No
+  // ignored/untracked working-tree source is exposed to the build.
+  await symlink(
+    join(root, "node_modules"),
+    join(source, "node_modules"),
+    "dir",
+  );
+  await symlink(
+    join(root, "apps/desktop/node_modules"),
+    join(source, "apps/desktop/node_modules"),
+    "dir",
+  );
+  await symlink(
+    join(root, "services/backend/.venv"),
+    join(source, "services/backend/.venv"),
+    "dir",
+  );
   const payload = join(input, "payload");
   await mkdir(payload);
   const app = join(payload, "app");
@@ -185,7 +227,7 @@ export async function cleanBuildInputs(root, sourceCommit) {
       "--outDir",
       join(app, "dist-electron"),
     ],
-    root,
+    source,
   );
   run(
     "pnpm",
@@ -198,17 +240,17 @@ export async function cleanBuildInputs(root, sourceCommit) {
       "--outDir",
       join(app, "dist"),
     ],
-    root,
+    source,
   );
   const scratch = join(input, "python-build");
   run(
     process.execPath,
-    [join(root, "scripts/python-task.mjs"), "build", scratch],
-    root,
+    [join(source, "scripts/python-task.mjs"), "build", scratch],
+    source,
   );
   await rename(join(scratch, "dist/easyai-sidecar"), join(payload, "backend"));
   const metadata = JSON.parse(
-    await readFile(join(root, "apps/desktop/package.json"), "utf8"),
+    await readFile(join(source, "apps/desktop/package.json"), "utf8"),
   );
   await writeFile(
     join(app, "package.json"),
@@ -228,19 +270,24 @@ export async function cleanBuildInputs(root, sourceCommit) {
   );
   const offline = join(payload, "offline");
   await mkdir(offline);
-  await validateTutorials(root);
+  await validateTutorials(source);
   for (const name of TUTORIAL_FILES)
-    await put(join(root, "tutorials", name), join(offline, "tutorials", name));
+    await put(
+      join(source, "tutorials", name),
+      join(offline, "tutorials", name),
+    );
   for (const name of OFFLINE_DOCS)
-    await put(join(root, "docs", name), join(offline, "docs", name));
+    await put(join(source, "docs", name), join(offline, "docs", name));
   await put(
-    join(root, "examples/mnist-cnn/project.easyai.json"),
+    join(source, "examples/mnist-cnn/project.easyai.json"),
     join(offline, "examples/project.easyai.json"),
   );
-  await collectNotices(root, join(payload, "notices"));
+  await collectNotices(source, join(payload, "notices"));
   // Get the registered vendor archive and extract into a NEW directory. Existing
   // installed Electron dist is not adopted or inventoried as an approved input.
-  const desktopRequire = createRequire(join(root, "apps/desktop/package.json"));
+  const desktopRequire = createRequire(
+    join(source, "apps/desktop/package.json"),
+  );
   const electronRequire = createRequire(
     desktopRequire.resolve("electron/package.json"),
   );
@@ -254,7 +301,7 @@ export async function cleanBuildInputs(root, sourceCommit) {
     arch: "x64",
     checksums,
     cacheRoot: join(
-      process.env.XDG_CACHE_HOME || join(root, "dist/tool-cache"),
+      process.env.XDG_CACHE_HOME || join(source, "dist/tool-cache"),
       "electron",
     ),
   });
@@ -266,14 +313,22 @@ export async function cleanBuildInputs(root, sourceCommit) {
     metadata.devDependencies.electron
   )
     throw Error("PACKAGE_ELECTRON_VERSION_MISMATCH");
-  for (const [source, target] of resourcePairs)
+  for (const [sourcePath, target] of resourcePairs)
     if (
-      (await hash(join(root, source))) !==
+      (await hash(join(source, sourcePath))) !==
       (await hash(join(payload, "backend/_internal/easyai/resources", target)))
     )
       throw Error("PACKAGE_STALE_RESOURCE");
   requireSource(root, sourceCommit);
   await validateTutorials(root);
+  // Normalize only newly generated files to the declared bundle mode policy;
+  // no system helper, source checkout or security permission is changed.
+  for (const group of INPUT_GROUPS)
+    for (const record of await treeRecords(join(payload, group)))
+      await chmod(
+        join(payload, group, record.path),
+        record.mode & 0o111 ? 0o755 : 0o644,
+      );
   const groups = {};
   for (const group of INPUT_GROUPS)
     groups[group] = await treeRecords(join(payload, group));

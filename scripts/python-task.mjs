@@ -98,11 +98,25 @@ for (const original of operations[command]) {
       join(output, "spec"),
     );
   }
-  const result = spawnSync("uv", ["run", "--frozen", ...args], {
-    cwd: "services/backend",
-    stdio: "inherit",
-    shell: false,
-  });
+  const isolated = command === "build" && process.argv[3];
+  const backendRoot = resolve("services/backend");
+  const python = join(
+    backendRoot,
+    ".venv",
+    process.platform === "win32" ? "Scripts/python.exe" : "bin/python",
+  );
+  const result = spawnSync(
+    isolated ? python : "uv",
+    isolated ? args.slice(1) : ["run", "--frozen", ...args],
+    {
+      cwd: backendRoot,
+      stdio: "inherit",
+      shell: false,
+      env: isolated
+        ? { ...process.env, PYTHONPATH: join(backendRoot, "src") }
+        : process.env,
+    },
+  );
   if (result.error) throw result.error;
   if (result.status !== 0) process.exit(result.status ?? 1);
 }

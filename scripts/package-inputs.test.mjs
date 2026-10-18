@@ -1,9 +1,11 @@
 import { test } from "node:test";
+import { execFileSync } from "node:child_process";
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, writeFile, rm, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import {
+  sourceSnapshot,
   TUTORIAL_FILES,
   INPUT_GROUPS,
   validateTutorials,
@@ -94,4 +96,50 @@ test("registered input mutation or deletion is refused; valid files copy exclusi
     verifyInputs(root, sourceCommit),
     /PACKAGE_INPUT_UNREGISTERED_OR_CHANGED/,
   );
+});
+
+test("source snapshot excludes ignored and untracked reachable source without changing user files", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "easyai-git-inputs-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const repo = join(root, "repository");
+  await mkdir(join(repo, "electron"), { recursive: true });
+  const git = (...args) =>
+    execFileSync("git", args, { cwd: repo, stdio: "pipe", encoding: "utf8" });
+  git("init", "--initial-branch=fixture");
+  await writeFile(join(repo, ".gitignore"), "core.*\n");
+  await writeFile(
+    join(repo, "electron/main.mts"),
+    "export const committed = true;",
+  );
+  git("add", ".");
+  git(
+    "-c",
+    "user.name=InputFixture",
+    "-c",
+    "user.email=fixture@example.invalid",
+    "commit",
+    "-m",
+    "synthetic source",
+  );
+  const commit = git("rev-parse", "HEAD").trim();
+  await writeFile(
+    join(repo, "electron/core.private.mts"),
+    "SYNTHETIC_IGNORED_INPUT",
+  );
+  await writeFile(
+    join(repo, "electron/ordinary-extra.mts"),
+    "SYNTHETIC_UNTRACKED_INPUT",
+  );
+  const snapshot = join(root, "snapshot");
+  await sourceSnapshot(repo, snapshot, commit);
+  assert.equal(
+    await readFile(join(snapshot, "electron/main.mts"), "utf8"),
+    "export const committed = true;",
+  );
+  for (const name of ["core.private.mts", "ordinary-extra.mts"]) {
+    await assert.rejects(readFile(join(snapshot, "electron", name)), {
+      code: "ENOENT",
+    });
+    assert.ok((await readFile(join(repo, "electron", name))).length > 0);
+  }
 });
