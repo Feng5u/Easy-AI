@@ -1362,3 +1362,30 @@ CIFAR窄化完整性例外仍待用户答复，SAFE_PROBE_REQUIRED/unsafe_format
 实际命令 `services/backend/.venv/bin/python -m pytest services/backend/tests/test_data_transfers.py -q`：**27 PASS**，1.33s，1第三方warning，`/tmp/easyai-transfer-init-fix.log`；新增5点覆盖mkdir后、半owner、owner回读、publish前/后的取消/中断，新UUID可完成且旧残留字节不变，既有未知目录sentinel拒绝仍通过。`UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache pnpm check` **PASS**，`/tmp/easyai-transfer-init-check.log`。独立只读针对复核 **5 PASS/22 deselected/0.21s**，与27重合不累计，确认关闭该P2，无新增明确问题。没有实际SSH/用户数据上传、新依赖或训练；仅后端两文件变动，不重跑无关UI/构建冒充新增证据。
 
 工作区仅此修复和对应文档，正常dev提交推送；main与原件不改。SFTP真实兼容性、同UID恶意/崩溃耐久、重启恢复补传仍NOT RUN/未完成，CIFAR门与既有工具拒绝不变。下一项继续独立运行中产物同步，设计已由既有worker只读复核，尚未计为交付。
+
+
+## 2026-10-18 — M5 运行中登记产物增量同步与独立暂停/恢复
+
+源码完整SHA **`de9a0c2a1f53a894840da617330571653be21506`**；基线 **`4c318b12b4c61abb128b54d905d2efcf9996e621`**（此前上传初始化P2源码c3e43414827060c0a865560f1babcf8bbe1253a6已正常dev推送，父级及worker复核关闭）。按父级范围复用现有session/run identity、coordinator、manifest及安全remote cache；root单一写入者，既有worker只读设计/代码复核。说明见 `docs/live-artifact-sync.md`。
+
+新owner仅在登记产物集合增长或sealed时，先排他发布内容寻址不可变manifest，再在owner-status引用digest/sourceSeq/eventsSha256；最多256次增长加最终1份、每份64KiB/256产物、总产物256MiB。coordinator从已提交原始JSONL前缀（含换行）核收据，不重序列化Event算hash；新receipt不可回退。客户端下载当前冻结收据及完全一致的已登记记录，核run/launch/host、bundle/source map和size/hash；不枚举任意服务器文件，不复制模型/数据目录。运行中只同步固定PNG/文本快照，增长日志仍走旧游标，单个登记model留最终sealed。旧无收据owner仍按原sealed协议，不改正在执行bundle。
+
+增量cache按内容hash验证复用、拒绝旧sourceSeq覆盖新索引、已有记录元数据不可替换；不完整/损坏新文件保留旧index，未经提交不ready。Run新增可选字节状态，UI按秒显示本轮实际收到/核验/总量，已核验缓存可复用而收到0字节；无伪指标/剩余时长。运行中PNG ready仍syncState=pending、artifactsVerified=false，最终权重/图像和退出证明不放宽。新HTTP固定pause/resume路由与Main opaque runId，沿RunScope/generation提交门；暂停只关闭本次SFTP，不发送训练cancel/重发start，训练状态/日志继续读取。未知channel/取消watcher未退场则保留物理gate、cleanup_pending且禁止恢复。恢复发生在旧_sync返回前的竞争由保留该调用取消意图处理；切run的迟到UI回执丢弃。断线单列连接/同步状态，保留真实执行事实，需重新认证并显式接续，不自动新session或重跑。
+
+实际命令（cwd `/workspace/Easy-AI`）：
+
+| 命令 | PASS / FAIL / NOT RUN与证据 |
+| --- | --- |
+| `services/backend/.venv/bin/python -m pytest services/backend/tests/test_remote_run_api.py services/backend/tests/test_remote_artifacts.py services/backend/tests/test_portable_owner.py services/backend/tests/test_ssh_run_coordinator.py services/backend/tests/test_owner_transport.py services/backend/tests/test_connection_manager.py services/backend/tests/test_local_ssh_storage.py services/backend/tests/test_data_transfers.py -q` | 最终 **229 PASS**，29.22s，1第三方弃用warning；`/tmp/easyai-live-backend-final.log`。合成API兼容SFTP/禁socket，真实鉴权HTTP→RunService/coordinator→测试自有stdlib owner→原始前缀/immutable manifest→本机cache→PNG预览，训练未结束即ready；暂停/恢复退场barrier、读取旧清单不扩权、hash去重、model延后、半文件/旧index保全、scope切换及上传P2回归。结构PNG是fixture，不是训练/科学图表 |
+| `pnpm exec vitest run apps/desktop/src/RunSnapshot.test.mts apps/desktop/electron/workflow.test.mts apps/desktop/src/App.test.mts apps/desktop/src/runEvents.test.mts` | 最终 **87 PASS**，5.32s；`/tmp/easyai-live-ui-final.log`。字节显示、文件暂停/恢复不调用训练cancel/resume、切run迟到回执、固定两route/ID与路径拒绝、原历史/运行UI回归；不是Electron窗口 |
+| `UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache node scripts/check-contracts.mjs`；同环境变量 `pnpm check` | **PASS**；`/tmp/easyai-live-contracts.log`、`/tmp/easyai-live-check-final.log`。Pydantic权威生成新Progress与Run/Observation/Checkpoint合同；TS/Main/测试TS、strict mypy58、103Python格式/ruff、合同/实际Blocklyfixture漂移及Prettier。既有锁定缓存，无依赖安装或联网解析 |
+| `UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache node scripts/python-task.mjs build`；`pnpm --filter @easyai/desktop build` | 均 **PASS**；`/tmp/easyai-live-frozen-build.log`、`/tmp/easyai-live-desktop-build.log`。实际重冻后端并编译桌面，原大chunk提示保留；未重打包便携目录或运行窗口 |
+| `node scripts/test-frozen-ssh.mjs` | **PASS**；`/tmp/easyai-live-frozen-ssh.log`，固定route/auth/strictDTO/错误/scope/lease拒绝/lazy Paramiko，EOF exit0，无outboundSSH；不是冻结版正向SFTP验收 |
+| 独立只读复核 | 初设计确定原始前缀、receipt先发布、单调index、独立暂停及终态门；代码针对 **5 PASS/59 deselected/2.91s**。最终移除mutable status重读、owned watcher join针对 **2 PASS/49 deselected/0.16s**，有限范围无明确新增P1/P2。与作者测试重合不累计，未编辑或实际SSH |
+| `git diff --check`；`sha256sum 'docs/v0.0.0 plan.md' docs/v0.0.0.md README.md`；`git ls-remote origin refs/heads/main refs/heads/codex/demo-v0.0.0` | **PASS**；原plan116185字节/hash `dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43`、旧规格 `5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190`、README `befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852`不变。推前dev=4c318b12b4c61abb128b54d905d2efcf9996e621，main=`5323f86232529efcfb52131168ad049f01b219f3`；普通dev push后另核 |
+
+中途FAIL/边界修复如实记录：首次check运行runtime Ruff默认格式与项目config不同，改显式项目配置后通过；随后strict mypy检出optional observation、必填function恒真判断、fd writer变量类型复用，均修复。初UI **50 PASS/1 FAIL** 是新增测试对不存在cancel mock做spy断言，补明确vi.fn后通过。首pause/resume E2E恢复后仍pending，定位到用户可在旧取消调用返回前恢复，使旧分支误退出worker；修复保留cancel意图并加确定性退场barrier。扩大回归曾 **226 PASS/1 FAIL**：restart后cancel场景等待complete超时，最后CANCELLING/disconnected/syncerror，未保留精确throw栈，**不能宣称已完整定位该次根因**。后续设计修正移除新收据对mutable heartbeat的冗余SFTP重读（legacy sealed仍exact status），以已提交receipt+raw前缀/记录集合为权威，新增“不读mutable heartbeat”回归；restart/pause针对2 PASS。自审还补取消close watcher加入worker finally join，避免其晚于gate释放；阻塞close新测及最终229通过，独审确认边界。旧104/48/124/67、UI51/86及针对窗口不与最终229/87累加；没有删测、放宽终态或用重跑同SHA CI掩盖失败。
+
+NOT RUN/剩余：真实SSH/SFTP SDK兼容、用户远端产物/数据下载、torch/训练/真实MNIST与学习效果、安装/下载、个人PC、native picker/Electron窗口、Windows/NTFS/干净机/课堂、跨进程断电与持久恢复均未执行。本轮新代码仍需真实目标机与长运行验收，不以一次合成回归消除此前未完整定位失败的全部不确定性。实时进度/暂停意图不构成重启恢复协议；上传持久历史/manifest补传/未知清理解除继续另列缺口。SFTP v3无nofollow/openat/fsync，恶意同UID替换和崩溃耐久不作保证。完整M5/M8/B未验收。
+
+CIFAR完整性窄化例外仍待用户答复，SAFE_PROBE_REQUIRED/unsafe_format_blocked保持。旧M8便携包仍7b91c46，不含后续私钥/CIFAR/Bundle/上传/本片，未重打包上传发布，distributionReady/legalReviewComplete=false。最新已核CI仍父级认证d2ac2bf2ba5562a85276a2a856f894a8a1cda492/[run39158015941](https://github.com/T1doo/Easy-AI/actions/runs/39158015941)（19:18:44UTC，check SUCCESS/desktop FAIL，各2annotations），步骤正文缺失、根因未知；新SHA无可判定CI证据。既有Actions端点/Electron sandbox拒绝不重试不绕过，无新增拒绝或未知外部写入。下一项先由父级复核本片及CI精确首错，继续原剩余受控安装/恢复与真实验收依赖；无main/强推/PR/Release/部署/费用/新凭据或权限变化。
