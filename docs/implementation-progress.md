@@ -787,3 +787,33 @@ RunDashboard按runId建立独立内部组件；旧source/image/event晚回调不
 当前交付的是A的可见源码定位功能，不是A通过。真实MNIST原件/获准数据路径与CPU人工小样本运行、真实安全桌面窗口/原生选择与点击/关闭重开历史仍缺实际证据。已有历史API/保存快照/数据回放代码不等于真实桌面人工验收；本轮组件测试也不替代该证据。原生Windows存储/desktop CI依然unknown，旧a4609dc/run39135362749的check success/desktop failed且步骤未知边界保持；未查询或绕过被拒Actions，未重试Electron sandbox。
 
 本轮NOT RUN：训练/数据下载/新环境安装、真实SSH/SFTP/硬件、实际Electron/E2E、Windows原生、完整旧450/94矩阵。Windows远程gate关闭不变，无个人电脑操作、main写入、强推、PR、Release、部署或新增费用/凭据/安全权限。下一项由父级复核此A功能片，并先取得真实MNIST与安全桌面条件；在外部条件未具备时可接M5.1非敏感配置保存/稳定targetId，但不得据此绕过本地训练先后顺序或降低A/B。**A、B及M5整体均未验收。**
+
+## 2026-10-18 — A 可见本机环境与数据预检；新 CI 失败事实
+
+本片源码提交完整SHA：`6183136fdcc2653ba0be9e7e747abb77fa4b7092`，父提交`9abdfebb90a5ab961cd12c21fbeae8b479e3d66b`。父级有限接受前片快照定位后，明确优先授权本片。前片RunSnapshot/RunDashboard/WorkspaceManager源码保持冻结。M5.1概要方案仍未实施，不把它替代A产品闭环。
+
+核实此前只有start内`preflight_data`/`probe_python`，UI“检查与编译”仅projects.compile，没有训练前可见本机预检。现新增“检查本机环境与数据”显式入口：已选Python/data、已保存工程、本机模式下可用；分别显示环境依赖与数据检查、所选路径标签及实际解释器/包版本。缺IDX明确“未下载数据”，依赖缺失不报成代码错误；未能从已保存工程编译出数据集时单独解释。不会自动选择环境、执行训练、安装包或下载，数据头/长度通过不等于真实MNIST来源或学习效果。
+
+Python定义LocalPreflightRequest/Result并生成合同；Main精确四字段、UUID/正revision白名单，preload只暴露固定local.preflight，不收任意path/命令。后端复用已有选择角色授权、固定导入probe和IDX头/长度验证；探测前捕获工程代次/已保存revision，释放工程锁后执行，单个probe互斥防止堆积，结果仅信息而非run grant。数据与环境检查各自返回固定错误allowlist，不泄露子进程stdout/stderr；start原复检仍保留。App以工程ID/revision、Python/data选择ID、dirty/ready为key，卸载后generation隔离旧成功/错误/finally；响应四项请求身份必须一致，切ssh也卸载，不触发编译/训练。
+
+独审实复现初版P2：worker返回后HTTP await恢复前切到B仍交付旧报告。已增加API请求开始捕获代次、await成功/异常后同步复核原代次及revision，新增交付屏障project/ABA/revision回归。独审12/12 PASS，确认此P2关闭，未见剩余明确P1/P2；测试均用合成probe seam而非真实torch。前端独审源码亦无新增明确P1/P2；其首跑三文件23PASS/1FAIL为旧App mount未等lazy可见，失败单项复跑1PASS/9SKIP。最终mount改为最多50轮act+setImmediate+20ms虚拟时钟、真实visible-tab出现即停，原assert及799/800ms保存门保留；作者及独审最终App10/10 PASS。没有固定sleep或降低桌面安全测试。
+
+实际命令（cwd `/workspace/Easy-AI`；UV/XDG缓存沿用workspace，未安装依赖）：
+
+| 命令 | 结果与范围 |
+| --- | --- |
+| `pnpm exec vitest run apps/desktop/src/LocalPreflight.test.mts apps/desktop/src/App.test.mts apps/desktop/electron/workflow.test.mts` | 作者一次 **24 PASS**，2.31秒，含组件8/App10/桥接6。最终仅测试mount等待调整后重跑`pnpm exec vitest run apps/desktop/src/App.test.mts`为**10 PASS**，2.18秒；独审同最终文件10PASS，2.04秒。重合不加总；保留独审首跑23/1及后续单项事实 |
+| 新组件/正式App测试边界 | 真实React DOM→MainWorkflow→认证开发sidecar→实际固定import子进程，显式选择应用Python（无torch），实际返回ENVIRONMENT_IMPORT_FAILED与DATASET_MISSING_NO_DOWNLOAD、runs为空。不是训练；其余正确依赖/晚回调报告为标明test版本的seam。覆盖项目/Python/data/dirty实际App key、组件revision、错DTO、零自动调用、重复点击单flight。画布为既有组件测试stub，无Electron/SVG交互声明 |
+| `services/backend/.venv/bin/pytest -q services/backend/tests/test_local_preflight.py services/backend/tests/test_local_workspace.py services/backend/tests/test_local_api.py services/backend/tests/test_run_scope_race.py` | **50 PASS**，5.54秒；含新增12项，早前9/12/25及独审12均重合不加总。覆盖授权/角色、只读原件、缺失/畸形/symlink数据、依赖失败、probe并发、worker内与HTTP交付后切换/ABA/revision；既有Starlette弃用warning保留 |
+| `UV_CACHE_DIR=/workspace/.uv-cache UV_PYTHON_INSTALL_DIR=/workspace/.python XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/.cache pnpm check` | **PASS**，TS、strict mypy45源文件、ruff/格式、合同/真实Blockly fixture漂移、Prettier。最后测试等待只改测试helper并已Prettier/编译执行通过 |
+| 同缓存 `pnpm build` | **PASS**，Electron Main TS、Vite静态assets和Linux PyInstaller；构建日志在执行器`/tmp/easyai-local-preflight-build.log`，既有chunk大小提示保留，无Electron启动 |
+| `node scripts/test-frozen.mjs` | **PASS**，重建冻结sidecar从临时cwd启动、认证与资源/golden编译、预检无token401/任意路径额外字段422、EOF退出0。不是Windows ABI或真实训练；实际预检结果端到端见开发sidecar组件测试 |
+| `git diff --check`、原件字节/hash | **PASS**；计划116185字节，SHA256 `dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43`；原规格`5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190`、README`befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852`不变 |
+
+其余中途失败如实保留：首次TS因测试DesktopAPI缺新local方法FAIL，更新测试桥接；新集成测试误调不存在workflow.invalidate，改用已有dispose。首轮组件实际HTTP尚未结束便断言（19PASS/1FAIL并act警告），改为act内await实际请求Promise；App新测试一次误写“导入工程”按钮名（23/1），纠正为实际“导入JSON工程”；另旧lazy mount间歇FAIL按上文有界真实可见等待解决。strict mypy曾拒绝dataset Literal set传set[str]，显式声明names:set[str]后PASS。没有删失败用例、跳过保护或降低断言。
+
+**CI当前状态纠正**：父级通过已读通知邮件提供：`5a34286`的run39137171929（14:43:23 UTC）check failed/desktop failed；`9abdfebb90a5ab961cd12c21fbeae8b479e3d66b`的[run39140446024](https://github.com/T1doo/Easy-AI/actions/runs/39140446024)（15:27:23 UTC）也为check failed/desktop failed，通知附3/4 annotations，原文未取得。旧a4609dc的check success仅是旧历史，不能沿用作当前绿灯，更不能被本片本机PASS覆盖。
+
+已在安全检查点只读核对9ab提交及工作区CI/setup/python-task/锁版本/E2E配置；check=Ubuntu、desktop=Windows，配置核对无法确定实际失败步骤或根因。执行器未发现这两run的已有步骤日志/annotation文件；未重试曾拒Actions端点、未换路取Actions、未触发workflow重跑。准确待提供证据：上述run的check和desktop首个失败step名称/exit信息、对应错误日志与annotation原文。新local bridge需同步E2E精确键白名单已补（仍检查node未暴露/sandbox/webSecurity等原门），但该新增键不存在于9ab，不能解释9ab失败。没有将远端失败归咎sandbox、Windows平台门或已修P2。当前片远端CI结果尚未知，正常开发提交不代表失败CI已修复。
+
+NOT RUN：真实MNIST/训练/新环境安装/数据下载、实际Electron/E2E/原生picker及SVG交互、SSH/SFTP/上传/硬件、原生Windows/NTFS或冻结ABI、历史450/94或38/6整套重复。真实数据路径和安全桌面仍待条件；Windows远程生产gate保持关闭，M5整体/A/B继续未验收。未操作个人电脑、未动main、未强推、未创建PR/Release/部署或新增费用/凭据/安全权限。下一项：父级独审本片并取得上述精确CI失败日志；可独立授权开发不被缺数据/桌面阻塞，但不得把外部验收记成通过。
