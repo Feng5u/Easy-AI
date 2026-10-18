@@ -692,3 +692,37 @@ require_local_cache 在创建远端binding和prepare前运行，未实现的客�
 **NOT RUN / 阻塞状态**：当前执行器是 Linux；原生 Windows NTFS/ACL/多进程/异常退出/junction/冻结 ABI 等待新增 Windows CI 实际执行，结果 **pending/unknown**，不是被拒后绕路。旧desktop CI具体失败步骤/根因仍未知；原 Actions Forbidden 与 Electron sandbox 拒绝均未重试、未绕过。真实 SSH/SFTP/上传/数据/torch/训练/硬件、实际 Electron/E2E、断电耐久未运行；没有安装训练环境或用合成结果冒充训练。旧450/94完整矩阵和无改动桌面构建未重复。
 
 下一项：先取得新增 Windows CI 的实际可读步骤证据并处理原生失败；同时将 RunService 全局锁/catalog/application journal 纳入同一 Windows 保护边界并补齐替换/崩溃测试。在这些证据具备前默认门继续关闭。无 main 写入、强推、部署、Release、PR、Feng5u写入或新权限/凭据/付费；**M5整体、A、B均未验收，不能宣称 demo v0.0.0 已完成。**
+
+## 2026-10-18 — M5 RunService 持久化与共享 journal 最小端到端保护片
+
+代码提交 `99035e670bd529db8b027835fc676799772f05e2`，父提交 `5a34286f15641ef5923209f2fb2303c564f22773`。父级对前片仅有限接受默认关闭的实验后端，明确155 PASS/6 SKIP不等于Windows验收。本轮在指定执行器实际成功执行pwd/Git/读取/测试；开始HEAD及远端开发分支均为父提交、工作区干净，远端main仍为计划基线 `5323f86232529efcfb52131168ad049f01b219f3`，没有声称一个仍断开的环境已恢复。单写入者，既有独审代理只读、未写仓库。
+
+RunService 现在在 POSIX 默认持有 LocalDirectory 根目录，通过同一后端取得 `.runs.lock` owner lock；catalog 读取使用受保护 fd、身份及前后metadata复核和16MiB限额，拒绝symlink/FIFO/被替换记录。catalog 使用新临时文件→文件flush→后端publish replace→目录flush，不再调用 ProjectService.atomic_write。发布/刷盘抛错后进入 `RUN_STORE_WRITE_UNCERTAIN`，拒绝继续get/persist/core而不把内存状态当已提交；关闭再重开才能从实际磁盘事实恢复。文件已replace但目录flush失败时不谎称回滚，重开也不能把STARTING降回可重启CREATED。
+
+每个run及其logs目录由RunService持有，EventJournal借用logs目录，不关闭借用者；同一root/owner lock/目录 provider 传入RemoteRuns.core→SshRunCoordinator。目录缓存与journal初始化在RS RLock下串行，不重复采纳句柄。关闭先确认远端worker/transport静止，再关core的自有目录，随后共享journal及writer lock、全局owner lock、logs/run/root目录；真实I/O仍busy或SDK关闭未确认时继续保留owner锁。若本地supervisor清理未确认，同样不抢先释放持久化资源。
+
+Windows普通本地应用启动仍沿用既有路径模式，**没有把POSIX能力门粗暴接到全部启动**。内部可显式注入WindowsDirectory用于原生专项；生产factory与Windows SSH gate未开启，未具备受保护store的RemoteRuns.core明确返回 `REMOTE_CACHE_PLATFORM_UNVERIFIED`，没有远程弱降级。新增一项真实Windows RunService专项覆盖catalog/shared journal/排他/取消未启动run/重开，但此执行器为Linux，该项与原6项均明确SKIP。
+
+独审实际复现了两类准备写入问题，均随本轮修复：最初prepare在检查后仍path-based导出，替换runs根为symlink时outside曾写13文件；中途改为held导出后，导出结束关闭run句柄到重新采纳同名run之间，普通空目录替换仍能被采纳并写6文件。最终LocalDirectory增加独占 `new_child`，RunService统一 `_export_bundle` 从独占claim起立即缓存并持续持有同一run目录，编译导出只借用该对象、只关闭自有code子目录。local/remote prepare均经该入口，bundle、新run子目录、snapshot/config/identity初始非覆盖发布及metrics/artifact派生视图写入都走受保护目录；替换目录不接收任何新文件。CLI独立导出保留原来显式新目录路径行为，不冒称本轮保护所有任意用户导出目标。
+
+独审还复现recover已开core/shared journal后替换根再抛错：旧cleanup会再写disconnected缓存失败，跳过RS清理、泄漏锁/journal并盖掉原错。现在内部 `retire_transport` 关闭路径不依赖落盘；public disconnect仍保留原持久行为。retire仍执行真实SDK close和quiescent验证，core.close仍先取得busy并核retiring.ready，RemoteRuns仍有界join，不以“忽略所有异常”释放未知I/O owner。原夹具复核保留原始OSError且core/journal/runs锁/目录全部关闭，无退休线程未捕异常；初始化P2确认关闭。最终run-claim P2独立6 PASS（本地4窗口、remote2窗口），审查确认关闭且未发现剩余明确P1/P2或新增锁反转；不将审查结论扩大为原生Windows支持。
+
+实际命令（`/workspace/Easy-AI`；pnpm Python子任务沿用 `UV_CACHE_DIR=/workspace/.uv-cache UV_PYTHON_INSTALL_DIR=/workspace/.python XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/.cache`）：
+
+| 命令 | 最终结果与范围 |
+| --- | --- |
+| `services/backend/.venv/bin/pytest -q services/backend/tests/test_run_storage.py services/backend/tests/test_run_service.py services/backend/tests/test_remote_run_api.py services/backend/tests/test_run_scope_race.py services/backend/tests/test_event_journal.py services/backend/tests/test_local_workspace.py services/backend/tests/test_ssh_run_coordinator.py services/backend/tests/test_local_ssh_storage.py services/backend/tests/test_windows_storage_contract.py services/backend/tests/test_windows_native_store.py -x` | **202 PASS /7 SKIP**，14.98秒；最终源码受影响持久化/API/scope/owner/ABI窗口，7项均需原生Windows，在Linux未运行。不是旧完整450/94重跑 |
+| 上述 `test_run_storage.py` 20项 | 真实POSIX root/logs/run普通目录与symlink替换、catalog file-flush/publish/replace后目录fsync失败及poison、初始化JSON/symlink/FIFO拒绝、journal open失败资源清理、全局排他、借用顺序、重开STARTING不重启，以及“nt能力选择”只注入的本地启动/远程拒绝合同。后者不是Windows文件系统模拟；与202重合，不加总 |
+| 上述remote API新专项 | 合同/正式prepare→真实受保护root/catalog/shared journal/coordinator组合；合成Owner消费start丢ACK后持久unknown，重开无认证/无inspect/无start，显式新lease只inspect恢复且stage/start各1。另有remote root symlink/run普通目录替换、recover已开core后换根清理。无真实SSH/socket/训练；其他既有API用例的自有标准库child仍不是MNIST效果 |
+| `services/backend/.venv/bin/pytest -q services/backend/tests/test_compilation.py services/backend/tests/test_portable_owner.py` | **47 PASS**，5.97秒；补充编译bundle/CLI新目标非覆盖及portable owner资源回归，真实标准库测试进程，无torch/训练。与独审/其他窗口不合并报总通过数 |
+| `pnpm check` | **PASS**；strict mypy45源文件、ruff/格式、TS、合同/实际Blockly fixture漂移、Prettier。无DTO/依赖/lockfile/UI/CI权限变动 |
+| `node scripts/python-task.mjs build`、`node scripts/test-frozen-ssh.mjs` | **PASS**；Linux PyInstaller与冻结HTTP鉴权/严格DTO/脱敏拒绝/portable资源逐字/EOF退出0，无有效远端操作，不能称Windows冻结ABI验证 |
+| `git diff --check`、原件byte/hash | **PASS**；计划116185字节，SHA256 `dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43`；原规格 `5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190`；README `befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852`；均保留原样 |
+
+中途FAIL如实记录：原平台门测试把只有name的os替身保留到fixture teardown，新持有根目录close因此AttributeError；改为只在拒绝请求期间使用monkeypatch context，原无binding/目录/Run/stage/exec断言均保留。目录创建改为受保护句柄后，测试记录了创建和journal打开两个logs handle，原“恰好1个”断言改为验证所有handle已关闭；持续claim后，journal-open故障注入点从旧child移到实际new_child，仍要求抛原错及全部释放。独审上述实际路径/清理缺陷经源码修复和原复现实证关闭，没有跳过安全测试或降低成功门。
+
+CI新事实由父级提供：前版 `a4609dc60060d13e34f751fd2dd4615d2e86678d` 的 [run39135362749](https://github.com/T1doo/Easy-AI/actions/runs/39135362749) 于14:19:48 UTC结束，check success、desktop failed；失败步骤与根因未知。当前/前片新增Windows native CI结果仍unknown，未向被拒Actions端点重试或换路。没有把Linux本机PASS或WindowsSKIP冒充CI成功。
+
+剩余缺口/NOT RUN：Windows实际NTFS目录flush、真实owner/DACL及替换竞态、跨进程/异常退出和冻结ABI待有界Windows CI原生证据；当前内部native RunService专项未执行。Windows完整SSH链仍受默认门拒绝，RemoteBundle/SftpArtifactSync等默认factory的原生贯通及目标兼容还未验收，既有Windows本地路径模式不是本轮安全后端支持声明。跨应用离线文件篡改、真实断电耐久、真实SSH/SFTP/上传/环境/数据/torch/训练/硬件、实际Electron/E2E未运行；不动用户PC，不安装训练环境、不下载数据、不重试旧sandbox拒绝。无main写入、强推、PR、部署、Release、Feng5u写入、新权限/凭据/费用。
+
+下一项：由父级独审此代码片并取得可读的Windows实际步骤证据，再推进默认关闭的原生factory全链及剩余M5合同；未具备证据前不开放Windows SSH。**M5整体、A、B继续未验收。**
