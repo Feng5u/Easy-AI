@@ -85,6 +85,8 @@ from easyai.domain.install import (
     InstallPlan,
     InstallConfirmation,
     InstallJob,
+    InstallJobHistory,
+    InstallJobReport,
 )
 
 
@@ -521,6 +523,14 @@ def create_app(
     @app.post("/api/v1/environments/install-source/confirm", response_model=InstallSourceResult)
     async def confirm_install_sources(request: InstallSourceConfirmation) -> InstallSourceResult:
         return await asyncio.to_thread(local().installs().confirm_sources, request)
+
+    @app.get("/api/v1/install-jobs", response_model=InstallJobHistory)
+    async def install_history() -> InstallJobHistory:
+        return await asyncio.to_thread(local().installs().history)
+
+    @app.get("/api/v1/install-jobs/{job_id}/report", response_model=InstallJobReport)
+    async def install_report(job_id: str) -> InstallJobReport:
+        return await asyncio.to_thread(local().installs().report, job_id)
 
     @app.post("/api/v1/install-jobs", response_model=InstallJob, status_code=202)
     async def confirm_install(request: InstallConfirmation) -> InstallJob:

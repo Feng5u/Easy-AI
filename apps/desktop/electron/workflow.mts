@@ -29,6 +29,8 @@ export const WORKFLOW_CHANNELS = [
   "easyai:packages:confirmSources",
   "easyai:installJobs:confirm",
   "easyai:installJobs:get",
+  "easyai:installJobs:list",
+  "easyai:installJobs:report",
   "easyai:installJobs:cancel",
   "easyai:connections:listProfiles",
   "easyai:connections:createProfile",
@@ -173,6 +175,8 @@ export class MainWorkflow {
       "easyai:packages:confirmSources": 1,
       "easyai:installJobs:confirm": 1,
       "easyai:installJobs:get": 1,
+      "easyai:installJobs:list": 0,
+      "easyai:installJobs:report": 1,
       "easyai:installJobs:cancel": 1,
       "easyai:connections:listProfiles": 0,
       "easyai:connections:createProfile": 1,
@@ -711,6 +715,13 @@ export class MainWorkflow {
       }
       case "easyai:installJobs:get":
         return backend.request("GET", `/api/v1/install-jobs/${id(args[0])}`);
+      case "easyai:installJobs:list":
+        return backend.request("GET", "/api/v1/install-jobs");
+      case "easyai:installJobs:report":
+        return backend.request(
+          "GET",
+          `/api/v1/install-jobs/${id(args[0])}/report`,
+        );
       case "easyai:installJobs:cancel":
         return backend.request(
           "POST",

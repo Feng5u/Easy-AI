@@ -1152,6 +1152,8 @@ it("package planning entry stays read-only and hiding it preserves the opened pa
     cancel: vi.fn(),
     chooseSources: vi.fn(),
     confirmSources: vi.fn(),
+    history: vi.fn(async () => ({ entries: [], limit: 64 as const })),
+    report: vi.fn(),
   };
   await mount(h.api);
   expect(catalog).not.toHaveBeenCalled();

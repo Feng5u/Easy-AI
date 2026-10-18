@@ -101,7 +101,31 @@ try {
     await active.stop();
     active = undefined;
     active = await launch();
-    const recovered = await active.request("GET", `/install-jobs/${id}`);
+    const history = await active.request("GET", "/install-jobs");
+    assert.equal(history.status, 200);
+    assert.equal(history.value.limit, 64);
+    assert.equal(history.value.entries.length, 1);
+    const discovered = history.value.entries[0];
+    assert.equal(discovered.jobId, id);
+    assert.equal(discovered.origin, "recovered");
+    assert.equal(discovered.observation, "historical");
+    assert.equal(discovered.workerAlive, false);
+    const report = await active.request(
+      "GET",
+      `/install-jobs/${discovered.jobId}/report`,
+    );
+    assert.equal(report.status, 200);
+    assert.equal(report.value.recorded.state, "AWAITING_EXECUTION");
+    assert.equal(report.value.observed.state, "CANCELLED");
+    assert.equal(report.value.currentEnvironmentVerified, false);
+    assert.deepEqual(
+      (await active.request("GET", "/install-jobs")).value,
+      history.value,
+    );
+    const recovered = await active.request(
+      "GET",
+      `/install-jobs/${discovered.jobId}`,
+    );
     assert.equal(recovered.status, 200);
     assert.equal(recovered.value.state, "CANCELLED");
     assert.equal(
@@ -117,7 +141,7 @@ try {
     );
     await assert.rejects(access(join(root, "state/training-environments")));
     console.log(
-      "PASS frozen real process restart + durable job lookup + expired confirmation; no environment or installer",
+      "PASS frozen real process restart + bounded history discovery + readonly report + expired confirmation; no environment or installer",
     );
   } else {
     assert.equal(confirmed.status, 409);

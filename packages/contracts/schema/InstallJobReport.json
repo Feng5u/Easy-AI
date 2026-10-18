@@ -1,0 +1,208 @@
+{
+  "$defs": {
+    "InstallJob": {
+      "additionalProperties": false,
+      "properties": {
+        "jobId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Jobid",
+          "type": "string"
+        },
+        "planId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Planid",
+          "type": "string"
+        },
+        "planHash": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Planhash",
+          "type": "string"
+        },
+        "environmentId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Environmentid",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "AWAITING_EXECUTION",
+            "INSTALLING",
+            "VERIFYING",
+            "SUCCEEDED",
+            "FAILED",
+            "CANCEL_REQUESTED",
+            "CANCELLED"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "statusCode": {
+          "title": "Statuscode",
+          "type": "string"
+        },
+        "logs": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 128,
+          "title": "Logs",
+          "type": "array"
+        },
+        "needsReprobe": {
+          "default": true,
+          "title": "Needsreprobe",
+          "type": "boolean"
+        },
+        "changesPossible": {
+          "default": false,
+          "title": "Changespossible",
+          "type": "boolean"
+        },
+        "verified": {
+          "default": false,
+          "title": "Verified",
+          "type": "boolean"
+        },
+        "executionEnabled": {
+          "default": false,
+          "title": "Executionenabled",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "jobId",
+        "planId",
+        "planHash",
+        "environmentId",
+        "state",
+        "statusCode",
+        "logs"
+      ],
+      "title": "InstallJob",
+      "type": "object"
+    },
+    "InstallJobSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "jobId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Jobid",
+          "type": "string"
+        },
+        "environmentId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Environmentid",
+          "type": "string"
+        },
+        "planId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Planid",
+          "type": "string"
+        },
+        "planHash": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Planhash",
+          "type": "string"
+        },
+        "recordedAt": {
+          "format": "date-time",
+          "title": "Recordedat",
+          "type": "string"
+        },
+        "recordedState": {
+          "enum": [
+            "AWAITING_EXECUTION",
+            "INSTALLING",
+            "VERIFYING",
+            "SUCCEEDED",
+            "FAILED",
+            "CANCEL_REQUESTED",
+            "CANCELLED"
+          ],
+          "title": "Recordedstate",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "AWAITING_EXECUTION",
+            "INSTALLING",
+            "VERIFYING",
+            "SUCCEEDED",
+            "FAILED",
+            "CANCEL_REQUESTED",
+            "CANCELLED"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "statusCode": {
+          "title": "Statuscode",
+          "type": "string"
+        },
+        "origin": {
+          "enum": [
+            "current",
+            "recovered",
+            "external"
+          ],
+          "title": "Origin",
+          "type": "string"
+        },
+        "workerAlive": {
+          "title": "Workeralive",
+          "type": "boolean"
+        },
+        "observation": {
+          "enum": [
+            "managed-worker-alive",
+            "registered-only",
+            "historical",
+            "stop-unconfirmed"
+          ],
+          "title": "Observation",
+          "type": "string"
+        }
+      },
+      "required": [
+        "jobId",
+        "environmentId",
+        "planId",
+        "planHash",
+        "recordedAt",
+        "recordedState",
+        "state",
+        "statusCode",
+        "origin",
+        "workerAlive",
+        "observation"
+      ],
+      "title": "InstallJobSummary",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "summary": {
+      "$ref": "#/$defs/InstallJobSummary"
+    },
+    "recorded": {
+      "$ref": "#/$defs/InstallJob"
+    },
+    "observed": {
+      "$ref": "#/$defs/InstallJob"
+    },
+    "currentEnvironmentVerified": {
+      "const": false,
+      "default": false,
+      "title": "Currentenvironmentverified",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "summary",
+    "recorded",
+    "observed"
+  ],
+  "title": "InstallJobReport",
+  "type": "object"
+}

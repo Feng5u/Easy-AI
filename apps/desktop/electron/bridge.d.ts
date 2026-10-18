@@ -4,6 +4,11 @@ import type { InstallPlanRequest } from "../../../packages/contracts/types/Insta
 import type { InstallPlan } from "../../../packages/contracts/types/InstallPlan.js";
 import type { InstallConfirmation } from "../../../packages/contracts/types/InstallConfirmation.js";
 import type { InstallJob } from "../../../packages/contracts/types/InstallJob.js";
+import type {
+  InstallJobHistory,
+  InstallJobSummary,
+} from "../../../packages/contracts/types/InstallJobHistory.js";
+import type { InstallJobReport } from "../../../packages/contracts/types/InstallJobReport.js";
 import type { InstallSourceSelection } from "../../../packages/contracts/types/InstallSourceSelection.js";
 import type { InstallSourcePreview } from "../../../packages/contracts/types/InstallSourcePreview.js";
 import type { InstallSourceConfirmation } from "../../../packages/contracts/types/InstallSourceConfirmation.js";
@@ -14,6 +19,9 @@ export type {
   InstallPlan,
   InstallConfirmation,
   InstallJob,
+  InstallJobHistory,
+  InstallJobReport,
+  InstallJobSummary,
   InstallSourceSelection,
   InstallSourcePreview,
   InstallSourceConfirmation,
@@ -131,6 +139,8 @@ export interface DesktopAPI {
     ): Promise<TransferJob>;
   };
   packages?: {
+    history(): Promise<InstallJobHistory>;
+    report(jobId: string): Promise<InstallJobReport>;
     chooseSources(
       request: InstallSourceSelection,
     ): Promise<InstallSourcePreview | null>;

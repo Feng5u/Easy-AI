@@ -26,7 +26,7 @@ executor/inspector已有生产接线，内部受控替身仅用于合同测试�
 
 内部状态依次为 INSTALLING、VERIFYING、SUCCEEDED，异常可为 FAILED；取消发出后为 CANCEL_REQUESTED，只有适配器证明已停止才可成为 CANCELLED。未知停止结果或执行异常保留环境 reservation 与内核 lease，不宣称已停止或可以再次安装。关闭会话发取消信号，不释放未证实停止的 lease。
 
-重启后按已知 jobId 可查询持久记录，但不重放安装、不按旧 PID 发信号：未执行确认作废，未确认结束的 INSTALLING/VERIFYING/CANCEL_REQUESTED 保守恢复为 CANCEL_REQUESTED/STOP_UNCONFIRMED 并隔离环境。取得环境内核锁后还会重新读其他任务的持久意图，防止早已打开的第二实例把“锁已释放”误当子进程停止。未知任务没有自动解除隔离入口；重连存活安装子进程、人工核实停止后的恢复/重建仍缺。当前UI没有历史任务列表，不宣称重启自动找回任务卡。历史SUCCEEDED仅表示当时复检结果，新的安装计划仍须重新探测环境。
+重启后可从普通包管理面板有界发现任务并查看只读报告（见[历史合同](install-history.md)），但不重放安装、不按旧 PID 发信号：未执行确认作废，未确认结束的 INSTALLING/VERIFYING/CANCEL_REQUESTED 保守恢复为 CANCEL_REQUESTED/STOP_UNCONFIRMED 并隔离环境。取得环境内核锁后还会重新读其他任务的持久意图，防止早已打开的第二实例把“锁已释放”误当子进程停止。未知任务没有自动解除隔离入口；重连存活安装子进程、人工核实停止后的恢复/重建仍缺。历史列表区分本会话已登记worker、重启历史和外部实例记录；历史报告不接回执行控制。历史SUCCEEDED仅表示当时复检结果，新的安装计划仍须重新探测环境。
 
 只有新的 nonce/prefix 匹配的可信复检、精确锁定版本、Python 3.11、torch/torchvision/matplotlib 导入和 tensor 检查都成功，内部合同才允许 verified=true。取消/失败不承诺回滚，保留 changesPossible/needsReprobe。
 

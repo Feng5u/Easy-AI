@@ -27,6 +27,7 @@ export const OFFLINE_DOCS = [
   "install-ml-sources.md",
   "install-cv-sources.md",
   "install-source-picker.md",
+  "install-history.md",
 ];
 const repository = resolve(import.meta.dirname, "..");
 export const defaultOutput = (root) =>

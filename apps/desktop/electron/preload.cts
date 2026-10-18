@@ -15,6 +15,8 @@ const api: DesktopAPI = {
       ipcRenderer.invoke("easyai:dataTransfers:cancel", id, scope),
   },
   packages: {
+    history: () => ipcRenderer.invoke("easyai:installJobs:list"),
+    report: (id) => ipcRenderer.invoke("easyai:installJobs:report", id),
     chooseSources: (request) =>
       ipcRenderer.invoke("easyai:packages:chooseSources", request),
     confirmSources: (request) =>

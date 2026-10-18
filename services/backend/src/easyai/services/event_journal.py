@@ -249,7 +249,12 @@ class EventJournal:
 
 
 def read_events(
-    path: Path, run_id: str, kind: Literal["runtime", "application"] = "runtime"
+    path: Path,
+    run_id: str,
+    kind: Literal["runtime", "application"] = "runtime",
+    *,
+    max_bytes: int | None = None,
+    max_records: int | None = None,
 ) -> list[Event]:
     """Replay complete execution records without taking its writer or truncating a live tail."""
     descriptor = os.open(
@@ -261,15 +266,28 @@ def read_events(
     )
     records: list[Event] = []
     with os.fdopen(descriptor, "rb") as stream:
-        if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
+        info = os.fstat(stream.fileno())
+        if not stat.S_ISREG(info.st_mode):
             raise ValueError("JOURNAL_PATH_FORBIDDEN")
-        while True:
+        if max_bytes is not None and info.st_size > max_bytes:
+            raise ValueError("JOURNAL_READ_LIMIT")
+        consumed = 0
+
+        def bounded_line() -> bytes:
+            nonlocal consumed
             raw = stream.readline(MAX_LINE_BYTES + 1)
+            consumed += len(raw)
+            if max_bytes is not None and consumed > max_bytes:
+                raise ValueError("JOURNAL_READ_LIMIT")
+            return raw
+
+        while True:
+            raw = bounded_line()
             if not raw:
                 break
             overlong = len(raw) > MAX_LINE_BYTES
             while not raw.endswith(b"\n") and len(raw) == MAX_LINE_BYTES + 1:
-                raw = stream.readline(MAX_LINE_BYTES + 1)
+                raw = bounded_line()
                 if not raw:
                     break
             if not raw.endswith(b"\n"):
@@ -286,6 +304,8 @@ def read_events(
             ):
                 raise ValueError("JOURNAL_SEQUENCE_OR_RUN_INVALID")
             records.append(event)
+            if max_records is not None and len(records) > max_records:
+                raise ValueError("JOURNAL_READ_LIMIT")
     return records
 
 

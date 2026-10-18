@@ -6,6 +6,9 @@ import type {
   InstallPlanRequest,
   PackageCatalog,
   InstallSourcePreview,
+  InstallJobHistory,
+  InstallJobReport,
+  InstallJobSummary,
 } from "../electron/bridge.js";
 
 type API = NonNullable<DesktopAPI["packages"]>;
@@ -49,6 +52,12 @@ const blockerLabels: Record<string, string> = {
 };
 const size = (value: number | null) =>
   value === null ? "未知 / 待解析" : `${(value / 1024 ** 2).toFixed(1)} MiB`;
+const observationLabels = {
+  "managed-worker-alive": "本应用的安装 worker 当前仍存活",
+  "registered-only": "本次会话仅登记，尚无安装 worker",
+  historical: "历史结果记录，本次未检查当前环境",
+  "stop-unconfirmed": "停止未确认；可能仍有进程或管道 owner，不可视为已停止",
+};
 export function PackageManager({ api }: { api: API }) {
   const [catalog, setCatalog] = useState<PackageCatalog | null>(null);
   const [profile, setProfile] = useState<"easyai-cpu" | "teacher-existing">(
@@ -69,12 +78,32 @@ export function PackageManager({ api }: { api: API }) {
     useState<InstallSourcePreview | null>(null);
   const [sourceAcknowledged, setSourceAcknowledged] = useState(false);
   const [sourceStatus, setSourceStatus] = useState("");
+  const [history, setHistory] = useState<InstallJobHistory | null>(null);
+  const [historyReport, setHistoryReport] = useState<InstallJobReport | null>(
+    null,
+  );
+  const [historyError, setHistoryError] = useState("");
+  const historySequence = useRef(0),
+    reportSequence = useRef(0);
   const mounted = useRef(false),
     generation = useRef(0),
     pending = useRef(false);
   useEffect(() => {
     mounted.current = true;
     let alive = true;
+    const historyTicket = ++historySequence.current;
+    void api
+      .history()
+      .then((value) => {
+        if (alive && historyTicket === historySequence.current)
+          setHistory(value);
+      })
+      .catch(() => {
+        if (alive && historyTicket === historySequence.current)
+          setHistoryError(
+            "已保存任务读取未完成；未修改记录或解除隔离，请重新读取。",
+          );
+      });
     void api
       .catalog()
       .then((value) => {
@@ -88,6 +117,8 @@ export function PackageManager({ api }: { api: API }) {
       alive = false;
       mounted.current = false;
       generation.current++;
+      historySequence.current++;
+      reportSequence.current++;
     };
   }, [api]);
   const activeJob = Boolean(
@@ -101,6 +132,33 @@ export function PackageManager({ api }: { api: API }) {
     setError("");
     setSourcePreview(null);
     setSourceAcknowledged(false);
+  }
+  function refreshHistory() {
+    const ticket = ++historySequence.current;
+    void operation(async () => {
+      const value = await api.history();
+      if (mounted.current && ticket === historySequence.current) {
+        setHistory(value);
+        setHistoryError("");
+      }
+    }, "已保存任务读取未完成；不会重放安装、清理账本或解除隔离。");
+  }
+  function openHistoryReport(expected: InstallJobSummary) {
+    const ticket = ++reportSequence.current;
+    void operation(async () => {
+      const value = await api.report(expected.jobId);
+      if (
+        value.summary.jobId !== expected.jobId ||
+        value.summary.planHash !== expected.planHash ||
+        value.summary.environmentId !== expected.environmentId ||
+        value.recorded.jobId !== expected.jobId ||
+        value.observed.jobId !== expected.jobId ||
+        value.currentEnvironmentVerified !== false
+      )
+        throw Error("安装历史身份不符");
+      if (mounted.current && ticket === reportSequence.current)
+        setHistoryReport(value);
+    }, "安装报告读取未完成；未重新安装或复检，也不会按旧进程标识操作。");
   }
   async function operation(
     invoke: () => Promise<void>,
@@ -230,9 +288,105 @@ export function PackageManager({ api }: { api: API }) {
         不会修改应用 Python 或教师共享环境，也不会下载数据。
       </p>
       <p>
-        目标是本机应用管理的新环境，独立于当前工程。任务状态保存在本机，重启不自动恢复执行；此界面只显示本次打开的任务。
+        目标是本机应用管理的新环境，独立于当前工程。任务状态保存在本机，重启不自动恢复执行；可在下方查看已保存任务的只读报告。
       </p>
       {error && <p role="alert">{error}</p>}
+      <section aria-label="已保存安装任务">
+        <h3>已保存安装任务与报告</h3>
+        <p>
+          本机账本上限64项，达到上限不会自动清理。重新打开或刷新只读记录，不重放安装、不按旧进程标识操作，也不解除停止未确认的隔离。
+        </p>
+        <button type="button" disabled={busy} onClick={refreshHistory}>
+          刷新已保存安装任务
+        </button>
+        {historyError && <p role="alert">{historyError}</p>}
+        {!history && !historyError && <p role="status">正在读取已保存任务…</p>}
+        {history && !history.entries.length && <p>暂无已保存安装任务。</p>}
+        {history && (
+          <ul>
+            {history.entries.map((entry) => (
+              <li key={entry.jobId}>
+                <p>
+                  任务 {entry.jobId.slice(0, 8)} · {states[entry.state]} ·{" "}
+                  {entry.recordedAt}
+                </p>
+                <p>
+                  {observationLabels[entry.observation]}。
+                  {entry.origin === "recovered"
+                    ? "来自重启恢复的只读记录。"
+                    : entry.origin === "external"
+                      ? "来自另一实例的持久记录，不宣称其 worker 已退出。"
+                      : "来自当前应用会话。"}
+                </p>
+                <button
+                  type="button"
+                  disabled={busy}
+                  aria-label={`查看安装报告 ${entry.jobId}`}
+                  onClick={() => openHistoryReport(entry)}
+                >
+                  查看报告
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {historyReport && (
+          <section aria-label="已保存安装报告">
+            <h4>安装任务报告（只读快照）</h4>
+            <p>
+              任务：<code>{historyReport.summary.jobId}</code>；环境：
+              <code>{historyReport.summary.environmentId}</code>
+            </p>
+            <p>
+              最后持久记录：{historyReport.summary.recordedAt}，状态：
+              {states[historyReport.recorded.state]}；本次读取：
+              {states[historyReport.observed.state]}。
+            </p>
+            <p>
+              {observationLabels[historyReport.summary.observation]}
+              。本实例管理的worker：
+              {historyReport.summary.workerAlive
+                ? "读取时仍存活"
+                : "没有存活证明；不等于确认其他进程已退出"}
+              。
+            </p>
+            {historyReport.summary.statusCode ===
+              "INSTALL_RESTART_CONFIRMATION_EXPIRED" && (
+              <p>旧等待确认已失效；如仍需安装，请重新生成计划并明确确认。</p>
+            )}
+            <p>
+              {historyReport.recorded.verified
+                ? "账本记载当时已通过复检；本次查看未重新检查当前环境，不能据此启动训练。"
+                : "账本没有通过复检的证明，环境不能视为健康。"}
+            </p>
+            <p>
+              {historyReport.observed.changesPossible
+                ? "可能已有变更，不承诺回滚。"
+                : "记录未报告安装变更；本次未探测环境。"}
+            </p>
+            <p>
+              计划指纹：<code>{historyReport.summary.planHash}</code>
+              。以下为已保存生命周期摘要，不是安装器原始输出：
+            </p>
+            <ul>
+              {historyReport.recorded.logs.map((code, index) => (
+                <li key={index}>
+                  {Object.hasOwn(logLabels, code)
+                    ? logLabels[code]
+                    : "任务状态记录"}
+                </li>
+              ))}
+            </ul>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => openHistoryReport(historyReport.summary)}
+            >
+              重新读取此报告
+            </button>
+          </section>
+        )}
+      </section>
       <section aria-label="本地离线来源">
         <h3>本地离线来源</h3>
         <p>

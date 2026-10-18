@@ -110,6 +110,8 @@ function setup() {
     executionEnabled: false,
   };
   const api = {
+    history: vi.fn<API["history"]>(async () => ({ entries: [], limit: 64 })),
+    report: vi.fn<API["report"]>(),
     chooseSources: vi.fn<API["chooseSources"]>(async () => null),
     confirmSources: vi.fn<API["confirmSources"]>(),
     catalog: vi.fn<API["catalog"]>(async () => catalog),
@@ -345,6 +347,8 @@ it("actual Main and authenticated sidecar generate and confirm/cancel without cr
   const api = {
     chooseSources: vi.fn<API["chooseSources"]>(async () => null),
     confirmSources: vi.fn<API["confirmSources"]>(),
+    history: vi.fn<API["history"]>(async () => ({ entries: [], limit: 64 })),
+    report: vi.fn<API["report"]>(),
     catalog: vi.fn(
       async () =>
         (await workflow.invoke(
@@ -499,4 +503,124 @@ it("native cancellation preserves the existing plan and source errors cannot exp
   expect(container.textContent).not.toContain("private source path");
   expect(container.querySelector('input[type="file"]')).toBeNull();
   expect(h.api.confirm).not.toHaveBeenCalled();
+});
+
+it("saved result, failure and unknown tasks can be reopened from the normal panel without knowing an ID or restarting work", async () => {
+  const h = setup();
+  type Summary = Awaited<ReturnType<API["history"]>>["entries"][number];
+  const summary = (
+    id: string,
+    state: InstallJob["state"],
+    observation: Summary["observation"],
+  ): Summary => ({
+    jobId: id,
+    environmentId,
+    planId,
+    planHash: plan().planHash,
+    recordedAt: "2026-10-18T10:00:00Z",
+    recordedState: state,
+    state,
+    statusCode:
+      state === "SUCCEEDED" ? "INSTALL_VERIFIED" : "INSTALL_STOP_UNCONFIRMED",
+    origin: "recovered",
+    workerAlive: false,
+    observation,
+  });
+  const success = summary(jobId, "SUCCEEDED", "historical"),
+    failed = summary(environmentId, "FAILED", "historical"),
+    unknown = summary(planId, "CANCEL_REQUESTED", "stop-unconfirmed");
+  h.api.history.mockResolvedValue({
+    entries: [success, failed, unknown],
+    limit: 64,
+  });
+  h.api.report.mockImplementation(async (id) => {
+    const value = [success, failed, unknown].find(
+      (entry) => entry.jobId === id,
+    )!;
+    const record = {
+      ...job(),
+      jobId: id,
+      state: value.state,
+      verified: value.state === "SUCCEEDED",
+      needsReprobe: value.state !== "SUCCEEDED",
+    };
+    return {
+      summary: value,
+      recorded: record,
+      observed: record,
+      currentEnvironmentVerified: false,
+    };
+  });
+  await mount(h.api);
+  expect(container.textContent).toContain("已保存安装任务与报告");
+  expect(container.textContent).toContain("历史结果记录");
+  expect(container.textContent).toContain("停止未确认");
+  const select = async (id: string) => {
+    await act(async () =>
+      container
+        .querySelector<HTMLButtonElement>(
+          `button[aria-label="查看安装报告 ${id}"]`,
+        )!
+        .click(),
+    );
+  };
+  await select(success.jobId);
+  expect(container.textContent).toContain("账本记载当时已通过复检");
+  expect(container.textContent).toContain("不能据此启动训练");
+  await select(failed.jobId);
+  expect(
+    container.querySelector('[aria-label="已保存安装报告"]')?.textContent,
+  ).toContain("任务失败，需要重新检查");
+  await select(unknown.jobId);
+  expect(
+    container.querySelector('[aria-label="已保存安装报告"]')?.textContent,
+  ).toContain("停止未确认");
+  await click("刷新已保存安装任务");
+  await click("重新读取此报告");
+  expect(h.api.plan).not.toHaveBeenCalled();
+  expect(h.api.confirm).not.toHaveBeenCalled();
+  expect(h.api.cancel).not.toHaveBeenCalled();
+  expect(h.api.confirmSources).not.toHaveBeenCalled();
+});
+
+it("recovered awaiting confirmation is read-only expiry, not a new actionable install job", async () => {
+  const h = setup();
+  const record = job();
+  const observed = {
+    ...record,
+    state: "CANCELLED" as const,
+    statusCode: "INSTALL_RESTART_CONFIRMATION_EXPIRED",
+  };
+  const summary = {
+    jobId,
+    environmentId,
+    planId,
+    planHash: plan().planHash,
+    recordedAt: "2026-10-18T10:00:00Z",
+    recordedState: record.state,
+    state: observed.state,
+    statusCode: observed.statusCode,
+    origin: "recovered" as const,
+    workerAlive: false,
+    observation: "historical" as const,
+  };
+  h.api.history.mockResolvedValue({ entries: [summary], limit: 64 });
+  h.api.report.mockResolvedValue({
+    summary,
+    recorded: record,
+    observed,
+    currentEnvironmentVerified: false,
+  });
+  await mount(h.api);
+  await act(async () =>
+    container
+      .querySelector<HTMLButtonElement>(
+        `button[aria-label="查看安装报告 ${jobId}"]`,
+      )!
+      .click(),
+  );
+  expect(container.textContent).toContain("旧等待确认已失效");
+  expect(container.querySelector('[aria-label="安装任务登记"]')).toBeNull();
+  expect(h.api.confirm).not.toHaveBeenCalled();
+  expect(h.api.cancel).not.toHaveBeenCalled();
 });

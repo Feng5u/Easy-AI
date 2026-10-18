@@ -5,8 +5,11 @@ worker; commands and paths are not accepted as HTTP execution inputs.
 """
 
 from dataclasses import dataclass, field
+from datetime import datetime
 import hashlib
 import json
+import os
+from itertools import islice
 import platform
 from pathlib import Path
 import sys
@@ -20,6 +23,9 @@ from easyai.domain.install import (
     InstallConfirmation,
     InstallInspection,
     InstallJob,
+    InstallJobHistory,
+    InstallJobSummary,
+    InstallJobReport,
     InstallPlan,
     InstallPlanRequest,
     PackageCard,
@@ -137,14 +143,25 @@ class InstallService:
 
     def _recover(self) -> None:
         """Replay existing journals only; never launch or signal a recorded PID."""
+        for job_id, (job, _) in self._saved_jobs().items():
+            recovered = self._historical_view(job)
+            if recovered.state == "CANCEL_REQUESTED":
+                self._active[recovered.environment_id] = job_id
+            self._jobs[job_id] = recovered
+            self._recovered.add(job_id)
+
+    def _saved_jobs(self) -> dict[str, tuple[InstallJob, str]]:
+        """Bounded read-only ledger replay. Never acquire a writer or repair tails."""
         root = self.app_root / "install-jobs"
         if not root.exists() and not root.is_symlink():
-            return
+            return {}
         if root.is_symlink() or not root.is_dir():
             raise ValueError("INSTALL_LEDGER_FORBIDDEN")
-        paths = list(root.iterdir())
+        with os.scandir(root) as entries:
+            paths = [Path(entry.path) for entry in islice(entries, 65)]
         if len(paths) > 64:
             raise ValueError("INSTALL_JOB_LIMIT")
+        result = {}
         for path in paths:
             if path.is_symlink() or not path.is_dir() or str(UUID(path.name)) != path.name:
                 raise ValueError("INSTALL_LEDGER_FORBIDDEN")
@@ -153,23 +170,112 @@ class InstallService:
                 # An interrupted exclusive mkdir before the first durable event is
                 # not an executable job. Never delete or reuse its directory.
                 continue
-            events = read_events(journal_path, path.name, "application")
+            events = read_events(
+                journal_path, path.name, "application", max_bytes=4 * 1024 * 1024, max_records=512
+            )
             if not events:
                 raise ValueError("INSTALL_LEDGER_INVALID")
+            identity = None
             for event in events:
                 if event.type != "status_changed":
                     raise ValueError("INSTALL_LEDGER_INVALID")
                 job, _ = read_install_job(event.payload)
                 if job.job_id != path.name:
                     raise ValueError("INSTALL_LEDGER_INVALID")
-            if job.state == "AWAITING_EXECUTION":
-                job.state, job.status_code = "CANCELLED", "INSTALL_RESTART_CONFIRMATION_EXPIRED"
-            elif job.state in {"INSTALLING", "VERIFYING", "CANCEL_REQUESTED"}:
-                job.state, job.status_code = "CANCEL_REQUESTED", "INSTALL_STOP_UNCONFIRMED"
-                job.verified, job.needs_reprobe = False, True
-                self._active[job.environment_id] = job.job_id
-            self._jobs[job.job_id] = job
-            self._recovered.add(job.job_id)
+                current = (job.plan_id, job.plan_hash, job.environment_id)
+                if identity is not None and current != identity:
+                    raise ValueError("INSTALL_LEDGER_INVALID")
+                identity = current
+            result[job.job_id] = job, events[-1].timestamp
+        return result
+
+    @staticmethod
+    def _historical_view(recorded: InstallJob) -> InstallJob:
+        job = recorded.model_copy(deep=True)
+        if job.state == "AWAITING_EXECUTION":
+            job.state, job.status_code = "CANCELLED", "INSTALL_RESTART_CONFIRMATION_EXPIRED"
+        elif job.state in {"INSTALLING", "VERIFYING", "CANCEL_REQUESTED"}:
+            job.state, job.status_code = "CANCEL_REQUESTED", "INSTALL_STOP_UNCONFIRMED"
+            job.verified, job.needs_reprobe = False, True
+        return job
+
+    def _report(self, saved: InstallJob, timestamp: str) -> InstallJobReport:
+        current = saved.job_id in self._jobs and saved.job_id not in self._recovered
+        observed = (
+            self._jobs[saved.job_id].model_copy(deep=True)
+            if current
+            else self._historical_view(saved)
+        )
+        if (observed.plan_id, observed.plan_hash, observed.environment_id) != (
+            saved.plan_id,
+            saved.plan_hash,
+            saved.environment_id,
+        ):
+            raise ValueError("INSTALL_LEDGER_INVALID")
+        worker = self._workers.get(saved.job_id) if current else None
+        alive = bool(worker and worker.is_alive())
+        if (current and observed.state in {"INSTALLING", "VERIFYING"} and not alive) or (
+            saved.job_id not in self._jobs and saved.state == "AWAITING_EXECUTION"
+        ):
+            observed.state, observed.status_code = "CANCEL_REQUESTED", "INSTALL_STOP_UNCONFIRMED"
+            observed.verified, observed.needs_reprobe = False, True
+        observation: Literal[
+            "managed-worker-alive", "registered-only", "historical", "stop-unconfirmed"
+        ]
+        if observed.state == "CANCEL_REQUESTED" or (
+            observed.state in {"INSTALLING", "VERIFYING"} and not alive
+        ):
+            observation = "stop-unconfirmed"
+        elif alive:
+            observation = "managed-worker-alive"
+        elif current and observed.state == "AWAITING_EXECUTION":
+            observation = "registered-only"
+        else:
+            observation = "historical"
+        try:
+            recorded_at = datetime.fromisoformat(timestamp)
+            if recorded_at.tzinfo is None:
+                raise ValueError
+        except ValueError:
+            raise ValueError("INSTALL_LEDGER_INVALID") from None
+        summary = InstallJobSummary(
+            job_id=saved.job_id,
+            environment_id=saved.environment_id,
+            plan_id=saved.plan_id,
+            plan_hash=saved.plan_hash,
+            recorded_at=recorded_at,
+            recorded_state=saved.state,
+            state=observed.state,
+            status_code=observed.status_code,
+            origin="current"
+            if current
+            else "recovered"
+            if saved.job_id in self._recovered
+            else "external",
+            worker_alive=alive,
+            observation=observation,
+        )
+        return InstallJobReport(
+            summary=summary, recorded=saved.model_copy(deep=True), observed=observed
+        )
+
+    def history(self) -> InstallJobHistory:
+        with self._mutex:
+            self._verify_root()
+            entries = [
+                self._report(job, stamp).summary for job, stamp in self._saved_jobs().values()
+            ]
+            entries.sort(key=lambda item: (item.recorded_at, item.job_id), reverse=True)
+            self._verify_root()
+            return InstallJobHistory(entries=entries)
+
+    def report(self, job_id: str) -> InstallJobReport:
+        with self._mutex:
+            self._verify_root()
+            job, stamp = self._saved_jobs()[job_id]
+            result = self._report(job, stamp)
+            self._verify_root()
+            return result
 
     def _record(self, job: InstallJob) -> None:
         try:

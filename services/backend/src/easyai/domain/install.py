@@ -162,23 +162,54 @@ class InstallInspection(Contract):
     tensor_ok: bool
 
 
+InstallState = Literal[
+    "AWAITING_EXECUTION",
+    "INSTALLING",
+    "VERIFYING",
+    "SUCCEEDED",
+    "FAILED",
+    "CANCEL_REQUESTED",
+    "CANCELLED",
+]
+
+
 class InstallJob(Contract):
     job_id: Identifier
     plan_id: Identifier
     plan_hash: Digest
     environment_id: Identifier
-    state: Literal[
-        "AWAITING_EXECUTION",
-        "INSTALLING",
-        "VERIFYING",
-        "SUCCEEDED",
-        "FAILED",
-        "CANCEL_REQUESTED",
-        "CANCELLED",
-    ]
+    state: InstallState
     status_code: str
     logs: list[str] = Field(max_length=128)
     needs_reprobe: bool = True
     changes_possible: bool = False
     verified: bool = False
     execution_enabled: bool = False
+
+
+class InstallJobSummary(Contract):
+    job_id: Identifier
+    environment_id: Identifier
+    plan_id: Identifier
+    plan_hash: Digest
+    recorded_at: datetime
+    recorded_state: InstallState
+    state: InstallState
+    status_code: str
+    origin: Literal["current", "recovered", "external"]
+    worker_alive: bool
+    observation: Literal[
+        "managed-worker-alive", "registered-only", "historical", "stop-unconfirmed"
+    ]
+
+
+class InstallJobHistory(Contract):
+    entries: list[InstallJobSummary] = Field(max_length=64)
+    limit: Literal[64] = 64
+
+
+class InstallJobReport(Contract):
+    summary: InstallJobSummary
+    recorded: InstallJob
+    observed: InstallJob
+    current_environment_verified: Literal[False] = False
