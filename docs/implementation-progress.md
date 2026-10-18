@@ -1052,3 +1052,33 @@ NOT RUN：真实Electron/SVG/Monaco/原生picker/E2E、训练/真实MNIST/SSH/SF
 最新已知远端仍是**d651a496fc2a2fd34ac1755556bbd06d73990032/run39147472362于17:00:51 UTC失败**（父级通知desktop4/check3 annotations，仅摘要，不能推断等同f1四根因）。f1ecaf7/run39144759022原完整日志中的四根因才是本片依据。Node20 action弃用/ubuntu迁移通知不是已证实根因。未重试被拒Actions端点、未重跑旧job；正常dev push后新SHA的既有有界CI自动执行，结果待新证据，不能预称绿。
 
 本片不改main、强推、PR、部署/发布/Release、费用/凭据/安全权限；未实际Windows原生/NTFS/Windows冻结ABI/桌面/真实训练/SSH/数据下载/个人PC。真实资源条件未获授权前仍不执行。接下来优先读取新SHA CI结果、必要时修后续原生问题；原符号/报告WIP保留后继续其定向验证。完整B剩余代码、实际验证与外部条件另见`docs/remaining-critical-path.md`，代码预算是条件化低置信滚动估计，不是新交付日期或缩减B。
+
+## 2026-10-18 — §16.3 冻结符号解释、原始错误入口与本地安全报告
+
+源码完整SHA：`9f417561c75c49c163752a3ad21a76f4b4fc79d8`，基线`407da99effa8a46b492b79cc362f77025b5c7210`。父级要求同一实例继续并在CI等待期间完成原16修改/5新文件WIP的定向验证；这些WIP已先在CI快进前后以binary diff和5文件SHA逐字节核验保留，再完成本片实现、测试与独审后提交，未覆盖用户工作。未扩展v0.0.1，未把M7或B整体签成完成。
+
+后端以已校验的旧RunSource.snapshot重建现有Python registry，返回无名称的对象摘要（固定kind/role/注册状态/旧blockId/workspace）和引用检查状态；不会使用当前工程替代。仅经原hash/frame/映射验证的NameError进入固定registered/unregistered/not_matched/ambiguous/unavailable解释；无可信映射不猜对象，registered及not_matched明确可能为生成器/依赖问题，不自动改引用或归罪学生。旧来源损坏时对象解释及计数降级不可用，原journal保持不变。
+
+新增DiagnosticReport Python权威合同及生成schema/TS/declaration，固定12字段：版本、local_safe_summary、固定诊断code、runId/eventSeq/codeHash/projectRevision、precision/nameState/referenceCheck与两项对象数量。没有原始异常、用户名称、blockId、路径、host、用户名、密码或frame。认证只读GET `/api/v1/runs/{run_id}/diagnostics/{event_seq}/report`复用run_store/scoped_read/deliver门；真实HTTP barrier测试涵盖切换工程以及离开又返回ABA，迟到交付404，owned报告仍可读。不会上传或后端写报告文件。
+
+Main与预览共用safeReport严格12字段白名单、枚举/计数/身份检查。renderer仅传runId/eventSeq，不能传任意报告或路径；只有显式导出才打开native SaveDialog。dialog后再次GET核scope、同报告与reportEpoch；项目open/create/import或dispose使旧请求过期。仅绝对native目标、writeFile flag=wx/mode0600，拒绝覆盖文件/链接；取消无写入。新Windows测试夹具用owned目录junction，避免要求Windows文件symlink特权；实际Windows行为仍待CI，本机仅Linux结果。
+
+UI对象检查使用旧快照ID+workspace成员门，显示中性类别/角色/编号与注册状态，不显示任意名称或ID；打开时focus到对象标题，定位打开只读旧模型。卡片解释只显示固定nameState规则。报告默认无请求，必须显式预览，核run/seq/hash/revision后再显示固定JSON，导出另一次点击；报告错误独立，不改训练状态。新增“查看原始错误（仅本地）”按钮才挂载原结构化记录及私密内容提示，可收起；原文不进入报告，切换run清理原文与迟到预览。此功能不是全界面日志隐私清洗，也不认证恶意子进程。
+
+实际命令，cwd `/workspace/Easy-AI`；应用现有`.venv`与workspace缓存复用，没有新环境writer：
+
+| 命令 | 结果及边界 |
+| --- | --- |
+| `services/backend/.venv/bin/python -m pytest services/backend/tests/test_diagnostic_report.py services/backend/tests/test_runtime_diagnostics.py services/backend/tests/test_run_views.py services/backend/tests/test_run_scope_race.py -q` | **58 PASS**，5.63秒，1项第三方Starlette/AnyIO弃用警告；日志`/tmp/easyai-report-backend-final.log`。含新8报告/解释、原15帧定位、旧view/scope及新2报告ABA；真实owned文件、真实认证HTTP与线程barrier，无训练或outbound网络。不是旧CI610全套重跑 |
+| `pnpm exec vitest run apps/desktop/electron/diagnostic-report.test.mts apps/desktop/electron/workflow.test.mts apps/desktop/src/RunSnapshot.test.mts apps/desktop/src/runEvents.test.mts apps/desktop/src/FailureCard.test.mts` | **92 PASS**，2.55秒；日志`/tmp/easyai-report-targeted.log`。包括Main23安全报告与原workflow7、Snapshot42（新8）、reducer9、FailureCard11。拒私密字段/错误run/seq/hash/revision、原始错误单独opt-in、旧对象只读定位、不自动报告/导出、取消/过期/授权失效/内容变化不写、已有文件与链接内容不变。JSDOM/headless Blockly与native callback替身不算Electron实测 |
+| 独立只读审查 | 后端报告/scope独跑 **10 PASS/25 deselected**，1.05秒；Main报告 **23 PASS**，285ms。前端新8项 **8 PASS/34 skipped**，1.28秒。窗口与上述58/92重合不累加，均无编辑/安装/Actions；有限源码审查无明确新增未关闭P1/P2 |
+| `UV_CACHE_DIR=/workspace/.uv-cache UV_PYTHON_INSTALL_DIR=/workspace/.python XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/.cache pnpm check` | **PASS**，TS/Main/测试TS、ruff/85文件格式、strict mypy47源码、合同生成漂移、真实Blockly fixtures、Prettier；日志`/tmp/easyai-report-check.log`。原WIP首次strict mypy两项返回dict推断失败已用显式dict[str,str]修正，没有关闭类型检查 |
+| `pnpm --filter @easyai/desktop build`；同缓存`node scripts/python-task.mjs build` | 均 **PASS**，桌面静态assets与Linux PyInstaller onedir；日志`/tmp/easyai-report-desktop-build.log`、`/tmp/easyai-report-backend-build.log`。保留既有>500KB chunk提示，未启动Electron或修改CSP/权限 |
+| `node scripts/test-frozen.mjs` | **PASS**，实际重新冻结sidecar从临时cwd启动，资源字节/鉴权/选择API/工程创建/黄金编译与EOF exit0；日志`/tmp/easyai-report-frozen-smoke.log`。不冒充冻结报告正向全链或原生SaveDialog/Windows ABI |
+| `git diff --check`；原件SHA/字节 | **PASS**。plan116185字节/hash `dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43`，原规格`5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190`、README`befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852`保持 |
+
+中途测试失败如实保留：首轮新后端7项6PASS/1FAIL，测试误把runtime source seq=1当journal最终seq=1，实际已有CREATED事件，report正确拒绝非runtime事件。夹具改用ingest返回的实际seq，缺失/非runtime请求仍404；修后7PASS，补坏图降级后新8并入58通过。没有通过放松report序号/类型门修测试。
+
+CI精确绑定：本轮只调用既有`github_get_commit_combined_status`读取**407da99effa8a46b492b79cc362f77025b5c7210**，调用成功但`statuses: []`，没有可判定的check/desktop结果；不等于无workflow或绿。未访问/重试被拒Actions日志接口，未绕行或重跑job。最新已知FAIL仍为旧d651/run39147472362，仅作为历史，不能当407修复结果。父级对273e752/407da99四项已独审有限接受，Windows native/NTFS/冻结和新远端CI仍待实际证据；不重跑同型CI矩阵冒充新平台结果。
+
+NOT RUN：真实Electron/SVG/Monaco/原生picker和SaveDialog/课堂E2E、Windows/NTFS/冻结ABI、真实训练/MNIST/SSH/SFTP/上传/数据下载、环境安装/SDK协议、个人PC。Windows远程生产gate继续关闭。没有新拒绝或未知外部写入；状态读取完成但证据不足，既有Actions拒绝边界保持。正常dev分支源码+本证据提交一次推送，最终完整证据/远端SHA见交付；不改main、不强推、无PR/Release/部署/费用/新凭据/安全权限。后续保持新CI待验，同时推进原M7.3本地教程/数值卷积或按父级安排独立冻结模块，完整B剩余见remaining-critical-path.md。
