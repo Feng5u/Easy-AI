@@ -1,0 +1,476 @@
+{
+  "$defs": {
+    "DatasetCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "enum": [
+            "MNIST",
+            "FashionMNIST",
+            "CIFAR10"
+          ],
+          "title": "Name",
+          "type": "string"
+        },
+        "dataRoot": {
+          "maxLength": 1024,
+          "minLength": 2,
+          "pattern": "^/[^\\\\\\x00-\\x1f\\x7f]*$",
+          "title": "Dataroot",
+          "type": "string"
+        },
+        "ok": {
+          "title": "Ok",
+          "type": "boolean"
+        },
+        "sampleShape": {
+          "anyOf": [
+            {
+              "items": {
+                "maximum": 4096,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "maxItems": 4,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Sampleshape"
+        },
+        "sampleDtype": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Sampledtype"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "maximum": 9,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Label"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "enum": [
+                "dependency_missing",
+                "unavailable"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Error"
+        }
+      },
+      "required": [
+        "name",
+        "dataRoot",
+        "ok",
+        "sampleShape",
+        "sampleDtype",
+        "label",
+        "error"
+      ],
+      "title": "DatasetCheck",
+      "type": "object"
+    },
+    "DeviceCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "cudaAvailable": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cudaavailable"
+        },
+        "mpsAvailable": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Mpsavailable"
+        }
+      },
+      "required": [
+        "cudaAvailable",
+        "mpsAvailable"
+      ],
+      "title": "DeviceCheck",
+      "type": "object"
+    },
+    "EnvironmentProbeReport": {
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": {
+          "const": 1,
+          "title": "Schemaversion",
+          "type": "integer"
+        },
+        "nonce": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Nonce",
+          "type": "string"
+        },
+        "platform": {
+          "const": "linux",
+          "title": "Platform",
+          "type": "string"
+        },
+        "python": {
+          "$ref": "#/$defs/PythonCheck"
+        },
+        "imports": {
+          "$ref": "#/$defs/ImportChecks"
+        },
+        "devices": {
+          "$ref": "#/$defs/DeviceCheck"
+        },
+        "tensor": {
+          "$ref": "#/$defs/TensorCheck"
+        },
+        "dataset": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DatasetCheck"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "nonce",
+        "platform",
+        "python",
+        "imports",
+        "devices",
+        "tensor",
+        "dataset"
+      ],
+      "title": "EnvironmentProbeReport",
+      "type": "object"
+    },
+    "EnvironmentScope": {
+      "additionalProperties": false,
+      "properties": {
+        "projectId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Projectid",
+          "type": "string"
+        },
+        "connectionId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Connectionid",
+          "type": "string"
+        },
+        "endpoint": {
+          "$ref": "#/$defs/SshEndpoint"
+        },
+        "hostFingerprint": {
+          "pattern": "^SHA256:[A-Za-z0-9+/]{43}$",
+          "title": "Hostfingerprint",
+          "type": "string"
+        }
+      },
+      "required": [
+        "projectId",
+        "connectionId",
+        "endpoint",
+        "hostFingerprint"
+      ],
+      "title": "EnvironmentScope",
+      "type": "object"
+    },
+    "ImportChecks": {
+      "additionalProperties": false,
+      "properties": {
+        "torch": {
+          "$ref": "#/$defs/PackageCheck"
+        },
+        "torchvision": {
+          "$ref": "#/$defs/PackageCheck"
+        },
+        "matplotlib": {
+          "$ref": "#/$defs/PackageCheck"
+        }
+      },
+      "required": [
+        "torch",
+        "torchvision",
+        "matplotlib"
+      ],
+      "title": "ImportChecks",
+      "type": "object"
+    },
+    "PackageCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Version"
+        },
+        "imported": {
+          "title": "Imported",
+          "type": "boolean"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "enum": [
+                "missing",
+                "import_failed"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Error"
+        }
+      },
+      "required": [
+        "version",
+        "imported",
+        "error"
+      ],
+      "title": "PackageCheck",
+      "type": "object"
+    },
+    "ProbeIssue": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "enum": [
+            "PYTHON_UNSUPPORTED",
+            "TORCH_IMPORT_FAILED",
+            "TORCHVISION_IMPORT_FAILED",
+            "MATPLOTLIB_IMPORT_FAILED",
+            "TENSOR_CHECK_FAILED",
+            "DATASET_CHECK_FAILED"
+          ],
+          "title": "Code",
+          "type": "string"
+        },
+        "suggestion": {
+          "maxLength": 256,
+          "title": "Suggestion",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "suggestion"
+      ],
+      "title": "ProbeIssue",
+      "type": "object"
+    },
+    "PythonCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "executable": {
+          "maxLength": 1024,
+          "minLength": 2,
+          "pattern": "^/[^\\\\\\x00-\\x1f\\x7f]*$",
+          "title": "Executable",
+          "type": "string"
+        },
+        "prefix": {
+          "maxLength": 1024,
+          "minLength": 2,
+          "pattern": "^/[^\\\\\\x00-\\x1f\\x7f]*$",
+          "title": "Prefix",
+          "type": "string"
+        },
+        "version": {
+          "items": {
+            "maximum": 1000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Version",
+          "type": "array"
+        }
+      },
+      "required": [
+        "executable",
+        "prefix",
+        "version"
+      ],
+      "title": "PythonCheck",
+      "type": "object"
+    },
+    "SshEndpoint": {
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "title": "Host",
+          "type": "string"
+        },
+        "port": {
+          "default": 22,
+          "maximum": 65535,
+          "minimum": 1,
+          "title": "Port",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "host"
+      ],
+      "title": "SshEndpoint",
+      "type": "object"
+    },
+    "TensorCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "attempted": {
+          "title": "Attempted",
+          "type": "boolean"
+        },
+        "ok": {
+          "title": "Ok",
+          "type": "boolean"
+        },
+        "device": {
+          "enum": [
+            "cpu",
+            "cuda",
+            "mps"
+          ],
+          "title": "Device",
+          "type": "string"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "enum": [
+                "dependency_missing",
+                "device_unavailable",
+                "execution_failed"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Error"
+        }
+      },
+      "required": [
+        "attempted",
+        "ok",
+        "device",
+        "error"
+      ],
+      "title": "TensorCheck",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "projectId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Projectid",
+      "type": "string"
+    },
+    "connectionId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Connectionid",
+      "type": "string"
+    },
+    "requestId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Requestid",
+      "type": "string"
+    },
+    "scope": {
+      "$ref": "#/$defs/EnvironmentScope"
+    },
+    "environmentId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Environmentid",
+      "type": "string"
+    },
+    "report": {
+      "$ref": "#/$defs/EnvironmentProbeReport"
+    },
+    "environmentReady": {
+      "title": "Environmentready",
+      "type": "boolean"
+    },
+    "dataReady": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Dataready"
+    },
+    "issues": {
+      "items": {
+        "$ref": "#/$defs/ProbeIssue"
+      },
+      "maxItems": 6,
+      "title": "Issues",
+      "type": "array"
+    }
+  },
+  "required": [
+    "projectId",
+    "connectionId",
+    "requestId",
+    "scope",
+    "environmentId",
+    "report",
+    "environmentReady",
+    "dataReady",
+    "issues"
+  ],
+  "title": "EnvironmentProbeResult",
+  "type": "object"
+}

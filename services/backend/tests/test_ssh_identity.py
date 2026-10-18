@@ -691,3 +691,28 @@ def test_mismatched_probe_target_is_rejected_before_persisting_any_trust(tmp_pat
         service.probe(identity_request())
     assert not store.path.exists() and len(store._pending) == 0
     assert transport.auth_calls == [] and connection.closed
+
+
+def test_probe_channel_requires_authenticated_still_pinned_session(tmp_path):
+    store = HostKeyStore(tmp_path / "private")
+    endpoint = SshEndpoint(host="offline.invalid")
+    pin(store, endpoint, key())
+    ssh, connection, transport = client(store)
+    session = ssh.connect_verified(endpoint)
+    calls = []
+    transport.open_session = lambda timeout: calls.append(timeout) or "synthetic-channel"
+    with pytest.raises(SshFailure, match="AUTHENTICATION_REQUIRED"):
+        session.open_probe_channel(2)
+    assert calls == []
+    # Only the in-memory fixture's flag changes; no password/private key exists.
+    transport.authenticated = True
+    assert session.open_probe_channel(2) == "synthetic-channel"
+    assert (
+        session.endpoint == endpoint
+        and session.host_fingerprint == PublicIdentity.from_key(key()).fingerprint
+    )
+    transport.public = key(2)
+    with pytest.raises(SshFailure, match="HOST_KEY_CHANGED"):
+        session.open_probe_channel(2)
+    assert calls == [2]
+    session.close()

@@ -1,7 +1,7 @@
 // Frozen M5 identity API from temporary cwd. No outbound SSH, credentials or training.
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { createInterface } from "node:readline";
@@ -9,6 +9,10 @@ import assert from "node:assert/strict";
 
 const repository = resolve(import.meta.dirname, "..");
 const build = join(repository, "services/backend/dist/easyai-sidecar");
+assert.deepEqual(
+  await readFile(join(build, "_internal/easyai/resources/runtime/probe.py")),
+  await readFile(join(repository, "runtime/probe.py")),
+);
 const root = await mkdtemp(join(tmpdir(), "easyai-frozen-ssh-"));
 const token = randomBytes(32).toString("hex");
 const child = spawn(

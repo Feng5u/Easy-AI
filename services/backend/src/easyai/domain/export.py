@@ -4,7 +4,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from easyai.domain import contracts, desktop
+from easyai.domain import contracts, desktop, environment
 from easyai.domain.program import ProgramIR
 from easyai.domain.ssh import (
     SshEndpoint,
@@ -17,6 +17,15 @@ from easyai.domain.ssh import (
 )
 
 MODELS: list[type[BaseModel]] = [
+    environment.EnvironmentScope,
+    environment.EnvironmentRequest,
+    environment.EnvironmentDiscoveryRequest,
+    environment.EnvironmentProbeRequest,
+    environment.DatasetProbe,
+    environment.EnvironmentDescriptor,
+    environment.EnvironmentCatalog,
+    environment.EnvironmentProbeReport,
+    environment.EnvironmentProbeResult,
     contracts.ProjectDocument,
     contracts.Origin,
     contracts.BlockIR,

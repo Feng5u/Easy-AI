@@ -29,6 +29,7 @@ class Transport(Protocol):
         self, username: str, password: str, event: threading.Event, fallback: bool
     ) -> Any: ...
     def auth_publickey(self, username: str, key: Any, event: threading.Event) -> Any: ...
+    def open_session(self, timeout: float) -> Any: ...
     def close(self) -> None: ...
 
 
@@ -59,6 +60,30 @@ class VerifiedSshSession:
         self._closed = threading.Event()
         self._auth_started = False
         self._guard = threading.Lock()
+
+    @property
+    def endpoint(self) -> SshEndpoint:
+        return self._endpoint
+
+    @property
+    def host_fingerprint(self) -> str:
+        return self._identity.fingerprint
+
+    def validate_probe_session(self) -> None:
+        if (
+            self._closed.is_set()
+            or not self._transport.is_active()
+            or not self._transport.is_authenticated()
+        ):
+            raise SshFailure("SSH_AUTHENTICATION_REQUIRED")
+        current = PublicIdentity.from_key(self._transport.get_remote_server_key())
+        if current != self._identity:
+            raise SshFailure("SSH_HOST_KEY_CHANGED")
+        self._store.require_trusted(self._endpoint, current)
+
+    def open_probe_channel(self, timeout: float) -> Any:
+        self.validate_probe_session()
+        return self._transport.open_session(timeout=timeout)
 
     def close(self) -> None:
         with self._guard:
