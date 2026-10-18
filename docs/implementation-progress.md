@@ -1880,3 +1880,73 @@ NOT RUN：真实安装/probe/bootstrap/pip/训练/下载/import/tensor验收、�
 NOT RUN：真实安装、probe、bootstrap/pip、训练、下载、SSH、原生Electron/干净机/Windows/真实安装验收、全套大矩阵/新CI查询/重打旧portable/发布；未授权且未执行。既有原生与Actions拒绝没有重试或绕过；无不确定外部执行。原计划116185字节及hash dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43、旧规格/README和core/ML/CV六份来源锁未改。CIFAR待裁决、OpenCV未核unsupported、旧226PASS/1FAIL根因UNKNOWN及旧portable source7b91c46均保留；完整M6.3/B未验。
 
 工作区只含本次修复与证据；普通开发分支提交推送，推后核对dev完整SHA/工作区/main。无main、强推、PR、Release、部署、费用、凭据或安全权限变更。下一项为父侧重核此配额P2；不把“暂不签收”视为执行授权扩大。
+
+
+## 2026-10-18 M8.2 正式 electron-builder Linux x64 纵切
+
+父侧有限签收e11798c350bb1029c995c0bb520a7d12bdec4e1e并关闭持久占槽P2后，转原M8.2，不扩安装历史。实际包对应完整源码 **`5ab7a92e410650509785bf381d5bb4df8dab8399`**（首接线1f0f590、独占每次输出257c059，均保留于提交链）。本证据提交另有一处仅测试fixture修正：mode从实际lstat读取，避免POSIX 0644写死影响Windows文件语义；10项重跑PASS，无产品代码/配置/包资源变化，未冒称Windows运行通过。
+
+交付[electron-builder合同](electron-builder.md)。从正规npm注册表读取版本/engine/license/integrity，精确新增electron-builder26.15.3（MIT），锁文件有完整npm integrity与传递图；原应用/Node/Electron直接版本不变。官网默认docs当前标next v27，稳定入口https://www.electron.build/v26/；files/extraResources概念查官方docs/contents，本地26.15.3自带configuration.d.ts/API/源码逐项核对，未使用next专属选项。
+
+真实`pnpm package:builder`调用build API，固定Linux x64 dir+tar.gz、publish=never+配置null、不签名、不原生依赖重建、不换Electron/FFmpeg、不改sandbox。根electron-builder.json为固定基础选项、保留原io.easyai.desktop appId；默认app路径未准备，包装入口只绑定经原stagePortable资源/ELF/版本/allowlist/notices门的独占stage与output。dist/index.html+assets及flat生产Main/preload进入ASAR，sidecar完整onedir含_internal在resources/backend，offline/notices在resources下，许可证保留于产品根。旧产物/缓存不覆盖；每次用SHA前缀+时间戳独立输出，失败目录保留。初始验证选择compression=store约束CPU，归档体积据实记录。
+
+目录旧构建残留dist-electron/electron/**/*.test.mjs已发现，最终files不收该nested树，并拒tests/maps。独审另发现P2：dist/.env.local会被dot=true收进ASAR，旧verifier仅拒精确.env；纯合成新增测试改前FAIL保留。现基础files和extraResources同时排除.env*与machine.local.json，ASAR校验同步拒所有.env后缀。最终真实构建前以独占xb写入仅“SYNTHETIC_BUILDER_PRIVACY_FIXTURE_ONLY”的dist/assets/.env.local，成功包实际排除该文件；finally核内容后仅删除自己的测试文件，无真实秘密/用户文件读取或覆盖。测试与源码均无真实私密材料/密钥。
+
+### 实际产物（本地未发布）
+
+- 目录：`/workspace/Easy-AI/dist/easyai-builder-5ab7a92e4106-1792364458569-linux-x64/artifacts/linux-unpacked`。
+- tar.gz：同artifacts下`easyai-0.0.0-linux-x64.tar.gz`，**152688685字节**，SHA256 **`7445fb3e57d35393d48ebcd5f08dd52266e6c04728ab341bd0f50e5b31326b78`**。
+- builder-manifest.json：输出根目录，SHA256 **`345a18f63253fe67b068e0df847734abd972aa7a7a6e4e8e9c53ae5f837aa76f`**；289输出文件记录，完整sourceCommit、builder/Electron版本、path/bytes/hash/mode；清单不是数字签名或可信来源证明。
+- Python标准库tarfile只读扫描归档、不解包：287 regular files逐项bytes/hash/mode匹配linux-unpacked，无extra/missing/link/special/traversal；stage/合成.env.local未进入归档。
+- `distributionReady=false`、`legalReviewComplete=false`；所有产物留本执行器ignored dist，未上传、发布、部署或创建Release/PR。
+
+### 命令及真实结果
+
+| 实际命令 / 检查 | 结果 |
+| --- | --- |
+| `pnpm view electron-builder version engines license dist.integrity --json` | PASS，26.15.3 / Node>=14 / MIT，根开发依赖精确版本与锁文件integrity。 |
+| `XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/.cache pnpm add -Dw --save-exact electron-builder@26.15.3 --ignore-scripts` | PASS；正常开发依赖+254/-2，4条既有式deprecated传递依赖警告保留；pnpm自动可选peer重绑定记录在锁，不伪称整个图无变化。没有新增lifecycle allowlist。 |
+| 同XDG目录 `pnpm install --frozen-lockfile --offline --ignore-scripts` | PASS，锁无重新解析，已有store重用；确认精确开发安装可重现，不下载训练依赖。 |
+| `XDG_CACHE_HOME=/workspace/.cache electron_config_cache=/workspace/.cache/electron node apps/desktop/node_modules/electron/install.js` | PASS。peer重绑定使新Electron物理目录缺dist，Electron44无postinstall，pnpm rebuild electron为noop；使用仓库原setup同一官方installer与已存在缓存恢复原44.9.0，不换版本、不启动窗口。 |
+| `node --test scripts/package.test.mjs scripts/package-builder.test.mjs` | 最终 **10 PASS/642ms**；资源漂移/排除/拒覆盖/完整性+ASAR私密文件、extra/tamper/path traversal/release claims。9PASS中间结果与独审不累计。测试fixture最后改为读取实际mode，保留严格比较，不放宽门。 |
+| `UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache pnpm check` | 最终PASS；TS/Main/tests、ruff117Python/mypy63、合同、实际Blocklyfixtures与Prettier。之后仅上述fixture mode取得方式修正并Prettier+10项PASS，无产品代码变化。 |
+| `UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache XDG_CACHE_HOME=/workspace/.cache pnpm build` | PASS；实际TS/Vite/PyInstaller，既有chunk警告，不安装训练内容。 |
+| `CSC_IDENTITY_AUTO_DISCOVERY=false XDG_CACHE_HOME=/workspace/.cache pnpm package:builder`（合成privacy fixture finally清理） | 最终PASS，真实electron-builder26.15.3生成本表dir/tar.gz，ASAR入口与stage逐字节比较，sidecar内置全部resourcePairs对源码hash比较，289记录完整性通过；源5ab7a92。 |
+| `pnpm package:builder:verify dist/easyai-builder-5ab7a92e4106-1792364458569-linux-x64` | PASS；完整文件集合、bytes/hash/mode、ASAR入口/开发及私密文件拒绝、false门。 |
+| `node scripts/test-frozen.mjs dist/easyai-builder-5ab7a92e4106-1792364458569-linux-x64/artifacts/linux-unpacked/resources/backend` | PASS；直接运行实际包内冻结sidecar，在temp cwd完成鉴权、资源/17卡离线计划、禁执行登记/取消、项目创建、原黄金MNIST代码编译及EOF exit0。未实际训练/import/probe/SSH；不是Electron窗口或干净机。 |
+| Python stdlib `tarfile.open(...,'r:gz')` + `hashlib.file_digest`（实际inline脚本） | PASS；287文件hash/bytes/mode与manifest linux-unpacked记录完全相同；拒绝任何link/special/extra/缺失/路径越界，不解包。 |
+| 既有worker独立只读源码/产物复查 | 初始两组9PASS消息；隐私P2修复4PASS/745ms `/tmp/easyai-builder-privacy-fix-review-lAQZcS.log`；最终包289记录verify、tar287逐项匹配、ASAR关键入口/私密fixture排除与source/hash/false门PASS消息。后两项实际包审查未提供另一个原始log文件，按消息证据记录，不捏造文件；未重新package或启动窗口/安装/probe。 |
+| `git diff --check` / `git ls-remote origin refs/heads/main refs/heads/codex/demo-v0.0.0` / 原件与来源锁hash | PASS；推前远端dev=e11798c350bb1029c995c0bb520a7d12bdec4e1e，main=5323f86232529efcfb52131168ad049f01b219f3；普通dev push后再次核对。 |
+
+首次依赖命令默认/home/agent/.local/share/pnpm目录不存在而失败，未安装；改为工作区合法XDG目录后成功，无权限提升或绕拒绝。首次实际包装在stage preflight发现新peer Electron dist/version缺失而FAIL、未调用builder，失败目录和日志保留；官方installer正常恢复后独立新目录重跑。中间257c059候选已实际完成，144625879字节、SHA8108b3f9c77faf2ea81bd13b0b924f3b6070199c49391ba7140dbb4cd1e63e7c；它不包含最终隐私过滤/canonical配置修正，不作为交付候选。最终5ab包独立重建，无覆盖中间产物或失败日志。
+
+tar.gz首次真实builder自动取得官方`electron-userland/electron-builder-binaries`固定`7zip@1.0.0`工具集（构建工具，不随应用发布），缓存`/workspace/.cache/electron-builder/7zip@1.0.0/7zip-linux-x64.tar.gz` SHA256 `d151bb44b2a9d9bfc52813ce4cac042916394a0ab8a56bd5d221a5dc9ef8d5d7`，与26.15.3内置checksums精确相符；无自由下载URL/脚本替换/新费用权限或需确认条款出现。正式builder流程不是完全离线复制；旧pnpm package离线流程保持独立。新许可明确接受、签名/部署/发布仍需另行授权，未执行。
+
+唯一noclobber日志SHA256：
+- `/tmp/easyai-builder-archive-20261018-unique1.log` SHA256 `ade44ac1c19b5289441b3bdb08dc39d790afb83672fa6bcf4c2a8127cac0d7f2`。
+- `/tmp/easyai-builder-build-20261018-unique1.log` SHA256 `b6d0d4792ebf306b0cdafcbd85358c2be398eddbcd4b3313f617de297223a899`。
+- `/tmp/easyai-builder-check-20261018-final1.log` SHA256 `5b9546205d04c670ac61ad7a8bff82dc39bae1a167cdd98bbbe8937bece75271`。
+- `/tmp/easyai-builder-check-20261018-unique1.log` SHA256 `5b9546205d04c670ac61ad7a8bff82dc39bae1a167cdd98bbbe8937bece75271`。
+- `/tmp/easyai-builder-dependency-20261018-unique1.log` SHA256 `2d5d739f90ca435e406a1e3ec65b425c159ec6aee3938aaf9618851ca2a18bd3`。
+- `/tmp/easyai-builder-dependency-20261018-unique2.log` SHA256 `d8a2294223e509a93cdf9f7635795bb43d93e4195886cbbb192cc590d9026704`。
+- `/tmp/easyai-builder-electron-20261018-unique1.log` SHA256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`。
+- `/tmp/easyai-builder-electron-20261018-unique2.log` SHA256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`。
+- `/tmp/easyai-builder-lock-20261018-unique1.log` SHA256 `061536f492c75a59453142577e85ea5ea03df74d8d72d220b378a65a9e22842c`。
+- `/tmp/easyai-builder-package-20261018-final1.log` SHA256 `f93db63ba258805bf15257ffe778a1b3526051c71eef22a0170c39ec9ea07f3f`。
+- `/tmp/easyai-builder-package-20261018-unique1.log` SHA256 `5f9105b8e591c5aa3d96455ce597c4e71801ad6167ae6629abb6ff39c72aa084`。
+- `/tmp/easyai-builder-package-20261018-unique2.log` SHA256 `013478821109783afa9146d843821c5548a7f12d140c97bc149591e686aa634f`。
+- `/tmp/easyai-builder-privacy-fix-review-lAQZcS.log` SHA256 `5eea1e59480bd39ed6aa13730b65bc0e37a3c8c1c8a55ef3e57d0deb5fab6c84`。
+- `/tmp/easyai-builder-private-repro-20261018-unique1.log` SHA256 `56309c1c83a79348315cd41456a0f577eed4995386abff086b00c015907de3e8`。
+- `/tmp/easyai-builder-sidecar-20261018-unique1.log` SHA256 `598e651d8bfd55009c56cd315d848d8185d98d8ae4eb67c6d0dd2d14af4ed0c3`。
+- `/tmp/easyai-builder-tests-20261018-final1.log` SHA256 `9af6b78547c5efd83671ac9ecb6b9d93b073780912a81033e6b02321b08e54eb`。
+- `/tmp/easyai-builder-tests-20261018-final2.log` SHA256 `167f8d6666ead3407e9eb93a996f4827789b11d5d4d83fc3f3daf62ae4e3be8b`。
+- `/tmp/easyai-builder-tests-20261018-final3.log` SHA256 `cb645f0eae6091cc2bea656db761d25a40ee93b4b3b035bc7e40f5d03b610794`。
+- `/tmp/easyai-builder-tests-20261018-final4.log` SHA256 `4dec6a2f705b700a273b134af420ea79e628508529e780463cabdafa14239784`。
+- `/tmp/easyai-builder-tests-20261018-unique1.log` SHA256 `b90490dcb0e20cec305677aa776b9419ccbc14ed87b45a8a3f1a9acabb175312`。
+- `/tmp/easyai-builder-verify-20261018-unique1.log` SHA256 `4fbf4cd56d24c9333dbbded7edb1de4a753f0600daa8691e7f1e8cb148936176`。
+
+NOT RUN：真实Electron原生窗口/沙盒运行、无Node/开发Python干净目标机编辑及连接已备训练环境、Windows/macOS/跨平台包/签名/安装升级卸载/课堂恢复/性能矩阵、真实安装/probe/bootstrap/pip/训练/数据模型下载/真实SSH、新CI读取或发布。原生sandbox与Actions端点已有拒绝仍不重试/绕过；不是本片新拒绝。未出现待确认新条款/费用/安全权限；无不确定外部写入。实际产包+HTTP/编译smoke不等于完整M8.2/M8/B，平台真实可用性仍需目标机验收。
+
+原计划116185字节SHA dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43、旧规格5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190、README befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852及core/ML/CV六份来源与锁全部未改。旧portable source7b91c46保持，其package-manifest SHA5f26ba7bb27917e717faec81c69d98ea97e3e39064ac4490b3e65fcc012fd937，新builder产物独立，不冒充旧portable更新。CIFAR待裁决、OpenCV native未核unsupported、旧226PASS/1FAIL根因UNKNOWN及真实M5/M6.3条件仍保留。
+
+下一项为父侧核对正式builder依赖/布局/包证据与隐私P2收口；后续M8.2目标机/原生窗口验收需已有阻塞解除或明确可用目标条件，不自动发布或扩权限。没有main/强推/PR/Release/部署/付费/凭据/安全权限变更。工作区证据提交后仅正常开发分支push并核远端完整SHA。

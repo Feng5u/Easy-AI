@@ -8,6 +8,7 @@ import {
   rm,
   readFile,
   chmod,
+  lstat,
 } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
@@ -61,7 +62,7 @@ async function fixture(t, extra) {
     records.push({
       path: file,
       bytes: (await readFile(join(root, "artifacts", file))).length,
-      mode: 0o644,
+      mode: (await lstat(join(root, "artifacts", file))).mode & 0o777,
       sha256: await hash(join(root, "artifacts", file)),
     });
   const manifest = {
