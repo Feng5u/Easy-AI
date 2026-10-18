@@ -130,6 +130,23 @@ export class SessionWorkflow {
         throw new Error("SSH_AUTH_CANCELLED");
     }
   }
+  async scoped<T>(
+    projectId: string,
+    connectionId: string,
+    action: (backend: Backend) => Promise<T>,
+  ): Promise<T> {
+    const operation = this.active;
+    if (
+      !operation ||
+      operation.projectId !== projectId ||
+      operation.info?.scope.connectionId !== connectionId
+    )
+      throw new Error("SSH_CONNECTION_INVALID");
+    await this.verify(operation, true);
+    const value = await this.race(operation, action(operation.backend));
+    await this.verify(operation, true);
+    return value;
+  }
   async invoke(channel: string, args: unknown[]): Promise<unknown> {
     if (channel === "easyai:connections:authenticate")
       return this.authenticate(args);

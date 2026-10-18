@@ -303,3 +303,34 @@ def test_bundle_can_export_managed_core_from_frozen_resource_layout(tmp_path, mo
     monkeypatch.setattr(bundle, "RUNTIME_ROOT", resources)
     bundle.export_bundle(compile_project(project()), tmp_path / "exported")
     assert (tmp_path / "exported/code/managed.py").read_bytes() == expected
+
+
+def test_explicit_cpu_never_silently_selects_available_accelerator():
+    from types import SimpleNamespace
+
+    tree = ast.parse(compile_project(project()).result.code)
+    selection = next(
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.If) and ast.unparse(node.test) == "context.device != 'auto'"
+    )
+
+    def unexpected():
+        pytest.fail("Explicit CPU must not auto-probe/select an accelerator")
+
+    scope = {
+        "context": SimpleNamespace(device="cpu"),
+        "torch": SimpleNamespace(
+            device=lambda name: SimpleNamespace(type=name),
+            cuda=SimpleNamespace(is_available=unexpected),
+            backends=SimpleNamespace(mps=SimpleNamespace(is_available=unexpected)),
+        ),
+    }
+    exec(compile(ast.Module(body=[selection], type_ignores=[]), "device-fixture", "exec"), scope)
+    assert scope["device"].type == "cpu"
+    scope["context"].device = "cuda"
+    scope["torch"].cuda.is_available = lambda: False
+    with pytest.raises(RuntimeError, match="Configured CUDA"):
+        exec(
+            compile(ast.Module(body=[selection], type_ignores=[]), "device-fixture", "exec"), scope
+        )

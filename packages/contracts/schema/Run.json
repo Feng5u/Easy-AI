@@ -25,6 +25,77 @@
       "title": "QuickLimits",
       "type": "object"
     },
+    "RemoteExecution": {
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "title": "Host",
+          "type": "string"
+        },
+        "port": {
+          "title": "Port",
+          "type": "integer"
+        },
+        "username": {
+          "title": "Username",
+          "type": "string"
+        },
+        "hostFingerprint": {
+          "title": "Hostfingerprint",
+          "type": "string"
+        },
+        "executionState": {
+          "enum": [
+            "CREATED",
+            "STAGING",
+            "STARTING",
+            "RUNNING",
+            "CANCELLING",
+            "CLEANUP_PENDING",
+            "COMPLETED",
+            "FAILED",
+            "CANCELLED"
+          ],
+          "title": "Executionstate",
+          "type": "string"
+        },
+        "startOutcome": {
+          "enum": [
+            "not_attempted",
+            "unknown",
+            "acknowledged"
+          ],
+          "title": "Startoutcome",
+          "type": "string"
+        },
+        "cancelState": {
+          "enum": [
+            "none",
+            "pending",
+            "acknowledged",
+            "resolved"
+          ],
+          "title": "Cancelstate",
+          "type": "string"
+        },
+        "artifactsVerified": {
+          "default": false,
+          "title": "Artifactsverified",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "host",
+        "port",
+        "username",
+        "hostFingerprint",
+        "executionState",
+        "startOutcome",
+        "cancelState"
+      ],
+      "title": "RemoteExecution",
+      "type": "object"
+    },
     "RunConfig": {
       "additionalProperties": false,
       "properties": {
@@ -97,6 +168,29 @@
           ],
           "default": null,
           "title": "Environmentprefix"
+        },
+        "condaExecutable": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Condaexecutable"
+        },
+        "device": {
+          "default": "auto",
+          "enum": [
+            "auto",
+            "cpu",
+            "cuda",
+            "mps"
+          ],
+          "title": "Device",
+          "type": "string"
         },
         "executionMode": {
           "enum": [
@@ -173,6 +267,8 @@
         "STAGING",
         "STARTING",
         "RUNNING",
+        "CLEANUP_PENDING",
+        "COMPLETED",
         "SUCCEEDED",
         "FAILED",
         "CANCELLING",
@@ -203,6 +299,17 @@
     },
     "config": {
       "$ref": "#/$defs/RunConfig"
+    },
+    "remote": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RemoteExecution"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     }
   },
   "required": [

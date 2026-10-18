@@ -56,9 +56,10 @@ def config(dataset=None):
     return {"nonce": "11111111-1111-4111-8111-111111111111", "device": "cpu", "dataset": dataset}
 
 
+@pytest.mark.parametrize("missing_train", [False, True])
 @pytest.mark.parametrize("name", ["MNIST", "FashionMNIST", "CIFAR10"])
 def test_fixed_payload_executes_small_conv_and_exact_offline_dataset_call_with_synthetic_modules(
-    payload, monkeypatch, name
+    payload, monkeypatch, name, missing_train
 ):
     calls = []
 
@@ -96,6 +97,8 @@ def test_fixed_payload_executes_small_conv_and_exact_offline_dataset_call_with_s
 
     def constructor(**kwargs):
         calls.append(("dataset", kwargs))
+        if missing_train and kwargs["train"]:
+            raise RuntimeError("synthetic missing training split")
         return Dataset()
 
     vision = SimpleNamespace(
@@ -111,16 +114,24 @@ def test_fixed_payload_executes_small_conv_and_exact_offline_dataset_call_with_s
     report = EnvironmentProbeReport.model_validate(
         payload.inspect_environment(config({"name": name, "dataRoot": "/remote/teacher data"}))
     )
-    assert report.tensor.ok and report.dataset.ok
+    assert report.tensor.ok
+    if missing_train:
+        assert not report.dataset.ok
+        assert [call[1]["train"] for call in calls if call[0] == "dataset"] == [True]
+        return
+    assert report.dataset.ok
     assert ("conv-created", (1, 1, 3), {"bias": False}) in calls
     assert any(call[0] == "conv-executed" for call in calls)
-    dataset_call = next(call[1] for call in calls if call[0] == "dataset")
-    assert dataset_call == {
-        "root": "/remote/teacher data",
-        "train": False,
-        "transform": "synthetic-transform",
-        "download": False,
-    }
+    dataset_calls = [call[1] for call in calls if call[0] == "dataset"]
+    assert dataset_calls == [
+        {
+            "root": "/remote/teacher data",
+            "train": training,
+            "transform": "synthetic-transform",
+            "download": False,
+        }
+        for training in (True, False)
+    ]
 
 
 def test_missing_imports_keep_device_state_unknown_and_never_attempt_data_or_tensor(

@@ -46,7 +46,8 @@ def _config(raw: bytes) -> dict[str, Any]:
         or set(value) != {"nonce", "device", "dataset"}
         or not isinstance(value["nonce"], str)
         or not re.fullmatch(
-            r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", value["nonce"]
+            r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+            value["nonce"],
         )
         or value["device"] not in ("cpu", "cuda", "mps")
     ):
@@ -135,21 +136,22 @@ def inspect_environment(config: dict[str, Any]) -> dict[str, Any]:
         vision = modules["torchvision"]
         if torch is not None and vision is not None:
             try:
-                # Fixed whitelist and test split, no download or dataset writes.
+                # Fixed whitelist, both required splits; no download or dataset writes.
                 constructor = getattr(vision.datasets, binding["name"])
-                selected_data = constructor(
-                    root=binding["dataRoot"],
-                    train=False,
-                    transform=vision.transforms.ToTensor(),
-                    download=False,
-                )
-                if len(selected_data) < 1:
-                    raise ValueError("Empty dataset")
-                sample, label = selected_data[0]
-                shape = list(sample.shape)
-                expected = [3, 32, 32] if binding["name"] == "CIFAR10" else [1, 28, 28]
-                if shape != expected or type(label) is not int or not 0 <= label <= 9:
-                    raise ValueError("Invalid sample")
+                for training_split in (True, False):
+                    selected_data = constructor(
+                        root=binding["dataRoot"],
+                        train=training_split,
+                        transform=vision.transforms.ToTensor(),
+                        download=False,
+                    )
+                    if len(selected_data) < 1:
+                        raise ValueError("Empty dataset")
+                    sample, label = selected_data[0]
+                    shape = list(sample.shape)
+                    expected = [3, 32, 32] if binding["name"] == "CIFAR10" else [1, 28, 28]
+                    if shape != expected or type(label) is not int or not 0 <= label <= 9:
+                        raise ValueError("Invalid sample")
                 dataset.update(
                     ok=True,
                     sampleShape=shape,

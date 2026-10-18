@@ -11,16 +11,27 @@ export interface RunEventState {
   runId: string;
   after: number;
   points: EpochPoint[];
+  device: string | null;
   errors: { seq: number; blockId: string | null; message: string }[];
 }
 export const isTerminal = (status: Run["status"]) =>
   ["SUCCEEDED", "FAILED", "CANCELLED", "INTERRUPTED"].includes(status);
+export const isRunSettled = (run: Run) =>
+  run.config.runner === "ssh"
+    ? !!run.remote &&
+      ["COMPLETED", "FAILED", "CANCELLED"].includes(
+        run.remote.executionState,
+      ) &&
+      ["complete", "error"].includes(run.syncState)
+    : isTerminal(run.status);
 export const statusLabel: Record<Run["status"], string> = {
   CREATED: "已创建",
   PRECHECKING: "检查中",
   STAGING: "准备中",
   STARTING: "启动中",
   RUNNING: "运行中",
+  CLEANUP_PENDING: "等待进程清理确认",
+  COMPLETED: "执行已结束，产物尚未完整验证",
   SUCCEEDED: "已成功完成",
   FAILED: "运行失败",
   CANCELLING: "正在停止",
@@ -28,7 +39,7 @@ export const statusLabel: Record<Run["status"], string> = {
   INTERRUPTED: "运行中断",
 };
 export function emptyEvents(runId: string): RunEventState {
-  return { runId, after: 0, points: [], errors: [] };
+  return { runId, after: 0, points: [], errors: [], device: null };
 }
 export function applyRunEvent(
   state: RunEventState,
@@ -41,6 +52,12 @@ export function applyRunEvent(
   )
     return state;
   const next = { ...state, after: event.seq };
+  if (
+    event.type === "device_selected" &&
+    typeof event.payload.device === "string" &&
+    event.payload.device.length <= 64
+  )
+    next.device = event.payload.device;
   if (event.type === "epoch_completed") {
     const {
       epoch,

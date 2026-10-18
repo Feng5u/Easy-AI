@@ -1,4 +1,4 @@
-"""Local protocol slice. Paths come from trusted Main bindings, never renderer text."""
+"""Shared local/SSH run ledger; runner authority comes from saved backend bindings."""
 
 import csv
 import hashlib
@@ -13,6 +13,7 @@ from easyai.compiler.bundle import export_bundle
 from easyai.compiler.pipeline import compile_project
 from easyai.domain.contracts import ArtifactRecord, Contract, Event, Run, RunConfig
 from easyai.domain.program import ProgramIR
+from easyai.domain.remote_run import RemoteRunIdentity
 from easyai.security.project_lock import ProjectLock
 from easyai.security.files import read_regular, digest_regular
 from easyai.services.event_journal import EventJournal, read_runtime_events
@@ -34,6 +35,7 @@ class RunEntry(Contract):
     snapshot_hash: str
     idempotency_hash: str
     request_hash: str
+    remote_identity: RemoteRunIdentity | None = None
 
 
 class RunLedger(Contract):
@@ -56,6 +58,9 @@ class RunService:
         self._supervisors: dict[str, object] = {}
         self._journals: dict[str, EventJournal] = {}
         self._closed = False
+        from easyai.services.remote_runs import RemoteRuns
+
+        self.remote = RemoteRuns(self)
         try:
             path = self.root / "catalog.json"
             if path.is_symlink():
@@ -71,9 +76,13 @@ class RunService:
                     raise ValueError("RUN_IDENTITY_CONFLICT")
                 if entry.run.status not in TERMINAL:
                     entry.run.connection_state = "disconnected"
+            self.remote.recover()
             # Recovered active processes are intentionally unknown: no PID-based kill,
             # automatic rerun or fabricated INTERRUPTED/exit code.
         except BaseException:
+            self.remote.close()
+            for journal in self._journals.values():
+                journal.close()
             self._lock.close()
             raise
 
@@ -116,8 +125,9 @@ class RunService:
             journal = EventJournal(path, run_id, "application")
             self._journals[run_id] = journal
             try:
-                self._fold_status(run_id, journal.after(0))
-                self._write_views(run_id, journal.after(0))
+                if self._ledger.entries[run_id].run.config.runner == "local":
+                    self._fold_status(run_id, journal.after(0))
+                    self._write_views(run_id, journal.after(0))
             except BaseException:
                 self._journals.pop(run_id).close()
                 raise
@@ -165,7 +175,14 @@ class RunService:
                     return self.get(entry.run.run_id)
             for previous in list(self._ledger.entries):
                 self._refresh(previous)
-            if any(entry.run.status not in TERMINAL for entry in self._ledger.entries.values()):
+            current_document = project.snapshot(expected_revision).document
+            if current_document is None:
+                raise ValueError("PROJECT_READ_ONLY")
+            if any(
+                entry.run.project_id == current_document.project_id
+                and not self.remote.settled(entry.run)
+                for entry in self._ledger.entries.values()
+            ):
                 raise ValueError("RUN_ACTIVE_CONFLICT")
             opened = project.snapshot(expected_revision)
             document = opened.document
@@ -267,6 +284,8 @@ class RunService:
             self._verify()
             self.get(run_id)
             run = self._ledger.entries[run_id].run
+            if run.config.runner != "local":
+                raise ValueError("REMOTE_START_REQUIRES_AUTHENTICATED_BINDING")
             if run_id in self._supervisors:
                 return self.get(run_id)
             if run.status != "CREATED":
@@ -313,69 +332,26 @@ class RunService:
             return run.model_copy(deep=True)
 
     def _artifacts_complete(self, run_id: str, events: list[Event]) -> bool:
-        directory = self._directory(run_id)
+        from easyai.services.run_completion import artifacts_complete
+
         program = ProgramIR.model_validate_json(
             read_regular(self._safe_path(run_id, "program.ir.json"), 5 * 1024 * 1024)
         )
-        expected_epochs = 1 if program.execution_mode == "quick" else program.training.epochs
-        metrics = [event.payload for event in events if event.type == "epoch_completed"]
-        completed = [event.payload for event in events if event.type == "pipeline_completed"]
-        if [item["epoch"] for item in metrics] != list(range(1, expected_epochs + 1)) or len(
-            completed
-        ) != 1:
-            return False
-        if (
-            completed[0].get("epochs") != expected_epochs
-            or completed[0].get("executionMode") != program.execution_mode
-        ):
-            return False
-        expected: set[tuple[str, str, str | None, int | None]] = {
-            (program.training.origin.block_id, "model", None, None)
-        }
-        for phase, figures in (
-            ("before", program.training.before),
-            ("epoch_end", program.training.body),
-            ("after", program.training.after),
-        ):
-            for figure in figures:
-                for epoch in (
-                    range(
-                        1, (1 if program.execution_mode == "quick" else program.training.epochs) + 1
-                    )
-                    if phase == "epoch_end"
-                    else [None]
-                ):
-                    expected.add((figure.id, "figure", phase, epoch))
-        actual: set[tuple[str, str, str | None, int | None]] = set()
-        for event in events:
-            if event.type != "artifact_created":
-                continue
-            item = ArtifactRecord.model_validate(event.payload)
+
+        def verified(item: ArtifactRecord) -> bool:
+            if item.run_id != run_id:
+                return False
             path = PurePosixPath(item.relative_path)
-            if (
-                item.run_id != run_id
-                or not path.parts
-                or path.parts[0] != "outputs"
-                or path.is_absolute()
-                or ".." in path.parts
-                or "\\" in item.relative_path
-            ):
+            if not path.parts or path.parts[0] != "outputs":
                 return False
-            target = directory
-            for part in path.parts:
-                target = target / part
-                if target.is_symlink():
-                    return False
-            if (
-                not target.is_file()
-                or target.stat().st_size != item.size_bytes
-                or item.size_bytes == 0
-            ):
-                return False
-            if digest_regular(target, min(item.size_bytes, 5_000_000_000)) != item.sha256:
-                return False
-            actual.add((item.producer_block_id, item.kind, item.phase, item.epoch))
-        return expected <= actual
+            target = self._safe_path(run_id, item.relative_path)
+            return (
+                target.is_file()
+                and target.stat().st_size == item.size_bytes
+                and digest_regular(target, min(item.size_bytes, 5_000_000_000)) == item.sha256
+            )
+
+        return artifacts_complete(program, events, verified)
 
     def _fold_status(self, run_id: str, events: list[Event]) -> None:
         # Application journal is the durable fact; catalog is its replaceable cache.
@@ -439,6 +415,8 @@ class RunService:
                 if item.run_id != run_id:
                     raise ValueError("RUN_ARTIFACT_IDENTITY_INVALID")
                 artifacts.append(item.model_dump(by_alias=True))
+        if self._ledger.entries[run_id].run.config.runner == "ssh":
+            artifacts = [item.model_dump(by_alias=True) for item in self.remote.artifacts(run_id)]
         output = io.StringIO(newline="")
         writer = csv.DictWriter(output, fieldnames=METRICS)
         writer.writeheader()
@@ -452,6 +430,8 @@ class RunService:
         )
 
     def _refresh(self, run_id: str) -> None:
+        if self._ledger.entries[run_id].run.config.runner == "ssh":
+            return  # One explicit worker owns SSH I/O; GET/SSE remain cache-only.
         from easyai.runtime.supervisor import ManagedSupervisor
 
         raw = self._supervisors.get(run_id)
@@ -542,6 +522,8 @@ class RunService:
     def cancel(self, run_id: str) -> Run:
         from easyai.runtime.supervisor import ManagedSupervisor
 
+        if self.get(run_id).config.runner == "ssh":
+            return self.remote.cancel(run_id)
         with self._mutex:
             run = self.get(run_id)
             if run.status in TERMINAL:
@@ -564,6 +546,7 @@ class RunService:
     def close(self) -> None:
         from easyai.runtime.supervisor import ManagedSupervisor
 
+        self.remote.close()  # Keep the store/journal locks until all I/O is quiescent.
         with self._mutex:
             if self._closed:
                 return

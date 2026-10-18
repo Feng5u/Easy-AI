@@ -210,11 +210,34 @@ class RunConfig(Contract):
     run_root: str
     python_executable: str
     environment_prefix: str | None = None
+    conda_executable: str | None = None
+    device: Literal["auto", "cpu", "cuda", "mps"] = "auto"
     execution_mode: Literal["full", "quick"]
     seed: int = Field(ge=0, le=4294967295)
     num_workers: int = Field(ge=0, le=16)
     pin_memory_policy: Literal["cuda_only"] = "cuda_only"
     quick_limits: QuickLimits | None = None
+
+
+class RemoteExecution(Contract):
+    host: str
+    port: int
+    username: str
+    host_fingerprint: str
+    execution_state: Literal[
+        "CREATED",
+        "STAGING",
+        "STARTING",
+        "RUNNING",
+        "CANCELLING",
+        "CLEANUP_PENDING",
+        "COMPLETED",
+        "FAILED",
+        "CANCELLED",
+    ]
+    start_outcome: Literal["not_attempted", "unknown", "acknowledged"]
+    cancel_state: Literal["none", "pending", "acknowledged", "resolved"]
+    artifacts_verified: bool = False
 
 
 class Run(Contract):
@@ -226,6 +249,8 @@ class Run(Contract):
         "STAGING",
         "STARTING",
         "RUNNING",
+        "CLEANUP_PENDING",
+        "COMPLETED",
         "SUCCEEDED",
         "FAILED",
         "CANCELLING",
@@ -235,6 +260,7 @@ class Run(Contract):
     connection_state: Literal["connected", "disconnected", "reconnecting"]
     sync_state: Literal["pending", "syncing", "complete", "error"]
     config: RunConfig
+    remote: RemoteExecution | None = None
 
 
 class CompileRequest(Contract):

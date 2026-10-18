@@ -40,13 +40,13 @@ class OwnerSshTransport:
         bundle: RemoteBundle,
         mutex: threading.RLock,
         guard: Callable[[], None],
-        sftp_factory: Callable[[Any], Any] = paramiko.SFTPClient,
+        sftp_factory: Callable[[Any], Any] | None = None,
         *,
         allow_start: bool = False,
     ):
         self.session, self.bundle = session, bundle
         self.identity = bundle.identity
-        self.mutex, self.guard, self.factory = mutex, guard, sftp_factory
+        self.mutex, self.guard, self.factory = mutex, guard, sftp_factory or paramiko.SFTPClient
         self._busy = threading.Lock()
         self._closed = threading.Event()
         self._start_sent = False
@@ -180,7 +180,9 @@ class OwnerSshTransport:
     def _uid(self, check: Callable[[], None]) -> int:
         if self._uid_value is None:
             nonce = str(uuid4())
-            value = self._command((self.bundle.python, "-I", "-B", "-c", UID_CODE, nonce), check)
+            value = self._command(
+                (*self.bundle.python_argv(), "-I", "-B", "-c", UID_CODE, nonce), check
+            )
             if (
                 not isinstance(value, dict)
                 or set(value) != {"uid", "nonce", "platform"}
@@ -309,7 +311,7 @@ class OwnerSshTransport:
                 self._start_sent = True  # BEFORE possibly consuming exec, never reset.
         return self._command(
             (
-                self.bundle.python,
+                *self.bundle.python_argv(),
                 "-I",
                 "-B",
                 self.identity.run_root + "/code/supervisor.py",
@@ -338,7 +340,14 @@ class OwnerSshTransport:
         self, identity: RemoteRunIdentity, *, timeout: float
     ) -> RemoteRunObservation | None:
         def action(check: Callable[[], None]) -> RemoteRunObservation | None:
+            # A detached serve can take a short interval to publish its first
+            # heartbeat. Only repeat read-only inspection, never start.
+            until = time.monotonic() + 0.35
             value = self._owner("inspect", check)
+            while value is None and time.monotonic() < until:
+                time.sleep(0.05)
+                check()
+                value = self._owner("inspect", check)
             observed = RemoteRunObservation.model_validate(value) if value is not None else None
             if observed is not None and observed.identity != identity:
                 raise RemoteUnavailable()

@@ -94,11 +94,20 @@ class RemoteRunCheckpoint(Contract):
     connection_state: Literal["connected", "disconnected"] = "disconnected"
     # COMPLETED is only execution exit evidence. Artifact verification is a later gate.
     artifacts_verified: Literal[False] = False
+    # Durable local proof: cancellation won before any consuming start intent.
+    cancelled_before_start: bool = False
     last_connection_id: Identifier | None = None
     last_observation: RemoteRunObservation | None = None
 
     @model_validator(mode="after")
     def checkpoint_identity(self) -> Self:
+        if self.cancelled_before_start and (
+            self.execution_state != "CANCELLED"
+            or self.start_outcome != "not_attempted"
+            or self.cancel_state != "resolved"
+            or self.last_observation is not None
+        ):
+            raise ValueError("REMOTE_LOCAL_CANCEL_EVIDENCE_INVALID")
         if self.last_observation is not None and (
             self.last_observation.identity != self.identity
             or self.last_observation.state != self.execution_state
@@ -108,6 +117,7 @@ class RemoteRunCheckpoint(Contract):
         if (
             self.execution_state in ("COMPLETED", "FAILED", "CANCELLED")
             and self.last_observation is None
+            and not self.cancelled_before_start
         ):
             raise ValueError("REMOTE_CHECKPOINT_EXIT_MISSING")
         return self

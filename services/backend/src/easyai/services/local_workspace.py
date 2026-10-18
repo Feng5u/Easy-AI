@@ -15,10 +15,16 @@ from uuid import uuid4
 from easyai.compiler.pipeline import compile_project
 from easyai.domain.catalog import TEMPLATE_PATH, BLANK_TEMPLATE_PATH
 from easyai.domain.contracts import ProjectDocument, Run
+from easyai.domain.connections import SessionControl
+from easyai.domain.remote_execution import (
+    RemoteBinding,
+    RemoteBindingRequest,
+    RemoteRunStartRequest,
+)
 from easyai.domain.desktop import ProjectSession, RunStartRequest, SelectionResult
 from easyai.security.files import read_regular
 from easyai.services.project_service import ProjectService, read_project, validate_project_bytes
-from easyai.services.run_service import RunService, TERMINAL
+from easyai.services.run_service import RunService
 
 SelectionKind = Literal["project", "python", "data"]
 if TYPE_CHECKING:
@@ -214,6 +220,10 @@ class LocalWorkspace:
         self._projects: dict[str, ProjectService] = {}
         self._current: str | None = None
         self._closed = False
+        self._closing = False
+        self._remote_bindings: dict[
+            str, tuple[RemoteBinding, str, str | None, float, dict[str, Any]]
+        ] = {}
         self._ssh_client: SshClient | None = None
         self._ssh_identity: SshIdentityService | None = None
         self._connections: ConnectionManager | None = None
@@ -233,7 +243,7 @@ class LocalWorkspace:
                 self._restore_error = True
 
     def _verify(self) -> None:
-        if self._closed:
+        if self._closed or self._closing:
             raise ValueError("LOCAL_WORKSPACE_CLOSED")
 
     def ssh(self) -> "SshClient":
@@ -273,6 +283,7 @@ class LocalWorkspace:
 
     def begin_identity_probe(self) -> None:
         with self._mutex:
+            self._remote_bindings.clear()
             if self._connections is not None:
                 self._connections.invalidate()
 
@@ -287,6 +298,7 @@ class LocalWorkspace:
             raise ValueError("SSH_IDENTITY_PROJECT_CHANGED")
 
     def _invalidate_identity(self) -> None:
+        self._remote_bindings.clear()
         if self._connections is not None:
             self._connections.invalidate()
         if self._ssh_identity is not None:
@@ -521,7 +533,142 @@ class LocalWorkspace:
             service.save(document, revision)
             return self._session(service)
 
-    def start(self, project_id: str, request: RunStartRequest, key: str) -> Run:
+    def require_run(self, run_id: str) -> Run:
+        with self._mutex:
+            self._verify()
+            entry = self.runs._ledger.entries.get(run_id)
+            if entry is None or entry.run.project_id != self._current or self._readonly is not None:
+                raise KeyError("RUN_NOT_IN_CURRENT_PROJECT")
+            return entry.run.model_copy(deep=True)
+
+    def bind_remote(self, project_id: str, request: RemoteBindingRequest) -> RemoteBinding:
+        with self._mutex:
+            self._identity_project(project_id)
+            if request.project_id != project_id:
+                raise ValueError("REMOTE_BINDING_PROJECT_INVALID")
+            manager = self.connections()
+            control = SessionControl(project_id=project_id, connection_id=request.connection_id)
+            auth = manager.current(control)
+            if auth is None:
+                raise ValueError("REMOTE_AUTHENTICATION_REQUIRED")
+            report, conda, remaining = manager.environments(request).authority(
+                request, request.probe_request_id
+            )
+            opened = self._projects[project_id].snapshot(request.expected_revision)
+            if opened.document is None:
+                raise ValueError("PROJECT_READ_ONLY")
+            compiled = compile_project(opened.document)
+            if not compiled.result.runnable or compiled.program is None:
+                raise ValueError("PROJECT_NOT_RUNNABLE")
+            if compiled.result.program_hash != request.expected_program_hash:
+                raise ValueError("PROGRAM_HASH_CONFLICT")
+            dataset = report.report.dataset
+            if (
+                not report.environment_ready
+                or report.data_ready is not True
+                or dataset is None
+                or not dataset.ok
+            ):
+                raise ValueError("REMOTE_DATA_NOT_VERIFIED")
+            if {item.dataset_name for item in compiled.program.datasets} != {dataset.name}:
+                raise ValueError("REMOTE_DATA_BINDING_MISMATCH")
+            if report.scope != auth.scope:
+                raise ValueError("REMOTE_BINDING_SCOPE_INVALID")
+            root = request.run_base
+            if any(part in ("", ".", "..") for part in root.split("/")[1:]):
+                raise ValueError("REMOTE_RUN_BASE_INVALID")
+            now = time.monotonic()
+            self._remote_bindings = {
+                key: item for key, item in self._remote_bindings.items() if item[3] > now
+            }
+            if len(self._remote_bindings) >= 64:
+                raise ValueError("REMOTE_BINDING_LIMIT")
+            binding = RemoteBinding(
+                binding_id=str(uuid4()),
+                project_id=project_id,
+                connection_id=auth.scope.connection_id,
+                target_id=str(uuid4()),
+                environment_id=report.environment_id,
+                data_binding_id=str(uuid4()),
+                project_revision=opened.document.revision,
+                program_hash=compiled.result.program_hash,
+                python_executable=report.report.python.executable,
+                environment_prefix=report.report.python.prefix if conda else None,
+                device=report.report.tensor.device,
+                dataset_name=dataset.name,
+                data_root=dataset.data_root,
+                run_base=root,
+                expires_in_seconds=min(remaining, auth.expires_in_seconds),
+            )
+            evidence = {
+                "probe": report.model_dump(mode="json", by_alias=True),
+                "condaExecutable": conda,
+                "binding": binding.model_dump(mode="json", by_alias=True),
+            }
+            self._remote_bindings[binding.binding_id] = (
+                binding,
+                request.probe_request_id,
+                conda,
+                now + binding.expires_in_seconds,
+                evidence,
+            )
+            return binding
+
+    def _start_remote(self, project_id: str, request: RemoteRunStartRequest, key: str) -> Run:
+        with self._mutex:
+            self._identity_project(project_id)
+            replay = self.runs.remote.replay(project_id, request, key)
+            if replay is not None:
+                return replay  # No grant renewal, authentication, network I/O or restart.
+            stored = self._remote_bindings.get(request.binding_id)
+            if stored is None or time.monotonic() >= stored[3]:
+                raise ValueError("REMOTE_BINDING_EXPIRED")
+            binding, probe_id, _conda, _expiry, evidence = stored
+            if (
+                binding.project_id != project_id
+                or binding.project_revision != request.expected_revision
+                or binding.program_hash != request.expected_program_hash
+            ):
+                raise ValueError("REMOTE_BINDING_SNAPSHOT_INVALID")
+            manager = self.connections()
+            control = SessionControl(project_id=project_id, connection_id=binding.connection_id)
+            auth = manager.current(control)
+            if auth is None:
+                raise ValueError("REMOTE_AUTHENTICATION_REQUIRED")
+            from easyai.domain.environment import EnvironmentRequest
+
+            scope_request = EnvironmentRequest(
+                project_id=project_id, connection_id=binding.connection_id, request_id=str(uuid4())
+            )
+            report, conda, _remaining = manager.environments(scope_request).authority(
+                scope_request, probe_id
+            )
+            if (
+                report.model_dump(mode="json", by_alias=True) != evidence["probe"]
+                or conda != evidence["condaExecutable"]
+            ):
+                raise ValueError("REMOTE_BINDING_AUTHORITY_CHANGED")
+            run = self.runs.remote.prepare(
+                self._projects[project_id], request, key, binding, auth, evidence
+            )
+        return self.runs.remote.begin(run.run_id, manager, control, initial=True)
+
+    def resume_remote(self, run_id: str, request: SessionControl) -> Run:
+        with self._mutex:
+            run = self.require_run(run_id)
+            self._identity_project(request.project_id)
+            if run.project_id != request.project_id or run.config.runner != "ssh":
+                raise ValueError("REMOTE_RESUME_TARGET_INVALID")
+            if self.runs.remote.settled(run) and run.sync_state == "complete":
+                return run
+            manager = self.connections()
+        return self.runs.remote.begin(run_id, manager, request, initial=False)
+
+    def start(
+        self, project_id: str, request: RunStartRequest | RemoteRunStartRequest, key: str
+    ) -> Run:
+        if isinstance(request, RemoteRunStartRequest):
+            return self._start_remote(project_id, request, key)
         with self._mutex:
             self._verify()
             project = self._projects[project_id]
@@ -569,7 +716,7 @@ class LocalWorkspace:
                 "activeRunIds": [
                     identity
                     for identity in identities
-                    if self.runs.get(identity).status not in TERMINAL
+                    if not self.runs.remote.settled(self.runs.get(identity))
                 ]
             }
 
@@ -577,12 +724,13 @@ class LocalWorkspace:
         with self._mutex:
             if self._closed:
                 return
+            self._closing = True
             self._invalidate_identity()
-            try:
-                self.runs.close()
-            finally:
-                for project in self._projects.values():
-                    project.close()
-                self._closed = True
+        # SDK workers may need the workspace guard to unwind. Never wait under it.
+        self.runs.close()
         if self._connections is not None:
             self._connections.wait_idle()
+        with self._mutex:
+            for project in self._projects.values():
+                project.close()
+            self._closed = True

@@ -5,11 +5,13 @@ import type {
   DesktopAPI,
   Run,
   RunSource,
+  AuthenticatedConnection,
 } from "../electron/bridge.js";
 import {
   applyRunEvent,
   emptyEvents,
   isTerminal,
+  isRunSettled,
   statusLabel,
 } from "./runEvents.js";
 import type { EpochPoint, RunEventState } from "./runEvents.js";
@@ -109,9 +111,11 @@ export function MetricSeries({ points }: { points: EpochPoint[] }) {
 export function RunSummary({
   run,
   connection,
+  device,
 }: {
   run: Run;
   connection: ConnectionState;
+  device?: string | null;
 }) {
   return (
     <div className="run-summary">
@@ -128,11 +132,38 @@ export function RunSummary({
         }
       </span>
       <span>
-        执行位置：本机 ·{" "}
+        执行位置：
+        {run.config.runner === "ssh"
+          ? `${run.remote?.username ?? "待确认"}@${run.remote?.host ?? "服务器"}:${run.remote?.port ?? 22}`
+          : "本机"}{" "}
+        ·{" "}
         {run.config.executionMode === "quick"
           ? "快速检查（小样本）"
           : "完整工程参数"}
       </span>
+      {run.config.runner === "ssh" && (
+        <>
+          <span>
+            服务器读取：
+            {run.connectionState === "connected"
+              ? "已连接"
+              : run.connectionState === "reconnecting"
+                ? "等待核实原任务"
+                : "已断开，执行状态可能尚未更新"}
+          </span>
+          <span>
+            产物同步：{run.syncState}；产物校验：
+            {run.remote?.artifactsVerified ? "已通过" : "尚未通过"}
+          </span>
+          <span>
+            配置设备：{run.config.device ?? "auto"}；实际设备：
+            {device ?? "等待执行事件确认"}
+          </span>
+          {run.config.environmentPrefix && (
+            <span>Conda 环境：{run.config.environmentPrefix}</span>
+          )}
+        </>
+      )}
       <span>
         工程 revision {run.config.projectRevision} · workers{" "}
         {run.config.numWorkers}
@@ -145,10 +176,12 @@ export function RunDashboard({
   api,
   initialRun,
   onRunUpdate,
+  remoteSession,
 }: {
   api: DesktopAPI;
   initialRun: Run;
   onRunUpdate: (run: Run) => void;
+  remoteSession?: AuthenticatedConnection | null;
 }) {
   const initial = useRef(initialRun).current;
   const runId = initial.runId;
@@ -169,6 +202,8 @@ export function RunDashboard({
   } | null>(null);
   const [selectedBlock, setSelectedBlock] = useState<string | null>(null);
   const [stopping, setStopping] = useState(false);
+  const [resuming, setResuming] = useState(false);
+  const [readGeneration, setReadGeneration] = useState(0);
   const imageRequest = useRef(0);
   const mounted = useRef(true);
   useEffect(() => {
@@ -179,7 +214,6 @@ export function RunDashboard({
       stderrAfter = 0,
       terminalPolls = 0;
     let terminalEventReceived = false;
-    setRun(initial);
     setEvents(emptyEvents(runId));
     setStdout("");
     setStderr("");
@@ -243,7 +277,7 @@ export function RunDashboard({
         setStdout((previous) => (previous + logs.stdout).slice(-LOG_WINDOW));
         setStderr((previous) => (previous + logs.stderr).slice(-LOG_WINDOW));
         setArtifacts(files.filter((item) => item.runId === runId));
-        if (isTerminal(latest.status) && logs.done) terminalPolls += 1;
+        if (isRunSettled(latest) && logs.done) terminalPolls += 1;
         else terminalPolls = 0;
         if (terminalPolls >= 2 && terminalEventReceived) {
           unsubscribe();
@@ -269,7 +303,7 @@ export function RunDashboard({
       unsubscribe();
     };
     // The subscription belongs to the immutable run ID, not each polled snapshot.
-  }, [api, runId, initial, onRunUpdate]);
+  }, [api, runId, initial, onRunUpdate, readGeneration]);
 
   async function cancel() {
     setStopping(true);
@@ -286,6 +320,40 @@ export function RunDashboard({
       if (mounted.current) setStopping(false);
     }
   }
+  async function resume() {
+    if (!remoteSession) return;
+    setResuming(true);
+    setError("");
+    try {
+      const value = await api.runs.resume(
+        runId,
+        run.projectId,
+        remoteSession.scope.connectionId,
+      );
+      if (mounted.current) {
+        setRun(value);
+        onRunUpdate(value);
+      }
+    } catch (reason) {
+      if (mounted.current)
+        setError(`接续读取未确认；不会重新启动任务：${String(reason)}`);
+    } finally {
+      if (mounted.current) {
+        setResuming(false);
+        setReadGeneration((value) => value + 1);
+      }
+    }
+  }
+  const executionEnded =
+    run.remote &&
+    ["COMPLETED", "FAILED", "CANCELLED"].includes(run.remote.executionState);
+  const sameTarget =
+    !!remoteSession &&
+    remoteSession.projectId === run.projectId &&
+    remoteSession.username === run.remote?.username &&
+    remoteSession.scope.endpoint.host === run.remote?.host &&
+    remoteSession.scope.endpoint.port === run.remote?.port &&
+    remoteSession.scope.hostFingerprint === run.remote?.hostFingerprint;
   async function preview(artifact: ArtifactRecord) {
     const request = ++imageRequest.current;
     setError("");
@@ -316,7 +384,10 @@ export function RunDashboard({
           type="button"
           className="danger"
           disabled={
-            isTerminal(run.status) || stopping || run.status === "CANCELLING"
+            isTerminal(run.status) ||
+            !!executionEnded ||
+            stopping ||
+            run.status === "CANCELLING"
           }
           onClick={() => {
             void cancel();
@@ -328,7 +399,40 @@ export function RunDashboard({
         </button>
       </div>
       <p className="run-id">{runId}</p>
-      <RunSummary run={run} connection={connection} />
+      <RunSummary run={run} connection={connection} device={events.device} />
+      {run.config.runner === "ssh" && (
+        <div className="notice" role="status">
+          {run.remote?.startOutcome === "unknown" && (
+            <p>
+              启动结果尚未确认，任务可能仍在运行。接续只检查原任务，不重新启动。
+            </p>
+          )}
+          {run.connectionState !== "connected" && (
+            <p>
+              暂时无法读取服务器状态；请核对原主机身份并重新认证，再显式接续。
+            </p>
+          )}
+          {run.remote?.cancelState === "pending" && (
+            <p>停止请求待发送；尚未确认任务停止。</p>
+          )}
+          {run.remote?.cancelState === "acknowledged" && (
+            <p>停止请求已送达，仍需等待执行侧确认停止。</p>
+          )}
+          <button
+            type="button"
+            disabled={
+              !sameTarget ||
+              resuming ||
+              run.connectionState === "connected" ||
+              (isRunSettled(run) && run.syncState === "complete")
+            }
+            onClick={() => void resume()}
+          >
+            {resuming ? "正在接续读取…" : "接续原任务（不重跑）"}
+          </button>
+          {!sameTarget && <p>接续需要原目标的已认证新会话。</p>}
+        </div>
+      )}
       {run.config.executionMode === "quick" && (
         <p className="notice">
           小样本快速检查：1 epoch，最多 1024 个训练 / 256

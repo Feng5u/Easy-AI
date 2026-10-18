@@ -140,6 +140,12 @@ function bridge(readOnly = false) {
       compile: unsupported,
     },
     runs: {
+      bind: async () => {
+        throw new Error("remote binding not configured in this local fixture");
+      },
+      resume: async () => {
+        throw new Error("remote resume not configured in this local fixture");
+      },
       list: async () => [],
       start: unsupported,
       get: unsupported,

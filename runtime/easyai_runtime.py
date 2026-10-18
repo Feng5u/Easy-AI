@@ -65,6 +65,7 @@ class RunContext:
         num_workers,
         application_mode=False,
         run_id=None,
+        device="auto",
     ):
         if type(seed) is not int or not 0 <= seed <= 4294967295:
             raise ValueError("Invalid seed")
@@ -86,6 +87,9 @@ class RunContext:
         self.output_root = target.resolve(strict=True)
         self.seed = seed
         self.execution_mode = execution_mode
+        if device not in ("auto", "cpu", "cuda", "mps"):
+            raise ValueError("Invalid configured device")
+        self.device = device
         self.num_workers = num_workers
         self.application_mode = application_mode
         self.run_id = run_id or str(uuid4())
@@ -133,6 +137,7 @@ class RunContext:
                 config["numWorkers"],
                 True,
                 config["runId"],
+                config.get("device", "auto"),
             )
         if args.data_root is None or args.output_dir is None:
             parser.error("Supply both --data-root and --output-dir, or --config")

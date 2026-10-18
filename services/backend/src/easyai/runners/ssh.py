@@ -127,7 +127,7 @@ class SshRunCoordinator:
 
     Reopening cannot clear an uncertain start. New identity on an occupied target
     is rejected; archival/new-run policy is deliberately not implemented here.
-    No public API/UI runner is enabled until a real guarded adapter exists.
+    Shared RunService supplies the guarded production adapter and application journal.
     """
 
     def __init__(
@@ -135,6 +135,7 @@ class SshRunCoordinator:
         store_root: Path,
         identity: RemoteRunIdentity,
         clock: Callable[[], float] = time.monotonic,
+        journal: EventJournal | None = None,
     ):
         self.identity = RemoteRunIdentity.model_validate(identity.model_dump())
         self._clock, self._deadline = clock, 0.0
@@ -152,6 +153,7 @@ class SshRunCoordinator:
         self._fd = open_directory(self.root)
         self._lock: ProjectLock | None = None
         self._journal: EventJournal | None = None
+        self._owns_journal = journal is None
         self._mutex = threading.RLock()
         self._busy = threading.Lock()
         self._binding: _Binding | None = None
@@ -182,6 +184,8 @@ class SshRunCoordinator:
                 marker_identity = RemoteRunIdentity.model_validate_json(
                     self._read_record("start-intent.json")
                 )
+                if self._checkpoint.cancelled_before_start:
+                    raise RemoteProtocolError("REMOTE_CANCEL_START_CONFLICT")
                 if marker_identity != self.identity:
                     raise RemoteProtocolError("REMOTE_START_INTENT_CONFLICT")
                 if self._checkpoint.start_outcome == "not_attempted":
@@ -193,7 +197,9 @@ class SshRunCoordinator:
                 raise RemoteProtocolError("REMOTE_START_INTENT_MISSING")
             self._verify_committed_cache()
             self._checkpoint.connection_state = "disconnected"
-            self._journal = EventJournal(self.root / "events.jsonl", identity.run_id, "application")
+            self._journal = journal or EventJournal(
+                self.root / "events.jsonl", identity.run_id, "application"
+            )
             recovered = self._replay_events(
                 sealed=self._checkpoint.execution_state in TERMINAL,
                 limit=self._checkpoint.last_observation.streams.events.size_bytes
@@ -206,7 +212,7 @@ class SshRunCoordinator:
                 self._journal.ingest(event)
             self._persist()
         except BaseException:
-            if self._journal is not None:
+            if self._journal is not None and self._owns_journal:
                 self._journal.close()
             if self._lock is not None:
                 self._lock.close()
@@ -442,12 +448,12 @@ class SshRunCoordinator:
                 if self._checkpoint.cancel_state != "none":
                     raise RemoteProtocolError("REMOTE_CANCEL_PENDING")
                 attempted = self._checkpoint.start_outcome != "not_attempted"
+                if not attempted:
+                    self._checkpoint.execution_state = "STAGING"
+                    self._persist()
             if attempted:
                 self._poll(binding)  # Even NOT_FOUND never clears the intent or calls start.
                 return
-            with self._mutex:
-                self._checkpoint.execution_state = "STAGING"
-                self._persist()
             self._identity(self._call(binding, "stage"))
             with self._mutex:
                 self._guard(binding)
@@ -466,8 +472,21 @@ class SshRunCoordinator:
         with self._mutex:
             self._verify_store()
             if self._checkpoint.execution_state not in TERMINAL:
-                self._checkpoint.cancel_state = "pending"
-                self._persist()  # This ACK means only a durable local intent.
+                before = self._checkpoint.model_copy(deep=True)
+                if self._checkpoint.start_outcome == "not_attempted":
+                    marker = self.root / "start-intent.json"
+                    if marker.exists() or marker.is_symlink():
+                        raise RemoteProtocolError("REMOTE_START_INTENT_CONFLICT")
+                    self._checkpoint.cancelled_before_start = True
+                    self._checkpoint.execution_state = "CANCELLED"
+                    self._checkpoint.cancel_state = "resolved"
+                else:
+                    self._checkpoint.cancel_state = "pending"
+                try:
+                    self._persist()  # Once start may have executed, this is intent only.
+                except BaseException:
+                    self._checkpoint = before
+                    raise
             return self._checkpoint.model_copy(deep=True)
 
     def poll(self) -> RemoteRunCheckpoint:
@@ -707,7 +726,7 @@ class SshRunCoordinator:
             with self._mutex:
                 if self._retiring is not None and not self._retiring.ready:
                     raise RemoteProtocolError("REMOTE_CLEANUP_UNCONFIRMED")
-                if self._journal is not None:
+                if self._journal is not None and self._owns_journal:
                     self._journal.close()
                 if self._lock is not None:
                     self._lock.close()

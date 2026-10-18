@@ -1,3 +1,6 @@
+import type { RemoteBinding } from "../../../packages/contracts/types/RemoteBinding.js";
+import type { RemoteBindingRequest } from "../../../packages/contracts/types/RemoteBindingRequest.js";
+export type { RemoteBinding, RemoteBindingRequest };
 import type { AuthenticatedConnection } from "../../../packages/contracts/types/AuthenticatedConnection.js";
 import type { EnvironmentCatalog } from "../../../packages/contracts/types/EnvironmentCatalog.js";
 import type { EnvironmentDiscoveryRequest } from "../../../packages/contracts/types/EnvironmentDiscoveryRequest.js";
@@ -37,13 +40,28 @@ export type {
   RunSource,
 };
 export type SelectionKind = "project" | "python" | "data";
-export interface StartRun {
+export interface LocalStartRun {
   projectId: string;
   expectedRevision: number;
   expectedProgramHash: string;
   pythonSelectionId: string;
   dataSelectionId: string;
   idempotencyKey: string;
+}
+export interface SshStartRun {
+  runner: "ssh";
+  projectId: string;
+  bindingId: string;
+  expectedRevision: number;
+  expectedProgramHash: string;
+  idempotencyKey: string;
+}
+export type StartRun = LocalStartRun | SshStartRun;
+export interface RemoteRunControls {
+  runs: DesktopAPI["runs"];
+  authority?: { expectedRevision: number; expectedProgramHash: string };
+  onBinding(binding: RemoteBinding | null): void;
+  onSession(session: AuthenticatedConnection | null): void;
 }
 export type ConnectionState = "connected" | "reconnecting" | "closed" | "error";
 export interface DesktopAPI {
@@ -108,6 +126,12 @@ export interface DesktopAPI {
     ): Promise<CompileResult>;
   };
   runs: {
+    bind(request: RemoteBindingRequest): Promise<RemoteBinding>;
+    resume(
+      runId: string,
+      projectId: string,
+      connectionId: string,
+    ): Promise<Run>;
     list(projectId: string, offset: number, limit: number): Promise<Run[]>;
     start(request: StartRun): Promise<Run>;
     get(runId: string): Promise<Run>;

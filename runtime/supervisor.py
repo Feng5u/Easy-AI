@@ -295,6 +295,8 @@ def validate(root):
         "runRoot",
         "pythonExecutable",
         "environmentPrefix",
+        "condaExecutable",
+        "device",
         "executionMode",
         "seed",
         "numWorkers",
@@ -309,6 +311,15 @@ def validate(root):
         or config["runRoot"] != str(root.path)
         or identity["runRoot"] != str(root.path)
         or config["pythonExecutable"] != sys.executable
+        or config["device"] not in ("auto", "cpu", "cuda", "mps")
+        or (
+            config["environmentPrefix"] is not None
+            and (
+                sys.prefix != config["environmentPrefix"]
+                or os.environ.get("CONDA_PREFIX") != config["environmentPrefix"]
+                or not isinstance(config["condaExecutable"], str)
+            )
+        )
         or hashlib.sha256(
             json.dumps(config, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
         ).hexdigest()

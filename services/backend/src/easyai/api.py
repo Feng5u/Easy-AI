@@ -19,6 +19,11 @@ from easyai.domain.connections import (
     PasswordAuthenticationInput,
     SessionControl,
 )
+from easyai.domain.remote_execution import (
+    RemoteBinding,
+    RemoteBindingRequest,
+    RemoteRunStartRequest,
+)
 from easyai.domain.environment import (
     EnvironmentCatalog,
     EnvironmentDiscoveryRequest,
@@ -51,7 +56,7 @@ from easyai.domain.ssh import (
 )
 from easyai.domain.ssh import SshFailure
 from easyai.compiler.pipeline import compile_project
-from easyai.services.run_service import RunService, TERMINAL
+from easyai.services.run_service import RunService
 from easyai.services.local_workspace import LocalWorkspace
 from easyai.services.run_views import RunViews
 
@@ -105,7 +110,9 @@ def create_app(
 
     @app.exception_handler(RequestValidationError)
     async def invalid_request(request: Request, error: RequestValidationError) -> Response:
-        if request.url.path.startswith(("/api/v1/connections/", "/api/v1/environments/")):
+        if request.url.path.startswith(
+            ("/api/v1/connections/", "/api/v1/environments/", "/api/v1/runs/")
+        ) or request.url.path.endswith(("/runs", "/run-bindings")):
             # Validation errors normally echo input, including rejected secret fields.
             return JSONResponse(status_code=422, content={"error": {"code": "SSH_REQUEST_INVALID"}})
         return await request_validation_exception_handler(request, error)
@@ -290,10 +297,18 @@ def create_app(
             local().save, project_id, request.project, request.expected_revision
         )
 
+    @app.post("/api/v1/projects/{project_id}/run-bindings", response_model=RemoteBinding)
+    async def bind_remote(project_id: str, request: RemoteBindingRequest) -> RemoteBinding:
+        return await asyncio.to_thread(local().bind_remote, project_id, request)
+
+    @app.post("/api/v1/runs/{run_id}/resume", response_model=Run, status_code=202)
+    async def resume_remote(run_id: str, request: SessionControl) -> Run:
+        return await asyncio.to_thread(local().resume_remote, run_id, request)
+
     @app.post("/api/v1/projects/{project_id}/runs", response_model=Run, status_code=202)
     async def start_run(
         project_id: str,
-        request: RunStartRequest,
+        request: RunStartRequest | RemoteRunStartRequest,
         idempotency_key: str = Header(min_length=1, max_length=256),
     ) -> Run:
         return await asyncio.to_thread(local().start, project_id, request, idempotency_key)
@@ -318,6 +333,8 @@ def create_app(
         if runs is None:
             raise HTTPException(status_code=404, detail="Run store is not configured")
         try:
+            if workspace is not None:
+                workspace.require_run(run_id)
             runs.get(run_id)
         except KeyError:
             raise HTTPException(status_code=404, detail="Unknown run") from None
@@ -375,11 +392,16 @@ def create_app(
             cursor = after
             heartbeat = time.monotonic()
             while not await request.is_disconnected():
+                if workspace is not None:
+                    try:
+                        workspace.require_run(run_id)
+                    except (KeyError, ValueError):
+                        return
                 for event in await asyncio.to_thread(service.events, run_id, cursor):
                     yield f"id: {event.seq}\nevent: {event.type}\ndata: {event.model_dump_json(by_alias=True)}\n\n"
                     cursor = event.seq
                 current = await asyncio.to_thread(service.get, run_id)
-                if current.status in TERMINAL:
+                if service.remote.settled(current):
                     # get() may have ingested the final event between the first read
                     # and status check. Drain that immutable terminal suffix too.
                     for event in await asyncio.to_thread(service.events, run_id, cursor):

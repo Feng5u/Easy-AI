@@ -560,3 +560,18 @@ def test_cancellation_after_commit_boundary_preserves_success(case, monkeypatch)
     ready = case.sync(cancel)
     assert ready[0].sync_state == "ready" and cancel.is_set()
     assert SftpArtifactSync.read_ready(case.cache, case.identity, ready[0].artifact_id) == case.raw
+
+
+def test_ready_lookup_rejects_self_consistent_index_substitution_against_frozen_event(tmp_path):
+    from easyai.domain.contracts import ArtifactRecord
+
+    case = Case(tmp_path)
+    ready = case.sync()
+    expected = ArtifactRecord.model_validate(case.record)
+    index_path = case.cache / "artifact-index.json"
+    index = json.loads(index_path.read_bytes())
+    # A mutable cache index is not authority even if its replacement blob hashes correctly.
+    index["artifacts"][0]["phase"] = "after"
+    index_path.write_text(json.dumps(index))
+    with pytest.raises(ArtifactFailure):
+        SftpArtifactSync.read_ready(case.cache, case.identity, ready[0].artifact_id, expected)

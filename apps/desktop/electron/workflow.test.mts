@@ -75,3 +75,45 @@ it("one active subscription per window and unsubscribe abort the owned reader", 
   bridge.unsubscribe(next);
   expect(second.aborted).toBe(true);
 });
+it("SSH start forwards only a saved binding, including retries without an active grant", async () => {
+  const { bridge, request } = setup();
+  const start = {
+    runner: "ssh",
+    projectId: identity,
+    bindingId: identity,
+    expectedRevision: 2,
+    expectedProgramHash: "a".repeat(64),
+    idempotencyKey: identity,
+  };
+  request.mockImplementation(async (_method: string, path: string) =>
+    path === "/api/v1/local/session"
+      ? { project: { projectId: identity }, readOnly: false }
+      : { runId: identity },
+  );
+  await bridge.invoke("easyai:runs:start", [start]);
+  expect(request).toHaveBeenCalledWith(
+    "POST",
+    `/api/v1/projects/${identity}/runs`,
+    {
+      runner: "ssh",
+      bindingId: identity,
+      expectedRevision: 2,
+      expectedProgramHash: "a".repeat(64),
+    },
+    identity,
+  );
+  for (const field of [
+    "runRoot",
+    "dataRoot",
+    "pythonExecutable",
+    "command",
+    "bundle",
+    "password",
+  ]) {
+    request.mockClear();
+    await expect(
+      bridge.invoke("easyai:runs:start", [{ ...start, [field]: "/rejected" }]),
+    ).rejects.toThrow();
+    expect(request).not.toHaveBeenCalled();
+  }
+});

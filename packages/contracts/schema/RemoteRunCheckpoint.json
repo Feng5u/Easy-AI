@@ -276,6 +276,11 @@
       "title": "Artifactsverified",
       "type": "boolean"
     },
+    "cancelledBeforeStart": {
+      "default": false,
+      "title": "Cancelledbeforestart",
+      "type": "boolean"
+    },
     "lastConnectionId": {
       "anyOf": [
         {

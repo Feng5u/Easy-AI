@@ -382,10 +382,10 @@ class SftpArtifactSync:
         identity: RemoteRunIdentity,
         mutex: threading.RLock,
         guard: Callable[[], None],
-        sftp_factory: Callable[[Any], Any] = paramiko.SFTPClient,
+        sftp_factory: Callable[[Any], Any] | None = None,
     ):
         self.session, self.identity = session, identity
-        self.mutex, self.guard, self.factory = mutex, guard, sftp_factory
+        self.mutex, self.guard, self.factory = mutex, guard, sftp_factory or paramiko.SFTPClient
 
     def sync(
         self,
@@ -556,7 +556,12 @@ class SftpArtifactSync:
             return values[0]
 
     @staticmethod
-    def read_ready(cache_path: Path, identity: RemoteRunIdentity, artifact_id: str) -> bytes:
+    def read_ready(
+        cache_path: Path,
+        identity: RemoteRunIdentity,
+        artifact_id: str,
+        expected: ArtifactRecord | None = None,
+    ) -> bytes:
         """Opaque ID lookup; revalidate every blob rather than trusting a ready index."""
         cache = _Cache(cache_path)
         try:
@@ -577,6 +582,11 @@ class SftpArtifactSync:
             if len(records) > 256 or len(matching) != 1:
                 _reject()
             record = matching[0]
+            if (
+                expected is not None
+                and record.model_copy(update={"sync_state": expected.sync_state}) != expected
+            ):
+                _reject()
             _path(record)
             if record.run_id != identity.run_id or record.sync_state != "ready":
                 _reject()

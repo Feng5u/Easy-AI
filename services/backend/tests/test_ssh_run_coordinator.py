@@ -274,7 +274,8 @@ def test_cancel_before_start_is_durable_and_blocks_late_start(setup):
     coordinator, owner, *_ = setup
     coordinator.disconnect()
     state = coordinator.request_cancel()
-    assert state.cancel_state == "pending" and state.execution_state == "CREATED"
+    assert state.cancel_state == "resolved" and state.execution_state == "CANCELLED"
+    assert state.cancelled_before_start and state.start_outcome == "not_attempted"
     current = auth_for(owner.identity)
     coordinator.attach(current, Transport(owner), lambda: current)
     with pytest.raises(RemoteProtocolError):
@@ -850,3 +851,88 @@ def test_transport_close_failure_retains_owner_even_when_no_io_is_running(tmp_pa
 
     os.close(coordinator._fd)
     coordinator._closed = True
+
+
+def test_shared_service_close_has_total_deadline_and_retains_coordinator_owner(setup):
+    from types import SimpleNamespace
+    import threading
+    import time
+    from easyai.services.remote_runs import RemoteRuns
+
+    coordinator, owner, port, *_ = setup
+    entered, release = threading.Event(), threading.Event()
+
+    def stalled_close():
+        entered.set()
+        assert release.wait(6)
+        port.closed = True
+
+    port.close = stalled_close
+    shared = RemoteRuns(SimpleNamespace())
+    shared._cores[owner.identity.run_id] = coordinator
+    started = time.monotonic()
+    try:
+        with pytest.raises(ValueError, match="REMOTE_CLEANUP_UNCONFIRMED"):
+            shared.close()
+        assert entered.is_set() and 2.5 < time.monotonic() - started < 4.5
+        with pytest.raises(RemoteProtocolError, match="TARGET_BUSY"):
+            SshRunCoordinator(coordinator.root.parent, owner.identity)
+    finally:
+        release.set()
+        shared._retiring_threads[owner.identity.run_id].join(1)
+        shared.close()
+
+
+def test_local_cancel_write_failure_never_acknowledges_uncommitted_proof(setup, monkeypatch):
+    coordinator, owner, _, _, store = setup
+    original = coordinator._persist
+
+    def fail():
+        raise OSError("synthetic disk failure")
+
+    monkeypatch.setattr(coordinator, "_persist", fail)
+    with pytest.raises(OSError):
+        coordinator.request_cancel()
+    assert not coordinator.checkpoint().cancelled_before_start
+    monkeypatch.setattr(coordinator, "_persist", original)
+    assert coordinator.request_cancel().cancelled_before_start
+    # Read the durable file before close can perform any other writes.
+    raw = json.loads((coordinator.root / "checkpoint.json").read_bytes())
+    assert raw["cancelledBeforeStart"] and raw["executionState"] == "CANCELLED"
+    coordinator.close()
+    restored = SshRunCoordinator(store, owner.identity)
+    try:
+        assert restored.checkpoint().cancelled_before_start
+    finally:
+        restored.close()
+
+
+def test_cancel_during_stage_cannot_cross_consuming_start_boundary(setup):
+    import threading
+
+    coordinator, owner, port, _, store = setup
+    entered, release = threading.Event(), threading.Event()
+    original = port.stage
+
+    def stage(*args, **kwargs):
+        value = original(*args, **kwargs)
+        entered.set()
+        assert release.wait(2)
+        return value
+
+    port.stage = stage
+    with ThreadPoolExecutor() as workers:
+        start = workers.submit(coordinator.start)
+        assert entered.wait(1)
+        assert coordinator.request_cancel().cancelled_before_start
+        release.set()
+        with pytest.raises(RemoteProtocolError):
+            start.result(2)
+    assert owner.start_calls == 0
+    coordinator.close()
+    restored = SshRunCoordinator(store, owner.identity)
+    try:
+        assert restored.checkpoint().execution_state == "CANCELLED"
+        assert restored.checkpoint().cancelled_before_start
+    finally:
+        restored.close()

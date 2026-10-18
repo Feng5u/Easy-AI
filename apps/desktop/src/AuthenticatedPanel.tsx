@@ -5,6 +5,7 @@ import type {
   EnvironmentCatalog,
   EnvironmentProbeResult,
   EnvironmentRequest,
+  RemoteRunControls,
 } from "../electron/bridge.js";
 
 interface Pending {
@@ -17,12 +18,14 @@ export function AuthenticatedPanel({
   projectId,
   identityRequestId,
   onInvalidated,
+  remote,
 }: {
   api: DesktopAPI["connections"];
   environments: DesktopAPI["environments"];
   projectId: string;
   identityRequestId: string;
   onInvalidated(): void;
+  remote?: RemoteRunControls;
 }) {
   const passwordInput = useRef<HTMLInputElement>(null);
   const [username, setUsername] = useState("");
@@ -32,6 +35,8 @@ export function AuthenticatedPanel({
   const auth = useRef<Pending | null>(null);
   const lease = useRef<AuthenticatedConnection | null>(null);
   function invalidate() {
+    remote?.onBinding(null);
+    remote?.onSession(null);
     const previous = auth.current;
     auth.current = null;
     if (previous) {
@@ -110,6 +115,7 @@ export function AuthenticatedPanel({
       clearTimeout(operation.timer);
       lease.current = value;
       setSession(value);
+      remote?.onSession(value);
     } catch {
       if (auth.current === operation) {
         invalidate();
@@ -164,10 +170,16 @@ export function AuthenticatedPanel({
       ) : (
         <>
           <p role="status">已认证，固定会话最长 5 分钟。环境需单独检查。</p>
+          {remote && (
+            <p>
+              关闭会话或本面板会停止读取；任务可能继续运行。重新认证后可接续原任务，不会重跑。
+            </p>
+          )}
           <EnvironmentPanel
             api={environments}
             session={session}
             onInvalidated={expire}
+            remote={remote}
           />
         </>
       )}
@@ -182,11 +194,16 @@ export function EnvironmentPanel({
   api,
   session,
   onInvalidated,
+  remote,
 }: {
   api: DesktopAPI["environments"];
   session: AuthenticatedConnection;
   onInvalidated(): void;
+  remote?: RemoteRunControls;
 }) {
+  const [runBase, setRunBase] = useState("");
+  const [bindingBusy, setBindingBusy] = useState(false);
+  const bindingOperation = useRef<object | null>(null);
   const [mode, setMode] = useState("auto");
   const [path, setPath] = useState("");
   const [catalog, setCatalog] = useState<EnvironmentCatalog | null>(null);
@@ -200,6 +217,64 @@ export function EnvironmentPanel({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const pending = useRef<(Pending & EnvironmentRequest) | null>(null);
+  function clearReport() {
+    setReport(null);
+    bindingOperation.current = null;
+    remote?.onBinding(null);
+    setBindingBusy(false);
+  }
+  useEffect(() => {
+    bindingOperation.current = null;
+    setBindingBusy(false);
+    remote?.onBinding(null);
+    return () => {
+      bindingOperation.current = null;
+      remote?.onBinding(null);
+    };
+  }, [
+    session,
+    remote?.authority?.expectedRevision,
+    remote?.authority?.expectedProgramHash,
+  ]);
+  async function bind() {
+    if (
+      !remote?.authority ||
+      !report ||
+      !report.environmentReady ||
+      report.dataReady !== true ||
+      bindingOperation.current
+    )
+      return;
+    const operation = {};
+    bindingOperation.current = operation;
+    setBindingBusy(true);
+    setMessage("");
+    try {
+      const value = await remote.runs.bind({
+        projectId: session.projectId,
+        connectionId: session.scope.connectionId,
+        requestId: crypto.randomUUID(),
+        probeRequestId: report.requestId,
+        runBase,
+        ...remote.authority,
+      });
+      if (bindingOperation.current !== operation) return;
+      remote.onBinding(value);
+      setMessage(
+        `已绑定已保存工程 revision ${value.projectRevision}，有效期最长 ${value.expiresInSeconds} 秒。`,
+      );
+    } catch {
+      if (bindingOperation.current === operation) {
+        remote.onBinding(null);
+        setMessage("运行绑定未完成或检查已过期；请核对目录并重新检查环境。");
+      }
+    } finally {
+      if (bindingOperation.current === operation) {
+        bindingOperation.current = null;
+        setBindingBusy(false);
+      }
+    }
+  }
   function cancel() {
     const operation = pending.current;
     pending.current = null;
@@ -218,7 +293,7 @@ export function EnvironmentPanel({
   function change() {
     setCatalog(null);
     setSelected("");
-    setReport(null);
+    clearReport();
     setMessage("");
   }
   async function run(discover: boolean) {
@@ -231,7 +306,7 @@ export function EnvironmentPanel({
     };
     pending.current = operation;
     setBusy(true);
-    setReport(null);
+    clearReport();
     setMessage("");
     if (discover) {
       setCatalog(null);
@@ -290,7 +365,7 @@ export function EnvironmentPanel({
       <p>
         检查解释器、依赖与小张量；可选检查现有数据的一个样本（download=False）。不训练。
       </p>
-      <fieldset disabled={busy}>
+      <fieldset disabled={busy || bindingBusy}>
         <label className="field">
           发现方式
           <select
@@ -335,7 +410,7 @@ export function EnvironmentPanel({
                 value={selected}
                 onChange={(e) => {
                   setSelected(e.target.value);
-                  setReport(null);
+                  clearReport();
                 }}
               >
                 {catalog.environments.map((e) => (
@@ -351,7 +426,7 @@ export function EnvironmentPanel({
                 value={device}
                 onChange={(e) => {
                   setDevice(e.target.value as typeof device);
-                  setReport(null);
+                  clearReport();
                 }}
               >
                 <option value="cpu">CPU</option>
@@ -365,7 +440,7 @@ export function EnvironmentPanel({
                 value={dataset}
                 onChange={(e) => {
                   setDataset(e.target.value as typeof dataset);
-                  setReport(null);
+                  clearReport();
                 }}
               >
                 <option value="">暂不检查数据</option>
@@ -382,7 +457,7 @@ export function EnvironmentPanel({
                   maxLength={1024}
                   onChange={(e) => {
                     setDataRoot(e.target.value);
-                    setReport(null);
+                    clearReport();
                   }}
                 />
               </label>
@@ -432,6 +507,41 @@ export function EnvironmentPanel({
             {report.report.imports.matplotlib.version ?? "不可用"}
           </p>
           <p>小张量：{report.report.tensor.ok ? "通过" : "未通过"}</p>
+          {remote && (
+            <div className="remote-binding">
+              <label className="field">
+                远端应用运行目录
+                <input
+                  value={runBase}
+                  maxLength={1024}
+                  disabled={bindingBusy}
+                  onChange={(event) => {
+                    setRunBase(event.target.value);
+                    bindingOperation.current = null;
+                    remote.onBinding(null);
+                  }}
+                />
+              </label>
+              <p className="muted">
+                填写当前账号拥有的已有绝对目录。只上传本次代码与配置；服务器数据保持只读，不自动下载或上传数据。
+              </p>
+              <button
+                type="button"
+                disabled={
+                  bindingBusy ||
+                  busy ||
+                  !remote.authority ||
+                  !report.environmentReady ||
+                  report.dataReady !== true ||
+                  !runBase.startsWith("/")
+                }
+                onClick={() => void bind()}
+              >
+                {bindingBusy ? "正在绑定…" : "用于本次远端运行"}
+              </button>
+              {!remote.authority && <p>请先保存工程并通过编译检查。</p>}
+            </div>
+          )}
           {report.issues.map((issue) => (
             <p key={issue.code}>
               {issue.code}：{issue.suggestion}

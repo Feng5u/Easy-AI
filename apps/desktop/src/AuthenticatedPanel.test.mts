@@ -8,6 +8,8 @@ import type {
   DesktopAPI,
   EnvironmentCatalog,
   EnvironmentProbeResult,
+  RemoteRunControls,
+  RemoteBinding,
 } from "../electron/bridge.js";
 const require = createRequire(import.meta.url);
 const { JSDOM } = require(
@@ -110,9 +112,9 @@ function setup() {
   const invalidated = vi.fn();
   return { api, environments, info, catalog, report, invalidated };
 }
-async function mount(s: ReturnType<typeof setup>) {
+async function mount(s: ReturnType<typeof setup>, remote?: RemoteRunControls) {
   const { createRoot } = await import("react-dom/client");
-  root = createRoot(container);
+  root ??= createRoot(container);
   await act(async () =>
     root!.render(
       createElement(AuthenticatedPanel, {
@@ -121,6 +123,7 @@ async function mount(s: ReturnType<typeof setup>) {
         projectId,
         identityRequestId,
         onInvalidated: s.invalidated,
+        remote,
       }),
     ),
   );
@@ -283,3 +286,45 @@ it("cancel running environment closes session and rejects late presentation", as
   await act(async () => delayed.resolve(s.catalog));
   expect(container.textContent).not.toContain("发现 1 个环境");
 });
+it.each([undefined, 2])(
+  "invalidated pending binding clears busy and ignores old result (%s)",
+  async (revision) => {
+    const s = setup(),
+      delayed = deferred<RemoteBinding>();
+    s.report.environmentReady = true;
+    s.report.dataReady = true;
+    const onBinding = vi.fn();
+    const remote: RemoteRunControls = {
+      runs: {
+        bind: vi.fn(() => delayed.promise),
+      } as unknown as DesktopAPI["runs"],
+      authority: { expectedRevision: 1, expectedProgramHash: "a".repeat(64) },
+      onBinding,
+      onSession: vi.fn(),
+    };
+    await mount(s, remote);
+    await credentials();
+    await click("认证并建立短时会话");
+    await click("发现环境");
+    await click("只读检查所选环境");
+    await input("远端应用运行目录", "/synthetic-owned");
+    await click("用于本次远端运行");
+    expect(container.textContent).toContain("正在绑定…");
+    await mount(s, {
+      ...remote,
+      authority:
+        revision === undefined
+          ? undefined
+          : { ...remote.authority!, expectedRevision: revision },
+    });
+    expect(container.textContent).not.toContain("正在绑定…");
+    onBinding.mockClear();
+    await act(async () =>
+      delayed.resolve({ bindingId: envId } as RemoteBinding),
+    );
+    expect(onBinding).not.toHaveBeenCalledWith(
+      expect.objectContaining({ bindingId: envId }),
+    );
+    expect(container.querySelector("fieldset")!.disabled).toBe(false);
+  },
+);

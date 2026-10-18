@@ -13,11 +13,13 @@ import type {
   ProjectSession,
   Run,
   SelectionResult,
+  RemoteBinding,
+  AuthenticatedConnection,
 } from "../electron/bridge.js";
 import { ConnectionPanel } from "./ConnectionPanel.js";
 import { CodeView } from "./CodeView.js";
 import { RunDashboard } from "./RunDashboard.js";
-import { isTerminal } from "./runEvents.js";
+import { isRunSettled } from "./runEvents.js";
 import { ProjectDraft } from "./ProjectDraft.js";
 import type { WorkspaceTab } from "./editor-contract.js";
 const ProjectEditor = lazy(() =>
@@ -43,6 +45,12 @@ export function App({ api }: { api?: DesktopAPI }) {
   const [projectName, setProjectName] = useState("MNIST CNN");
   const [python, setPython] = useState<SelectionResult | null>(null);
   const [data, setData] = useState<SelectionResult | null>(null);
+  const [runMode, setRunMode] = useState<"local" | "ssh">("local");
+  const [remoteBinding, setRemoteBinding] = useState<RemoteBinding | null>(
+    null,
+  );
+  const [remoteSession, setRemoteSession] =
+    useState<AuthenticatedConnection | null>(null);
   const [compilation, setCompilation] = useState<CompileResult | null>(null);
   const [run, setRun] = useState<Run | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -67,9 +75,58 @@ export function App({ api }: { api?: DesktopAPI }) {
       previous.map((item) => (item.runId === latest.runId ? latest : item)),
     );
   }, []);
+  const acceptRemoteSession = useCallback(
+    (value: AuthenticatedConnection | null) => {
+      setRemoteSession(value);
+      if (!value) setRemoteBinding(null);
+    },
+    [],
+  );
+  const acceptRemoteBinding = useCallback(
+    (value: RemoteBinding | null) => {
+      if (
+        value &&
+        (dirty ||
+          value.projectId !== project?.projectId ||
+          value.projectRevision !== project.revision ||
+          value.programHash !== compilation?.programHash)
+      )
+        return;
+      setRemoteBinding(value);
+      if (value) setRunMode("ssh");
+    },
+    [dirty, project?.projectId, project?.revision, compilation?.programHash],
+  );
+  useEffect(() => {
+    if (!remoteBinding) return;
+    if (
+      dirty ||
+      remoteBinding.projectId !== project?.projectId ||
+      remoteBinding.projectRevision !== project.revision ||
+      remoteBinding.programHash !== compilation?.programHash
+    ) {
+      setRemoteBinding(null);
+      return;
+    }
+    const expected = remoteBinding.bindingId;
+    const timer = setTimeout(
+      () =>
+        setRemoteBinding((previous) =>
+          previous?.bindingId === expected ? null : previous,
+        ),
+      remoteBinding.expiresInSeconds * 1000,
+    );
+    return () => clearTimeout(timer);
+  }, [
+    remoteBinding,
+    dirty,
+    project?.projectId,
+    project?.revision,
+    compilation?.programHash,
+  ]);
   const activeRun =
-    (run !== null && !isTerminal(run.status)) ||
-    history.some((item) => !isTerminal(item.status));
+    (run !== null && !isRunSettled(run)) ||
+    history.some((item) => !isRunSettled(item));
   useEffect(() => {
     active.current = true;
     let mounted = true;
@@ -129,6 +186,8 @@ export function App({ api }: { api?: DesktopAPI }) {
     }
   }
   function acceptSession(value: ProjectSession) {
+    setRemoteBinding(null);
+    setRemoteSession(null);
     compileRequest.current += 1;
     draft.current = value.project ? new ProjectDraft(value) : null;
     setSession(value);
@@ -340,19 +399,29 @@ export function App({ api }: { api?: DesktopAPI }) {
       !bridge ||
       !project ||
       !compilation ||
-      !python ||
-      !data ||
       dirty ||
       compilation.revision !== project.revision
     )
       return;
-    const request = {
+    if (runMode === "local" && (!python || !data)) return;
+    if (runMode === "ssh" && (!remoteBinding || !remoteSession)) return;
+    const common = {
       projectId: project.projectId,
       expectedRevision: project.revision,
       expectedProgramHash: compilation.programHash,
-      pythonSelectionId: python.selectionId,
-      dataSelectionId: data.selectionId,
     };
+    const request =
+      runMode === "ssh"
+        ? {
+            ...common,
+            runner: "ssh" as const,
+            bindingId: remoteBinding!.bindingId,
+          }
+        : {
+            ...common,
+            pythonSelectionId: python!.selectionId,
+            dataSelectionId: data!.selectionId,
+          };
     const signature = JSON.stringify(request);
     if (intent.current?.signature !== signature)
       intent.current = { signature, key: crypto.randomUUID() };
@@ -362,7 +431,11 @@ export function App({ api }: { api?: DesktopAPI }) {
       if (active.current) {
         setRun(created);
         intent.current = null;
-        setNotice("运行请求已确认。日志、指标和文件均来自本次真实子进程。");
+        setNotice(
+          created.config.runner === "ssh"
+            ? "远端运行请求已登记。启动、连接和同步状态将分别更新；未知状态不会重新启动。"
+            : "运行请求已确认。日志、指标和文件均来自本次真实子进程。",
+        );
       }
     });
   }
@@ -373,8 +446,7 @@ export function App({ api }: { api?: DesktopAPI }) {
     !dirty &&
     compilation?.runnable &&
     compilation.revision === project.revision &&
-    python &&
-    data &&
+    (runMode === "local" ? python && data : remoteBinding && remoteSession) &&
     !activeRun &&
     !busy &&
     !saving;
@@ -429,6 +501,20 @@ export function App({ api }: { api?: DesktopAPI }) {
           api={bridge.connections}
           environments={bridge.environments}
           projectId={project.projectId}
+          remote={{
+            runs: bridge.runs,
+            authority:
+              !dirty &&
+              compilation?.runnable &&
+              compilation.revision === project.revision
+                ? {
+                    expectedRevision: project.revision,
+                    expectedProgramHash: compilation.programHash,
+                  }
+                : undefined,
+            onBinding: acceptRemoteBinding,
+            onSession: acceptRemoteSession,
+          }}
           onClose={() => setIdentityVisible(false)}
         />
       )}
@@ -571,6 +657,26 @@ export function App({ api }: { api?: DesktopAPI }) {
             选择已安装训练依赖的
             Python，以及已准备好数据的目录。此页面不会安装包或下载数据。
           </p>
+          <label className="field">
+            运行位置
+            <select
+              value={runMode}
+              disabled={!!busy || activeRun}
+              onChange={(event) =>
+                setRunMode(event.target.value as "local" | "ssh")
+              }
+            >
+              <option value="local">本机</option>
+              <option value="ssh">SSH 服务器</option>
+            </select>
+          </label>
+          {runMode === "ssh" && (
+            <p role="status">
+              {remoteBinding
+                ? `已绑定 revision ${remoteBinding.projectRevision} · ${remoteBinding.pythonExecutable} · ${remoteBinding.device}`
+                : "请在 SSH 设置中完成身份、认证、环境和数据检查，再绑定已保存工程。"}
+            </p>
+          )}
           <div className="binding">
             <span>训练 Python</span>
             <strong>{python?.label ?? "尚未选择"}</strong>
@@ -598,7 +704,8 @@ export function App({ api }: { api?: DesktopAPI }) {
             </button>
           </div>
           <p className="muted">
-            当前运行位置：本机。学校服务器连接将在后续阶段提供。
+            运行位置：{runMode === "ssh" ? "SSH 服务器" : "本机"}
+            。服务器数据不会自动上传或下载。
           </p>
         </section>
       </div>
@@ -782,6 +889,7 @@ export function App({ api }: { api?: DesktopAPI }) {
           api={bridge}
           initialRun={run}
           onRunUpdate={updateRun}
+          remoteSession={remoteSession}
         />
       )}
     </main>

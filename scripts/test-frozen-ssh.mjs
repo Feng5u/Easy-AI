@@ -152,13 +152,24 @@ try {
   });
   assert.equal(environment.response.status, 503);
   assert.equal(environment.value.error.code, "SSH_AUTHENTICATION_REQUIRED");
+  for (const path of [
+    `/projects/${scoped.projectId}/run-bindings`,
+    `/projects/${scoped.projectId}/runs`,
+    `/runs/${scoped.projectId}/resume`,
+  ]) {
+    const invalid = await request("POST", path, {
+      password: "DO_NOT_ECHO_RUN_MARKER",
+    });
+    assert.equal(invalid.response.status, 422);
+    assert.equal(JSON.stringify(invalid.value).includes("DO_NOT_ECHO"), false);
+  }
   const closed = await request("POST", "/connections/session/close", {
     projectId: scoped.projectId,
     connectionId,
   });
   assert.equal(closed.response.status, 200);
   console.log(
-    "PASS frozen SSH routes + auth + strict DTO + sanitized errors + scoped cancel/confirm + auth lease/environment rejection + lazy Paramiko; synthetic inputs, no outbound SSH",
+    "PASS frozen SSH routes + auth + strict DTO + sanitized errors + scoped cancel/confirm + auth lease/environment rejection + scoped run DTOs + lazy Paramiko; synthetic inputs, no outbound SSH",
   );
 } finally {
   child.stdin.end();

@@ -62,14 +62,31 @@ class RemoteBundle:
     python: str
     files: tuple[tuple[str, bytes], ...]
 
+    def python_argv(self) -> tuple[str, ...]:
+        config = RunConfig.model_validate(_decode(dict(self.files)["run-config.json"]))
+        if config.conda_executable is not None and config.environment_prefix is not None:
+            return (
+                config.conda_executable,
+                "run",
+                "-p",
+                config.environment_prefix,
+                "--no-capture-output",
+                self.python,
+            )
+        return (self.python,)
+
     @classmethod
     def freeze(cls, root: Path, config: RunConfig, identity: RemoteRunIdentity) -> "RemoteBundle":
         config = RunConfig.model_validate(config.model_dump())
         identity = RemoteRunIdentity.model_validate(identity.model_dump())
         for path in (config.python_executable, config.run_root, config.data_root):
             remote_path(path)
+        if (config.environment_prefix is None) != (config.conda_executable is None):
+            raise ValueError("REMOTE_LAUNCHER_INVALID")
         if config.environment_prefix is not None:
             remote_path(config.environment_prefix)
+        if config.conda_executable is not None:
+            remote_path(config.conda_executable)
         for path in (config.python_executable, config.run_root):
             if not path.startswith("/") or any(
                 part in ("", ".", "..") for part in path.split("/")[1:]

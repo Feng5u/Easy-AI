@@ -107,6 +107,8 @@ class RunViews:
 
     def logs(self, run_id: str, stdout_after: int = 0, stderr_after: int = 0) -> RunLogs:
         run = self.runs.get(run_id)
+        if run.config.runner == "ssh":
+            return self.runs.remote.logs(run_id, stdout_after, stderr_after)
         done = run.status in TERMINAL
         stdout, out_cursor = read_log(
             self.runs._safe_path(run_id, "logs/train.log"), stdout_after, done
@@ -136,7 +138,8 @@ class RunViews:
         )
 
     def artifacts(self, run_id: str) -> list[ArtifactRecord]:
-        self.runs.get(run_id)
+        if self.runs.get(run_id).config.runner == "ssh":
+            return self.runs.remote.artifacts(run_id)
         records = TypeAdapter(list[ArtifactRecord]).validate_json(
             read_regular(self.runs._safe_path(run_id, "artifacts.json"), 8 * 1024 * 1024)
         )
@@ -146,6 +149,8 @@ class RunViews:
         return records
 
     def image(self, run_id: str, artifact_id: str) -> bytes:
+        if self.runs.get(run_id).config.runner == "ssh":
+            return self.runs.remote.image(run_id, artifact_id)
         item = next(
             (record for record in self.artifacts(run_id) if record.artifact_id == artifact_id), None
         )

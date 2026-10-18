@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { Event, Run } from "../electron/bridge.js";
-import { applyRunEvent, emptyEvents, isTerminal } from "./runEvents.js";
+import {
+  applyRunEvent,
+  emptyEvents,
+  isTerminal,
+  isRunSettled,
+} from "./runEvents.js";
 import { MetricSeries, RunSummary } from "./RunDashboard.js";
 import { CodeView } from "./CodeView.js";
 
@@ -123,4 +128,47 @@ describe("authoritative runtime event view", () => {
     expect(markup).toContain("&lt;script&gt;");
     expect(markup.match(/code-selected/g)).toHaveLength(1);
   });
+});
+it("remote completion waits for artifact settlement and keeps independent execution evidence", () => {
+  const run = {
+    status: "COMPLETED",
+    syncState: "syncing",
+    connectionState: "disconnected",
+    config: {
+      runner: "ssh",
+      executionMode: "full",
+      projectRevision: 1,
+      device: "cpu",
+      numWorkers: 2,
+    },
+    remote: {
+      executionState: "COMPLETED",
+      startOutcome: "acknowledged",
+      cancelState: "resolved",
+      artifactsVerified: false,
+      host: "historical.invalid",
+      port: 2222,
+      username: "historical-user",
+      hostFingerprint: "SHA256:historical",
+    },
+  } as Run;
+  expect(isRunSettled(run)).toBe(false);
+  const markup = renderToStaticMarkup(
+    createElement(RunSummary, { run, connection: "error" }),
+  );
+  expect(markup).toContain("historical-user");
+  expect(markup).toContain("historical.invalid");
+  expect(markup).not.toContain("运行成功");
+  expect(isRunSettled({ ...run, syncState: "error" })).toBe(true);
+  expect(
+    isRunSettled({
+      ...run,
+      status: "CANCELLING",
+      remote: {
+        ...run.remote!,
+        executionState: "RUNNING",
+        cancelState: "acknowledged",
+      },
+    }),
+  ).toBe(false);
 });

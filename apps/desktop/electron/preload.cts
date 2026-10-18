@@ -82,6 +82,9 @@ const api: DesktopAPI = {
       ipcRenderer.invoke("easyai:projects:compile", project, requestId),
   },
   runs: {
+    bind: (request) => ipcRenderer.invoke("easyai:runs:bind", request),
+    resume: (runId, projectId, connectionId) =>
+      ipcRenderer.invoke("easyai:runs:resume", runId, projectId, connectionId),
     list: (id, offset, limit) =>
       ipcRenderer.invoke("easyai:runs:list", id, offset, limit),
     start: (request) => ipcRenderer.invoke("easyai:runs:start", request),

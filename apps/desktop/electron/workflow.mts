@@ -30,6 +30,8 @@ export const WORKFLOW_CHANNELS = [
   "easyai:projects:save",
   "easyai:projects:compile",
   "easyai:runs:start",
+  "easyai:runs:bind",
+  "easyai:runs:resume",
   "easyai:runs:list",
   "easyai:runs:get",
   "easyai:runs:cancel",
@@ -121,6 +123,8 @@ export class MainWorkflow {
       "easyai:projects:save": 2,
       "easyai:projects:compile": 2,
       "easyai:runs:start": 1,
+      "easyai:runs:bind": 1,
+      "easyai:runs:resume": 3,
       "easyai:runs:list": 3,
       "easyai:runs:get": 1,
       "easyai:runs:cancel": 1,
@@ -214,8 +218,110 @@ export class MainWorkflow {
           { project: value, requestId: integer(args[1], 1) },
         );
       }
-      case "easyai:runs:start": {
+      case "easyai:runs:bind": {
         const value = object(args[0], [
+          "projectId",
+          "connectionId",
+          "requestId",
+          "expectedRevision",
+          "expectedProgramHash",
+          "probeRequestId",
+          "runBase",
+        ]);
+        for (const key of [
+          "projectId",
+          "connectionId",
+          "requestId",
+          "probeRequestId",
+        ])
+          id(value[key]);
+        integer(value.expectedRevision, 1);
+        if (
+          typeof value.expectedProgramHash !== "string" ||
+          !/^[0-9a-f]{64}$/.test(value.expectedProgramHash) ||
+          typeof value.runBase !== "string" ||
+          value.runBase.length > 1024 ||
+          !value.runBase.startsWith("/") ||
+          /[\\\x00-\x1f\x7f]/.test(value.runBase) ||
+          value.runBase
+            .split("/")
+            .slice(1)
+            .some((part) => ["", ".", ".."].includes(part))
+        )
+          throw new Error("远端运行绑定无效。");
+        return this.sessions.scoped(
+          id(value.projectId),
+          id(value.connectionId),
+          (current) =>
+            current.request(
+              "POST",
+              `/api/v1/projects/${value.projectId}/run-bindings`,
+              value,
+            ),
+        );
+      }
+      case "easyai:runs:resume": {
+        const runId = id(args[0]),
+          projectId = id(args[1]),
+          connectionId = id(args[2]);
+        return this.sessions.scoped(projectId, connectionId, (current) =>
+          current.request("POST", `/api/v1/runs/${runId}/resume`, {
+            projectId,
+            connectionId,
+          }),
+        );
+      }
+      case "easyai:runs:start": {
+        const raw = object(args[0]);
+        if (raw.runner === "ssh") {
+          const value = object(raw, [
+            "runner",
+            "projectId",
+            "bindingId",
+            "expectedRevision",
+            "expectedProgramHash",
+            "idempotencyKey",
+          ]);
+          id(value.projectId);
+          id(value.bindingId);
+          id(value.idempotencyKey);
+          integer(value.expectedRevision, 1);
+          if (
+            typeof value.expectedProgramHash !== "string" ||
+            !/^[0-9a-f]{64}$/.test(value.expectedProgramHash)
+          )
+            throw new Error("编译摘要无效。");
+          const projectId = id(value.projectId);
+          const current = await backend.request<{
+            project: { projectId: string } | null;
+          } | null>("GET", "/api/v1/local/session");
+          if (
+            this.backend() !== backend ||
+            current?.project?.projectId !== projectId
+          )
+            throw new Error("SSH_IDENTITY_PROJECT_CHANGED");
+          const result = await backend.request(
+            "POST",
+            `/api/v1/projects/${projectId}/runs`,
+            {
+              runner: "ssh",
+              bindingId: value.bindingId,
+              expectedRevision: value.expectedRevision,
+              expectedProgramHash: value.expectedProgramHash,
+            },
+            id(value.idempotencyKey),
+          );
+          const after = await backend.request<{
+            project: { projectId: string } | null;
+          } | null>("GET", "/api/v1/local/session");
+          if (
+            this.backend() !== backend ||
+            after?.project?.projectId !== projectId
+          )
+            throw new Error("SSH_IDENTITY_PROJECT_CHANGED");
+          return result;
+        }
+        const value = object(raw, [
           "projectId",
           "expectedRevision",
           "expectedProgramHash",
@@ -233,7 +339,10 @@ export class MainWorkflow {
           !/^[0-9a-f]{64}$/.test(value.expectedProgramHash)
         )
           throw new Error("编译摘要无效。");
-        const request = value as unknown as StartRun;
+        const request = value as unknown as Exclude<
+          StartRun,
+          { runner: "ssh" }
+        >;
         return backend.request(
           "POST",
           `/api/v1/projects/${request.projectId}/runs`,

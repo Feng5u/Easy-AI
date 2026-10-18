@@ -98,6 +98,29 @@
       "default": null,
       "title": "Environmentprefix"
     },
+    "condaExecutable": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Condaexecutable"
+    },
+    "device": {
+      "default": "auto",
+      "enum": [
+        "auto",
+        "cpu",
+        "cuda",
+        "mps"
+      ],
+      "title": "Device",
+      "type": "string"
+    },
     "executionMode": {
       "enum": [
         "full",

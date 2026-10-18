@@ -13,6 +13,8 @@ export type Dataroot = string;
 export type Runroot = string;
 export type Pythonexecutable = string;
 export type Environmentprefix = string | null;
+export type Condaexecutable = string | null;
+export type Device = "auto" | "cpu" | "cuda" | "mps";
 export type Executionmode = "full" | "quick";
 export type Seed = number;
 export type Numworkers = number;
@@ -35,6 +37,8 @@ export interface RunConfig {
   runRoot: Runroot;
   pythonExecutable: Pythonexecutable;
   environmentPrefix?: Environmentprefix;
+  condaExecutable?: Condaexecutable;
+  device?: Device;
   executionMode: Executionmode;
   seed: Seed;
   numWorkers: Numworkers;

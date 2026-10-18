@@ -28,6 +28,7 @@ export type Executionstate =
   | "CANCELLED";
 export type Connectionstate = "connected" | "disconnected";
 export type Artifactsverified = false;
+export type Cancelledbeforestart = boolean;
 export type Lastconnectionid = string | null;
 export type Heartbeat = number;
 export type State = "STARTING" | "RUNNING" | "CANCELLING" | "CLEANUP_PENDING" | "COMPLETED" | "FAILED" | "CANCELLED";
@@ -46,6 +47,7 @@ export interface RemoteRunCheckpoint {
   executionState?: Executionstate;
   connectionState?: Connectionstate;
   artifactsVerified?: Artifactsverified;
+  cancelledBeforeStart?: Cancelledbeforestart;
   lastConnectionId?: Lastconnectionid;
   lastObservation?: RemoteRunObservation | null;
 }

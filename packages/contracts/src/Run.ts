@@ -8,6 +8,8 @@ export type Status =
   | "STAGING"
   | "STARTING"
   | "RUNNING"
+  | "CLEANUP_PENDING"
+  | "COMPLETED"
   | "SUCCEEDED"
   | "FAILED"
   | "CANCELLING"
@@ -28,6 +30,8 @@ export type Dataroot = string;
 export type Runroot = string;
 export type Pythonexecutable = string;
 export type Environmentprefix = string | null;
+export type Condaexecutable = string | null;
+export type Device = "auto" | "cpu" | "cuda" | "mps";
 export type Executionmode = "full" | "quick";
 export type Seed = number;
 export type Numworkers = number;
@@ -35,6 +39,23 @@ export type Pinmemorypolicy = "cuda_only";
 export type Epochs = 1;
 export type Trainsamples = 1024;
 export type Testsamples = 256;
+export type Host = string;
+export type Port = number;
+export type Username = string;
+export type Hostfingerprint = string;
+export type Executionstate =
+  | "CREATED"
+  | "STAGING"
+  | "STARTING"
+  | "RUNNING"
+  | "CANCELLING"
+  | "CLEANUP_PENDING"
+  | "COMPLETED"
+  | "FAILED"
+  | "CANCELLED";
+export type Startoutcome = "not_attempted" | "unknown" | "acknowledged";
+export type Cancelstate = "none" | "pending" | "acknowledged" | "resolved";
+export type Artifactsverified = boolean;
 
 export interface Run {
   runId: Runid;
@@ -43,6 +64,7 @@ export interface Run {
   connectionState: Connectionstate;
   syncState: Syncstate;
   config: RunConfig;
+  remote?: RemoteExecution | null;
 }
 export interface RunConfig {
   configVersion?: Configversion;
@@ -58,6 +80,8 @@ export interface RunConfig {
   runRoot: Runroot;
   pythonExecutable: Pythonexecutable;
   environmentPrefix?: Environmentprefix;
+  condaExecutable?: Condaexecutable;
+  device?: Device;
   executionMode: Executionmode;
   seed: Seed;
   numWorkers: Numworkers;
@@ -68,4 +92,14 @@ export interface QuickLimits {
   epochs?: Epochs;
   trainSamples?: Trainsamples;
   testSamples?: Testsamples;
+}
+export interface RemoteExecution {
+  host: Host;
+  port: Port;
+  username: Username;
+  hostFingerprint: Hostfingerprint;
+  executionState: Executionstate;
+  startOutcome: Startoutcome;
+  cancelState: Cancelstate;
+  artifactsVerified?: Artifactsverified;
 }

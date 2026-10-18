@@ -655,3 +655,28 @@ def test_snapshot_must_match_persisted_authority(prepared, record):
     with pytest.raises((ValueError, OSError)):
         RemoteBundle.freeze(source.root, config, bundle.identity)
     assert endpoint.uid_calls == 0 and not endpoint.commands
+
+
+def test_conda_launch_vector_is_frozen_and_requires_paired_prefix(prepared):
+    source, _, _ = prepared
+    config = source.config.model_copy(
+        update={
+            "conda_executable": "/synthetic/conda bin",
+            "environment_prefix": "/synthetic/class env",
+        }
+    )
+    identity = identity_from_config(config, source.auth, source.identity.launch_id)
+    (source.root / "run-config.json").write_text(config.model_dump_json(by_alias=True))
+    (source.root / "remote-identity.json").write_text(identity.model_dump_json(by_alias=True))
+    frozen = RemoteBundle.freeze(source.root, config, identity)
+    assert frozen.python_argv() == (
+        "/synthetic/conda bin",
+        "run",
+        "-p",
+        "/synthetic/class env",
+        "--no-capture-output",
+        config.python_executable,
+    )
+    invalid = config.model_copy(update={"environment_prefix": None})
+    with pytest.raises(ValueError):
+        RemoteBundle.freeze(source.root, invalid, identity)

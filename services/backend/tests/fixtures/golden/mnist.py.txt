@@ -48,7 +48,14 @@ def main():
         started = time.monotonic()
         random.seed(context.seed)
         torch.manual_seed(context.seed)
-        if torch.cuda.is_available():
+        if context.device != 'auto':
+            device = torch.device(context.device)
+            if device.type == 'cuda' and not torch.cuda.is_available():
+                raise RuntimeError('Configured CUDA device is unavailable')
+            if device.type == 'mps' and not (hasattr(torch.backends, 'mps') and torch.backends.mps.is_available()):
+                raise RuntimeError('Configured MPS device is unavailable')
+            selection_reason = 'Device fixed by the verified run configuration'
+        elif torch.cuda.is_available():
             torch.cuda.manual_seed_all(context.seed)
             device = torch.device('cuda')
             selection_reason = 'CUDA is available in the selected training environment'

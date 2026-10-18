@@ -1,6 +1,10 @@
 import { AuthenticatedPanel } from "./AuthenticatedPanel.js";
 import { useEffect, useRef, useState } from "react";
-import type { DesktopAPI, IdentityResult } from "../electron/bridge.js";
+import type {
+  DesktopAPI,
+  IdentityResult,
+  RemoteRunControls,
+} from "../electron/bridge.js";
 
 const messages: Record<string, string> = {
   SSH_HOST_KEY_CHANGED: "主机密钥已变化，已拒绝信任。请联系管理员核对。",
@@ -24,11 +28,13 @@ export function ConnectionPanel({
   environments,
   projectId,
   onClose,
+  remote,
 }: {
   api: DesktopAPI["connections"];
   environments?: DesktopAPI["environments"];
   projectId: string;
   onClose(): void;
+  remote?: RemoteRunControls;
 }) {
   const [host, setHost] = useState("");
   const [port, setPort] = useState("22");
@@ -47,6 +53,8 @@ export function ConnectionPanel({
   }
   useEffect(() => () => invalidate(), [api, projectId]);
   function reset() {
+    remote?.onBinding(null);
+    remote?.onSession(null);
     invalidate();
     setBusy(false);
     setResult(null);
@@ -243,6 +251,7 @@ export function ConnectionPanel({
               projectId={projectId}
               identityRequestId={result.requestId}
               onInvalidated={reset}
+              remote={remote}
             />
           )}
           {observed.trustState === "trusted" && (

@@ -7,6 +7,7 @@ can provide the scope guard. Test transports are confined to the test suite.
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 import json
+import math
 import threading
 import time
 from typing import Any, Callable, Iterator, Literal
@@ -92,6 +93,7 @@ class EnvironmentService:
         self._environments: dict[str, EnvironmentDescriptor] = {}
         self._catalog_expires = 0.0
         self._conda: str | None = None
+        self._ready: tuple[EnvironmentProbeResult, str | None, float] | None = None
 
     def _request_scope(self, request: EnvironmentRequest) -> None:
         if (
@@ -124,6 +126,23 @@ class EnvironmentService:
         with self._mutex:
             return (self._active is None or not self._active.running) and self._transport.quiescent
 
+    def authority(
+        self, request: EnvironmentRequest, probe_id: str
+    ) -> tuple[EnvironmentProbeResult, str | None, int]:
+        with self._mutex:
+            self._request_scope(request)
+            self._verify_scope(self.scope)
+            if self._closed or self._ready is None or self._clock() >= self._ready[2]:
+                raise EnvironmentFailure("ENVIRONMENT_AUTHORITY_EXPIRED")
+            value, conda, _expiry = self._ready
+            if value.request_id != probe_id or value.scope != self.scope:
+                raise EnvironmentFailure("ENVIRONMENT_AUTHORITY_INVALID")
+            return (
+                value.model_copy(deep=True),
+                conda,
+                max(1, min(120, math.floor(_expiry - self._clock()))),
+            )
+
     def cancel_running(self, request: EnvironmentRequest) -> bool:
         with self._mutex:
             self._request_scope(request)
@@ -141,6 +160,7 @@ class EnvironmentService:
             if self._active:
                 self._active.cancel.set()
             self._environments.clear()
+            self._ready = None
         try:
             self._transport.close()
         except Exception:
@@ -167,6 +187,7 @@ class EnvironmentService:
             if request.request_id in self._retired:
                 raise EnvironmentFailure("ENVIRONMENT_REQUEST_RETIRED")
             self._retire(request.request_id)
+            self._ready = None
             operation = _Operation(request.request_id, self._clock() + 20)
             self._active = operation
         try:
@@ -381,7 +402,7 @@ class EnvironmentService:
                     )
                     and report.tensor.ok
                 )
-                return EnvironmentProbeResult(
+                value = EnvironmentProbeResult(
                     project_id=request.project_id,
                     connection_id=request.connection_id,
                     request_id=request.request_id,
@@ -392,3 +413,10 @@ class EnvironmentService:
                     data_ready=report.dataset.ok if report.dataset else None,
                     issues=issues,
                 )
+                if ready and value.data_ready is True:
+                    self._ready = (
+                        value.model_copy(deep=True),
+                        self._conda if descriptor.kind == "conda" else None,
+                        self._clock() + 120,
+                    )
+                return value

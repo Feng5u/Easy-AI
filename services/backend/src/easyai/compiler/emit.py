@@ -118,7 +118,16 @@ def emit_program(program: ProgramIR) -> tuple[str, list[SourceSpan]]:
     run("started = time.monotonic()", False)
     run("random.seed(context.seed)")
     run("torch.manual_seed(context.seed)")
-    run("if torch.cuda.is_available():")
+    run("if context.device != 'auto':")
+    run("    device = torch.device(context.device)")
+    run("    if device.type == 'cuda' and not torch.cuda.is_available():")
+    run("        raise RuntimeError('Configured CUDA device is unavailable')")
+    run(
+        "    if device.type == 'mps' and not (hasattr(torch.backends, 'mps') and torch.backends.mps.is_available()):"
+    )
+    run("        raise RuntimeError('Configured MPS device is unavailable')")
+    run("    selection_reason = 'Device fixed by the verified run configuration'")
+    run("elif torch.cuda.is_available():")
     run("    torch.cuda.manual_seed_all(context.seed)")
     run("    device = torch.device('cuda')")
     run("    selection_reason = 'CUDA is available in the selected training environment'")

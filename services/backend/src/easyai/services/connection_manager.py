@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 import math
 import threading
 import time
-from typing import TYPE_CHECKING, Callable, Protocol
+from typing import TYPE_CHECKING, Any, Callable, Protocol
 from uuid import uuid4
 
 from easyai.domain.connections import AuthenticationRequest, AuthenticatedConnection, SessionControl
@@ -107,10 +107,12 @@ class ConnectionManager:
         verify_project: Callable[[str], None],
         clock: Callable[[], float] = time.monotonic,
         timer_factory: Callable[[float, Callable[[], None]], Timer] = _timer,
+        sftp_factory: Callable[[Any], Any] | None = None,
     ):
         self._client, self._identities = client, identities
         self._mutex, self._verify_project = mutex, verify_project
         self._clock, self._timer_factory = clock, timer_factory
+        self._sftp_factory = sftp_factory
         self._generation = 0
         self._auth: _Authentication | None = None
         self._lease: _Lease | None = None
@@ -432,7 +434,9 @@ class ConnectionManager:
                     raise SshFailure("SSH_SESSION_INVALID")
 
             guard()
-            return SftpArtifactSync(lease.session, identity, self._mutex, guard)
+            return SftpArtifactSync(
+                lease.session, identity, self._mutex, guard, sftp_factory=self._sftp_factory
+            )
 
     def owner_transport(
         self, request: SessionControl, bundle: "RemoteBundle", checkpoint: "RemoteRunCheckpoint"
@@ -463,6 +467,7 @@ class ConnectionManager:
                 bundle,
                 self._mutex,
                 guard,
+                sftp_factory=self._sftp_factory,
                 allow_start=checkpoint.start_outcome == "not_attempted"
                 and checkpoint.cancel_state == "none",
             )
