@@ -1185,3 +1185,33 @@ NOT RUN：实际 pip/conda/SDK 安装或许可、依赖联网解析、真实新�
 NOT RUN：真实pip/conda依赖安装/下载/SDK许可、真实owned新环境provision、已安装torch的正向复检/卷积、真实MNIST训练/数据下载、真实SSH/重连、Windows安装进程/NTFS/冻结ABI、Electron原生对话框/课堂E2E、安装包发布/个人PC。无新拒绝或未决外部写入；既有Actions日志与Electron sandbox拒绝继续保留，没有绕路重试。最新精确已知CI仍407da99/run39149608836的check SUCCESS/desktop FAILURE（2 annotations，失败步骤正文未知）；本片新SHA CI另待证据，不套旧失败根因。
 
 下一项按原M6.3继续受控conda新环境provision与授权生产接线，或推进独立M8包装；代码/可控进程测试可继续，真实安装必须另有一次性owned目标、来源/下载范围及具体计划确认。常规开发分支提交推送；无main/强推/PR/Release/部署/新增费用、凭据或安全权限。本片不是M6.3全验收，更不是完整B。
+
+## 2026-10-18 — M6.3 新owned目录创建/半成品隔离与pip配置P2
+
+源码完整SHA：pip修复 `3cd868d677a2d9f7a149145fad5787827dee5b5e`；创建流程 `de9be266cf2236083637495da1f83959abf669e0`；基线 `736b984b57861499f66f40a9b490080eb1f6bbb5`。父级要求接续新owned创建代码，同写入者保全工作期间先修父级独审pip P2，再完成独占FS创建→bootstrap→原安装/终检流程；生产API始终没有execute入口、executionEnabled=false。
+
+**实际边界**：本片实现了受控UUID目录创建器与内部bootstrap adapter接线，**真实conda bootstrap adapter仍缺**；当前adapter合同要求接受已有空prefix。没有调用conda/venv/pip去创建实际Python环境；合成目录、标准库子进程与inventory JSON只证明生命周期/保护链，不证明真实依赖安装、import成功或张量效果。
+
+OwnedCreation在应用根下建立独占environment-creations/UUID claim，绑定规范UUID、jobId、planHash和根dev/ino；使用原ProjectLock，锁后重核来源/基线/TTL与其他持久执行意图，write-ahead成功后才mkdir精确训练prefix。已有路径、旧claim、symlink、根或prefix身份替换均拒绝，绝不删除、覆盖、采用未知目录。bootstrap已停止且新nonce/sys.prefix/Python3.11通过，才写两字段owned marker；先在prefix内写独立origin并fsync目录。随后复用原executor、日志/取消、完整postprobe门，最后才发布ready；require_ready还必须读到同job/hash的持久SUCCEEDED/verified。取消/失败保留目录及日志；unknown继续持有lease/reservation，不以PID或锁文件推定停止。
+
+独审实测关闭missing-claim **P2**：bootstrap成功但installer失败时，移走claim目录曾使partial被当作legacy owned接纳。现在新job的内部持久payload记录creationRequired=true（API DTO/schema不变；read_install_job兼容旧记录），缺claim时prefix origin或任一同environmentId新创建日志均拒绝legacy接纳；有claim还核origin、ready、prefix身份及持久终态。独审原fixture及“claim与origin同时移走、ledger仍在”均拒绝。origin的目录fsync用于先于owned marker的本地顺序，不把本片签成跨目录/断电恢复保证。legacy兼容只在没有新创建证据时适用。
+
+父级pip **P2**：isolated仍读global/site/PIP_CONFIG_FILE，no-index不移除find-links配置追加候选，还可能读install.target/prefix。子进程现在在import pip前清除全部继承PIP_*并强制PIP_CONFIG_FILE=os.devnull；固定本地wheelhouse、require-hashes和目标Python不变，另核精确owned marker。现有base Python实际pip版本26.2.1的参数解析红绿测试：未修preamble时读入synthetic远程find-links与outside target；同一污染global/site/指定配置及环境变量，修后仅固定本地find-links、无target/prefix/extra index。只调用parse_args，不调用install.run、候选获取或网络，不改宿主配置。其他训练pip版本仍需兼容验证；测试机无既有pip时明确SKIP，不能冒称通过。官方依据：[pip配置及devnull语义](https://pip.pypa.io/en/stable/topics/configuration/#pip-config-file)，[isolated定义](https://pip.pypa.io/en/stable/cli/pip/#cmdoption-isolated)。
+
+实际命令（cwd `/workspace/Easy-AI`；check/PyInstaller沿用 `UV_CACHE_DIR=/workspace/.uv-cache UV_PYTHON_INSTALL_DIR=/workspace/.python XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/.cache`）：
+
+| 命令 | 实际结果/证据与范围 |
+| --- | --- |
+| `services/backend/.venv/bin/python -m pytest services/backend/tests/test_install_process.py -k polluted -q` | **1 PASS/16 deselected**，1.25秒，`/tmp/easyai-pip-config-boundary.log`；实际pip26.2.1只读解析红绿，如上；包含在最终窗口，不累加 |
+| `services/backend/.venv/bin/python -m pytest services/backend/tests/test_owned_creation.py services/backend/tests/test_install_process.py services/backend/tests/test_install_service.py services/backend/tests/test_local_api.py services/backend/tests/test_local_workspace.py -q` | 最终 **73 PASS**，3.86秒，1条第三方弃用warning，`/tmp/easyai-owned-final.log`。新创建20项、进程17、原合同23及API/workspace13；其中真实stdlib子进程在合成prefix写文件并退出，另真实取消30秒等待子进程并核process_exited/partial保留/无marker，均没有训练环境创建。其余含精确marker、来源/指纹变化、bootstrap身份、最终复检取消、unknown保锁、claim缺失、inode替换、symlink外写拒绝、半成品不可用/ready不单独授信 |
+| 同缓存 `pnpm check` | **PASS**；strict mypy51源文件、92 Python格式、ruff、TS/Main/测试TS、合同与真实Blockly fixture漂移、Prettier；`/tmp/easyai-owned-check-final.log` |
+| 同缓存 `node scripts/python-task.mjs build` | **PASS**；`/tmp/easyai-owned-build.log`。PyInstaller实际包含新创建模块依赖，不安装新依赖或torch |
+| `node scripts/test-frozen.mjs`；`node scripts/test-frozen-install-recovery.mjs` | 均 **PASS**；`/tmp/easyai-owned-frozen.log`、`/tmp/easyai-owned-restart.log`；冻结资源/认证golden编译/离线计划确认取消/EOF0，以及新内部持久metadata下真进程退出再重启查询旧job、确认作废、不创建训练环境，验证旧记录兼容与资源路径。未重跑未改的真实桌面/SSH/训练矩阵凑数字 |
+| 独立只读审查 | 初新15 PASS/0.14秒并复现missing-claim P2；关闭后 **19 PASS/0.13秒**，无剩余明确新增P1/P2。与最终73重合，不累加；最终第20项是另补真实stdlib取消用例。worker未编辑、安装、创建conda/venv或联网 |
+| `git diff --check`；`sha256sum 'docs/v0.0.0 plan.md' docs/v0.0.0.md README.md`；`git ls-remote origin refs/heads/main refs/heads/codex/demo-v0.0.0` | **PASS**；plan仍116185字节/hash `dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43`；原规格 `5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190`、README `befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852`不变。推送前远端dev=736b984、main=`5323f86232529efcfb52131168ad049f01b219f3`，无他人分支推进；最终普通dev push后复核 |
+
+中途FAIL如实保留：首55项 **52 PASS/3 FAIL**，`/tmp/easyai-owned-targeted.log`；半成品确已被拒绝，但缺marker抛原始FileNotFoundError，新增测试要求固定ValueError，现_owned统一转INSTALL_ENVIRONMENT_FORBIDDEN，不放宽保护。首次check **FAIL**，`/tmp/easyai-owned-check.log`，新test多余Path import，删除后完整检查通过。旧55/59与独审窗口均被最终73覆盖，不累计。两个独审P2修前复现如上，不把早期通过当完整安全通过。
+
+**CI最新证据更正**：父级核实认证邮件，`736b984b57861499f66f40a9b490080eb1f6bbb5` / **run39154349633** 于 **18:31:16 UTC completed，check SUCCESS、desktop FAIL，各2 annotations**，来源 https://github.com/T1doo/Easy-AI/actions/runs/39154349633 。中间3fbdd02/run39153498677曾双失败，但非最新；407da99仅历史。邮件没有失败步骤正文，根因未知，不能归因旧四类或本轮pip P2。未重跑同SHA、绕Actions拒绝或扩大权限；本片新SHA CI仍待独立证据。
+
+NOT RUN/仍缺：真实conda bootstrap adapter、已授权生产执行接线、实际环境创建/依赖下载安装/新SDK或许可、真实目标pip版本全矩阵、正向训练环境import/tensor、未知停止安全解除/存活安装重连、任务历史保留UI、远端安装、数据/训练/MNIST、SSH/SFTP、Windows/NTFS/安装进程、真实Electron/原生picker/课堂E2E、安装包/发布/个人PC。没有盲解锁或删除未知目录，无新拒绝/未决外部写入。下一项优先实现并核审真实conda bootstrap适配器的固定命令与配置边界（仍不实际运行）及授权执行门，或按父级指定独立关键路径推进；完整M6.3和B均未验收。无main/强推/PR/Release/部署/费用/新凭据或安全权限。
