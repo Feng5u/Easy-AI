@@ -726,3 +726,33 @@ CI新事实由父级提供：前版 `a4609dc60060d13e34f751fd2dd4615d2e86678d` �
 剩余缺口/NOT RUN：Windows实际NTFS目录flush、真实owner/DACL及替换竞态、跨进程/异常退出和冻结ABI待有界Windows CI原生证据；当前内部native RunService专项未执行。Windows完整SSH链仍受默认门拒绝，RemoteBundle/SftpArtifactSync等默认factory的原生贯通及目标兼容还未验收，既有Windows本地路径模式不是本轮安全后端支持声明。跨应用离线文件篡改、真实断电耐久、真实SSH/SFTP/上传/环境/数据/torch/训练/硬件、实际Electron/E2E未运行；不动用户PC，不安装训练环境、不下载数据、不重试旧sandbox拒绝。无main写入、强推、PR、部署、Release、Feng5u写入、新权限/凭据/费用。
 
 下一项：由父级独审此代码片并取得可读的Windows实际步骤证据，再推进默认关闭的原生factory全链及剩余M5合同；未具备证据前不开放Windows SSH。**M5整体、A、B继续未验收。**
+
+## 2026-10-18 — 父级精准 P2：POSIX new_child 的 sync 后首次采纳
+
+代码提交 `7a894ae3191e691da881924918ea802ddb6a7fb1`，父提交 `5828421927ad625662ab0fa7e89af2e1f0bdd6ab`。保持前片其他代码冻结，仅改remote_cache.new_child并新增test_directory_claim.py。父级最终裁定本片仅保留这一新增P2：旧顺序mkdir成功→父目录sync→按名称首次打开child，sync期间把新run目录rename走并放回同名0700普通空目录，会采纳替代目录。owner_lock的path-based ProjectLock为沿用旧实现，本轮未修改，不将其包装为新增回归或扩大修复范围。
+
+先在父提交真实执行可控Event闩锁：工作线程mkdir后停在父sync，主线程确认子inode变化，rename保留原目录、原名建立普通空目录，再放行sync。`services/backend/.venv/bin/pytest -q services/backend/tests/test_directory_claim.py` **2 FAIL，0.11秒**，直接调用返回了替代目录；真实RunService.prepare也返回成功，替代目录已有ENVIRONMENT.md、README.md、bundle.json、code、logs、snapshot、run-config.json及派生视图等。测试无SSH/训练/系统权限动作，仅自有tmp文件；源码推导与这次实际复现明确区分。
+
+修复为mkdir后立即取得child句柄，**sync前持有该身份**；sync后核同一child及parent，失败关闭child，不在sync收据后重新按名首次采纳。原两项回归 **2 PASS，0.07秒**，要求替代目录为空且无ledger/supervisor。独审独跑同两项 **2 PASS，0.07秒**，确认该sync窗口P2关闭，未修改仓库。Windows `_child` 已持创建handle跨sync并比对新打开对象identity，本轮仅源码核对，未改Windows、未执行原生API。POSIX mkdir本身不返回handle；本次不宣称mkdir/open是原子系统调用，或能防御同UID任意删除替换全部状态，既有平台和威胁边界不扩大。
+
+实际后续命令（`/workspace/Easy-AI`）：
+
+| 命令 | 结果与范围 |
+| --- | --- |
+| `services/backend/.venv/bin/pytest -q services/backend/tests/test_directory_claim.py services/backend/tests/test_local_ssh_storage.py services/backend/tests/test_run_storage.py services/backend/tests/test_run_service.py` | **55 PASS**，2.09秒；含上述2项，不另加总，未重跑202/450/94矩阵 |
+| `services/backend/.venv/bin/pytest -q services/backend/tests/test_remote_run_api.py -k 'root_swap or shared_protected or initialization_failure'` | **4 PASS /7 deselected**，0.87秒；真实持久化配合合成端点，不是原生Windows/真实SSH验收 |
+| `node scripts/python-task.mjs check` | **PASS**；strict mypy45源文件及后端/runtime ruff与格式。沿用workspace UV/XDG缓存，无安装 |
+| `node scripts/python-task.mjs build`、`node scripts/test-frozen-ssh.mjs` | **PASS**；Linux冻结后端与HTTP/资源/EOF退出0，无有效远端操作。构建日志在执行器自有 `/tmp/easyai-directory-claim-build.log`，不提交二进制/运行数据 |
+| `git diff --check`、原计划hash | **PASS**；原计划仍为116185字节、SHA256 `dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43`，原件不变 |
+
+本轮没有新CI证据。现有获准记录仍仅能确认前版a4609dc/run39135362749的check success、desktop failed，具体失败步骤/根因未知；新native/desktop CI未知，未查询被拒Actions端点或换路。原生Windows、真实Electron、真实SSH/数据/训练均NOT RUN；Windows SSH gate保持关闭，A/B不变。没有main写入、强推、PR、发布、费用/凭据/安全权限变化。
+
+### 下一功能只读定位（未实施，待父级独审）
+
+重核原计划第2.1、12.3.1、13.1、15.2、M3.3/3.4、M5.1及19.3/19.4后，建议下一最小功能片回到 **M5.1非敏感连接概要保存/选择及稳定targetId**，不继续泛化安全包装。现有ConnectionPanel的host/port、AuthenticatedPanel的username只是React会话状态；LocalWorkspace.bind_remote仍每次 `target_id=str(uuid4())`，没有第15.2要求的GET/POST/PATCH connections持久摘要。身份确认→密码会话→只读环境probe→绑定→受控owner执行/重连的代码已存在，前轮有离线组合证据，但不能用其替代至少一次真实SSH。
+
+建议切片行为：用户保存服务器别名/host/port/username等非敏感概要→重开应用仍能选择同一targetId→选择只填配置，不连接/认证/执行→仍显式核指纹、输入会话密码和probe→运行绑定引用该稳定target。复用现有存储与manager，不新增通用命令/第二套执行器；活动运行引用的endpoint身份不可原地改写，旧运行快照不跟随修改。密码/口令/私钥内容不持久化，不开放“记住密码”；私钥认证本身仍是M5.1另一未完成项，不用此小片冒称全M5.1完成。
+
+可立即开发的本地原功能也有两项明确缺口：本机环境检查目前只在start中执行，界面“检查与编译”只做编译；完整Bundle在后端可导出，但桌面“导出当前工程”仅导出JSON。这些可在后续独立小片交付，不能据此跳过M3真实数据人工闭环或提前进入M6/M7发布。CIFAR10本机preflight仍明确不支持，属于D10/M6.1尚待补齐的真实运行缺口。
+
+验收条件分开：已有M3 CPU/真实参数更新及Main链证据使用明确批准的32/16合成IDX，只证明真实执行，不是真MNIST效果；门A仍需老师已准备真实MNIST的获准绝对路径及本机CPU人工小样本运行/产物/映射证据，不擅自下载或重跑训练。M5实际验收另需获准Linux目标、独立指纹、会话认证方式、现有解释器/数据及专用上传/执行/取消范围。Windows native/desktop是客户端平台与包的独立验证条件，不能用上述Linux/mock结果代替，也不能把它们全部混称为“等真实数据”。这些动作本轮未执行，未新获授权，不动个人电脑或教师共享环境。
