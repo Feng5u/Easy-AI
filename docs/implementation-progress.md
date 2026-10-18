@@ -1950,3 +1950,83 @@ NOT RUN：真实Electron原生窗口/沙盒运行、无Node/开发Python干净�
 原计划116185字节SHA dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43、旧规格5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190、README befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852及core/ML/CV六份来源与锁全部未改。旧portable source7b91c46保持，其package-manifest SHA5f26ba7bb27917e717faec81c69d98ea97e3e39064ac4490b3e65fcc012fd937，新builder产物独立，不冒充旧portable更新。CIFAR待裁决、OpenCV native未核unsupported、旧226PASS/1FAIL根因UNKNOWN及真实M5/M6.3条件仍保留。
 
 下一项为父侧核对正式builder依赖/布局/包证据与隐私P2收口；后续M8.2目标机/原生窗口验收需已有阻塞解除或明确可用目标条件，不自动发布或扩权限。没有main/强推/PR/Release/部署/付费/凭据/安全权限变更。工作区证据提交后仅正常开发分支push并核远端完整SHA。
+
+
+## 2026-10-18 父独审输入封闭P2补修及M8.2/TST33条件盘点
+
+父侧暂不签收5ab7a92e410650509785bf381d5bb4df8dab8399：旧stage整树采用现成dist/Main/backend/tutorials，output inventory会自动认可额外普通文件。该静态可达性成立，**不是发现旧包已泄露真实秘密**。本轮只关闭批准输入集合缺口；不宣称任意秘密排除或秘密扫描。
+
+最终实际新包对应完整源码 **`5b3df8d565f75a1f5cdeaf4e2f9300ce04bee17f`**。提交链保留28bb7ca/f768d4e/562f7ce/83974d2/56861fc的中间修正与失败证据；最终产品代码/配置没有在产包后修改。普通开发分支codex/demo-v0.0.0，origin=T1doo/Easy-AI，推前远端dev=5f85d252d9c89f7856c520526054597a31e70301、main=5323f86232529efcfb52131168ad049f01b219f3。
+
+### 本范围实际变更
+
+- 正式builder不再调用旧stagePortable采纳ambient dist。新package-inputs在独占目录从指定完整commit的Git archive导出源码，git ls-tree仅允许普通tracked文件，拒source symlink/submodule；ignored/untracked源码不暴露给tsc/PyInstaller。构建前与封存前再核HEAD/clean及普通untracked，保留用户工作，拒绝而不重置。Vite关闭publicDir递归复制。
+- 教程只批准七个TUTORIAL_FILES路径，实际集合出现任何额外文件就拒；非黑名单名extra-lesson.md可证明。docs/示例仍按明确单文件集。应用、sidecar、notices均在新目录产生，Python的dist/work/spec与数据路径单独绑定；不采用旧构建/缓存输出为新输入。Electron按已锁44.9.0官方archive/checksum新解压，不采用installed dist。
+- Node工具在快照真实node_modules按frozen lock、offline、ignore-scripts安装，复用已登记store，354 reused/0 downloaded。应用构建venv也用原uv.lock在快照新建、offline/frozen同步43个应用依赖；无torch/训练依赖。UV_PROJECT_ENVIRONMENT显式固定绝对新路径并去VIRTUAL_ENV，前置要求目标不存在，完成核目录非link且realpath匹配。原应用venv只提供已存在Python基线，不作为同步目标；没有共享训练环境操作。编译器/标准库/已锁第三方依赖仍是信任边界，非完全hermetic声明。[uv官方目标路径说明](https://docs.astral.sh/uv/concepts/projects/config/#project-environment-path)支持此次覆盖门，不执行危险外部环境复现。
+- 干净生成结束才封存approved-inputs.json，app/backend/offline/notices/vendor五个固定组，完整sourceCommit与vendor archive hash、每文件path/bytes/hash/mode。仅对新payload声明data0644/已有执行位0755归一，去特殊位；不改系统/helper安全权限。stage前后核集合并只复制登记文件，builder后再核stage；输出资源和ASAR必须与先前批准输入逐项对应。output inventory不能自动批准额外文件。vendor仅声明已证实的electron→easyai及LICENSE复制/改名变换，官方default_app.asar原批准记录保留。
+- builder manifest v2内含批准收据；旧v1包和raw证据保留，旧PASS不再被解释为输入封闭证明。旧pnpm package复制入口只保留兼容，未冒称获此输入封闭门。未新增包装目标、安装器、发布、签名、远端或训练功能。
+
+### 最终新包与独立证据
+
+- 输出根：`/workspace/Easy-AI/dist/easyai-builder-5b3df8d565f7-1792365720449-linux-x64`；dir为`artifacts/linux-unpacked`。
+- tar.gz：`artifacts/easyai-0.0.0-linux-x64.tar.gz`，**152691264字节**，SHA256 **`008a7d991e49111b27b85ca932206361635026b7aadd8c67f8d566bdb6620254`**。
+- builder-manifest.json SHA256 **`a9d3b42f6d7111589091a450a3cb6d8b8835c7da5c1ca54a7c974baa2c505aa1`**；289条输出记录，批准输入组计app33/backend137/offline18/notices58/vendor72。
+- 原批准收据：`dist/builder-inputs-5b3df8d565f7-1a18e621-3e77-4cb9-a04a-952a13be7c60/approved-inputs.json` SHA256 `d0dd59167606acec53c1cf4baeca2aa28caa3da18a83c88e3b71337c3d7f585c`；亦嵌入builder manifest。Electron archive SHA256 `ecced7ecb55697f92ca870939c5988557faa8acd8c222c232cae5913d318c8b9`，来自注册精确版本并校验，非自猜URL。
+- tar标准库只读审计287 regular files逐项匹配unpacked bytes/hash/mode，无额外、缺失、link/special/traversal，不解包。独审独立重复通过；stage/source/.venv等不进入归档。
+- 最终distributionReady=false、legalReviewComplete=false，无发布、上传或正式交付宣称。
+
+| 实际命令 / 范围 | 结果 |
+| --- | --- |
+| `node --test scripts/package.test.mjs scripts/package-builder.test.mjs scripts/package-inputs.test.mjs` | 最终 **20 PASS/871ms**；七教程集合、五组普通名字bonus-object.bin追加后拒绝、原收据不变/不stage、登记文件修改/删除、output inventory自行追加additional-reading.json仍拒、固定Git tree不含ignored core.private.mts/untracked ordinary-extra.mts且原件保留、UV外部目标参数被固定新路径覆盖并拒既有目录；原完整性测试保持。 |
+| `UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache pnpm check` | 最终PASS；TS/Main/tests、ruff117Python、mypy63、合同/实际Blocklyfixtures/Prettier。 |
+| `UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache XDG_CACHE_HOME=/workspace/.cache CSC_IDENTITY_AUTO_DISCOVERY=false pnpm package:builder` | 最终PASS。真实从Git快照生成tsc/Vite/PyInstaller新输出，Node与应用依赖均offline/frozen，新vendor与来源校验；真实builder dir/tar.gz，289记录与批准闭集通过。该命令包含实际干净build，不用旧pnpm build结果冒充。 |
+| `pnpm package:builder:verify dist/easyai-builder-5b3df8d565f7-1792365720449-linux-x64` | PASS，v2输入/输出两层、五组闭集与ASAR bytes/metadata。 |
+| `node scripts/test-frozen.mjs dist/easyai-builder-5b3df8d565f7-1792365720449-linux-x64/artifacts/linux-unpacked/resources/backend` | PASS；实际包内sidecar temp cwd鉴权、资源/离线计划、禁执行登记取消、工程创建/黄金编译、EOF exit0；没有训练/probe/SSH。 |
+| Python stdlib tarfile/hashlib.inline脚本（只读） | PASS，287文件逐项bytes/mode/hash匹配，没有提取或执行归档。 |
+| Python ast.literal_eval读取实际Analysis-00.toc（只读） | PASS；61个easyai源文件均在固定Git快照，7个namespace无源路径占位符，无原工作区源码路径fallback。不是所有系统/第三方依赖hermetic证明。 |
+| 既有worker独立只读复查 | 最终三组20PASS、v2 verify289记录PASS、tar287逐项PASS；输入源与UV目标P2均已复核关闭，本范围未发现剩余明确P1/P2。与上表重叠不累计；未同步环境、重建、启动窗口或probe。 |
+| `git diff --check` / ls-remote / 原件与锁hash | PASS；原计划116185字节及原规格/README/core/ML/CV六份来源锁未改，main未改。 |
+
+中间结果全部保留、未降低门：首轮17PASS/1FAIL为ASAR statFile需去leading slash，修后18PASS，再补固定Git tree19PASS、UV目标门20PASS。unique1真实包严格FAIL是builder把新生成文件600归一644；已明确新payload规范模式后再封存，未跳过mode检查。unique2在tsc前被pnpm **ERR_PNPM_UNSAFE_TASK_RUN_STATE_PATH**拒绝符号链接node_modules任务状态根；停止该被拒方案，保护未关闭/未重试该symlink状态。改为正常新目录frozen安装，unique3因错误空store而offline cache miss失败，按原.modules.yaml实际store修正后354包重用且零下载。unique4严格FAIL为错误假设builder会删default_app.asar，实际保留该原vendor文件，修预期而非批准新未知文件。unique5的56861fc中间包曾成功，但随后静态独审指出继承UV_PROJECT_ENVIRONMENT覆盖目标的P2；实际父变量未设且日志明确新snapshot .venv，无外部环境改变证据，补绝对目标/非link/新目录门后以新source重新构建最终包。没有用危险共享环境做复现。
+
+额外source审计首轮把TOC中的7个namespace字符串'-'错当源文件路径而FAIL，修只读解析后61个实际源文件全在快照；两个日志均保留，不改包。独审自写tar检查首轮遗漏正常顶层目录而FAIL，修路径解析后独立287文件PASS，原产物未改。上述不被混为真实产品执行失败，也不隐藏原始FAIL。
+
+唯一noclobber日志SHA256：
+- `/tmp/easyai-input-closure-archive-20261018-final1.log` SHA256 `feeecd0a4875116949b9befa071abed002425773c6049e5a4aae99c397d22bf0`。
+- `/tmp/easyai-input-closure-check-20261018-final1.log` SHA256 `5b9546205d04c670ac61ad7a8bff82dc39bae1a167cdd98bbbe8937bece75271`。
+- `/tmp/easyai-input-closure-check-20261018-final2.log` SHA256 `5b9546205d04c670ac61ad7a8bff82dc39bae1a167cdd98bbbe8937bece75271`。
+- `/tmp/easyai-input-closure-check-20261018-final3.log` SHA256 `5b9546205d04c670ac61ad7a8bff82dc39bae1a167cdd98bbbe8937bece75271`。
+- `/tmp/easyai-input-closure-check-20261018-unique1.log` SHA256 `5b9546205d04c670ac61ad7a8bff82dc39bae1a167cdd98bbbe8937bece75271`。
+- `/tmp/easyai-input-closure-package-20261018-final1.log` SHA256 `d1ea764ef52397a4417aabecdc02ffdcb8419a49f74b9b76b997c9fb328b9797`。
+- `/tmp/easyai-input-closure-package-20261018-unique1.log` SHA256 `0a1da4acf4756a4cf539d201c48a86664ec139ff0e1597a2c907d245990a46b4`。
+- `/tmp/easyai-input-closure-package-20261018-unique2.log` SHA256 `17146ad9f5990bf3a0a9577a4845a7b7ad8535df2657f041d71d054926e9b1a6`。
+- `/tmp/easyai-input-closure-package-20261018-unique3.log` SHA256 `71f3d0b75aecd0580e219e82f88461cde6a6d3cf2e43b0ada200dffaa88252ab`。
+- `/tmp/easyai-input-closure-package-20261018-unique4.log` SHA256 `927aad24ad29fb1fc58607280ce471b2170afa35f564580a6c6bc402706e076c`。
+- `/tmp/easyai-input-closure-package-20261018-unique5.log` SHA256 `2e67e1358893f46d070d7f084ae853f6fcd7b0ce37d4ec23d0249806856a869a`。
+- `/tmp/easyai-input-closure-sidecar-20261018-final1.log` SHA256 `598e651d8bfd55009c56cd315d848d8185d98d8ae4eb67c6d0dd2d14af4ed0c3`。
+- `/tmp/easyai-input-closure-source-audit-20261018-final1.log` SHA256 `2cb71f967d643d1b1cf7e88ec2f22ca42a41e73d43a47b210d1345d5b87b8967`。
+- `/tmp/easyai-input-closure-source-audit-20261018-final2.log` SHA256 `9ad2726f4ad09dcb83f35095e90ef3ffe7e8ccda64dec8723b691d3866e91cd8`。
+- `/tmp/easyai-input-closure-tests-20261018-final1.log` SHA256 `989493b342fff8ed4b12a17a58937879ab521aa9729b26ad1400bd389011f073`。
+- `/tmp/easyai-input-closure-tests-20261018-final2.log` SHA256 `8c9869c3fcf282701b760ff22b67eb45f600cee36d3af1d0e7851de2fe5db42d`。
+- `/tmp/easyai-input-closure-tests-20261018-unique1.log` SHA256 `7ee5e60bb68a4f2db7fd184d5161368ae0d1140d78023cdda93399feb41dfe4a`。
+- `/tmp/easyai-input-closure-tests-20261018-unique2.log` SHA256 `56208e63386e663a9cc7d177593383c7633866eb71871defcca76a0a6c665b76`。
+- `/tmp/easyai-input-closure-tests-20261018-unique3.log` SHA256 `b501f3095f80a05201fe4852b375166a40659eeefae3b170c0f8059d00d69c36`。
+- `/tmp/easyai-input-closure-verify-20261018-final1.log` SHA256 `09f82e0e00a8fb2f03306b11d3f521aac2cf8c1f7afd5feb7c7853e616dd8f42`。
+- `/tmp/easyai-package-inputs-review-oKDTW3.log` SHA256 `82119414703564526f899916cd4c5057d1b0c4e8b37d8ede7a09d08d48b772c0`。
+- `/tmp/easyai-snapshot-input-review-I9Rkz9.log` SHA256 `4f90a26387759c1b539a6ae8930e3f4cfa7c1ca3222bd2a3fbb1f0587aa91e69`。
+- `/tmp/easyai-final-venv-tests-review-98E52V.log` SHA256 `82343f988b0720edab35e77314b10b96d62018fdf43b173aca3685c4c7692980`。
+- `/tmp/easyai-final-builder-verify-review-eLQvqm.log` SHA256 `6244dc12639f4679f09c6f84fcb49458a24a7b1b28be0cb6f0c6b6e7205fa44f`。
+- `/tmp/easyai-final-tar-prefix-review-4HTDn1.log` SHA256 `97835e2d88f1c9108a46ec9fd61a3f02ea61b198d5e1e088ffc5a001a815ff53`。
+- `/tmp/easyai-final-tar-review-EVwke5.log` SHA256 `434db534b842aeb4aebf39f3836fdf861827ca7880773d436622f97733c8e722`。
+
+### 停止包装外围后的真实剩余条件
+
+已把[release-checklist.md](release-checklist.md)补成M8.2/TST33最小目标条件表：需要保留原Electron sandbox的干净图形目标、明确OS/架构/可写测试目录和操作/采证渠道，客户端无开发Node/Python/本机torch；以及明确授权的隔离SSH目标/账号/可信指纹、已准备训练Python与真实数据、运行/取消/断连/恢复预算及窗口。当前云机Linux x86_64、UID1000，无DISPLAY/WAYLAND_DISPLAY/XDG_SESSION_TYPE且有开发Node/Python，不能充当该干净桌面。没有本片可用的独立图形目标/转移交互渠道或授权SSH条件，实际启动/编辑/Blockly/Monaco/原生picker/已备环境远端运行仍NOT RUN。原生sandbox已有拒绝没有重试、no-sandbox或其它绕过。
+
+尚缺代码也明确列出，**不称只差环境**：17卡中8未支持pytorch-lightning/opencv-python/nltk/spacy/sentencepiece/transformers/gensim/hanlp的兼容依赖/许可/锁与复检闭包（OpenCV native未核不换headless，语料/模型不自动下载）；InstallPlanRequest.targetId仍literal local，无远端安装计划/owned边界、来源预算传输、远端锁/受管执行WAL/取消重连与未知停止隔离/复检回读闭环。已有远端训练与同步不等于远端安装。Windows host storage生产门、历史保留管理/未知停止显式安全解除等旧缺口仍存在。本轮不创建这些未授权的新工作，不继续扩包装外围。
+
+NOT RUN：真实桌面/干净目标机/TST33远端运行、Windows/macOS/系统安装签名/升级卸载、真实训练环境安装/probe/训练/数据模型下载/真实SSH、新CI端点读取、发布或部署。无新许可接受/费用/安全权限/凭据变更。没有不确定外部安装/写入；uv实际操作限新构建应用venv，训练环境和老师环境未操作。此轮pnpm目录拒绝及其安全替代已准确记录；不是自动审批reviewer拒绝，未禁用保护。既有桌面与Actions拒绝不绕过。
+
+旧5ab tar仍SHA7445fb3e57d35393d48ebcd5f08dd52266e6c04728ab341bd0f50e5b31326b78、manifest仍345a18f63253fe67b068e0df847734abd972aa7a7a6e4e8e9c53ae5f837aa76f，完整保留。旧portable source7b91c46的manifest仍5f26ba7bb27917e717faec81c69d98ea97e3e39064ac4490b3e65fcc012fd937。原计划SHA dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43、旧规格5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190、README befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852及所有core/ML/CV来源锁均不变。CIFAR待裁决、旧226PASS/1FAIL根因UNKNOWN且raw丢失不回溯关闭。
+
+下一步仅父侧复核本P2收口与上述验收条件/真实代码范围。源码与证据正常开发分支push后核对远端完整SHA与干净工作区；不改main、不强推、不建PR/Release、不发布不签名。M8.2/TST33/B均未被本地生成包替代。
