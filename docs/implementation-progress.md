@@ -1741,3 +1741,59 @@ NOT RUN：wheel/sdist/模型/数据下载、真实conda/pip/安装/环境创建�
 核心sources SHA2562628fc7071ca97301e1069dd8bcf20de72eefdeed5e065969c497cf4f89641c5、核心lock f30a1d2eb86b13a7ae8a708e3356fade92e8dd942f746616a66376f281d8641b、ML sources2077c40f335d19027245e31e0f1cfb867c33257a2997332ee408d9f9490a76f9、ML lock c2a5de84967d110330d476098efd63acfce233ccea93bb8bad25ee44beef9403均未改。计划116185字节SHA256 dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43，旧规格5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190，README befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852保持。旧portable source7b91c46未含本片；distributionReady/legalReviewComplete仍false。CIFAR待裁决；旧226PASS/1FAIL根因UNKNOWN且原始日志丢失不回溯关闭。既有Actions读取/sandbox拒绝未重试或绕过，无本片新CI判断。无main/强推/PR/Release/部署/费用/凭据/安全权限变更，无新工具拒绝/未知外部写入。
 
 下一项：父侧复核CV闭包和OpenCV明确unsupported边界；随后Main来源选择仍待补，余可选卡逐组核元数据/约束及许可，不能猜锁或用卡数冒称真实安装。完整M5/M6.3/B仍未验。
+
+
+## 2026-10-18 — Main原生离线来源选择/核验预览/明确登记
+
+源码完整SHA **`afa8f65c771d8905168bf417b82009392ef109dc`**；基线 `9bb093d64bfcc0c6d71de2762d6c2f0ef570712a`。按父级明确转向Main来源入口，不再逐包扩卡；复用原OfflineConfiguration/InstallRuntime/InstallPlan/唯一worker，无新包解析器或安装器。单一集成者、既有worker独立只读审查。产品合同 `docs/install-source-picker.md`；未实际登记真实来源/取得新执行授权。
+
+先核Main全树main/workflow/preload/bridge/包管理：基线只有工程/数据/Python/私钥等native选择与catalog/plan/job入口，无等效安装来源选择。基线 `git grep -n -E 'install-source|installSources|chooseSources|confirmSources|install-runtime|showOpenDialog' 9bb093d64bfcc0c6d71de2762d6c2f0ef570712a -- apps/desktop/electron` 仅原showOpenDialog命中，日志 `/tmp/easyai-source-baseline-audit-20261018-unique1.log`；结合完整读Main路由后才新增固定入口。
+
+- 正常包管理入口选择可信操作者准备的私有JSON清单：Main原生openFile+固定JSON filter，renderer仅packageIds，不接受路径/命令/index或授权字段；既有sender/mainFrame/sandbox/CSP门保持。取消不调用后端确认、不改当前配置。Main本次backend/epoch/id/hash收据与迟返后验，换backend/dispose/新选择后旧结果不能冒作当前成功。
+- 两条鉴权HTTP来源preview/confirm及四个Pydantic权威生成合同；请求错误固定码、不回显私有路径，预览只含basename/实际SHA/bytes/模块树hash/源档案与wheel合计、解包未知、磁盘预算/命令时限/原授权截止和预览期限。原private manifest/launcher/module/bootstrap/wheelhouse的hash/bytes/身份与保护祖先合同复用，没有仅选文件就信任/执行。
+- 单内存收据不跨重启，60秒且不超过authorizationExpires，另用monotonic限时；绑定清单真实SHA/身份、全部已核来源、现配置字节/身份、app根身份、具体包闭包与预算。确认重读来源/权限/身份/预算/expiry和现配置，漂移/过期/关闭拒绝，不自动重试。实际写私有临时文件fsync→原子固定配置发布→目录fsync；重放成功收据不重复写。发布结果不明标COMMIT_UNCONFIRMED，当前会话来源写入停止，先核现配置。
+- **登记一律executionAuthorized=false**，不从所选清单搬迁true，不默认启用；UI确认前明确告知。预算/时限/authorizationExpires原值及时间含义保留，不延长。登记只改固定应用配置，外部来源原件不写。源真实性/许可/实际主机执行授权仍独立操作者门，之后重新生成原InstallPlan并另行明确确认；此任务没有执行安装。配置真实身份进入runtimeFingerprint，使替换/登记后的旧plan stale。
+- UI显示原生选择、核验明细与预算、严格明确确认；源确认成功清旧plan/checkbox、刷新能力，由原按钮重新生成计划，不自动安装。teacher-existing只读方案不开放此CPU来源按钮。源错误/取消不伪称登记成功，不输出原始路径错误。
+- 独审实证并关闭跨实例P2：原只看本service缓存，先打开的B看不到A后来durable INSTALLING且持环境lease。现配置提交持内核.install-source.lock并用原read_events/read_install_job新读INSTALLING/VERIFYING/CANCEL_REQUESTED；安装execute写INSTALLING WAL也短持同一锁，持久意图可见后才释放并进行baseline/bootstrap/install。消除“检查后另一writer才登记”的窗口，不串行整个不同环境安装。未知持久意图保持阻挡。跨实例readonly规划probe不当安装writer/静止证明，各服务保留自身owner；旧配置计划由fingerprint拒绝。Main confirm await后亦补epoch/backend/receipt后验。
+- 新合同文档纳入原离线docs allowlist；只重建冻结后端，本片未重打旧portable。9/17解析卡、OpenCV native unsupported、CIFAR及所有真实验收边界未改变。
+
+| 实际命令 | 结果与证据 |
+| --- | --- |
+| `services/backend/.venv/bin/python -m pytest services/backend/tests/test_install_source_selection.py services/backend/tests/test_install_runtime.py services/backend/tests/test_install_service.py services/backend/tests/test_install_probe_ownership.py services/backend/tests/test_owned_creation.py services/backend/tests/test_install_process.py -q` | **87 PASS/11.64s**，`/tmp/easyai-source-regression-20261018-unique1.log`；来源/旧安装生命周期相关回归。最终仅将source提交的assert改成显式拒绝条件（优化模式也保留门），再跑来源专项**13 PASS/0.48s** `/tmp/easyai-source-new-20261018-final1.log`。范围重合不累计。私有manifest均小型合成真实文件/hash，禁止实际Popen/conda/probe/install；原std子进程测试仅证进程合同。 |
+| `pnpm exec vitest run apps/desktop/electron/install-source-workflow.test.mts apps/desktop/electron/install-workflow.test.mts apps/desktop/src/PackageManager.test.mts` | **35 PASS/3 files**，`/tmp/easyai-source-ui-20261018-final1.log`；Main正常选择/取消/renderer路径命令授权越权/换backend/迟返，UI核验预算/新明确确认/旧plan失效/错误隐私；原安装MainUI合同不降级。原生picker用注入回调，无Electron窗口。 |
+| `pnpm exec vitest run apps/desktop/src/App.test.mts -t 'package'` | **1 PASS/24因过滤未运行**，`/tmp/easyai-source-app-entry-20261018-unique1.log`；普通包管理面板打开/隐藏保留与只读入口。不是App全套或桌面E2E通过。 |
+| `UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache pnpm contracts` / 同缓存 `pnpm check` | 合同生成PASS；最终 **check PASS**，`/tmp/easyai-source-check-20261018-final2.log`；TS/Main/tests、ruff/format116Python、strict mypy63、合同/实际Blocklyfixture/Prettier。source请求内部路径不入renderer输入合同。 |
+| `UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache XDG_CACHE_HOME=/workspace/.cache pnpm build` | 最终 **PASS**，`/tmp/easyai-source-build-20261018-final1.log`；Vite/TS/PyInstaller包含最终代码及新source模块，原chunk提示保留，无下载或依赖安装。之后仅一处文档措辞精确化，无源码/资源改动。 |
+| `node scripts/test-frozen.mjs` | **PASS**，`/tmp/easyai-source-frozen-20261018-unique1.log`；实际冻结后端临时cwd，新来源route鉴权、私有合成无效清单拒绝/无路径回显/不生成配置，原六份来源资源/core/ML/CV禁用计划/OpenCV门/工程/黄金编译/EOF退出。没有真实正向来源或安装。 |
+| `node --test scripts/package.test.mjs` | **6 PASS**，`/tmp/easyai-source-package-docs-20261018-unique1.log`；合成离线复制/新增合同文档allowlist/拒覆盖/完整清单/漂移，未生成真实便携包。 |
+| 既有worker独审来源/锁序/收据 | 后端来源 **13 PASS/0.46s** `/tmp/easyai-source-backend-review-DXmnAN.log`；Main **11 PASS/176ms** `/tmp/easyai-source-main-review-Z5P6OC.log`。覆盖范围与上表重合不累计。最终无新增明确P1/P2；未编辑文件/真实source配置/下载/安装/probe。跨实例初始实证为消息中std线程/JSON门结果，未伪造不存在的原始日志。 |
+| `git diff --check` / `git ls-remote origin refs/heads/main refs/heads/codex/demo-v0.0.0` / 原件及所有core/ML/CV来源锁hash | **PASS**；推前dev=9bb093d64bfcc0c6d71de2762d6c2f0ef570712a，main=5323f86232529efcfb52131168ad049f01b219f3；源码与证据普通dev提交后push核对。 |
+
+中间FAIL保留：初次check因两处旧API测试mock未补新方法/生成的packageIds tuple需按权威合同类型收窄而FAIL，补mock及类型后PASS，未将新方法改成可选以隐藏错误。来源第一轮**10PASS/1FAIL**是合成cross-instance测试错误注入enabled runtime触发旧唯一worker，写好的模拟INSTALLING随后被worker改写；测试已全局禁Popen，无真实source执行。改为无runtime的仅登记器再写受控持久意图，增加writer在配置锁期间不得发WAL测试后**12PASS**；加鉴权HTTP及固定错误隐私后**13PASS**。新Main/UI首次35PASS；最终窗口重复范围不累计。首次build已PASS，后续安全条件由assert显式化后最终重建再测冻结产物。所有日志唯一noclobber，无覆盖失败/放宽执行或测试门。
+
+- `/tmp/easyai-source-baseline-audit-20261018-unique1.log` SHA256 `2a43c90d3343123eaf57c4bd511539a1a32794ae84896ac3da5317eb93efc989`。
+- `/tmp/easyai-source-contracts-20261018-unique1.log` SHA256 `3afb0b9bfa755e4057fd0660122df77ea5ab794990f17751dc9da3d90ea5c978`。
+- `/tmp/easyai-source-check-20261018-unique1.log` SHA256 `0efe0470d6c5212ec4b1196e7d842d54ac3b8ca95603dc83eca76f97751cda45`。
+- `/tmp/easyai-source-check-20261018-unique2.log` SHA256 `95d0939927ab51e2812dc998c369fd396f986f2baf6c48f08c5009a286d0399b`。
+- `/tmp/easyai-source-check-20261018-final1.log` SHA256 `95d0939927ab51e2812dc998c369fd396f986f2baf6c48f08c5009a286d0399b`。
+- `/tmp/easyai-source-check-20261018-final2.log` SHA256 `95d0939927ab51e2812dc998c369fd396f986f2baf6c48f08c5009a286d0399b`。
+- `/tmp/easyai-source-new-20261018-unique1.log` SHA256 `b69be1195d82451036bfcb79ac2ac952a7643f50278b22e1f6ee1b1b97eff95b`。
+- `/tmp/easyai-source-new-20261018-unique2.log` SHA256 `5d8d78f124073188f022cb94462b8308cee04f152b7769103e3dc78c15a9fd5a`。
+- `/tmp/easyai-source-new-20261018-final1.log` SHA256 `2dc33e2036db3b53b52b384dec7ac85f04164d88131705725acefdea1cafa664`。
+- `/tmp/easyai-source-regression-20261018-unique1.log` SHA256 `e0aa44ec579d43c51f09aa0910f94b7546989e60cba52b73f8fe87ac86b67719`。
+- `/tmp/easyai-source-ui-20261018-unique1.log` SHA256 `85fd8ce121e805178f190d2388026f1ecf730abebf3c24d7999244710ea0490c`。
+- `/tmp/easyai-source-ui-20261018-final1.log` SHA256 `785f010543c53a2d1b5414d8215c58a69fff43bd4e95bfbbe06a43ea59266bea`。
+- `/tmp/easyai-source-app-entry-20261018-unique1.log` SHA256 `431db664eb446398394b241869d545491d17a4b999289b127d0db1f2e5632708`。
+- `/tmp/easyai-source-build-20261018-unique1.log` SHA256 `0ee4e5cc8266db1a4ed15cf1030ff38ad02b915096a0746f4a0a12e64ced963b`。
+- `/tmp/easyai-source-build-20261018-final1.log` SHA256 `5a73cc7644fcaf43fe72f3cb2a701343e1a9f209a6d5d59b89673b0de7041030`。
+- `/tmp/easyai-source-frozen-20261018-unique1.log` SHA256 `598e651d8bfd55009c56cd315d848d8185d98d8ae4eb67c6d0dd2d14af4ed0c3`。
+- `/tmp/easyai-source-package-docs-20261018-unique1.log` SHA256 `55cf7fa1883c31e75b89413eb3ec663399c45eae86c84f6200a81e8e63f332d1`。
+- `/tmp/easyai-source-backend-review-DXmnAN.log` SHA256 `13164ad36269e8dc865448f9f35d79a9509e1b88cd4d16a7f7001c271559c170`。
+- `/tmp/easyai-source-main-review-Z5P6OC.log` SHA256 `ed923e6132b0bb592286e55a09c3867ff4a064581bc68bda4ad40a7aab18544a`。
+
+
+NOT RUN：真实Electron原生来源对话框/实际主机来源登记或信任授权、launcher/conda/pip/安装/下载/环境创建/真实imports/ABI/tensor正向/probe/训练/真实SSH、凭据/新权限/许可接受、Windows/干净机/全套大矩阵/重打实际portable/发布。真实来源、许可及具体一次性owned目标/预算/窗口的独立执行授权未提供，**未授权且未执行**；没有不确定外部安装结果。原生窗口仍受既有sandbox拒绝限制，未重试/绕过；本片只交付实现与定向合成验证，不冒充原生/真实安装验收。
+
+计划116185字节SHA256 dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43、旧规格5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190、README befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852保持。core/ML/CV六份来源与锁全部未改（hash与上片相同）；卡数仍9/17，OpenCV系统库未核保持unsupported，不换headless。CIFAR待裁决；旧226PASS/1FAIL根因UNKNOWN且原始日志丢失不回溯关闭。旧portable source7b91c46未含本片，distributionReady/legalReviewComplete仍false；既有Actions读取/sandbox拒绝不重试或绕过，无本片新CI判断。无main/强推/PR/Release/部署/费用/凭据/安全权限变更、无新工具拒绝或未知外部写入。
+
+下一项：父侧复核原生来源选择/预览/明确登记与独立执行授权边界、跨实例WAL交接门；真实原生窗口与来源/安装验收仍需具体目标和独立授权，完整M5/M6.3/B未验。此片不再把“Main来源入口未实现”作为代码缺口；仍不支持自动发现/信任任意原始二进制或不经操作者清单的自由路径安装。
