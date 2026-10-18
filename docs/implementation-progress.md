@@ -554,3 +554,46 @@ owner 的 `--expected-identity` 对 start/serve/inspect/cancel 全部必填，�
 原计划仍116185字节、SHA256 `dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43`；原v0.0.0 hash `5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190`、README hash `befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852`实际复核未变。推送前origin开发分支仍bc368c0，main仍 `5323f86232529efcfb52131168ad049f01b219f3`；只正常推开发分支，完整最终HEAD/远端一致与干净工作区在回执核验。没有main写入、强推、部署、Release、PR、新增付费/权限或Feng5u原仓库写入。
 
 下一项是把已有认证/环境、冻结配置、协调器和真实适配组成 scoped 运行服务/API，再接UI中的日志/恢复/取消与产物；仍缺稳定profile/私钥、数据绑定、运行中产物同步及完整成功门。必须补Windows本地cache与明确目标的真实兼容验收；实际SSH/数据/训练仍须另有具体范围授权，不自动配置教师环境。**公开运行API/UI尚未接，M5整体与A/B均未验收。**
+
+## 2026-10-18 — M5 共享运行服务/API 与桌面接线（离线组合通过，M5/A/B 未验收）
+
+代码提交：`d4b3e5f7bd475c9ace555675b68c4bdef68800f3`，父提交 `59034d7b58707fba3e65f1a46c48a64c7bd1eb60`。本轮保持同一环境、单一写入者；两名既有代理只读审查，无并行写实现。进入本轮时开发分支远端与父提交一致，远端 main 为计划基线 `5323f86232529efcfb52131168ad049f01b219f3`。本 checkout 的本地分支为 codex/demo-v0.0.0 和 work，没有本地 main，origin fetch 配置仅跟踪 main；因此远端开发分支与 main 的证据取自 `git ls-remote origin refs/heads/codex/demo-v0.0.0 refs/heads/main`，不冒称不存在的 origin 开发跟踪引用已核对。
+
+已实现原计划 873、1092–1099、1302–1305 行对应的共享 RunService 接入切片：本地和 SSH 共用 run ledger、项目并发排他、opaque runId、幂等记录及唯一 application journal/seq。SSH 协调器注入同一 journal，运行日志、源码、产物、历史和 SSE 均由共同 API 提供，GET/SSE 不建立 SSH 或隐式恢复。当前打开工程以外的运行读接口拒绝，SSE 每轮复核作用域并补齐末尾事件。执行状态、服务器连接状态、取消状态及同步状态分别保存；COMPLETED 只是执行完成，完整产物证明通过才允许产品 SUCCEEDED。本地既有 epoch/model/figure 成功策略提取为共同策略，没有降低必需产物门。
+
+新增 `POST /projects/{projectId}/run-bindings`，只从当前 lease、后端保存的短期只读探测证据、已保存 revision/programHash、IR 实际数据集及指定 runBase 生成不可变绑定。探测要求现有 train/test 两个 split 均可读，始终 download=False；绑定和启动重新核原始探测期限，不靠 renderer 声称通过。启动 body 仅接受 runner=ssh、bindingId、expectedRevision/programHash，幂等键独立 header；不接受 shell、Bundle、任意 Python/data/runRoot 或凭据。后端生成独立 config/target/launch/run 身份，冻结实际编译结果、源图和当前 helper 后才允许 I/O。同 key 重试先查原有记录，包括绑定过期、已断开或应用重启后，不消耗新启动。
+
+`POST /runs/{runId}/resume` 必须显式提供新认证 lease，并匹配持久的原 host/port/user/fingerprint；由既有 coordinator、OwnerSshTransport 和 SftpArtifactSync 实施固定命令、远端目录保护及产物校验。未知 start 永不重新执行。本轮使选定设备进入权威 RunConfig，明确 CPU 不再被自动 CUDA/MPS 选择覆盖，选定加速器缺失会报错。Conda executable/prefix 成对冻结，UID 与 owner 使用同一 `conda run -p ... --no-capture-output <python>` 参数，后台 serve 继承并核对原 prefix。直接调用本地启动入口不能执行 SSH 条目。应用依赖未增加 torch，未安装/下载任何训练环境或数据。
+
+Main/preload 增加固定 bind/resume 通道和 ssh start 严格字段白名单，认证 scope 与 backend generation 前后复核。桌面可显式选择 SSH，先只读探测现有环境和数据，再绑定已保存工程后运行；编辑、版本/hash 改变、session 失效或期限到期会撤销当前绑定，迟到结果不回填。运行面板显示持久目标摘要、配置/实际设备、取消请求与确认、服务器连接和同步；重新认证后可显式恢复读取。process_exit 不会提前结束产物同步；COMPLETED+syncing 继续补尾，未验证产物不显示运行成功。关闭会话只关闭连接，不能声称远端进程已停止。
+
+独立审查发现并修复：
+
+- 待绑定时 authority 改变导致 busy 永久锁住：同步清 busy，并测试旧 Promise 不能回填。
+- 已知尚未发起的运行取消后永久占项目：在 consuming start marker 的同一锁边界持久化 `cancelledBeforeStart` 证明，只有 not_attempted/无 observation/无 marker 才能本地 CANCELLED；恢复遇到 marker 反证直接拒绝。marker 已发出或 ACK 未知的运行仍必须取得真实 owner 退出证据。checkpoint 写失败回滚内存，重试不能确认未持久的取消。
+- 可变 cache index 同 ID 指向其他合法 blob：每次 image/完整成功核验将 index 记录与冻结事件完整比较（仅 syncState 归一），随后复核 blob 大小/hash/PNG。重启先核保存快照、冻结 Bundle、source-map/事件证据，索引逐项一致后才认 ready；降低 IR 必需产物也被拒。
+- SDK.close 阻塞绕过总退出时限：每 core 保留一个专属退休线程，退休与 worker 共用 3 秒总预算；超时明确 REMOTE_CLEANUP_UNCONFIRMED，继续保留 core/运行锁，后续重试复用原退休线程。未清理完成不能释放为新 owner。
+
+两名只读审查者最终未发现剩余明确 P1/P2。后端审查者独立定向复跑 8 PASS（4 API、1 关闭预算、3 取消/索引），另以临时文件确认 IR 篡改拒绝及构造失败后锁可再开；后续作者增加消费 start 后丢 ACK 的 API 组合及 Conda 参数回归。只读源审不代表运行真实 Electron/Windows/SSH。
+
+实际命令均在 `/workspace/Easy-AI`。Python 由 services/backend/.venv 提供；pnpm 的 Python 子命令统一使用 `UV_CACHE_DIR=/workspace/.uv-cache UV_PYTHON_INSTALL_DIR=/workspace/.python XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/.cache`：
+
+| 命令 | 最终结果与证据范围 |
+| --- | --- |
+| `pnpm contracts` | PASS；生成 RemoteBinding/RemoteBindingRequest/RemoteRunStartRequest，更新 Run/RunConfig/RemoteRunCheckpoint 镜像 |
+| `pnpm test` | **PASS：Vitest 94 PASS/2 SKIP；pytest 450 PASS/1 SKIP**，后端29.19秒，仅既有 Starlette 弃用 warning。跳过项仍未验，不算通过 |
+| `pnpm check` | PASS；TS、mypy44源文件、ruff/格式、合同漂移、实际 Blockly fixtures 与前端格式检查 |
+| `services/backend/.venv/bin/pytest -q services/backend/tests/test_run_service.py services/backend/tests/test_remote_run_api.py services/backend/tests/test_owner_transport.py` | 50 PASS，9.16秒；包含后续新增两个定向用例。与全套有重合，不另加为新增数量 |
+| `test_remote_run_api.py` 5用例 | HTTP→正式 ConnectionManager/OwnerSshTransport→coordinator→真实 portable owner→本机标准库专有 child→SFTP cache→日志/PNG API。合成探测元数据，不导入真实 torch、不使用 socket。验证白名单、绑定过期/错 hash、项目排他、幂等、应用重启无自动认证、显式新 lease只inspect、离线取消等实际退出、跨项目404、消费start丢ACK后start总1次、图片索引替换拒绝 |
+| 上述 API 中的成功门 | 专有 child 无训练、epoch 指标或必需 model/全套图表，只写一个结构测试 PNG；正常退出后 **COMPLETED/sync error/artifactsVerified=false**。PNG可以独立ready并经opaque ID读回，不冒充 MNIST 效果或完整 SUCCEEDED |
+| `pnpm build` | PASS；桌面 Vite + PyInstaller。Vite既有大chunk提示，无Electron启动。末次后端小修再以 `node scripts/python-task.mjs build` 重建 |
+| `node scripts/test-frozen-ssh.mjs` | PASS；冻结资源逐字相等、本机HTTP鉴权、环境/身份拒绝、新 scoped run DTO 路由及 secret 输入不回显、EOF退出0。无有效远端操作 |
+| `git diff --check`、原件 byte/hash | PASS；计划116185字节，SHA256 `dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43`；原规格 SHA256 `5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190`；README SHA256 `befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852`。三原件均未改 |
+
+中途 FAIL 已保留原因：未带 workspace cache 环境的 pnpm Python 子命令因默认 `/home/agent/.cache/uv` 只读而失败，改用上述既有缓存后通过；双 split 旧断言、合同生成漂移、unused import/返回类型、测试关闭时机及锁测试错误传 store 子目录已修后通过。没有放宽安全门或降低测试。最后完整套件包含全部450项后端测试。
+
+CI 独立证据来自父级：`59034d7b58707fba3e65f1a46c48a64c7bd1eb60` 的 [run39130472267](https://github.com/T1doo/Easy-AI/actions/runs/39130472267) 于13:13:19 UTC结束，check succeeded、desktop failed，各2 annotations；失败步骤与根因尚无日志证据。只读检查 `.github/workflows/ci.yml` 可见 desktop 在 Windows 执行 persistence pytest、desktop build、test:e2e；当前 checkout 无可访问对应CI日志，不把Linux sandbox问题归为Windows根因。此前 Actions API Forbidden 仍受尊重，没有重试或绕路；本次新提交 CI 状态未知，本机通过不等于 CI 通过。
+
+**NOT RUN / 未验收**：真实 SSH/SFTP、真实目标上传/远端 owner、硬件/torch/实际数据与训练、真实服务器断线取消及崩溃耐久、Windows客户端/cache、本机真实 Electron/E2E。原 Electron sandbox 拒绝未重试、未关闭 sandbox；原 Actions 拒绝未重试。当前 SSH 私有本地 cache 仍为 POSIX 实现，不能宣称 Windows SSH 可用；SFTPv3同UID替换/持久fsync能力边界不变。持久连接profile/私钥、运行中持续产物同步、目标平台兼容与真实完整产物/训练验收仍待完成。M5整体、A、B 均保持未验收，不自动进入发布。
+
+本轮无新增付费/权限/凭据、部署、Release、PR、main写入、强推或Feng5u原仓库写入。下一项：先处理 Windows SSH cache/受支持平台及剩余 M5 合同；要验证真实环境须先取得明确目标、只读/写入目录、现有解释器和数据、允许命令及取消/清理范围。CI 根因需要获准可读的具体失败日志；当前失败步骤未知。编译、协议和离线兼容工作可继续，不以缺真实授权为理由捏造训练或阻断独立开发。
