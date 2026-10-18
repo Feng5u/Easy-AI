@@ -131,6 +131,63 @@
       "title": "Settings",
       "type": "object"
     },
+    "SnapshotObject": {
+      "additionalProperties": false,
+      "properties": {
+        "blockId": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Blockid",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "transform",
+            "dataset",
+            "dataloader",
+            "model_class"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "role": {
+          "anyOf": [
+            {
+              "enum": [
+                "train",
+                "test"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Role"
+        },
+        "workspace": {
+          "enum": [
+            "data",
+            "model"
+          ],
+          "title": "Workspace",
+          "type": "string"
+        },
+        "registered": {
+          "title": "Registered",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "blockId",
+        "kind",
+        "role",
+        "workspace",
+        "registered"
+      ],
+      "title": "SnapshotObject",
+      "type": "object"
+    },
     "SourceSpan": {
       "additionalProperties": false,
       "properties": {
@@ -256,6 +313,23 @@
     },
     "snapshot": {
       "$ref": "#/$defs/ProjectDocument"
+    },
+    "objects": {
+      "items": {
+        "$ref": "#/$defs/SnapshotObject"
+      },
+      "title": "Objects",
+      "type": "array"
+    },
+    "referenceCheck": {
+      "default": "unavailable",
+      "enum": [
+        "passed",
+        "failed",
+        "unavailable"
+      ],
+      "title": "Referencecheck",
+      "type": "string"
     }
   },
   "required": [

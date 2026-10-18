@@ -1,3 +1,6 @@
+import { RunObjects } from "./RunObjects.js";
+import { safeReport } from "../electron/diagnostic-report.mjs";
+import type { DiagnosticReport } from "../electron/bridge.js";
 import { FailureCard, operationFailure } from "./FailureCard.js";
 import type { OperationFailure } from "./FailureCard.js";
 import { RuntimeErrorCard } from "./RuntimeErrorCard.js";
@@ -207,6 +210,15 @@ function RunDashboardForRun({
   const [resumeError, setResumeError] = useState<OperationFailure | null>(null);
   const [imageError, setImageError] = useState<OperationFailure | null>(null);
   const [readError, setReadError] = useState<OperationFailure | null>(null);
+  const [objectsVisible, setObjectsVisible] = useState(false);
+  const [report, setReport] = useState<DiagnosticReport | null>(null);
+  const [reportError, setReportError] = useState<OperationFailure | null>(null);
+  const [reportBusy, setReportBusy] = useState(false);
+  const [reportNotice, setReportNotice] = useState("");
+  const reportRequest = useRef(0);
+  useEffect(() => {
+    if (objectsVisible) document.getElementById("run-objects-heading")?.focus();
+  }, [objectsVisible]);
   const [sourceError, setSourceError] = useState<OperationFailure | null>(null);
   const [source, setSource] = useState<RunSource | null>(null);
   const sourceView = useMemo(
@@ -411,6 +423,52 @@ function RunDashboardForRun({
       }
     }
   }
+  async function previewReport(seq: number) {
+    if (!api.runs.report) return;
+    const request = ++reportRequest.current;
+    setReportBusy(true);
+    setReport(null);
+    setReportError(null);
+    setReportNotice("");
+    try {
+      const value = safeReport(await api.runs.report(runId, seq), runId, seq);
+      if (
+        value.codeHash !== initial.config.codeHash ||
+        value.projectRevision !== initial.config.projectRevision
+      )
+        throw new Error("报告身份不一致");
+      if (mounted.current && reportRequest.current === request)
+        setReport(value);
+    } catch (reason) {
+      if (mounted.current && reportRequest.current === request)
+        setReportError(operationFailure("runReport", reason));
+    } finally {
+      if (mounted.current && reportRequest.current === request)
+        setReportBusy(false);
+    }
+  }
+  async function exportReport() {
+    if (!report || !api.runs.exportDiagnostic) return;
+    const request = ++reportRequest.current;
+    setReportBusy(true);
+    setReportError(null);
+    setReportNotice("");
+    try {
+      const result = await api.runs.exportDiagnostic(runId, report.eventSeq);
+      if (mounted.current && reportRequest.current === request)
+        setReportNotice(
+          result.exported
+            ? "脱敏摘要已导出到选择的新文件，未上传。"
+            : "已取消导出。",
+        );
+    } catch (reason) {
+      if (mounted.current && reportRequest.current === request)
+        setReportError(operationFailure("runReport", reason));
+    } finally {
+      if (mounted.current && reportRequest.current === request)
+        setReportBusy(false);
+    }
+  }
   const executionEnded =
     run.remote &&
     ["COMPLETED", "FAILED", "CANCELLED"].includes(run.remote.executionState);
@@ -515,6 +573,7 @@ function RunDashboardForRun({
         cancelError,
         resumeError,
         imageError,
+        reportError,
       ].map(
         (failure, index) =>
           failure && (
@@ -535,12 +594,41 @@ function RunDashboardForRun({
           key={item.seq}
           diagnostic={item}
           sourceReady={Boolean(diagnosticBlock(item))}
+          objectsReady={Boolean(
+            source &&
+            source.referenceCheck &&
+            source.referenceCheck !== "unavailable",
+          )}
+          onInspect={() => setObjectsVisible(true)}
+          reportReady={Boolean(api.runs.report) && !reportBusy}
+          onReport={() => void previewReport(item.seq)}
           onLocate={() => {
             const blockId = diagnosticBlock(item);
             if (blockId) setSelectedBlock(blockId);
           }}
         />
       ))}
+      {objectsVisible && source && (
+        <RunObjects source={source} onLocate={setSelectedBlock} />
+      )}
+      {reportBusy && <p role="status">正在处理脱敏摘要…</p>}
+      {reportNotice && <p role="status">{reportNotice}</p>}
+      {report && (
+        <section className="panel" aria-label="脱敏诊断报告预览">
+          <h3>脱敏诊断报告预览</h3>
+          <p>
+            仅包含固定诊断状态、运行标识、代码hash与对象数量。不含原始文本、名称、路径、主机或凭据；不会自动上传，也不认证恶意进程。
+          </p>
+          <pre tabIndex={0}>{JSON.stringify(report, null, 2)}</pre>
+          <button
+            type="button"
+            disabled={reportBusy || !api.runs.exportDiagnostic}
+            onClick={() => void exportReport()}
+          >
+            导出此脱敏摘要
+          </button>
+        </section>
+      )}
       <section className="panel">
         <h3>训练指标</h3>
         <MetricSeries points={events.points} />

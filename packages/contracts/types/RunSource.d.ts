@@ -26,6 +26,13 @@ export type Seed = number;
 export type Executionmode = "full" | "quick";
 export type Activetab = "data" | "model" | "training";
 export type Codevisible = boolean;
+export type Blockid1 = string;
+export type Kind1 = "transform" | "dataset" | "dataloader" | "model_class";
+export type Role = ("train" | "test") | null;
+export type Workspace2 = "data" | "model";
+export type Registered = boolean;
+export type Objects = SnapshotObject[];
+export type Referencecheck = "passed" | "failed" | "unavailable";
 
 export interface RunSource {
   projectRevision: Projectrevision;
@@ -34,6 +41,8 @@ export interface RunSource {
   code: Code;
   sourceMap: Sourcemap;
   snapshot: ProjectDocument;
+  objects?: Objects;
+  referenceCheck?: Referencecheck;
 }
 export interface SourceSpan {
   file?: File;
@@ -77,4 +86,11 @@ export interface Settings {
 export interface UI {
   activeTab?: Activetab;
   codeVisible?: Codevisible;
+}
+export interface SnapshotObject {
+  blockId: Blockid1;
+  kind: Kind1;
+  role: Role;
+  workspace: Workspace2;
+  registered: Registered;
 }

@@ -434,6 +434,14 @@ def create_app(
         service, scope = await asyncio.to_thread(run_store, run_id)
         return await read_response(scope, RunViews(service).source, run_id)
 
+    @app.get("/api/v1/runs/{run_id}/diagnostics/{event_seq}/report")
+    async def diagnostic_report(run_id: str, event_seq: int) -> dict[str, object]:
+        if event_seq < 1:
+            raise HTTPException(status_code=422, detail="Invalid diagnostic sequence")
+        service, scope = await asyncio.to_thread(run_store, run_id)
+        report = await read_response(scope, RunViews(service).report, run_id, event_seq)
+        return report.model_dump(by_alias=True)
+
     @app.get("/api/v1/runs/{run_id}/logs", response_model=RunLogs)
     async def run_logs(
         run_id: str,

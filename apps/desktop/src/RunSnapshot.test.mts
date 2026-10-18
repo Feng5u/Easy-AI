@@ -892,3 +892,202 @@ it.each([
       expect(container.textContent).not.toContain(secret);
   },
 );
+
+function reportFor(saved: RunSource, runId: string) {
+  return {
+    reportVersion: 1 as const,
+    scope: "local_safe_summary" as const,
+    code: "RUNTIME_NAME_ERROR" as const,
+    runId,
+    eventSeq: 1,
+    codeHash: saved.codeHash,
+    projectRevision: saved.projectRevision,
+    precision: "semantic" as const,
+    nameState: "registered" as const,
+    referenceCheck: "passed" as const,
+    objectsTotal: 6,
+    registeredTotal: 6,
+  };
+}
+function nameFailure(saved: RunSource, runId: string): Event {
+  return {
+    runId,
+    seq: 1,
+    source: "runtime",
+    sourceSeq: 1,
+    timestamp: "test",
+    type: "runtime_error",
+    blockId: id(saved, "model"),
+    payload: {
+      exceptionType: "NameError",
+      variableName: "synthetic-private-name",
+      message: "password=synthetic-secret /private/home private.invalid",
+      applicationLocation: {
+        version: 1,
+        runId,
+        eventSeq: 1,
+        codeHash: saved.codeHash,
+        precision: "semantic",
+        reason: "VERIFIED_GENERATED_FRAME",
+        line: 2,
+        origin: { blockId: id(saved, "model"), workspace: "model" },
+        nameState: "registered",
+        referenceCheck: "passed",
+      },
+    },
+  };
+}
+it("old registered objects use neutral labels and navigate only the read-only snapshot", async () => {
+  const saved = source(),
+    h = dashboard(saved, "objects-old");
+  saved.referenceCheck = "passed";
+  saved.objects = [
+    {
+      blockId: id(saved, "model"),
+      kind: "model_class",
+      workspace: "model",
+      registered: true,
+      role: null,
+    },
+    {
+      blockId: "foreign-private-id",
+      kind: "dataset",
+      workspace: "data",
+      registered: false,
+      role: "train",
+    },
+  ];
+  const before = JSON.stringify(saved);
+  await render(
+    createElement(RunDashboard, {
+      api: h.api,
+      initialRun: h.run,
+      onRunUpdate: vi.fn(),
+    }),
+  );
+  await act(async () => h.emit(nameFailure(saved, h.run.runId)));
+  expect(container.textContent).toContain("对应旧快照中已注册的对象");
+  await click("检查旧注册对象");
+  const panel = container.querySelector('[aria-label="旧运行对象与注册状态"]')!;
+  expect(panel.textContent).toContain("模型类 #1");
+  expect(panel.textContent).toContain("已注册");
+  expect(panel.textContent).not.toContain("MnistCNN");
+  expect(panel.textContent).not.toContain("foreign-private-id");
+  expect(dom.window.document.activeElement?.id).toBe("run-objects-heading");
+  await click("定位旧对象 #1");
+  expect(
+    container.querySelector("[role=tab][aria-selected=true]")?.textContent,
+  ).toBe("模型结构");
+  expect(captured.managers.at(-1)?.readonly).toBe(true);
+  expect(JSON.stringify(saved)).toBe(before);
+});
+it("safe report preview and export are explicit, while raw errors require separate local opt-in", async () => {
+  const saved = source(),
+    h = dashboard(saved, "report-old");
+  h.api.runs.report = vi.fn(async () => reportFor(saved, h.run.runId));
+  h.api.runs.exportDiagnostic = vi.fn(async () => ({ exported: true }));
+  await render(
+    createElement(RunDashboard, {
+      api: h.api,
+      initialRun: h.run,
+      onRunUpdate: vi.fn(),
+    }),
+  );
+  await act(async () => h.emit(nameFailure(saved, h.run.runId)));
+  expect(h.api.runs.report).not.toHaveBeenCalled();
+  expect(h.api.runs.exportDiagnostic).not.toHaveBeenCalled();
+  expect(container.textContent).not.toContain("synthetic-secret");
+  await click("预览脱敏报告");
+  const preview = container.querySelector('[aria-label="脱敏诊断报告预览"]')!;
+  expect(preview.textContent).toContain("local_safe_summary");
+  for (const secret of [
+    "synthetic-private-name",
+    "synthetic-secret",
+    "private.invalid",
+    "/private/home",
+  ])
+    expect(preview.textContent).not.toContain(secret);
+  await click("导出此脱敏摘要");
+  expect(h.api.runs.exportDiagnostic).toHaveBeenCalledExactlyOnceWith(
+    h.run.runId,
+    1,
+  );
+  expect(container.textContent).toContain("未上传");
+  await click("查看原始错误（仅本地）");
+  expect(
+    container.querySelector('[aria-label="原始结构化错误"]')?.textContent,
+  ).toContain("synthetic-secret");
+  expect(preview.textContent).not.toContain("synthetic-secret");
+  await click("收起原始错误");
+  expect(container.querySelector('[aria-label="原始结构化错误"]')).toBeNull();
+});
+it.each([
+  "private-field",
+  "wrong-hash",
+  "wrong-revision",
+  "wrong-run",
+  "wrong-seq",
+])(
+  "%s report is rejected without revealing private response",
+  async (variant) => {
+    const saved = source(),
+      h = dashboard(saved, "report-invalid");
+    const value = {
+      ...reportFor(saved, h.run.runId),
+      ...(variant === "private-field"
+        ? { message: "password=synthetic-secret" }
+        : variant === "wrong-hash"
+          ? { codeHash: "d".repeat(64) }
+          : variant === "wrong-revision"
+            ? { projectRevision: 99 }
+            : variant === "wrong-run"
+              ? { runId: "other-run" }
+              : { eventSeq: 99 }),
+    };
+    h.api.runs.report = vi.fn(async () => value);
+    h.api.runs.exportDiagnostic = vi.fn();
+    await render(
+      createElement(RunDashboard, {
+        api: h.api,
+        initialRun: h.run,
+        onRunUpdate: vi.fn(),
+      }),
+    );
+    await act(async () => h.emit(nameFailure(saved, h.run.runId)));
+    await click("预览脱敏报告");
+    expect(
+      container.querySelector('[aria-label="脱敏诊断报告预览"]'),
+    ).toBeNull();
+    expect(container.textContent).toContain("诊断报告操作未完成");
+    expect(container.textContent).not.toContain("synthetic-secret");
+    expect(h.api.runs.exportDiagnostic).not.toHaveBeenCalled();
+  },
+);
+it("late report and opened raw panel do not transfer into a different selected run", async () => {
+  const saved = source(),
+    old = dashboard(saved, "report-late-old"),
+    next = dashboard(saved, "report-late-next");
+  const pending = deferred<ReturnType<typeof reportFor>>();
+  old.api.runs.report = vi.fn(() => pending.promise);
+  await render(
+    createElement(RunDashboard, {
+      api: old.api,
+      initialRun: old.run,
+      onRunUpdate: vi.fn(),
+    }),
+  );
+  await act(async () => old.emit(nameFailure(saved, old.run.runId)));
+  await click("查看原始错误（仅本地）");
+  await click("预览脱敏报告");
+  await render(
+    createElement(RunDashboard, {
+      api: next.api,
+      initialRun: next.run,
+      onRunUpdate: vi.fn(),
+    }),
+  );
+  await act(async () => pending.resolve(reportFor(saved, old.run.runId)));
+  expect(container.querySelector('[aria-label="脱敏诊断报告预览"]')).toBeNull();
+  expect(container.querySelector('[aria-label="原始结构化错误"]')).toBeNull();
+  expect(container.textContent).not.toContain("synthetic-secret");
+});

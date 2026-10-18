@@ -69,6 +69,7 @@ MODELS: list[type[BaseModel]] = [
     desktop.RunStartRequest,
     desktop.RunLogs,
     desktop.RunSource,
+    desktop.DiagnosticReport,
     SshEndpoint,
     HostKeyObservation,
     HostKeyConfirmation,

@@ -1,3 +1,5 @@
+import type { DiagnosticReport } from "../../../packages/contracts/types/DiagnosticReport.js";
+export type { DiagnosticReport };
 import type { ConnectionProfile } from "../../../packages/contracts/types/ConnectionProfile.js";
 import type { ConnectionProfileInput } from "../../../packages/contracts/types/ConnectionProfileInput.js";
 import type { ConnectionProfileUpdate } from "../../../packages/contracts/types/ConnectionProfileUpdate.js";
@@ -161,6 +163,11 @@ export interface DesktopAPI {
     get(runId: string): Promise<Run>;
     cancel(runId: string): Promise<Run>;
     source(runId: string): Promise<RunSource>;
+    report?(runId: string, eventSeq: number): Promise<DiagnosticReport>;
+    exportDiagnostic?(
+      runId: string,
+      eventSeq: number,
+    ): Promise<{ exported: boolean }>;
     logs(
       runId: string,
       stdoutAfter: number,

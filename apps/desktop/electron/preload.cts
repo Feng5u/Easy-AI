@@ -103,6 +103,9 @@ const api: DesktopAPI = {
     get: (id) => ipcRenderer.invoke("easyai:runs:get", id),
     cancel: (id) => ipcRenderer.invoke("easyai:runs:cancel", id),
     source: (id) => ipcRenderer.invoke("easyai:runs:source", id),
+    report: (id, seq) => ipcRenderer.invoke("easyai:runs:report", id, seq),
+    exportDiagnostic: (id, seq) =>
+      ipcRenderer.invoke("easyai:runs:exportDiagnostic", id, seq),
     logs: (id, stdout, stderr) =>
       ipcRenderer.invoke("easyai:runs:logs", id, stdout, stderr),
     artifacts: (id) => ipcRenderer.invoke("easyai:runs:artifacts", id),

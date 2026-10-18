@@ -1,3 +1,6 @@
+import { safeReport } from "./diagnostic-report.mjs";
+import { writeFile } from "node:fs/promises";
+import { isAbsolute } from "node:path";
 import { SessionWorkflow } from "./session-workflow.mjs";
 import { IdentityWorkflow, endpoint } from "./identity-workflow.mjs";
 import type { Backend } from "./backend.mjs";
@@ -40,6 +43,8 @@ export const WORKFLOW_CHANNELS = [
   "easyai:runs:get",
   "easyai:runs:cancel",
   "easyai:runs:source",
+  "easyai:runs:report",
+  "easyai:runs:exportDiagnostic",
   "easyai:runs:logs",
   "easyai:runs:artifacts",
   "easyai:runs:image",
@@ -75,6 +80,7 @@ function project(value: unknown): ProjectDocument {
   return value as ProjectDocument;
 }
 export class MainWorkflow {
+  private reportEpoch = 0;
   private sessions: SessionWorkflow;
   private identity: IdentityWorkflow;
   private subscriptions = new Map<string, AbortController>();
@@ -88,6 +94,7 @@ export class MainWorkflow {
         destinationPath: string;
       } | null>;
       exportProject(): Promise<string | null>;
+      exportDiagnostic?(): Promise<string | null>;
     },
   ) {
     this.identity = new IdentityWorkflow(backend);
@@ -137,6 +144,8 @@ export class MainWorkflow {
       "easyai:runs:get": 1,
       "easyai:runs:cancel": 1,
       "easyai:runs:source": 1,
+      "easyai:runs:report": 2,
+      "easyai:runs:exportDiagnostic": 2,
       "easyai:runs:logs": 3,
       "easyai:runs:artifacts": 1,
       "easyai:runs:image": 2,
@@ -155,6 +164,7 @@ export class MainWorkflow {
         "easyai:projects:import",
       ].includes(channel)
     ) {
+      this.reportEpoch += 1;
       this.sessions.invalidate();
       this.identity.invalidate();
     }
@@ -430,6 +440,40 @@ export class MainWorkflow {
       }
       case "easyai:runs:cancel":
         return backend.request("POST", `/api/v1/runs/${id(args[0])}/cancel`);
+      case "easyai:runs:report":
+      case "easyai:runs:exportDiagnostic": {
+        const epoch = this.reportEpoch;
+        const runId = id(args[0]),
+          seq = integer(args[1], 1);
+        const route = `/api/v1/runs/${runId}/diagnostics/${seq}/report`;
+        const report = safeReport(
+          await backend.request("GET", route),
+          runId,
+          seq,
+        );
+        if (epoch !== this.reportEpoch) throw new Error("报告请求已过期。");
+        if (channel === "easyai:runs:report") return report;
+        if (!this.files?.exportDiagnostic)
+          throw new Error("原生报告保存不可用。");
+        const path = await this.files.exportDiagnostic();
+        if (path === null) return { exported: false };
+        if (epoch !== this.reportEpoch) throw new Error("报告请求已过期。");
+        if (!isAbsolute(path)) throw new Error("报告目标无效。");
+        // Recheck authorization and report identity after the native dialog awaited.
+        const current = safeReport(
+          await backend.request("GET", route),
+          runId,
+          seq,
+        );
+        if (epoch !== this.reportEpoch) throw new Error("报告请求已过期。");
+        if (JSON.stringify(report) !== JSON.stringify(current))
+          throw new Error("报告已变化，请重新预览。");
+        await writeFile(path, JSON.stringify(current, null, 2) + "\n", {
+          flag: "wx",
+          mode: 0o600,
+        });
+        return { exported: true };
+      }
       case "easyai:runs:source":
         return backend.request("GET", `/api/v1/runs/${id(args[0])}/source`);
       case "easyai:runs:artifacts":
@@ -490,6 +534,7 @@ export class MainWorkflow {
     this.subscriptions.delete(key);
   }
   dispose(): void {
+    this.reportEpoch += 1;
     this.sessions.invalidate();
     this.identity.invalidate();
     this.clearSubscriptions();

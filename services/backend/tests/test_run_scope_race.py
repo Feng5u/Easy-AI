@@ -279,3 +279,47 @@ def test_retired_errors_are_rechecked_after_worker_await(scoped, monkeypatch, op
         release.set()
         result = response.result(3)
     assert result.status_code == 404 and "OLD_PROJECT_PRIVATE_ERROR" not in result.text
+
+
+@pytest.mark.parametrize("back_to_a", [False, True])
+def test_diagnostic_report_delivery_rejects_project_switch_and_aba(scoped, monkeypatch, back_to_a):
+    from easyai.domain.contracts import Event
+    from easyai.services.run_views import RunViews
+
+    workspace, client, run, first, second = scoped
+    event = workspace.runs._journal(run.run_id).ingest(
+        Event(
+            run_id=run.run_id,
+            seq=1,
+            source="runtime",
+            source_seq=1,
+            timestamp="test",
+            type="runtime_error",
+            payload={"exceptionType": "NameError"},
+        )
+    )
+    assert event is not None
+    route = f"/api/v1/runs/{run.run_id}/diagnostics/{event.seq}/report"
+    assert client.get(route).status_code == 200
+    entered, release = threading.Event(), threading.Event()
+    original = asyncio.to_thread
+
+    async def paused(function, *args, **kwargs):
+        value = await original(function, *args, **kwargs)
+        if function.__name__ == "scoped_read" and args[1].__name__ == "report":
+            entered.set()
+            assert await original(release.wait, 2)
+        return value
+
+    monkeypatch.setattr(asyncio, "to_thread", paused)
+    with ThreadPoolExecutor() as pool:
+        response = pool.submit(client.get, route)
+        assert entered.wait(2)
+        workspace.open(workspace.select("project", second).selection_id)
+        if back_to_a:
+            workspace.open(workspace.select("project", first).selection_id)
+        release.set()
+        result = response.result(3)
+    assert result.status_code == 404, result.text
+    # The report itself is still available in owned storage; only delivery was revoked.
+    assert RunViews(workspace.runs).report(run.run_id, event.seq).run_id == run.run_id

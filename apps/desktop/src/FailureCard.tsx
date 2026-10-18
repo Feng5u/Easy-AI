@@ -1,6 +1,11 @@
 import type { GuideDestination } from "./GettingStarted.js";
 
 const stages = {
+  runReport: [
+    "诊断报告操作未完成",
+    "请重新预览本次运行的脱敏摘要，导出时选择尚不存在的新文件。",
+    "history",
+  ],
   runSubscribe: [
     "运行事件订阅未完成",
     "事件通道不可用不代表训练失败。请查看当前运行状态与只读日志。",

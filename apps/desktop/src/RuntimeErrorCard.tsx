@@ -1,4 +1,5 @@
 import type { RuntimeDiagnostic } from "./runEvents.js";
+import { useState } from "react";
 
 const explanations: Record<string, readonly [string, string]> = {
   NameError: [
@@ -26,11 +27,20 @@ export function RuntimeErrorCard({
   diagnostic,
   sourceReady,
   onLocate,
+  onInspect,
+  onReport,
+  objectsReady = false,
+  reportReady = false,
 }: {
   diagnostic: RuntimeDiagnostic;
   sourceReady: boolean;
   onLocate(): void;
+  onInspect?(): void;
+  onReport?(): void;
+  objectsReady?: boolean;
+  reportReady?: boolean;
 }) {
+  const [rawVisible, setRawVisible] = useState(false);
   // Never print arbitrary exception names, messages, variable names, filenames or IDs.
   const explanation =
     diagnostic.exceptionType &&
@@ -48,6 +58,47 @@ export function RuntimeErrorCard({
         <button type="button" disabled={!sourceReady} onClick={onLocate}>
           定位旧运行积木
         </button>
+      )}
+      {diagnostic.exceptionType === "NameError" && (
+        <>
+          {sourceReady && diagnostic.location && (
+            <p>
+              {
+                {
+                  registered:
+                    "异常名称对应旧快照中已注册的对象；可能是生成器或执行环境问题。",
+                  unregistered:
+                    "异常名称对应旧快照中尚未注册的对象；请核对旧对象的注册状态。",
+                  not_matched:
+                    "异常名称未匹配旧快照对象；可能属于生成代码内部名称或依赖，不推断为学生改名。",
+                  ambiguous: "旧快照对象名称存在歧义，无法确定对应对象。",
+                  unavailable: "尚无可核实的旧对象解释。",
+                }[diagnostic.location.nameState]
+              }
+            </p>
+          )}
+          <button type="button" disabled={!objectsReady} onClick={onInspect}>
+            检查旧注册对象
+          </button>
+        </>
+      )}
+      <button type="button" disabled={!reportReady} onClick={onReport}>
+        预览脱敏报告
+      </button>
+      <button
+        type="button"
+        aria-expanded={rawVisible}
+        onClick={() => setRawVisible(!rawVisible)}
+      >
+        {rawVisible ? "收起原始错误" : "查看原始错误（仅本地）"}
+      </button>
+      {rawVisible && (
+        <section aria-label="原始结构化错误">
+          <p>
+            此记录可能包含名称、路径或其他私密内容。请先核对内容再分享；脱敏报告不会包含这些原文。
+          </p>
+          <pre tabIndex={0}>{JSON.stringify(diagnostic.original, null, 2)}</pre>
+        </section>
       )}
       <details>
         <summary>诊断技术摘要</summary>

@@ -9,6 +9,9 @@ export interface EpochPoint {
 }
 export interface RuntimeLocation {
   codeHash: string;
+  nameState:
+    "registered" | "unregistered" | "not_matched" | "ambiguous" | "unavailable";
+  referenceCheck: "passed" | "failed" | "unavailable";
   precision: "semantic" | "scaffold" | "none";
   reason: string;
   blockId: string | null;
@@ -20,6 +23,8 @@ function runtimeLocation(event: RuntimeEvent): RuntimeLocation | null {
   if (raw === undefined) return null; // Legacy record: retain the existing coarse event source.
   const invalid: RuntimeLocation = {
     codeHash: "",
+    nameState: "unavailable",
+    referenceCheck: "unavailable",
     precision: "none",
     reason: "INVALID_LOCATION",
     blockId: null,
@@ -69,6 +74,22 @@ function runtimeLocation(event: RuntimeEvent): RuntimeLocation | null {
     return invalid;
   return {
     codeHash: value.codeHash,
+    nameState:
+      typeof value.nameState === "string" &&
+      [
+        "registered",
+        "unregistered",
+        "not_matched",
+        "ambiguous",
+        "unavailable",
+      ].includes(value.nameState)
+        ? (value.nameState as RuntimeLocation["nameState"])
+        : "unavailable",
+    referenceCheck:
+      typeof value.referenceCheck === "string" &&
+      ["passed", "failed", "unavailable"].includes(value.referenceCheck)
+        ? (value.referenceCheck as RuntimeLocation["referenceCheck"])
+        : "unavailable",
     precision: value.precision,
     reason: value.reason,
     blockId: origin.blockId,

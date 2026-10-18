@@ -11,7 +11,7 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 from pydantic import TypeAdapter
 
 from easyai.domain.contracts import ArtifactRecord, Event, ProjectDocument, SourceSpan
-from easyai.domain.desktop import RunLogs, RunSource
+from easyai.domain.desktop import RunLogs, RunSource, DiagnosticReport
 from easyai.security.files import read_regular
 from easyai.services.run_service import RunService, TERMINAL
 
@@ -85,7 +85,11 @@ class RunViews:
         self.runs = runs
 
     def events(self, run_id: str, after: int = 0) -> list[Event]:
-        from easyai.services.runtime_diagnostics import locate_failure, missing_location
+        from easyai.services.runtime_diagnostics import (
+            locate_failure,
+            missing_location,
+            explain_name,
+        )
 
         events = self.runs.events(run_id, after)
         failures = [event for event in events if event.type == "runtime_error"]
@@ -115,6 +119,7 @@ class RunViews:
             if source is not None:
                 try:
                     location = locate_failure(event, source, expected)
+                    location.update(explain_name(event, source, location))
                 except (ValueError, RecursionError):
                     location = missing_location(event, run.config.code_hash, "SOURCE_MAP_INVALID")
             # Derived transport metadata only; never mutate or rewrite the raw journal.
@@ -137,6 +142,14 @@ class RunViews:
         code = read_regular(self.runs._safe_path(run_id, "code/train.py"), 8 * 1024 * 1024)
         if hashlib.sha256(code).hexdigest() != run.config.code_hash:
             raise ValueError("CODE_HASH_CONFLICT")
+        from easyai.services.runtime_diagnostics import frozen_objects
+
+        snapshot = ProjectDocument.model_validate_json(
+            read_regular(
+                self.runs._safe_path(run_id, "snapshot/project.easyai.json"), 5 * 1024 * 1024
+            )
+        )
+        objects, reference_check = frozen_objects(snapshot)
         return RunSource(
             project_revision=run.config.project_revision,
             program_hash=run.config.program_hash,
@@ -145,11 +158,45 @@ class RunViews:
             source_map=TypeAdapter(list[SourceSpan]).validate_json(
                 read_regular(self.runs._safe_path(run_id, "code/source-map.json"), 8 * 1024 * 1024)
             ),
-            snapshot=ProjectDocument.model_validate_json(
-                read_regular(
-                    self.runs._safe_path(run_id, "snapshot/project.easyai.json"), 5 * 1024 * 1024
-                )
+            snapshot=snapshot,
+            objects=objects,
+            reference_check=reference_check,
+        )
+
+    def report(self, run_id: str, event_seq: int) -> DiagnosticReport:
+        run = self.runs.get(run_id)
+        event = next(
+            (
+                event
+                for event in self.events(run_id, event_seq - 1)
+                if event.seq == event_seq and event.type == "runtime_error"
             ),
+            None,
+        )
+        if event is None:
+            raise KeyError("DIAGNOSTIC_NOT_FOUND")
+        location = event.payload["applicationLocation"]
+        try:
+            source = self.source(run_id)
+        except (OSError, ValueError):
+            source = None
+        return DiagnosticReport(
+            code="RUNTIME_NAME_ERROR"
+            if event.payload.get("exceptionType") == "NameError"
+            else "RUNTIME_EXCEPTION",
+            run_id=run_id,
+            event_seq=event_seq,
+            code_hash=run.config.code_hash,
+            project_revision=run.config.project_revision,
+            precision=location["precision"],
+            name_state=location.get("nameState", "unavailable"),
+            reference_check=location.get("referenceCheck", "unavailable"),
+            objects_total=len(source.objects)
+            if source and source.reference_check != "unavailable"
+            else None,
+            registered_total=sum(item.registered for item in source.objects)
+            if source and source.reference_check != "unavailable"
+            else None,
         )
 
     def logs(self, run_id: str, stdout_after: int = 0, stderr_after: int = 0) -> RunLogs:

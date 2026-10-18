@@ -135,6 +135,14 @@ const workflow = new MainWorkflow(
             destinationPath: destination.filePaths[0],
           };
     },
+    async exportDiagnostic() {
+      const destination = await dialog.showSaveDialog(window, {
+        title: "导出脱敏诊断摘要（目标必须不存在，不上传）",
+        defaultPath: "easyai-diagnostic.json",
+        filters: [{ name: "Easy-AI 诊断摘要", extensions: ["json"] }],
+      });
+      return destination.canceled ? null : (destination.filePath ?? null);
+    },
     async exportProject() {
       const destination = await dialog.showSaveDialog(window, {
         title: "导出已保存工程（目标必须不存在）",

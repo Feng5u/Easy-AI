@@ -5,7 +5,10 @@ from typing import Any
 from easyai.compiler.decode import decode
 from easyai.compiler.source_map import locate_line
 from easyai.domain.contracts import BlockIR, Event
-from easyai.domain.desktop import RunSource
+from easyai.domain.desktop import RunSource, SnapshotObject
+from easyai.domain.symbols import registry
+from easyai.domain.contracts import ProjectDocument
+from typing import Literal
 
 
 def missing_location(event: Event, code_hash: str, reason: str) -> dict[str, Any]:
@@ -73,3 +76,49 @@ def locate_failure(event: Event, source: RunSource, expected_file: str) -> dict[
         "origin": hit.origin.model_dump(by_alias=True),
         "line": line,
     }
+
+
+def frozen_objects(
+    snapshot: ProjectDocument,
+) -> tuple[list[SnapshotObject], Literal["passed", "failed", "unavailable"]]:
+    try:
+        roots, diagnostics = decode(snapshot)
+        symbols, references = registry(roots)
+        return [
+            SnapshotObject(
+                block_id=item.id,
+                kind=item.kind,
+                role=item.role,
+                workspace=item.workspace,
+                registered=item.registered,
+            )
+            for item in symbols
+        ], "failed" if diagnostics or references else "passed"
+    except (ValueError, RecursionError):
+        return [], "unavailable"
+
+
+def explain_name(event: Event, source: RunSource, location: dict[str, Any]) -> dict[str, str]:
+    result: dict[str, str] = {
+        "referenceCheck": source.reference_check,
+        "nameState": "unavailable",
+    }
+    if event.payload.get("exceptionType") != "NameError" or location["precision"] == "none":
+        return result
+    try:
+        roots, _ = decode(source.snapshot)
+        symbols, _ = registry(roots)
+        name = event.payload.get("variableName")
+        matches = [symbol for symbol in symbols if isinstance(name, str) and symbol.name == name]
+        state = (
+            "ambiguous"
+            if len(matches) > 1
+            else (
+                ("registered" if matches[0].registered else "unregistered")
+                if matches
+                else "not_matched"
+            )
+        )
+        return {**result, "nameState": state}
+    except (ValueError, RecursionError):
+        return result
