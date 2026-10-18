@@ -173,8 +173,9 @@ class ArtifactSnapshot:
 class _Reader:
     """Private fixed-record / validated-ID reader; no caller supplied remote path."""
 
-    def __init__(self, sftp: Any, identity: RemoteRunIdentity, guard: Callable[[], None]):
-        self.sftp, self.identity, self.guard = sftp, identity, guard
+    def __init__(self, sftp: Any, identity: RemoteRunIdentity | str, guard: Callable[[], None]):
+        self.sftp, self.guard = sftp, guard
+        self.root = identity if isinstance(identity, str) else identity.run_root
         self.uid: int | None = None
         self.anchor_uid: int | None = None
         self.bytes = 0
@@ -192,7 +193,7 @@ class _Reader:
             _reject()
 
     def _parents(self, name: str) -> Any:
-        root = PurePosixPath(self.identity.run_root)
+        root = PurePosixPath(self.root)
         path = PurePosixPath("/")
         anchor = self.sftp.lstat("/")
         if self.anchor_uid is None:
@@ -216,9 +217,7 @@ class _Reader:
         if before.st_size > limit:
             _reject()
         count = 0
-        with self.sftp.open(
-            str(PurePosixPath(self.identity.run_root) / name), "rb", bufsize=0
-        ) as source:
+        with self.sftp.open(str(PurePosixPath(self.root) / name), "rb", bufsize=0) as source:
             held = source.stat()
             self._stat(held, False)
             if (held.st_uid, held.st_mode, held.st_size) != (

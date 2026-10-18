@@ -18,6 +18,7 @@ from easyai.services.ssh_identity import IdentityGrant, SshIdentityService
 from easyai.services.private_keys import load_private_key
 
 if TYPE_CHECKING:
+    from easyai.services.data_transfer_transport import DataUploadTransport
     from easyai.domain.remote_run import RemoteRunCheckpoint, RemoteRunIdentity
     from easyai.services.remote_artifacts import SftpArtifactSync
     from easyai.services.remote_bundle import RemoteBundle
@@ -497,6 +498,25 @@ class ConnectionManager:
             guard()
             return SftpArtifactSync(
                 lease.session, identity, self._mutex, guard, sftp_factory=self._sftp_factory
+            )
+
+    def data_transport(
+        self, request: SessionControl
+    ) -> tuple[AuthenticatedConnection, "DataUploadTransport"]:
+        from easyai.services.data_transfer_transport import DataUploadTransport
+
+        with self._mutex:
+            lease = self._valid_lease(request.project_id, request.connection_id)
+            if lease is None:
+                raise SshFailure("SSH_AUTHENTICATION_REQUIRED")
+
+            def guard() -> None:
+                if self._valid_lease(request.project_id, request.connection_id) is not lease:
+                    raise SshFailure("SSH_SESSION_INVALID")
+
+            guard()
+            return self._info(lease), DataUploadTransport(
+                lease.scope, lease.session, self._mutex, guard, self._sftp_factory
             )
 
     def owner_transport(

@@ -2,12 +2,14 @@ import { safeReport } from "./diagnostic-report.mjs";
 import { publishNewReport } from "./atomic-report.mjs";
 import { isAbsolute } from "node:path";
 import { SessionWorkflow } from "./session-workflow.mjs";
+import { DataTransferWorkflow } from "./data-transfers.mjs";
 import { IdentityWorkflow, endpoint } from "./identity-workflow.mjs";
 import type { Backend } from "./backend.mjs";
 import type {
   ProjectDocument,
   ProjectSession,
   BundleExportResult,
+  AuthenticatedConnection,
   SelectionKind,
   StartRun,
   SubscriptionMessage,
@@ -15,6 +17,10 @@ import type {
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const WORKFLOW_CHANNELS = [
+  "easyai:dataTransfers:plan",
+  "easyai:dataTransfers:confirm",
+  "easyai:dataTransfers:get",
+  "easyai:dataTransfers:cancel",
   "easyai:packages:catalog",
   "easyai:packages:plan",
   "easyai:installJobs:confirm",
@@ -91,6 +97,7 @@ function project(value: unknown): ProjectDocument {
 export class MainWorkflow {
   private reportEpoch = 0;
   private sessions: SessionWorkflow;
+  private transfers: DataTransferWorkflow;
   private identity: IdentityWorkflow;
   private subscriptions = new Map<string, AbortController>();
   constructor(
@@ -114,8 +121,18 @@ export class MainWorkflow {
       this.identity,
       files?.privateKey,
     );
+    this.transfers = new DataTransferWorkflow(
+      backend,
+      async (scope) =>
+        (await this.sessions.invoke("easyai:connections:current", [
+          scope.projectId,
+          scope.connectionId,
+        ])) as AuthenticatedConnection | null,
+    );
   }
   async invoke(channel: string, args: unknown[]): Promise<unknown> {
+    if (channel.startsWith("easyai:dataTransfers:"))
+      return this.transfers.invoke(channel, args);
     if (
       [
         "easyai:connections:authenticate",
@@ -187,6 +204,7 @@ export class MainWorkflow {
       ].includes(channel)
     ) {
       this.reportEpoch += 1;
+      this.transfers.invalidate();
       this.sessions.invalidate();
       this.identity.invalidate();
     }
@@ -709,6 +727,7 @@ export class MainWorkflow {
   }
   dispose(): void {
     this.reportEpoch += 1;
+    this.transfers.invalidate();
     this.sessions.invalidate();
     this.identity.invalidate();
     this.clearSubscriptions();

@@ -3,6 +3,13 @@ import sys
 from pathlib import Path
 
 from pydantic import BaseModel
+from easyai.domain.data_transfer import (
+    TransferBudget,
+    TransferPlanRequest,
+    TransferPlan,
+    TransferConfirmation,
+    TransferJob,
+)
 
 from easyai.domain import contracts, desktop, environment, connections
 from easyai.domain.program import ProgramIR
@@ -32,6 +39,11 @@ from easyai.domain.install import (
 )
 
 MODELS: list[type[BaseModel]] = [
+    TransferBudget,
+    TransferPlanRequest,
+    TransferPlan,
+    TransferConfirmation,
+    TransferJob,
     PackageCatalog,
     InstallPlanRequest,
     InstallPlan,

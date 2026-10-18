@@ -59,6 +59,8 @@ class RunScope:
 
 SelectionKind = Literal["project", "python", "data"]
 if TYPE_CHECKING:
+    from easyai.services.data_transfers import DataTransfers
+    from easyai.domain.data_transfer import TransferPlanRequest, TransferPlan
     from easyai.domain.ssh import IdentityRequest
     from easyai.services.connection_manager import ConnectionManager
     from easyai.services.ssh_identity import SshIdentityService
@@ -260,6 +262,7 @@ class LocalWorkspace:
         self._project_generation = 0
         self._closed = False
         self._install_service: InstallService | None = None
+        self._data_transfers: DataTransfers | None = None
         self._closing = False
         self._remote_bindings: dict[
             str, tuple[RemoteBinding, str, str | None, float, dict[str, Any]]
@@ -401,6 +404,8 @@ class LocalWorkspace:
 
     def _invalidate_identity(self) -> None:
         self._remote_bindings.clear()
+        if self._data_transfers is not None:
+            self._data_transfers.invalidate()
         if self._connections is not None:
             self._connections.invalidate()
         if self._ssh_identity is not None:
@@ -1019,6 +1024,31 @@ class LocalWorkspace:
                 self._install_service = InstallService(self.root)
             return self._install_service
 
+    def transfers(self) -> "DataTransfers":
+        with self._mutex:
+            self._verify()
+            if self._data_transfers is None:
+                from easyai.services.data_transfers import DataTransfers
+
+                self._data_transfers = DataTransfers(self._mutex)
+            return self._data_transfers
+
+    def plan_transfer(self, request: "TransferPlanRequest") -> "TransferPlan":
+        with self._mutex:
+            generation = self.project_generation(request.project_id)
+            self._projects[request.project_id].snapshot(request.expected_revision)
+            root = self._selection(request.data_selection_id, "data")
+            auth, transport = self.connections().data_transport(request)
+
+            def guard() -> None:
+                with self._mutex:
+                    self.verify_project_generation(request.project_id, generation)
+                    self._projects[request.project_id].snapshot(request.expected_revision)
+                    transport.check()
+
+            service = self.transfers()
+        return service.prepare(request, root, auth, transport, guard)
+
     def activity(self) -> dict[str, list[str]]:
         with self._mutex:
             self._verify()
@@ -1038,6 +1068,8 @@ class LocalWorkspace:
             self._closing = True
             if self._install_service is not None:
                 self._install_service.close()
+            if self._data_transfers is not None:
+                self._data_transfers.close()
             self._project_generation += 1
             self._invalidate_identity()
         # SDK workers may need the workspace guard to unwind. Never wait under it.

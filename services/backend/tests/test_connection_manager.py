@@ -568,3 +568,15 @@ def test_owner_factory_uses_persisted_start_permission_and_exact_lease(setup, ou
     with transport.mutex, pytest.raises(SshFailure):
         transport.guard()
     assert client.sessions[0].channel_calls == 0
+
+
+def test_data_upload_factory_is_exact_lease_scoped_and_performs_no_remote_io(setup):
+    manager, identities, client, clock, current, timers = setup
+    info = manager.authenticate_password(grant(identities), SYNTHETIC_PASSWORD)
+    returned, transport = manager.data_transport(control(info))
+    assert returned == info and transport.scope == info.scope
+    transport.check()
+    clock[0] += 301
+    with pytest.raises(SshFailure):
+        transport.check()
+    assert client.sessions[0].channel_calls == 0

@@ -12,6 +12,16 @@ export type {
 };
 import type { DiagnosticReport } from "../../../packages/contracts/types/DiagnosticReport.js";
 import type { BundleExportResult } from "../../../packages/contracts/types/BundleExportResult.js";
+import type { TransferPlanRequest } from "../../../packages/contracts/types/TransferPlanRequest.js";
+import type { TransferPlan } from "../../../packages/contracts/types/TransferPlan.js";
+import type { TransferConfirmation } from "../../../packages/contracts/types/TransferConfirmation.js";
+import type { TransferJob } from "../../../packages/contracts/types/TransferJob.js";
+export type {
+  TransferPlanRequest,
+  TransferPlan,
+  TransferConfirmation,
+  TransferJob,
+};
 export type { BundleExportResult };
 export type { DiagnosticReport };
 import type { ConnectionProfile } from "../../../packages/contracts/types/ConnectionProfile.js";
@@ -94,6 +104,18 @@ export interface RemoteRunControls {
 }
 export type ConnectionState = "connected" | "reconnecting" | "closed" | "error";
 export interface DesktopAPI {
+  dataTransfers?: {
+    plan(request: TransferPlanRequest): Promise<TransferPlan>;
+    confirm(request: TransferConfirmation): Promise<TransferJob>;
+    get(
+      id: string,
+      scope: { projectId: string; connectionId: string },
+    ): Promise<TransferJob>;
+    cancel(
+      id: string,
+      scope: { projectId: string; connectionId: string },
+    ): Promise<TransferJob>;
+  };
   packages?: {
     catalog(): Promise<PackageCatalog>;
     plan(request: InstallPlanRequest): Promise<InstallPlan>;

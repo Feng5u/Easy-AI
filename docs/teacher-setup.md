@@ -29,3 +29,6 @@
 构建者先完成 `pnpm build`，再运行 `pnpm package` 和 `pnpm package:verify`。便携目录包含 Electron、冻结 sidecar、教程/本文/验收清单及已有第三方许可材料。项目自身许可证尚未声明，native/system库许可清单仍需核审；它是本地验证产物，不是已批准分发的正式包。入口为 `easyai`，保留原Chromium sandbox且不要改名为electron；不得使用 --no-sandbox、修改系统权限或安装特权 helper 来绕过失败。
 
 目前没有可宣称通过的干净机器/实际桌面课堂结果。启动、编辑、原生对话框、Monaco Worker/CSP、训练和 SSH 等检查均须在合适目标机另做，不能以冻结 HTTP smoke 代替。
+
+
+显式上传入口（当前源码）：优先直接引用已有远端dataRoot；确需上传时，认证后另选专用本地数据目录，预览源/应用管理目标/数量/字节/预算并明确确认。仅新UUID数据目录，不写教师共享目录，不自动随运行上传；完成后还需重新probe绑定。合成SFTP验证不代表真实SSH成功；历史恢复/补传/Windows等未验，见data-upload.md。旧便携产物不含该入口。

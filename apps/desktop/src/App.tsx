@@ -1,4 +1,5 @@
 import { PackageManager } from "./PackageManager.js";
+import { DataUpload } from "./DataUpload.js";
 import { TutorialPanel } from "./TutorialPanel.js";
 import { tutorialForBlock, tutorialTargets, tutorials } from "./tutorials.js";
 import type { TutorialId, TutorialTarget } from "./tutorials.js";
@@ -739,6 +740,15 @@ export function App({ api }: { api?: DesktopAPI }) {
         </div>
       )}
       <div className="setup-grid">
+        {remoteSession && project && !session?.readOnly && (
+          <DataUpload
+            key={`${project.projectId}:${remoteSession.scope.connectionId}`}
+            api={bridge!}
+            session={remoteSession}
+            revision={project.revision}
+            disabled={!ready || dirty || saving || Boolean(busy) || activeRun}
+          />
+        )}
         <section className="panel" aria-labelledby="project-heading">
           <h2 id="project-heading" tabIndex={-1}>
             1. 工程

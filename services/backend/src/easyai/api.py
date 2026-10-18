@@ -36,6 +36,13 @@ from easyai.domain.environment import (
     EnvironmentRequest,
 )
 from easyai.services.environment_transport import EnvironmentFailure
+from easyai.services.data_transfer_errors import safe_transfer_error
+from easyai.domain.data_transfer import (
+    TransferPlanRequest,
+    TransferPlan,
+    TransferConfirmation,
+    TransferJob,
+)
 from easyai.domain.catalog import load_catalog
 from easyai.domain.contracts import (
     CompileRequest,
@@ -132,6 +139,10 @@ def create_app(
 
     @app.exception_handler(RequestValidationError)
     async def invalid_request(request: Request, error: RequestValidationError) -> Response:
+        if request.url.path.startswith("/api/v1/data-transfers"):
+            return JSONResponse(
+                status_code=422, content={"error": {"code": "DATA_TRANSFER_REQUEST_INVALID"}}
+            )
         if request.url.path.startswith(
             ("/api/v1/install-jobs", "/api/v1/environments/install-plan")
         ):
@@ -356,6 +367,47 @@ def create_app(
     @app.get("/api/v1/local/activity")
     async def activity() -> dict[str, list[str]]:
         return await asyncio.to_thread(local().activity)
+
+    UploadResult = TypeVar("UploadResult")
+
+    async def transfer_action(action: Callable[..., UploadResult], *args: Any) -> UploadResult:
+        try:
+            return await asyncio.to_thread(action, *args)
+        except Exception as error:
+            raise ValueError(safe_transfer_error(error)) from None
+
+    @app.post("/api/v1/data-transfers/plan", response_model=TransferPlan)
+    async def transfer_plan(request: TransferPlanRequest) -> TransferPlan:
+        workspace = local()
+        generation = workspace.project_generation(request.project_id)
+        result = await transfer_action(workspace.plan_transfer, request)
+        workspace.verify_project_generation(request.project_id, generation)
+        return result
+
+    @app.post("/api/v1/data-transfers", response_model=TransferJob)
+    async def transfer_confirm(request: TransferConfirmation) -> TransferJob:
+        workspace = local()
+        generation = workspace.project_generation(request.project_id)
+        result = await transfer_action(workspace.transfers().confirm, request)
+        workspace.verify_project_generation(request.project_id, generation)
+        return result
+
+    @app.get("/api/v1/data-transfers/{transfer_id}", response_model=TransferJob)
+    async def transfer_get(transfer_id: UUID, project_id: UUID, connection_id: UUID) -> TransferJob:
+        scope = SessionControl(project_id=str(project_id), connection_id=str(connection_id))
+        workspace = local()
+        generation = workspace.project_generation(scope.project_id)
+        result = await transfer_action(workspace.transfers().get, str(transfer_id), scope)
+        workspace.verify_project_generation(scope.project_id, generation)
+        return result
+
+    @app.post("/api/v1/data-transfers/{transfer_id}/cancel", response_model=TransferJob)
+    async def transfer_cancel(transfer_id: UUID, request: SessionControl) -> TransferJob:
+        workspace = local()
+        generation = workspace.project_generation(request.project_id)
+        result = await transfer_action(workspace.transfers().cancel, str(transfer_id), request)
+        workspace.verify_project_generation(request.project_id, generation)
+        return result
 
     @app.post("/api/v1/projects/open", response_model=ProjectSession)
     async def open_project(request: OpenRequest) -> ProjectSession:

@@ -2,7 +2,7 @@
 
 保存当前工程，完成“检查与编译”，再点击“导出已保存代码 Bundle”。未保存草稿、只读工程或未通过编译时该入口不可用；工程 JSON 的“导出当前工程”入口仍单独保留。只导出这次已保存 revision 的代码，不拿历史运行快照或屏幕上的旧代码替代。
 
-Main 原生选择器要求选择已有父目录；Renderer 只能发送 projectId、revision、programHash，不能发送路径。后端核当前工程、保存版本与实际 Python 编译 hash，在父目录下独占创建 `easyai-code-<UUID>` 新子目录。已存在目录不能合并或覆盖；原工程、数据、私钥、运行和父目录其他文件不复制、不修改。picker 取消不写输出，选择期间工程/版本/后端变化会拒绝；开始写文件后没有强制取消功能。返回前再次核身份，服务中断或身份变化可能使回执未确认，即使目录已经存在；UI明确提示保留检查，重试新建另一目录。
+Main 原生选择器要求选择已有父目录；Renderer 只能发送 projectId、revision、programHash，不能发送路径。后端核当前工程、保存版本与实际 Python 编译 hash，在父目录下独占创建 `easyai-code-<UUID>` 新子目录。已存在目录不能合并或覆盖；原工程文件不修改；不会主动搜集数据、私钥、凭据、运行和父目录其他文件。保存快照原样保留用户字段，不是脱敏器，字段中的敏感内容仍可能被导出。picker 取消不写输出，选择期间工程/版本/后端变化会拒绝；开始写文件后没有强制取消功能。返回前再次核身份，服务中断或身份变化可能使回执未确认，即使目录已经存在；UI明确提示保留检查，重试新建另一目录。
 
 Bundle 包含 `code/train.py`、`easyai_runtime.py`、`entry.py`、`supervisor.py`、`portable_journal.py`、`managed.py`、source-map、`program.ir.json`、可移植 `project.easyai.json` 保存快照、README 与 ENVIRONMENT 环境说明。`bundle.json`记录文件内容 SHA256、programHash/codeHash/bundleHash；在受控目录内所有内容写入、同步后才排他发布，返回不含本机绝对路径。清单是完整性记录，不是签名或来源认证。
 

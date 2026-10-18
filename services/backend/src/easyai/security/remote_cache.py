@@ -279,3 +279,18 @@ class _PosixWriterLock:
 def local_directory(path: Path) -> LocalDirectory:
     require_local_cache()
     return _PosixDirectory(path)
+
+
+def limited_names(directory: LocalDirectory, limit: int) -> list[str]:
+    """Bound enumeration before list allocation for user-selected upload trees."""
+    if not isinstance(directory, _PosixDirectory) or not 1 <= limit <= 1024:
+        raise ValueError("REMOTE_CACHE_PLATFORM_UNVERIFIED")
+    directory.verify()
+    result: list[str] = []
+    with os.scandir(directory._fd) as entries:
+        for entry in entries:
+            if len(result) >= limit:
+                raise ValueError("DATA_TRANSFER_SOURCE_LIMIT")
+            result.append(entry.name)
+    directory.verify()
+    return sorted(result)

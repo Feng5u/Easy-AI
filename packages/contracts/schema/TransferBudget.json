@@ -1,0 +1,28 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "maxFiles": {
+      "default": 64,
+      "maximum": 256,
+      "minimum": 1,
+      "title": "Maxfiles",
+      "type": "integer"
+    },
+    "maxBytes": {
+      "default": 268435456,
+      "maximum": 268435456,
+      "minimum": 1,
+      "title": "Maxbytes",
+      "type": "integer"
+    },
+    "seconds": {
+      "default": 120,
+      "maximum": 120,
+      "minimum": 1,
+      "title": "Seconds",
+      "type": "integer"
+    }
+  },
+  "title": "TransferBudget",
+  "type": "object"
+}

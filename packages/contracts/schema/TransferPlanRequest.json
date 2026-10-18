@@ -1,0 +1,67 @@
+{
+  "$defs": {
+    "TransferBudget": {
+      "additionalProperties": false,
+      "properties": {
+        "maxFiles": {
+          "default": 64,
+          "maximum": 256,
+          "minimum": 1,
+          "title": "Maxfiles",
+          "type": "integer"
+        },
+        "maxBytes": {
+          "default": 268435456,
+          "maximum": 268435456,
+          "minimum": 1,
+          "title": "Maxbytes",
+          "type": "integer"
+        },
+        "seconds": {
+          "default": 120,
+          "maximum": 120,
+          "minimum": 1,
+          "title": "Seconds",
+          "type": "integer"
+        }
+      },
+      "title": "TransferBudget",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "projectId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Projectid",
+      "type": "string"
+    },
+    "connectionId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Connectionid",
+      "type": "string"
+    },
+    "expectedRevision": {
+      "minimum": 1,
+      "title": "Expectedrevision",
+      "type": "integer"
+    },
+    "dataSelectionId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Dataselectionid",
+      "type": "string"
+    },
+    "budget": {
+      "$ref": "#/$defs/TransferBudget"
+    }
+  },
+  "required": [
+    "projectId",
+    "connectionId",
+    "expectedRevision",
+    "dataSelectionId",
+    "budget"
+  ],
+  "title": "TransferPlanRequest",
+  "type": "object"
+}

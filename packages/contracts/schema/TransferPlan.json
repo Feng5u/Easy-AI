@@ -1,0 +1,120 @@
+{
+  "$defs": {
+    "TransferBudget": {
+      "additionalProperties": false,
+      "properties": {
+        "maxFiles": {
+          "default": 64,
+          "maximum": 256,
+          "minimum": 1,
+          "title": "Maxfiles",
+          "type": "integer"
+        },
+        "maxBytes": {
+          "default": 268435456,
+          "maximum": 268435456,
+          "minimum": 1,
+          "title": "Maxbytes",
+          "type": "integer"
+        },
+        "seconds": {
+          "default": 120,
+          "maximum": 120,
+          "minimum": 1,
+          "title": "Seconds",
+          "type": "integer"
+        }
+      },
+      "title": "TransferBudget",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "planId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Planid",
+      "type": "string"
+    },
+    "planHash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Planhash",
+      "type": "string"
+    },
+    "projectId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Projectid",
+      "type": "string"
+    },
+    "connectionId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Connectionid",
+      "type": "string"
+    },
+    "targetId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Targetid",
+      "type": "string"
+    },
+    "targetRevision": {
+      "minimum": 1,
+      "title": "Targetrevision",
+      "type": "integer"
+    },
+    "sourceLabel": {
+      "maxLength": 4096,
+      "title": "Sourcelabel",
+      "type": "string"
+    },
+    "targetPath": {
+      "maxLength": 1024,
+      "minLength": 2,
+      "pattern": "^/[^\\\\\\x00-\\x1f\\x7f]*$",
+      "title": "Targetpath",
+      "type": "string"
+    },
+    "fileCount": {
+      "maximum": 256,
+      "minimum": 1,
+      "title": "Filecount",
+      "type": "integer"
+    },
+    "totalBytes": {
+      "maximum": 268435456,
+      "minimum": 0,
+      "title": "Totalbytes",
+      "type": "integer"
+    },
+    "budget": {
+      "$ref": "#/$defs/TransferBudget"
+    },
+    "expiresInSeconds": {
+      "maximum": 60,
+      "minimum": 1,
+      "title": "Expiresinseconds",
+      "type": "integer"
+    },
+    "writesStarted": {
+      "const": false,
+      "default": false,
+      "title": "Writesstarted",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "planId",
+    "planHash",
+    "projectId",
+    "connectionId",
+    "targetId",
+    "targetRevision",
+    "sourceLabel",
+    "targetPath",
+    "fileCount",
+    "totalBytes",
+    "budget",
+    "expiresInSeconds"
+  ],
+  "title": "TransferPlan",
+  "type": "object"
+}
