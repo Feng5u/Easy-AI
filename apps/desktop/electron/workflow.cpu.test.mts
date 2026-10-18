@@ -96,6 +96,7 @@ it.skipIf(!training || !root || !fixture || !data || !budgetRoot)(
       const opened = (await workflow.invoke("easyai:projects:open", [
         selected.selectionId,
       ])) as ProjectSession;
+      if (!opened.project) throw new Error("Expected compatible project");
       const compiled = (await workflow.invoke("easyai:projects:compile", [
         opened.project,
         1,
@@ -249,6 +250,7 @@ it.skipIf(!training || !root || !fixture || !data || !budgetRoot)(
       const opened = (await workflow.invoke("easyai:projects:open", [
         (await select("project")).selectionId,
       ])) as ProjectSession;
+      if (!opened.project) throw new Error("Expected compatible project");
       const compiled = (await workflow.invoke("easyai:projects:compile", [
         opened.project,
         1,

@@ -1,4 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { freezeSourceMap, sourceAtLine } from "./monaco-mapping.js";
+import { createReadOnlyCodeController } from "./monaco-controller.js";
+import type { ReadOnlyCodeController } from "./monaco-controller.js";
 import type { CompileResult, RunSource } from "../electron/bridge.js";
 
 type Span = NonNullable<CompileResult["sourceMap"]>[number];
@@ -13,42 +16,100 @@ export function CodeView({
   selectedBlock?: string | null;
   onSelectBlock?: (id: string) => void;
 }) {
-  const selectedLine = useRef<HTMLLIElement | null>(null);
+  const host = useRef<HTMLDivElement | null>(null);
+  const controller = useRef<ReadOnlyCodeController | null>(null);
+  const latest = useRef({ code, spans, selectedBlock, onSelectBlock });
+  latest.current = { code, spans, selectedBlock, onSelectBlock };
+  const [ready, setReady] = useState(false);
+  const [failure, setFailure] = useState("");
+  const immutableMap = useMemo(() => freezeSourceMap(spans), [spans]);
   useEffect(() => {
-    selectedLine.current?.scrollIntoView({
-      block: "nearest",
-      inline: "nearest",
-    });
-  }, [selectedBlock, code]);
-  const firstSelected = selectedBlock
-    ? spans.find(
-        (span) =>
-          span.origin.blockId === selectedBlock && span.kind === "semantic",
-      )?.startLine
-    : undefined;
+    const element = host.current;
+    if (!element) return;
+    let active = true;
+    let loading = false;
+    const initialize = () => {
+      if (controller.current) {
+        controller.current.layout();
+        return;
+      }
+      if (
+        loading ||
+        !element.getClientRects().length ||
+        element.clientWidth === 0
+      )
+        return;
+      const nonce = element.ownerDocument.querySelector<HTMLMetaElement>(
+        'meta[name="easyai-style-nonce"]',
+      )?.content;
+      if (!nonce || !/^(?:[a-f0-9]{64}|[A-Za-z0-9+/]{43}=)$/.test(nonce)) {
+        setFailure("代码编辑器缺少本页受控样式授权，以下保留纯文本只读内容。");
+        loading = true;
+        return;
+      }
+      loading = true;
+      void import("./monaco-loader.js")
+        .then(({ monaco }) => {
+          if (!active) return;
+          const current = latest.current;
+          controller.current = createReadOnlyCodeController(
+            monaco,
+            element,
+            current.code,
+            (id) => latest.current.onSelectBlock?.(id),
+          );
+          controller.current.update(
+            current.code,
+            current.spans,
+            current.selectedBlock,
+          );
+          setReady(true);
+        })
+        .catch((reason) => {
+          if (active) {
+            controller.current?.dispose();
+            controller.current = null;
+            setFailure(
+              `代码编辑器无法加载，以下保留纯文本只读内容：${String(reason)}`,
+            );
+          }
+        });
+    };
+    const observer = new ResizeObserver(initialize);
+    observer.observe(element);
+    initialize();
+    return () => {
+      active = false;
+      observer.disconnect();
+      controller.current?.dispose();
+      controller.current = null;
+    };
+  }, []);
+  useEffect(() => {
+    controller.current?.update(code, immutableMap, selectedBlock);
+  }, [code, immutableMap, selectedBlock]);
   return (
     <div className="code-view" tabIndex={0} aria-label="只读生成代码">
-      <ol>
+      {failure && <p role="alert">{failure}</p>}
+      {!ready && !failure && <p role="status">正在准备本地只读代码编辑器…</p>}
+      <div
+        hidden={Boolean(failure)}
+        ref={host}
+        className="monaco-host"
+        aria-label="Monaco 只读代码视图"
+      />
+      <ol hidden={ready}>
         {code.split("\n").map((text, index) => {
           const line = index + 1;
-          const hits = spans.filter(
+          const hits = immutableMap.filter(
             (span) => span.startLine <= line && span.endLine >= line,
           );
-          const hit = [...hits].sort(
-            (left, right) =>
-              Number(left.kind !== "semantic") -
-                Number(right.kind !== "semantic") ||
-              left.endLine - left.startLine - (right.endLine - right.startLine),
-          )[0];
+          const hit = sourceAtLine(immutableMap, line);
           const selected =
             selectedBlock &&
             hits.some((span) => span.origin.blockId === selectedBlock);
           return (
-            <li
-              key={line}
-              ref={line === firstSelected ? selectedLine : undefined}
-              className={selected ? "code-selected" : undefined}
-            >
+            <li key={line} className={selected ? "code-selected" : undefined}>
               {hit && onSelectBlock ? (
                 <button
                   type="button"
@@ -89,7 +150,7 @@ export function SnapshotCode({
         {selectedBlock && (
           <p role="status">
             源积木 ID：<code>{selectedBlock}</code>
-            。对应代码行已高亮；积木编辑工作区将在后续阶段提供。
+            。对应代码行已高亮，此处使用本次运行快照的积木映射。
           </p>
         )}
         <CodeView

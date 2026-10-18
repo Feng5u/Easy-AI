@@ -410,3 +410,25 @@ th {
     margin-top: 7px;
   }
 }
+
+.monaco-host {
+  height: 420px;
+  width: 100%;
+  min-width: 0;
+}
+.monaco-source-scaffold {
+  opacity: 0.55;
+}
+.monaco-source-selected-semantic {
+  background: rgba(114, 160, 76, 0.28);
+}
+.monaco-source-selected-scaffold {
+  background: rgba(114, 160, 76, 0.1);
+}
+.history-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0;
+  list-style: none;
+}

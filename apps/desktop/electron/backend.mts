@@ -207,6 +207,12 @@ export async function startBackend(
           PROJECT_ALREADY_EXISTS:
             "所选目录已有工程，请打开它，或选择新的工程目录。",
           PROJECT_READ_ONLY: "工程为只读，无法保存或启动。",
+          PROJECT_SIZE_LIMIT:
+            "工程超过5MiB安全上限。原文件未改，无法从内存预览导出，请保留完整原文件。",
+          PROJECT_EXPORT_TARGET_EXISTS:
+            "导出目标已存在，未覆盖。请选择新文件名。",
+          LOCAL_SESSION_RESTORE_FAILED:
+            "无法安全恢复上次工程；原文件未改，请重新选择工程目录。",
           LOCAL_SELECTION_NOT_FOUND: "路径选择已失效，请重新使用选择按钮。",
           LOCAL_FILE_NOT_FOUND: "所需本地文件不存在，请检查所选目录。",
           FILE_NOT_REGULAR: "本地持久文件类型不受支持，已拒绝读取。",

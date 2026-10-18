@@ -165,7 +165,14 @@
   "additionalProperties": false,
   "properties": {
     "project": {
-      "$ref": "#/$defs/ProjectDocument"
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ProjectDocument"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "readOnly": {
       "title": "Readonly",
@@ -182,6 +189,30 @@
       ],
       "default": null,
       "title": "Reason"
+    },
+    "rawText": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Rawtext"
+    },
+    "label": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Label"
     }
   },
   "required": [

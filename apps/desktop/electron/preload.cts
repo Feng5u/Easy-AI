@@ -1,21 +1,42 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
 import type { DesktopAPI, SubscriptionMessage } from "./bridge.js";
 const api: DesktopAPI = {
-  status: { get: () => ipcRenderer.invoke("easyai:status:get") },
+  status: {
+    get: () => ipcRenderer.invoke("easyai:status:get"),
+    subscribe: (onStatus) => {
+      const listener = (
+        _: IpcRendererEvent,
+        status: { ready: boolean; message: string },
+      ) => onStatus(status);
+      ipcRenderer.on("easyai:status:changed", listener);
+      return () => {
+        ipcRenderer.removeListener("easyai:status:changed", listener);
+      };
+    },
+  },
   selections: {
     pick: (kind) => ipcRenderer.invoke("easyai:selections:pick", kind),
   },
   projects: {
+    setDirty: (dirty) => ipcRenderer.invoke("easyai:projects:dirty", dirty),
     current: () => ipcRenderer.invoke("easyai:projects:current"),
     open: (id) => ipcRenderer.invoke("easyai:projects:open", id),
-    create: (id, name) =>
-      ipcRenderer.invoke("easyai:projects:create", id, name),
+    create: (id, name, template = "mnist-cnn") =>
+      ipcRenderer.invoke("easyai:projects:create", id, name, template),
+    importProject: () => ipcRenderer.invoke("easyai:projects:import"),
+    exportProject: (project) =>
+      ipcRenderer.invoke(
+        "easyai:projects:export",
+        ...(project ? [project] : []),
+      ),
     save: (project, revision) =>
       ipcRenderer.invoke("easyai:projects:save", project, revision),
     compile: (project, requestId) =>
       ipcRenderer.invoke("easyai:projects:compile", project, requestId),
   },
   runs: {
+    list: (id, offset, limit) =>
+      ipcRenderer.invoke("easyai:runs:list", id, offset, limit),
     start: (request) => ipcRenderer.invoke("easyai:runs:start", request),
     get: (id) => ipcRenderer.invoke("easyai:runs:get", id),
     cancel: (id) => ipcRenderer.invoke("easyai:runs:cancel", id),

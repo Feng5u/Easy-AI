@@ -17,11 +17,15 @@ export type Activetab = "data" | "model" | "training";
 export type Codevisible = boolean;
 export type Readonly = boolean;
 export type Reason = string | null;
+export type Rawtext = string | null;
+export type Label = string | null;
 
 export interface ProjectSession {
-  project: ProjectDocument;
+  project: ProjectDocument | null;
   readOnly: Readonly;
   reason?: Reason;
+  rawText?: Rawtext;
+  label?: Label;
 }
 export interface ProjectDocument {
   schemaVersion?: Schemaversion;

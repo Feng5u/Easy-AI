@@ -13,7 +13,7 @@ from typing import Any, Literal, BinaryIO
 from uuid import uuid4
 
 from easyai.compiler.pipeline import compile_project
-from easyai.domain.catalog import TEMPLATE_PATH
+from easyai.domain.catalog import TEMPLATE_PATH, BLANK_TEMPLATE_PATH
 from easyai.domain.contracts import ProjectDocument, Run
 from easyai.domain.desktop import ProjectSession, RunStartRequest, SelectionResult
 from easyai.security.files import read_regular
@@ -209,6 +209,20 @@ class LocalWorkspace:
         self._projects: dict[str, ProjectService] = {}
         self._current: str | None = None
         self._closed = False
+        self._readonly: tuple[Path, bytes, ProjectSession] | None = None
+        self._restore_error = False
+        remembered = self.root / "last-project.json"
+        if remembered.exists() or remembered.is_symlink():
+            try:
+                value = json.loads(read_regular(remembered, 8192))
+                if not isinstance(value, dict) or set(value) != {"projectRoot"}:
+                    raise ValueError("LOCAL_SESSION_INVALID")
+                prior = Path(value["projectRoot"])
+                if not prior.is_absolute() or prior.resolve(strict=True) != prior:
+                    raise ValueError("LOCAL_SESSION_INVALID")
+                self.open(self.select("project", prior).selection_id)
+            except (OSError, ValueError, KeyError, TypeError):
+                self._restore_error = True
 
     def _verify(self) -> None:
         if self._closed:
@@ -257,10 +271,15 @@ class LocalWorkspace:
     def current(self) -> ProjectSession | None:
         with self._mutex:
             self._verify()
+            if self._restore_error:
+                raise ValueError("LOCAL_SESSION_RESTORE_FAILED")
+            if self._readonly is not None:
+                return self._readonly[2]
             return self._session(self._projects[self._current]) if self._current else None
 
     def _register(self, service: ProjectService) -> ProjectSession:
         session = self._session(service)
+        assert session.project is not None
         identity = session.project.project_id
         previous = self._projects.get(identity)
         if previous is not None and previous.root != service.root:
@@ -268,6 +287,8 @@ class LocalWorkspace:
             raise ValueError("PROJECT_ID_CONFLICT")
         self._projects[identity] = service
         self._current = identity
+        self._readonly = None
+        self._remember(service.root)
         return session
 
     def open(self, selection_id: str) -> ProjectSession:
@@ -275,12 +296,26 @@ class LocalWorkspace:
             root = self._selection(selection_id, "project")
             for service in self._projects.values():
                 if service.root == root:
-                    self._current = self._session(service).project.project_id
-                    return self._session(service)
+                    session = self._session(service)
+                    assert session.project is not None
+                    self._current = session.project.project_id
+                    self._readonly = None
+                    self._remember(root)
+                    return session
             # Reject unsupported bytes before creating metadata or acquiring ownership.
             opened = read_project(root / "project.easyai.json")
             if opened.document is None:
-                raise ValueError("PROJECT_FORMAT_UNSUPPORTED")
+                session = ProjectSession(
+                    project=None,
+                    read_only=True,
+                    reason=opened.reason,
+                    raw_text=opened.raw[:65536].decode("utf-8", errors="replace"),
+                    label=root.name,
+                )
+                self._readonly = (root, opened.raw, session)
+                self._current = None
+                self._remember(root)
+                return session
             service = ProjectService(root)
             try:
                 return self._register(service)
@@ -288,7 +323,91 @@ class LocalWorkspace:
                 service.close()
                 raise
 
-    def create(self, selection_id: str, name: str) -> ProjectSession:
+    def _remember(self, root: Path) -> None:
+        ProjectService.atomic_write(
+            self.root / "last-project.json",
+            json.dumps({"projectRoot": str(root)}, ensure_ascii=False).encode(),
+        )
+        self._restore_error = False
+
+    @staticmethod
+    def _create_file(path: Path, payload: bytes) -> None:
+        # Exclusive publication: even a native save dialog cannot silently replace user files.
+        if path.exists() or path.is_symlink():
+            raise ValueError("PROJECT_EXPORT_TARGET_EXISTS")
+        temp = path.with_name("easyai-export-" + str(uuid4()) + ".tmp")
+        try:
+            with temp.open("xb") as stream:
+                stream.write(payload)
+                stream.flush()
+                os.fsync(stream.fileno())
+            try:
+                os.link(temp, path)
+            except FileExistsError:
+                raise ValueError("PROJECT_EXPORT_TARGET_EXISTS") from None
+        finally:
+            temp.unlink(missing_ok=True)
+
+    def export_current(self, destination: Path, document: ProjectDocument | None = None) -> None:
+        with self._mutex:
+            self._verify()
+            if not destination.is_absolute():
+                raise ValueError("LOCAL_SELECTION_INVALID")
+            if document is not None:
+                if self._current is None or document.project_id != self._current:
+                    raise ValueError("PROJECT_ID_CONFLICT")
+                raw = (document.model_dump_json(by_alias=True, indent=2) + "\n").encode()
+                validate_project_bytes(raw)
+            elif self._readonly is not None:
+                raw = self._readonly[1]
+                if len(raw) > 5 * 1024 * 1024:
+                    # read_project retains a bounded prefix for oversized input.
+                    # It is evidence of rejection, never a complete export source.
+                    raise ValueError("PROJECT_SIZE_LIMIT")
+            elif self._current is not None:
+                raw = read_regular(self._projects[self._current].path, 5 * 1024 * 1024)
+            else:
+                raise ValueError("PROJECT_NOT_OPEN")
+            self._create_file(destination, raw)
+
+    def import_project(self, source: Path, destination: Path) -> ProjectSession:
+        with self._mutex:
+            self._verify()
+            if not source.is_absolute() or not destination.is_absolute():
+                raise ValueError("LOCAL_SELECTION_INVALID")
+            root = destination.resolve(strict=True)
+            if not root.is_dir() or (root / "project.easyai.json").exists():
+                raise ValueError("PROJECT_ALREADY_EXISTS")
+            raw = read_regular(source, 5 * 1024 * 1024)
+            try:
+                document = validate_project_bytes(raw)
+            except (ValueError, RecursionError):
+                # Unsupported content stays byte-exact and read-only, never sent to Blockly.
+                pass
+            else:
+                document = document.model_copy(update={"project_id": str(uuid4()), "revision": 1})
+                raw = (document.model_dump_json(by_alias=True, indent=2) + "\n").encode()
+                validate_project_bytes(raw)
+            self._create_file(root / "project.easyai.json", raw)
+            return self.open(self.select("project", root).selection_id)
+
+    def history(self, project_id: str, offset: int = 0, limit: int = 25) -> list[Run]:
+        with self._mutex:
+            self._verify()
+            if project_id not in self._projects:
+                raise KeyError("PROJECT_NOT_OPEN")
+            if not 0 <= offset or not 1 <= limit <= 50:
+                raise ValueError("HISTORY_CURSOR_INVALID")
+            identities = [
+                entry.run.run_id
+                for entry in reversed(list(self.runs._ledger.entries.values()))
+                if entry.run.project_id == project_id
+            ]
+            return [self.runs.get(identity) for identity in identities[offset : offset + limit]]
+
+    def create(
+        self, selection_id: str, name: str, template_name: str = "mnist-cnn"
+    ) -> ProjectSession:
         with self._mutex:
             root = self._selection(selection_id, "project")
             path = root / "project.easyai.json"
@@ -297,7 +416,14 @@ class LocalWorkspace:
             data = root / "data"
             if data.is_symlink() or (data.exists() and not data.is_dir()):
                 raise ValueError("DATA_PATH_FORBIDDEN")
-            template = validate_project_bytes(read_regular(TEMPLATE_PATH, 5 * 1024 * 1024))
+            if template_name not in {"mnist-cnn", "blank"}:
+                raise ValueError("PROJECT_TEMPLATE_INVALID")
+            template = validate_project_bytes(
+                read_regular(
+                    TEMPLATE_PATH if template_name == "mnist-cnn" else BLANK_TEMPLATE_PATH,
+                    5 * 1024 * 1024,
+                )
+            )
             value = template.model_dump(by_alias=True)
             value.update(projectId=str(uuid4()), name=name, revision=1)
             document = ProjectDocument.model_validate(value)

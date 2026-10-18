@@ -29,12 +29,26 @@ export interface StartRun {
 }
 export type ConnectionState = "connected" | "reconnecting" | "closed" | "error";
 export interface DesktopAPI {
-  status: { get(): Promise<{ ready: boolean; message: string }> };
+  status: {
+    get(): Promise<{ ready: boolean; message: string }>;
+    subscribe(
+      onStatus: (status: { ready: boolean; message: string }) => void,
+    ): () => void;
+  };
   selections: { pick(kind: SelectionKind): Promise<SelectionResult | null> };
   projects: {
+    setDirty(dirty: boolean): Promise<void>;
     current(): Promise<ProjectSession | null>;
     open(selectionId: string): Promise<ProjectSession>;
-    create(selectionId: string, name: string): Promise<ProjectSession>;
+    create(
+      selectionId: string,
+      name: string,
+      template?: "mnist-cnn" | "blank",
+    ): Promise<ProjectSession>;
+    importProject(): Promise<ProjectSession | null>;
+    exportProject(
+      project?: ProjectDocument,
+    ): Promise<{ exported: boolean } | null>;
     save(
       project: ProjectDocument,
       expectedRevision: number,
@@ -45,6 +59,7 @@ export interface DesktopAPI {
     ): Promise<CompileResult>;
   };
   runs: {
+    list(projectId: string, offset: number, limit: number): Promise<Run[]>;
     start(request: StartRun): Promise<Run>;
     get(runId: string): Promise<Run>;
     cancel(runId: string): Promise<Run>;

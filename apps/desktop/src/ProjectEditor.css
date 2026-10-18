@@ -1,0 +1,103 @@
+.project-editor {
+  border: 1px solid var(--line, #d9dfec);
+  border-radius: 12px;
+  overflow: hidden;
+  background: white;
+}
+.project-editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: space-between;
+  padding: 10px;
+  border-bottom: 1px solid #d9dfec;
+}
+.project-editor-toolbar [role="tablist"],
+.project-editor-history {
+  display: flex;
+  gap: 6px;
+}
+.project-editor-toolbar [aria-selected="true"] {
+  color: #fff;
+  background: #295ad0;
+  border-color: #295ad0;
+}
+.project-editor-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+}
+.project-editor-canvases {
+  min-width: 0;
+  height: 550px;
+  position: relative;
+}
+.project-editor-canvas {
+  height: 100%;
+  width: 100%;
+}
+.project-editor-canvas[hidden] {
+  display: none;
+}
+.project-editor-inspector {
+  border-left: 1px solid #d9dfec;
+  padding: 16px;
+  overflow: auto;
+  max-height: 550px;
+  font-size: 13px;
+}
+.project-editor-inspector h3 {
+  margin: 0 0 10px;
+  font-size: 14px;
+}
+.project-editor-inspector h3:not(:first-child) {
+  margin-top: 22px;
+}
+.project-editor-inspector input:not([type="checkbox"]) {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+}
+.project-editor-inspector small {
+  display: block;
+  overflow-wrap: anywhere;
+  color: #64748b;
+}
+.project-editor-register {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.project-editor-note {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.project-editor-error {
+  color: #8d281d;
+  background: #fff2ee;
+  padding: 12px;
+}
+.project-editor-error button {
+  margin-left: 12px;
+}
+.project-editor-symbols {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 7px;
+}
+.project-editor-symbols button {
+  text-align: left;
+  width: 100%;
+}
+@media (max-width: 850px) {
+  .project-editor-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .project-editor-inspector {
+    border-left: 0;
+    border-top: 1px solid #d9dfec;
+    max-height: 250px;
+  }
+}

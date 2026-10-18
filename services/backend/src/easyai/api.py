@@ -44,7 +44,17 @@ class OpenRequest(Contract):
 
 class CreateRequest(OpenRequest):
     name: str = Field(min_length=1, max_length=128)
-    template: Literal["mnist-cnn"] = "mnist-cnn"
+    template: Literal["mnist-cnn", "blank"] = "mnist-cnn"
+
+
+class ImportRequest(Contract):
+    source_path: str = Field(min_length=1, max_length=4096)
+    destination_path: str = Field(min_length=1, max_length=4096)
+
+
+class ExportRequest(Contract):
+    path: str = Field(min_length=1, max_length=4096)
+    project: ProjectDocument | None = None
 
 
 class SaveRequest(Contract):
@@ -124,7 +134,28 @@ def create_app(
 
     @app.post("/api/v1/projects", response_model=ProjectSession)
     async def create_project(request: CreateRequest) -> ProjectSession:
-        return await asyncio.to_thread(local().create, request.selection_id, request.name)
+        return await asyncio.to_thread(
+            local().create, request.selection_id, request.name, request.template
+        )
+
+    @app.post("/api/v1/local/import", response_model=ProjectSession)
+    async def import_project(request: ImportRequest) -> ProjectSession:
+        return await asyncio.to_thread(
+            local().import_project, Path(request.source_path), Path(request.destination_path)
+        )
+
+    @app.post("/api/v1/local/export")
+    async def export_project(request: ExportRequest) -> dict[str, bool]:
+        await asyncio.to_thread(local().export_current, Path(request.path), request.project)
+        return {"exported": True}
+
+    @app.get("/api/v1/projects/{project_id}/runs", response_model=list[Run])
+    async def history(
+        project_id: str,
+        offset: int = Query(default=0, ge=0),
+        limit: int = Query(default=25, ge=1, le=50),
+    ) -> list[Run]:
+        return await asyncio.to_thread(local().history, project_id, offset, limit)
 
     @app.put("/api/v1/projects/{project_id}", response_model=ProjectSession)
     async def save_project(project_id: str, request: SaveRequest) -> ProjectSession:

@@ -19,6 +19,10 @@ assert.deepEqual(
   await readFile(join(resources, "templates/project.easyai.json")),
   await readFile(join(repository, "examples/mnist-cnn/project.easyai.json")),
 );
+assert.deepEqual(
+  await readFile(join(resources, "templates/blank.json")),
+  await readFile(join(repository, "packages/contracts/fixtures/blank.json")),
+);
 const root = await mkdtemp(join(tmpdir(), "easyai-frozen-"));
 const project = join(root, "原生选择 项目");
 await mkdir(project);
@@ -106,6 +110,29 @@ try {
       join(repository, "services/backend/tests/fixtures/golden/mnist.py.txt"),
       "utf8",
     ),
+  );
+  const blankDirectory = join(root, "blank project");
+  await mkdir(blankDirectory);
+  const blankSelection = await request("POST", "/local/selections", {
+    kind: "project",
+    path: blankDirectory,
+  });
+  const blank = await request("POST", "/projects", {
+    selectionId: blankSelection.value.selectionId,
+    name: "空白",
+    template: "blank",
+  });
+  assert.equal(blank.response.status, 200);
+  assert.deepEqual(blank.value.project.workspaces.data.blocks.blocks, []);
+  const portable = join(root, "portable.easyai.json");
+  assert.equal(
+    (await request("POST", "/local/export", { path: portable })).response
+      .status,
+    200,
+  );
+  assert.deepEqual(
+    await readFile(portable),
+    await readFile(join(blankDirectory, "project.easyai.json")),
   );
   console.log(
     "PASS frozen resources + native-selection API + project create + authenticated golden compile from temporary cwd",

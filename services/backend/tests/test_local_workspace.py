@@ -87,8 +87,9 @@ def test_unsupported_project_is_preserved_and_selection_roles_are_enforced(works
     raw = b'{"schemaVersion":999,"unknown":"keep"}'
     (root / "project.easyai.json").write_bytes(raw)
     choice = workspace.select("project", root)
-    with pytest.raises(ValueError, match="PROJECT_FORMAT_UNSUPPORTED"):
-        workspace.open(choice.selection_id)
+    unsupported = workspace.open(choice.selection_id)
+    assert unsupported.project is None and unsupported.read_only
+    assert unsupported.raw_text == raw.decode()
     assert (root / "project.easyai.json").read_bytes() == raw and not (root / ".easyai").exists()
     data = workspace.select("data", root)
     with pytest.raises(ValueError, match="KIND_MISMATCH"):

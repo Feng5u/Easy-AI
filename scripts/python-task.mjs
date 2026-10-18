@@ -32,6 +32,8 @@ const operations = {
       "--add-data",
       "../../examples/mnist-cnn/project.easyai.json:easyai/resources/templates",
       "--add-data",
+      "../../packages/contracts/fixtures/blank.json:easyai/resources/templates",
+      "--add-data",
       "../../runtime/entry.py:easyai/resources/runtime",
       "--add-data",
       "../../runtime/easyai_runtime.py:easyai/resources/runtime",

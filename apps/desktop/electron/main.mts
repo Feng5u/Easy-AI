@@ -8,6 +8,7 @@ import {
   type IpcMainInvokeEvent,
 } from "electron";
 import { setTimeout as delay } from "node:timers/promises";
+import { renderAppHtml } from "./app-assets.mjs";
 import { MainWorkflow, WORKFLOW_CHANNELS } from "./workflow.mjs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, extname } from "node:path";
@@ -25,6 +26,7 @@ protocol.registerSchemesAsPrivileged([
 let backend: Backend | undefined;
 let quitting = false;
 let status = { ready: false, message: "本地服务尚未启动。" };
+let draftDirty = false;
 if (!app.requestSingleInstanceLock()) app.exit(0);
 await app.whenReady();
 const assets = join(here, "../dist");
@@ -43,13 +45,21 @@ protocol.handle("easyai", async (request) => {
       ".html": "text/html; charset=utf-8",
       ".js": "text/javascript; charset=utf-8",
       ".css": "text/css; charset=utf-8",
+      ".ttf": "font/ttf",
+      ".woff2": "font/woff2",
+      ".png": "image/png",
+      ".svg": "image/svg+xml",
+      ".cur": "image/x-icon",
     };
-    return new Response(data, {
-      headers: {
-        "Content-Type": mime[extname(path)] ?? "application/octet-stream",
-        "X-Content-Type-Options": "nosniff",
+    return new Response(
+      path === "/index.html" ? renderAppHtml(data.toString("utf8")) : data,
+      {
+        headers: {
+          "Content-Type": mime[extname(path)] ?? "application/octet-stream",
+          "X-Content-Type-Options": "nosniff",
+        },
       },
-    });
+    );
   } catch {
     return new Response("Not found", { status: 404 });
   }
@@ -82,6 +92,12 @@ ipcMain.handle("easyai:status:get", (event) => {
   authorizeSender(event);
   return status;
 });
+ipcMain.handle("easyai:projects:dirty", (event, ...args: unknown[]) => {
+  authorizeSender(event);
+  if (args.length !== 1 || typeof args[0] !== "boolean")
+    throw new Error("草稿状态无效。");
+  draftDirty = args[0];
+});
 const workflow = new MainWorkflow(
   () => backend,
   async (kind) => {
@@ -99,6 +115,34 @@ const workflow = new MainWorkflow(
   (message) => {
     if (!window.isDestroyed())
       window.webContents.send("easyai:runs:message", message);
+  },
+  {
+    async importProject() {
+      const source = await dialog.showOpenDialog(window, {
+        title: "选择可移植工程 JSON",
+        properties: ["openFile"],
+        filters: [{ name: "Easy-AI 工程", extensions: ["json"] }],
+      });
+      if (source.canceled || !source.filePaths[0]) return null;
+      const destination = await dialog.showOpenDialog(window, {
+        title: "选择导入目标目录（不覆盖已有工程）",
+        properties: ["openDirectory"],
+      });
+      return destination.canceled || !destination.filePaths[0]
+        ? null
+        : {
+            sourcePath: source.filePaths[0],
+            destinationPath: destination.filePaths[0],
+          };
+    },
+    async exportProject() {
+      const destination = await dialog.showSaveDialog(window, {
+        title: "导出已保存工程（目标必须不存在）",
+        defaultPath: "project-copy.easyai.json",
+        filters: [{ name: "Easy-AI 工程", extensions: ["json"] }],
+      });
+      return destination.canceled ? null : (destination.filePath ?? null);
+    },
   },
 );
 window.webContents.on("render-process-gone", () => workflow.dispose());
@@ -124,6 +168,19 @@ async function requestQuit(): Promise<void> {
   if (quitPending || quitting) return;
   quitPending = true;
   try {
+    if (draftDirty) {
+      const answer = await dialog.showMessageBox(window, {
+        type: "warning",
+        title: "仍有未保存编辑",
+        message: "放弃未保存的编辑并退出？",
+        detail:
+          "选择留在应用，可等待自动保存、手动重试或导出当前草稿。已保存工程不会删除。",
+        buttons: ["留在应用", "放弃未保存编辑并退出"],
+        defaultId: 0,
+        cancelId: 0,
+      });
+      if (answer.response !== 1) return;
+    }
     if (
       backend &&
       backend.process.exitCode === null &&
@@ -215,7 +272,8 @@ try {
     if (quitting || window.isDestroyed()) return;
     workflow.dispose();
     status = { ready: false, message: "本地服务已退出，请重新启动应用。" };
-    void window.webContents.reload();
+    // Preserve the live editor draft; reloading here would silently erase unsaved work.
+    window.webContents.send("easyai:status:changed", status);
   });
 } catch (error) {
   status = {

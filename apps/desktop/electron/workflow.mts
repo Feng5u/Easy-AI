@@ -12,9 +12,12 @@ export const WORKFLOW_CHANNELS = [
   "easyai:projects:current",
   "easyai:projects:open",
   "easyai:projects:create",
+  "easyai:projects:import",
+  "easyai:projects:export",
   "easyai:projects:save",
   "easyai:projects:compile",
   "easyai:runs:start",
+  "easyai:runs:list",
   "easyai:runs:get",
   "easyai:runs:cancel",
   "easyai:runs:source",
@@ -58,6 +61,13 @@ export class MainWorkflow {
     private backend: () => Backend | undefined,
     private choose: (kind: SelectionKind) => Promise<string | null>,
     private send: (message: SubscriptionMessage) => void,
+    private files?: {
+      importProject(): Promise<{
+        sourcePath: string;
+        destinationPath: string;
+      } | null>;
+      exportProject(): Promise<string | null>;
+    },
   ) {}
   async invoke(channel: string, args: unknown[]): Promise<unknown> {
     const backend = this.backend();
@@ -67,9 +77,12 @@ export class MainWorkflow {
       "easyai:projects:current": 0,
       "easyai:projects:open": 1,
       "easyai:projects:create": 2,
+      "easyai:projects:import": 0,
+      "easyai:projects:export": 0,
       "easyai:projects:save": 2,
       "easyai:projects:compile": 2,
       "easyai:runs:start": 1,
+      "easyai:runs:list": 3,
       "easyai:runs:get": 1,
       "easyai:runs:cancel": 1,
       "easyai:runs:source": 1,
@@ -77,7 +90,12 @@ export class MainWorkflow {
       "easyai:runs:artifacts": 1,
       "easyai:runs:image": 2,
     };
-    if (!Object.hasOwn(counts, channel) || args.length !== counts[channel])
+    if (
+      !Object.hasOwn(counts, channel) ||
+      (args.length !== counts[channel] &&
+        !(channel === "easyai:projects:create" && args.length === 3) &&
+        !(channel === "easyai:projects:export" && args.length === 1))
+    )
       throw new Error("IPC接口或参数无效。");
     switch (channel) {
       case "easyai:selections:pick": {
@@ -105,11 +123,32 @@ export class MainWorkflow {
           args[1].length > 128
         )
           throw new Error("项目名称无效。");
+        const template = args[2] ?? "mnist-cnn";
+        if (template !== "mnist-cnn" && template !== "blank")
+          throw new Error("工程模板无效。");
         return backend.request("POST", "/api/v1/projects", {
           selectionId: id(args[0]),
           name: args[1],
-          template: "mnist-cnn",
+          template,
         });
+      }
+      case "easyai:projects:import": {
+        if (!this.files) throw new Error("原生文件选择不可用。");
+        const selection = await this.files.importProject();
+        return selection
+          ? backend.request("POST", "/api/v1/local/import", selection)
+          : null;
+      }
+      case "easyai:projects:export": {
+        if (!this.files) throw new Error("原生文件选择不可用。");
+        const document = args.length ? project(args[0]) : undefined;
+        const path = await this.files.exportProject();
+        return path
+          ? backend.request("POST", "/api/v1/local/export", {
+              path,
+              ...(document ? { project: document } : {}),
+            })
+          : null;
       }
       case "easyai:projects:save": {
         const value = project(args[0]);
@@ -160,6 +199,15 @@ export class MainWorkflow {
       }
       case "easyai:runs:get":
         return backend.request("GET", `/api/v1/runs/${id(args[0])}`);
+      case "easyai:runs:list": {
+        const offset = integer(args[1]),
+          limit = integer(args[2], 1);
+        if (limit > 50) throw new Error("历史分页无效。");
+        return backend.request(
+          "GET",
+          `/api/v1/projects/${id(args[0])}/runs?offset=${offset}&limit=${limit}`,
+        );
+      }
       case "easyai:runs:cancel":
         return backend.request("POST", `/api/v1/runs/${id(args[0])}/cancel`);
       case "easyai:runs:source":

@@ -12,9 +12,11 @@ class SelectionResult(Contract):
 
 
 class ProjectSession(Contract):
-    project: ProjectDocument
+    project: ProjectDocument | None
     read_only: bool
     reason: str | None = None
+    raw_text: str | None = None
+    label: str | None = None
 
 
 class RunStartRequest(Contract):

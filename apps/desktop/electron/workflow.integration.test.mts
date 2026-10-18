@@ -39,6 +39,7 @@ it("real Main workflow crosses authenticated sidecar with opaque native selectio
       selection.selectionId,
       "实际工程",
     ])) as ProjectSession;
+    if (!opened.project) throw new Error("Expected compatible project");
     expect(opened.project.revision).toBe(1);
     expect(opened.readOnly).toBe(false);
     expect(await readFile(join(project, "data/keep.txt"), "utf8")).toBe(
@@ -63,6 +64,7 @@ it("real Main workflow crosses authenticated sidecar with opaque native selectio
       updated,
       1,
     ])) as ProjectSession;
+    if (!saved.project) throw new Error("Expected saved project");
     expect(saved.project.revision).toBe(2);
     expect(saved.project.settings?.executionMode).toBe("quick");
     await expect(

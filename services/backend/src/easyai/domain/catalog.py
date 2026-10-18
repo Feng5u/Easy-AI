@@ -20,6 +20,11 @@ TEMPLATE_PATH = (
     if getattr(sys, "frozen", False)
     else SOURCE_ROOT / "examples/mnist-cnn/project.easyai.json"
 )
+BLANK_TEMPLATE_PATH = (
+    Path(getattr(sys, "_MEIPASS")) / "easyai/resources/templates/blank.json"
+    if getattr(sys, "frozen", False)
+    else SOURCE_ROOT / "packages/contracts/fixtures/blank.json"
+)
 
 
 def load_catalog() -> dict[str, Any]:
