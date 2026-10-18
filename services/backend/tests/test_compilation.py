@@ -194,7 +194,7 @@ def test_logical_path_length_limit_applies_after_canonicalization(tmp_path):
     from test_emission import context
 
     _, runtime = context(tmp_path)
-    allowed = "folder/" + "x" * 237 + ".png"  # 248 raw / 256 canonical
+    allowed = "folder/" * 5 + "x" * 209 + ".png"  # 248 raw / 256 canonical
     assert len(allowed) == 248
     canonical = artifact_relative_path(allowed)
     assert len(canonical) == 256
@@ -206,3 +206,81 @@ def test_logical_path_length_limit_applies_after_canonicalization(tmp_path):
             artifact_relative_path(rejected)
         with pytest.raises(ValueError, match="Invalid logical figure path"):
             runtime.figure_path("f", "before", logical=rejected)
+
+
+@pytest.mark.parametrize("fixture", ["mnist-figures", "mnist-sequential"])
+def test_all_active_semantic_blocks_have_actual_source_spans(fixture):
+    from easyai.compiler.decode import decode
+
+    value = project(fixture)
+    roots, diagnostics = decode(value)
+    assert not diagnostics
+    expected = set()
+
+    def visit(node):
+        expected.add(node.origin.block_id)
+        for children in node.inputs.values():
+            for child in children:
+                visit(child)
+
+    for node in roots:
+        visit(node)
+    result = compile_project(value).result
+    assert result.runnable
+    actual = {span.origin.block_id for span in result.source_map if span.kind == "semantic"}
+    assert expected <= actual, expected - actual
+
+
+@pytest.mark.parametrize("stem", ["x" * 220, "中" * 73 + "a"])
+def test_final_figure_component_boundary_really_writes_files(tmp_path, stem):
+    from easyai.security.paths import artifact_relative_path
+    from test_emission import context
+
+    _, runtime = context(tmp_path)
+    logical = artifact_relative_path("folder/" + stem + ".png")
+    for phase, epoch in (("before", None), ("epoch_end", 10000)):
+        physical = runtime.figure_path("f", phase, epoch, logical)
+        with runtime.atomic_target(physical) as output:
+            output.write_bytes(b"actual-boundary-file")
+        assert (runtime.output_root / physical).read_bytes() == b"actual-boundary-file"
+        assert len(Path(physical).name.encode("utf-8")) <= 255
+    assert len(Path(physical).name.encode("utf-8")) == 255
+
+
+@pytest.mark.parametrize(
+    "logical",
+    ["folder/" + "x" * 237 + ".png", "x" * 221 + ".png", "中" * 74 + ".png", "中" * 86 + "/a.png"],
+)
+def test_final_utf8_figure_budget_rejects_before_filesystem_write(tmp_path, logical):
+    from easyai.security.paths import artifact_relative_path
+    from test_emission import context
+
+    _, runtime = context(tmp_path)
+    with pytest.raises(ValueError):
+        artifact_relative_path(logical)
+    with pytest.raises(ValueError):
+        runtime.figure_path("f", "epoch_end", 10000, logical)
+    assert not (runtime.output_root / "outputs").exists()
+
+
+@pytest.mark.parametrize("show", [True, False])
+def test_axis_explicit_toggle_has_its_own_effectful_semantic_lines(show):
+    from test_lowering import nodes
+
+    value = project().model_dump(by_alias=True)
+    for node in nodes(value):
+        if node["type"] == "viz.axis":
+            node["fields"]["SHOW_TICKS"] = show
+    result = compile_project(ProjectDocument.model_validate(value)).result
+    assert result.runnable
+    lines = result.code.splitlines()
+    for axis_id in ("before-0-axis", "body-0-axis", "body-1-axis", "after-0-axis"):
+        selected = [
+            lines[span.start_line - 1]
+            for span in result.source_map
+            if span.origin.block_id == axis_id and span.kind == "semantic"
+        ]
+        assert selected
+        assert any(
+            "tick_params(" in text if show else "set_xticks([])" in text for text in selected
+        )

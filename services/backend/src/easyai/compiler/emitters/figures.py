@@ -140,11 +140,21 @@ def emit_figures(
                         "        sample_ax.set_yticks([])",
                         panel.axis.origin if panel.axis else origin,
                     )
+                else:
+                    line(
+                        "        sample_ax.tick_params(axis='both', which='both', bottom=True, left=True, labelbottom=True, labelleft=True)",
+                        panel.axis.origin,
+                    )
             if panel.axis:
                 contributors.append(panel.axis.origin.block_id)
                 if not panel.axis.show_ticks:
                     line("    ax.set_xticks([])", panel.axis.origin)
                     line("    ax.set_yticks([])", panel.axis.origin)
+                else:
+                    line(
+                        "    ax.tick_params(axis='both', which='both', bottom=True, left=True, labelbottom=True, labelleft=True)",
+                        panel.axis.origin,
+                    )
             if panel.legend:
                 contributors.append(panel.legend.block_id)
                 if panel.chart_type != "image_grid":

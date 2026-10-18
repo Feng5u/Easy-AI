@@ -161,6 +161,7 @@ def main():
                 ax.plot(epoch_history, train_loss_history, label='Training loss')
                 ax.set_xlabel('Epoch')
                 ax.set_ylabel('Cross entropy loss')
+                ax.tick_params(axis='both', which='both', bottom=True, left=True, labelbottom=True, labelleft=True)
                 ax.legend()
                 ax = fig.add_subplot(grid[1])
                 ax.set_title('test_accuracy', color='black')
@@ -168,6 +169,7 @@ def main():
                 ax.set_xlabel('Epoch')
                 ax.set_ylabel('Test accuracy (%)')
                 ax.yaxis.set_major_formatter(PercentFormatter(xmax=1))
+                ax.tick_params(axis='both', which='both', bottom=True, left=True, labelbottom=True, labelleft=True)
                 ax.legend()
                 relative_path = context.figure_path('body-figure', 'epoch_end', epoch, 'outputs/preview.png')
                 with context.atomic_target(relative_path) as figure_path:

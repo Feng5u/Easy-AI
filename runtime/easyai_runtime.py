@@ -48,8 +48,10 @@ def _relative(value):
     path = PurePosixPath(value)
     if path.is_absolute() or PureWindowsPath(value).drive or ".." in path.parts:
         raise ValueError("Artifact path must stay within the run directory")
-    if path.parts[0] != "outputs":
+    if not path.parts or path.parts[0] != "outputs":
         raise ValueError("Artifacts must be below outputs/")
+    if any(len(part.encode("utf-8")) > 255 for part in path.parts):
+        raise ValueError("Artifact component exceeds UTF-8 byte budget")
     return path
 
 
@@ -226,6 +228,15 @@ class RunContext:
             if current.is_symlink():
                 raise ValueError("Symlinks are forbidden in artifact paths")
         destination = self.output_root.joinpath(*path.parts)
+        # Validate the actual absolute target before creating directories/files.
+        # POSIX limits are measured in encoded bytes, including the trailing NUL.
+        if hasattr(os, "pathconf"):
+            name_limit = os.pathconf(self.output_root, "PC_NAME_MAX")
+            path_limit = os.pathconf(self.output_root, "PC_PATH_MAX")
+            if (name_limit > 0 and any(len(os.fsencode(p)) > name_limit for p in path.parts)) or (
+                path_limit > 0 and len(os.fsencode(destination)) + 1 > path_limit
+            ):
+                raise ValueError("Artifact exceeds physical filesystem path budget")
         if create:
             destination.parent.mkdir(parents=True, exist_ok=True)
         if not destination.resolve().is_relative_to(self.output_root):
@@ -253,7 +264,7 @@ class RunContext:
     def figure_path(self, figure_id, phase, epoch=None, logical=None):
         if phase not in ("before", "epoch_end", "after"):
             raise ValueError("Invalid figure phase")
-        if phase == "epoch_end" and (type(epoch) is not int or epoch < 1):
+        if phase == "epoch_end" and (type(epoch) is not int or not 1 <= epoch <= 10000):
             raise ValueError("Epoch figure requires a positive epoch")
         block_key = hashlib.sha256(figure_id.encode("utf-8")).hexdigest()[:16]
         if block_key in self._figure_keys and self._figure_keys[block_key] != figure_id:
@@ -261,7 +272,9 @@ class RunContext:
         self._figure_keys[block_key] = figure_id
         suffix = f"epoch-{epoch:04d}" if phase == "epoch_end" else phase
         if logical is None:
-            return f"outputs/figures/{block_key}/{suffix}.png"
+            physical = f"outputs/figures/{block_key}/{suffix}.png"
+            self._artifact_path(physical)
+            return physical
         if (
             not isinstance(logical, str)
             or len(logical) > 256
@@ -276,7 +289,11 @@ class RunContext:
         path = _relative(str(path))
         if path.suffix.lower() != ".png":
             raise ValueError("Figures require .png paths")
-        return str(path.with_name(f"{path.stem}__{block_key}__{suffix}.png"))
+        if len(path.stem.encode("utf-8")) + 31 + len(path.suffix.encode("utf-8")) > 255:
+            raise ValueError("Figure name exceeds final UTF-8 byte budget")
+        physical = str(path.with_name(f"{path.stem}__{block_key}__{suffix}.png"))
+        self._artifact_path(physical)
+        return physical
 
     def artifact(self, relative, kind, producer, contributors, phase=None, epoch=None):
         self._assert_owner()

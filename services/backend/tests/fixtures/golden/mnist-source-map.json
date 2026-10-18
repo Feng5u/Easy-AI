@@ -1404,7 +1404,7 @@
     "startLine": 164,
     "endLine": 164,
     "origin": {
-      "blockId": "body-0-legend",
+      "blockId": "body-0-axis",
       "workspace": "training"
     },
     "kind": "semantic"
@@ -1414,7 +1414,7 @@
     "startLine": 165,
     "endLine": 165,
     "origin": {
-      "blockId": "body-1-panel",
+      "blockId": "body-0-legend",
       "workspace": "training"
     },
     "kind": "semantic"
@@ -1424,7 +1424,7 @@
     "startLine": 166,
     "endLine": 166,
     "origin": {
-      "blockId": "body-1-title",
+      "blockId": "body-1-panel",
       "workspace": "training"
     },
     "kind": "semantic"
@@ -1434,7 +1434,7 @@
     "startLine": 167,
     "endLine": 167,
     "origin": {
-      "blockId": "body-1-source",
+      "blockId": "body-1-title",
       "workspace": "training"
     },
     "kind": "semantic"
@@ -1444,7 +1444,7 @@
     "startLine": 168,
     "endLine": 168,
     "origin": {
-      "blockId": "body-1-panel",
+      "blockId": "body-1-source",
       "workspace": "training"
     },
     "kind": "semantic"
@@ -1474,7 +1474,7 @@
     "startLine": 171,
     "endLine": 171,
     "origin": {
-      "blockId": "body-1-legend",
+      "blockId": "body-1-panel",
       "workspace": "training"
     },
     "kind": "semantic"
@@ -1484,7 +1484,7 @@
     "startLine": 172,
     "endLine": 172,
     "origin": {
-      "blockId": "body-save",
+      "blockId": "body-1-axis",
       "workspace": "training"
     },
     "kind": "semantic"
@@ -1494,7 +1494,7 @@
     "startLine": 173,
     "endLine": 173,
     "origin": {
-      "blockId": "body-save",
+      "blockId": "body-1-legend",
       "workspace": "training"
     },
     "kind": "semantic"
@@ -1524,16 +1524,26 @@
     "startLine": 176,
     "endLine": 176,
     "origin": {
-      "blockId": "body-figure",
+      "blockId": "body-save",
       "workspace": "training"
     },
-    "kind": "scaffold"
+    "kind": "semantic"
   },
   {
     "file": "train.py",
     "startLine": 177,
     "endLine": 177,
     "origin": {
+      "blockId": "body-save",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 178,
+    "endLine": 178,
+    "origin": {
       "blockId": "body-figure",
       "workspace": "training"
     },
@@ -1541,23 +1551,13 @@
   },
   {
     "file": "train.py",
-    "startLine": 178,
-    "endLine": 178,
-    "origin": {
-      "blockId": "after-figure",
-      "workspace": "training"
-    },
-    "kind": "semantic"
-  },
-  {
-    "file": "train.py",
     "startLine": 179,
     "endLine": 179,
     "origin": {
-      "blockId": "after-figure",
+      "blockId": "body-figure",
       "workspace": "training"
     },
-    "kind": "semantic"
+    "kind": "scaffold"
   },
   {
     "file": "train.py",
@@ -1567,7 +1567,7 @@
       "blockId": "after-figure",
       "workspace": "training"
     },
-    "kind": "scaffold"
+    "kind": "semantic"
   },
   {
     "file": "train.py",
@@ -1584,17 +1584,17 @@
     "startLine": 182,
     "endLine": 182,
     "origin": {
-      "blockId": "after-0-panel",
+      "blockId": "after-figure",
       "workspace": "training"
     },
-    "kind": "semantic"
+    "kind": "scaffold"
   },
   {
     "file": "train.py",
     "startLine": 183,
     "endLine": 183,
     "origin": {
-      "blockId": "after-0-title",
+      "blockId": "after-figure",
       "workspace": "training"
     },
     "kind": "semantic"
@@ -1614,7 +1614,7 @@
     "startLine": 185,
     "endLine": 185,
     "origin": {
-      "blockId": "after-0-panel",
+      "blockId": "after-0-title",
       "workspace": "training"
     },
     "kind": "semantic"
@@ -1624,7 +1624,7 @@
     "startLine": 186,
     "endLine": 186,
     "origin": {
-      "blockId": "after-0-source",
+      "blockId": "after-0-panel",
       "workspace": "training"
     },
     "kind": "semantic"
@@ -1634,7 +1634,7 @@
     "startLine": 187,
     "endLine": 187,
     "origin": {
-      "blockId": "after-0-source",
+      "blockId": "after-0-panel",
       "workspace": "training"
     },
     "kind": "semantic"
@@ -1694,7 +1694,7 @@
     "startLine": 193,
     "endLine": 193,
     "origin": {
-      "blockId": "after-0-panel",
+      "blockId": "after-0-source",
       "workspace": "training"
     },
     "kind": "semantic"
@@ -1714,7 +1714,7 @@
     "startLine": 195,
     "endLine": 195,
     "origin": {
-      "blockId": "after-0-source",
+      "blockId": "after-0-panel",
       "workspace": "training"
     },
     "kind": "semantic"
@@ -1794,7 +1794,7 @@
     "startLine": 203,
     "endLine": 203,
     "origin": {
-      "blockId": "after-0-axis",
+      "blockId": "after-0-source",
       "workspace": "training"
     },
     "kind": "semantic"
@@ -1804,7 +1804,7 @@
     "startLine": 204,
     "endLine": 204,
     "origin": {
-      "blockId": "after-0-axis",
+      "blockId": "after-0-source",
       "workspace": "training"
     },
     "kind": "semantic"
@@ -1834,7 +1834,7 @@
     "startLine": 207,
     "endLine": 207,
     "origin": {
-      "blockId": "after-save",
+      "blockId": "after-0-axis",
       "workspace": "training"
     },
     "kind": "semantic"
@@ -1844,7 +1844,7 @@
     "startLine": 208,
     "endLine": 208,
     "origin": {
-      "blockId": "after-save",
+      "blockId": "after-0-axis",
       "workspace": "training"
     },
     "kind": "semantic"
@@ -1874,16 +1874,26 @@
     "startLine": 211,
     "endLine": 211,
     "origin": {
-      "blockId": "after-figure",
+      "blockId": "after-save",
       "workspace": "training"
     },
-    "kind": "scaffold"
+    "kind": "semantic"
   },
   {
     "file": "train.py",
     "startLine": 212,
     "endLine": 212,
     "origin": {
+      "blockId": "after-save",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 213,
+    "endLine": 213,
+    "origin": {
       "blockId": "after-figure",
       "workspace": "training"
     },
@@ -1891,23 +1901,13 @@
   },
   {
     "file": "train.py",
-    "startLine": 213,
-    "endLine": 213,
-    "origin": {
-      "blockId": "training",
-      "workspace": "training"
-    },
-    "kind": "semantic"
-  },
-  {
-    "file": "train.py",
     "startLine": 214,
     "endLine": 214,
     "origin": {
-      "blockId": "training",
+      "blockId": "after-figure",
       "workspace": "training"
     },
-    "kind": "semantic"
+    "kind": "scaffold"
   },
   {
     "file": "train.py",
@@ -1933,6 +1933,26 @@
     "file": "train.py",
     "startLine": 217,
     "endLine": 217,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 218,
+    "endLine": 218,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 219,
+    "endLine": 219,
     "origin": {
       "blockId": "training",
       "workspace": "training"

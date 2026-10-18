@@ -24,4 +24,10 @@ def artifact_relative_path(value: str) -> str:
     ).as_posix()
     if len(canonical) > 256:
         raise ValueError("OUTPUT_PATH_FORBIDDEN")
+    # Reserve the complete physical suffix through the maximum supported epoch:
+    # __<16 ASCII hash>__epoch-10000. Never truncate a user's logical name.
+    if any(len(part.encode("utf-8")) > 255 for part in posix.parts) or (
+        len(posix.stem.encode("utf-8")) + 31 + len(posix.suffix.encode("utf-8")) > 255
+    ):
+        raise ValueError("OUTPUT_PATH_FORBIDDEN")
     return canonical
