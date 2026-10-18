@@ -856,3 +856,31 @@ API新增GET/POST `/api/v1/connections`、PATCH `/api/v1/connections/{UUID}`；M
 CI保持：已知`5a34286`/run39137171929和`9abdfebb90a5ab961cd12c21fbeae8b479e3d66b`/[run39140446024](https://github.com/T1doo/Easy-AI/actions/runs/39140446024)的check与desktop均FAIL；当前源码CI结果未知。本轮没有允许的新错误日志来源，未重试/换路Actions、未触发workflow重跑。仍缺两个job首个失败step及exit/错误日志、annotation原文；本机通过和本轮冻结路由修复不能覆盖或解释旧远端失败。
 
 NOT RUN：真实SSH/SFTP/上传/训练/数据下载、新训练环境或桌面安装/SDK协议接受、个人电脑操作、实际Electron/SVG/原生picker/E2E、Windows/NTFS/冻结ABI、旧整套450/94及38/6/预检24/50矩阵。Windows远程生产gate关闭，真实MNIST/安全桌面条件仍缺，M5整体/A/B继续未验收。无main写入、强推、PR、部署、Release、新费用/凭据/安全权限。下一项：父级独审本片，继续取得精确CI日志与外部验收条件；本片不自动扩大网络授权。
+
+## 2026-10-18 — M6.2 FigureInspector 最小用户闭环
+
+源码完整SHA：`1452bbd4d8f80ff738c76629a1e3f2a12a03cac3`，父提交`42832d6b2461688439b771c2e722e6478590be4e`。父级有限接受M5.1并明确授权本片；M5.1/预检/后端源码保持冻结，没有改编译器、schema、manifest或生成第二套图表JSON。本片只覆盖布局/尺寸/定位，不称M6完整交付。
+
+选择实际figure或其panel/样式等子块时，右侧显示FigureInspector；布局五选项与尺寸三选项直接读取现manifest。网格对应现Python编译顺序，格子按钮定位真实panel稳定ID并复用原代码高亮/标签页路径；选panel后仍保留所属figure面板。空格子只提示，没有自动创建/删除/重排块，没有图像渲染器或模拟训练图。修改只对现workspace的figure LAYOUT/SIZE调用Blockly字段API，经已有序列化→草稿/保存/编译路径生效。
+
+WorkspaceManager先沿panels输入与next链读取全部物理panel，不依赖getAllBlocks顺序；校验目标类型、manifest值、容量后才改字段。一次应用两字段使用同一Blockly事件组并恢复外层group，一次Undo/Redo完整还原。跨页应用先同步切到实际figure所在workspace并通知受控tab，避免在data页编辑隐藏training figure后撤销错工作区。新布局容量检查包含停用块，拒绝时所有字段、连接、ID、序列化原样不变；仅改SIZE不误当缩容。只读工程/历史SnapshotCode中的UI控件禁改且manager方法再次拦截；仍可查看/定位旧panel，不写当前工程或旧快照。
+
+独审实证P2及修复：初版把disabled panel当网格占位，但Python Decoder跳过disabled再继续next，后面的启用panel会前移。现运行网格只按启用panel连续排列，完整物理链单独列出并保留停用ID供定位；画布/围绕管线停用时明确不生成图像。缩容仍按全部物理panel保护，遵守父级“含停用块容量检查”要求，没有为了显示一致去改变编译器。真实fixture链首停用、第二物理panel启用时，UI首格是第二panel，其Python source-map对应的add_subplot确为grid[0]。此P2独审关闭；跨页Undo边界同样由源码导航和回归关闭，最终两路独审未见本窗口剩余明确P1/P2。
+
+实际命令（cwd `/workspace/Easy-AI`；pnpm Python静态子任务沿用workspace UV/XDG缓存，无安装依赖）：
+
+| 命令 | 结果与精确边界 |
+| --- | --- |
+| `pnpm exec vitest run apps/desktop/src/FigureInspector.test.mts apps/desktop/src/RunSnapshot.test.mts packages/block-library/workspace-manager.test.mts` | **47 PASS**，2.30秒；含新22项、旧snapshot17和manager8，不累计独审重复用例。新22含15布局/尺寸组合、跨页双字段单次Undo/Redo、停用块缩容全序列不变、无效值/只读/无操作保护、真实DOM字段修改和panel定位、历史SnapshotCode只读、真实保存重开/确定性编译 |
+| 新真实保存重开链 | 真实Blockly序列化fixture编辑→测试自有临时目录→正式ProjectService.save→close→新ProjectService.snapshot→Python权威compile；revision 1→2，workspaces深比较相同，code/programHash/codeHash/sourceMap逐一一致，AST可解析；明确2×2/large生成对应gridspec/figsize、disabled首panel保留但启用后继映射grid[0]。仅应用Python生成/解析源码，未导入torch、未执行生成训练代码 |
+| 新UI/只读测试替身边界 | 真实React DOM、ProjectEditor、WorkspaceManager及真实headless Blockly。只有SVG宿主resize/setVisible/setReadOnly为空替身，select记录ID；这不证明真实SVG选择/缩放/编辑器禁用。CodeView在JSDOM走既有安全只读fallback，SnapshotCode一行注释仅为标明的UI映射夹具。实际旧快照原对象和序列化不变、manager配置方法不写、子图按钮调用旧来源导航 |
+| 独立只读审查 | 前端独跑新文件 **22/22 PASS**，2.27秒；后端/语义独跑 `pnpm exec vitest run apps/desktop/src/FigureInspector.test.mts -t 'runtime grid skips disabled|real Blockly edits survive'` **2 PASS/20 skipped**，1.23秒。这些均与47重合，不相加；不宣称桌面或训练验收 |
+| 同缓存 `pnpm check` | **PASS**；TS、strict mypy46既有后端源码、ruff/格式、合同/真实Blockly fixture漂移、Prettier。后端无修改，未重跑Python整套或冻结ABI |
+| `pnpm --filter @easyai/desktop build` | **PASS**；Main TS/Vite静态assets，保留既有>500KB chunk提示。日志在执行器`/tmp/easyai-figure-inspector-build.log`，未启动Electron；静态CSS使用固定data-columns规则，没有inline style/CSP放宽 |
+| `git diff --check`、原件字节/hash | **PASS**；计划116185字节、SHA256 `dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43`；原规格`5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190`、README`befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852`均原样保留 |
+
+中途失败如实保留：新测试helper最初漏闭括号，Prettier/TS/Vitest解析FAIL、0用例执行；修正测试语法后21PASS/1FAIL，失败是JSDOM没有提供既有CodeView需要的ResizeObserver。补与旧快照测试相同的宿主替身后最终47PASS；没有改CodeView生产逻辑或弱化只读/序列化/编译断言。独审发现disabled网格偏差后修改生产显示逻辑并加实际Python映射回归，没有修改Python跳过停用块规则；实际SVG行为仍明确NOT RUN。
+
+CI状态不扩大：已知5a34286/run39137171929及9abdfebb90a5ab961cd12c21fbeae8b479e3d66b/run39140446024的check与desktop均FAIL；当前提交CI未知。未重试/换路被拒Actions或触发重跑，仍缺首个失败step/exit、错误日志及annotation原文。本地47/构建/静态PASS不覆盖远端失败。上片51前端、47后端PASS/1FAIL后该项单独PASS的原口径保持，没有重跑或包装为原窗全绿。
+
+NOT RUN：真实训练/SSH/SFTP/上传/数据下载/新环境或桌面安装/SDK协议、个人电脑、实际Electron/原生picker/SVG/Monaco/E2E、原生Windows/NTFS/冻结ABI、前片整套矩阵。没有修改main、强推、PR、发布/部署/Release、新费用/凭据/安全权限。Windows远程生产gate仍关闭，真实MNIST与安全桌面条件仍缺，A/B、M5整体及M6整体均未验收。下一项：父级独审本片与继续取得精确CI日志和外部验收条件；后续M6样式/数据源等剩余用户功能另片处理，不以布局编辑冒充全图表验收。
