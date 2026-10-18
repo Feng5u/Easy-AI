@@ -54,6 +54,7 @@ from easyai.domain.desktop import (
     RunSource,
     RunLogs,
     SelectionResult,
+    BundleExportResult,
 )
 from easyai.domain.ssh import (
     IdentityRequest,
@@ -97,6 +98,13 @@ class ImportRequest(Contract):
 class ExportRequest(Contract):
     path: str = Field(min_length=1, max_length=4096)
     project: ProjectDocument | None = None
+
+
+class BundleExportRequest(Contract):
+    project_id: str = Field(pattern=r"^[0-9a-f-]{36}$")
+    expected_revision: int = Field(ge=1)
+    expected_program_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    parent_path: str = Field(min_length=1, max_length=4096)
 
 
 class SaveRequest(Contract):
@@ -369,6 +377,16 @@ def create_app(
     async def export_project(request: ExportRequest) -> dict[str, bool]:
         await asyncio.to_thread(local().export_current, Path(request.path), request.project)
         return {"exported": True}
+
+    @app.post("/api/v1/local/export-bundle", response_model=BundleExportResult)
+    async def export_code_bundle(request: BundleExportRequest) -> BundleExportResult:
+        return await asyncio.to_thread(
+            local().export_code_bundle,
+            request.project_id,
+            request.expected_revision,
+            request.expected_program_hash,
+            Path(request.parent_path),
+        )
 
     @app.get("/api/v1/projects/{project_id}/runs", response_model=list[Run])
     async def history(

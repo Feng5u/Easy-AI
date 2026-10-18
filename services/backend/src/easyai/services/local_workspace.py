@@ -40,6 +40,7 @@ from easyai.domain.desktop import (
     LocalPreflightResult,
     LocalPreflightCheck,
     LocalPythonVersions,
+    BundleExportResult,
 )
 from easyai.security.files import read_regular
 from easyai.services.project_service import ProjectService, read_project, validate_project_bytes
@@ -528,6 +529,47 @@ class LocalWorkspace:
                 raise ValueError("PROJECT_EXPORT_TARGET_EXISTS") from None
         finally:
             temp.unlink(missing_ok=True)
+
+    def export_code_bundle(
+        self, project_id: str, revision: int, program_hash: str, parent: Path
+    ) -> BundleExportResult:
+        from easyai.compiler.bundle import export_bundle
+        from easyai.security.remote_cache import local_directory
+
+        # Only a saved current snapshot is exportable through this entry. Hold
+        # the workspace gate through publication; export never selects Python,
+        # probes data, prepares a Run, or executes generated source.
+        with self._mutex:
+            self.project_generation(project_id)
+            opened = self._projects[project_id].snapshot(revision)
+            assert opened.document is not None
+            compilation = compile_project(opened.document)
+            if not compilation.result.runnable:
+                raise ValueError("BUNDLE_NOT_RUNNABLE")
+            if compilation.result.program_hash != program_hash:
+                raise ValueError("PROGRAM_HASH_CONFLICT")
+            directory_name = "easyai-code-" + str(uuid4())
+            directory = local_directory(parent)
+            output = None
+            try:
+                output = directory.new_child(directory_name)
+                hashes = export_bundle(
+                    compilation, output.path, directory=output, snapshot=opened.document
+                )
+                output.verify()
+                directory.sync()
+                return BundleExportResult(
+                    project_id=project_id,
+                    project_revision=revision,
+                    directory_name=directory_name,
+                    program_hash=hashes["programHash"],
+                    code_hash=hashes["codeHash"],
+                    bundle_hash=hashes["bundleHash"],
+                )
+            finally:
+                if output is not None:
+                    output.close()
+                directory.close()
 
     def export_current(self, destination: Path, document: ProjectDocument | None = None) -> None:
         with self._mutex:

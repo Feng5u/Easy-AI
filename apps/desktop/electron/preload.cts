@@ -113,6 +113,13 @@ const api: DesktopAPI = {
         "easyai:projects:export",
         ...(project ? [project] : []),
       ),
+    exportBundle: (projectId, revision, programHash) =>
+      ipcRenderer.invoke(
+        "easyai:projects:exportBundle",
+        projectId,
+        revision,
+        programHash,
+      ),
     save: (project, revision) =>
       ipcRenderer.invoke("easyai:projects:save", project, revision),
     compile: (project, requestId) =>

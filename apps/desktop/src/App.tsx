@@ -456,6 +456,36 @@ export function App({ api }: { api?: DesktopAPI }) {
         );
     });
   }
+  async function exportBundle() {
+    if (
+      !bridge?.projects.exportBundle ||
+      !project ||
+      dirty ||
+      !compilation?.runnable ||
+      compilation.revision !== project.revision ||
+      !compilation.programHash
+    )
+      return;
+    await perform("export", "导出代码 Bundle", async () => {
+      try {
+        const result = await bridge.projects.exportBundle!(
+          project.projectId,
+          project.revision,
+          compilation.programHash!,
+        );
+        if (active.current && result?.exported)
+          setNotice(
+            `已导出 revision ${result.projectRevision} 的完整代码到所选目录下 ${result.directoryName}。请按 README 在已有训练环境运行；此次没有安装依赖、读取数据或启动训练。`,
+          );
+      } catch (error) {
+        if (active.current)
+          setNotice(
+            "代码导出未确认；所选父目录可能已留下完整或未完成的 easyai-code 子目录，请保留检查。重试会创建新目录，不合并已有输出。",
+          );
+        throw error;
+      }
+    });
+  }
   async function compile() {
     if (!bridge || !project) return;
     const request = ++compileRequest.current;
@@ -786,6 +816,25 @@ export function App({ api }: { api?: DesktopAPI }) {
               }}
             >
               导出当前工程
+            </button>
+            <button
+              type="button"
+              disabled={
+                !ready ||
+                !bridge?.projects.exportBundle ||
+                !project ||
+                Boolean(busy) ||
+                saving ||
+                dirty ||
+                session?.readOnly ||
+                !compilation?.runnable ||
+                compilation.revision !== project.revision
+              }
+              onClick={() => {
+                void exportBundle();
+              }}
+            >
+              导出已保存代码 Bundle
             </button>
           </div>
           <p className="muted">

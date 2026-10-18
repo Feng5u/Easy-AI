@@ -11,6 +11,8 @@ export type {
   InstallJob,
 };
 import type { DiagnosticReport } from "../../../packages/contracts/types/DiagnosticReport.js";
+import type { BundleExportResult } from "../../../packages/contracts/types/BundleExportResult.js";
+export type { BundleExportResult };
 export type { DiagnosticReport };
 import type { ConnectionProfile } from "../../../packages/contracts/types/ConnectionProfile.js";
 import type { ConnectionProfileInput } from "../../../packages/contracts/types/ConnectionProfileInput.js";
@@ -169,6 +171,11 @@ export interface DesktopAPI {
     exportProject(
       project?: ProjectDocument,
     ): Promise<{ exported: boolean } | null>;
+    exportBundle?(
+      projectId: string,
+      expectedRevision: number,
+      expectedProgramHash: string,
+    ): Promise<BundleExportResult | null>;
     save(
       project: ProjectDocument,
       expectedRevision: number,

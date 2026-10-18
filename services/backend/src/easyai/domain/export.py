@@ -80,6 +80,7 @@ MODELS: list[type[BaseModel]] = [
     desktop.SelectionResult,
     desktop.ProjectSession,
     desktop.RunStartRequest,
+    desktop.BundleExportResult,
     desktop.RunLogs,
     desktop.RunSource,
     desktop.DiagnosticReport,

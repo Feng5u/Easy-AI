@@ -26,6 +26,16 @@ class RunStartRequest(Contract):
     data_selection_id: str
 
 
+class BundleExportResult(Contract):
+    exported: Literal[True] = True
+    project_id: str
+    project_revision: int = Field(ge=1)
+    program_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    code_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    bundle_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    directory_name: str = Field(pattern=r"^easyai-code-[0-9a-f-]{36}$")
+
+
 class RunLogs(Contract):
     stdout: str
     stderr: str

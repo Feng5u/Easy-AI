@@ -15,7 +15,8 @@
 | SSH取消/断线/接续/重启/日志与产物映射 | NOT RUN | 授权隔离目标及真实生命周期记录；不以接受请求代替退出 |
 | 受控安装 | NOT RUN（生产关闭） | 真实conda bootstrap、授权计划、只写owned环境、实际退出与真实复检；失败/取消隔离 |
 | 私钥正常入口 | PASS（合成/受控代码链），真实NOT RUN | 明确选择、秘密不持久、pin/取消；真实私钥/SSH/native picker仍需授权目标机验证 |
-| 本地数据上传/运行中远端同步/完整Bundle导出 | NOT RUN（代码仍缺） | 完成原功能及验证，不能仅列为外部实测等待 |
+| 完整代码Bundle桌面导出 | PASS（定向Main/HTTP/文件链）／TST34 NOT RUN | 已保存编译快照、新目录/辅助文件/hash；真实独立训练运行/原生picker/Windows仍缺，见code-bundle-export.md |
+| 本地数据上传/运行中远端同步 | NOT RUN（代码仍缺） | 完成原功能及验证，不能仅列为外部实测等待 |
 | 离线教程、教师准备与已知限制随包 | 待本轮记录 | 本地文件/hash、七主题教程与无网络加载，不含私密材料 |
 | 许可证与分发授权 | NOT RUN（未完成） | 保留Electron/Chromium及前端/Python许可文本，补精确冻结native/system库审核，项目自身许可证由所有者决定；不得自选新增授权 |
 | 签名/安装器/升级卸载 | NOT RUN | 当前仅未签名便携目录；electron-builder未安装/锁定，配置仅待验证骨架，无自动发布 |

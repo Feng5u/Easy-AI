@@ -6,9 +6,11 @@ import json
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING
+from uuid import uuid4
 
 from easyai.compiler.pipeline import Compilation
 from easyai.domain.catalog import RUNTIME_ROOT
+from easyai.domain.contracts import ProjectDocument
 
 if TYPE_CHECKING:
     from easyai.security.remote_cache import LocalDirectory
@@ -28,7 +30,11 @@ def runtime_sources() -> dict[str, str]:
 
 
 def export_bundle(
-    compilation: Compilation, destination: Path, *, directory: "LocalDirectory | None" = None
+    compilation: Compilation,
+    destination: Path,
+    *,
+    directory: "LocalDirectory | None" = None,
+    snapshot: ProjectDocument | None = None,
 ) -> dict[str, str]:
     result, program = compilation.result, compilation.program
     if not result.runnable or result.code is None or result.source_map is None or program is None:
@@ -64,6 +70,8 @@ def export_bundle(
         ),
     }
     files.update(runtime_sources())
+    if snapshot is not None:
+        files["project.easyai.json"] = snapshot.model_dump_json(by_alias=True, indent=2) + "\n"
     # Check every generated/exported Python file without importing or executing it.
     for path, text in files.items():
         if path.endswith(".py"):
@@ -90,7 +98,8 @@ def export_bundle(
     if directory is None:
         target = destination.parent.resolve(strict=True) / destination.name
         target.mkdir(exist_ok=False)
-        for path, text in sorted(files.items()):
+        for path in sorted(files, key=lambda name: (name == "bundle.json", name)):
+            text = files[path]
             output = target / path
             output.parent.mkdir(parents=True, exist_ok=True)
             with output.open("x", encoding="utf-8", newline="\n") as stream:
@@ -102,6 +111,8 @@ def export_bundle(
         try:
             code = directory.new_child("code")
             for path, text in sorted(files.items()):
+                if path == "bundle.json":
+                    continue
                 output_directory = code if path.startswith("code/") else directory
                 name = path.removeprefix("code/")
                 with os.fdopen(output_directory.open_file(name, "exclusive"), "wb") as stream:
@@ -110,7 +121,19 @@ def export_bundle(
                         raise OSError("BUNDLE_WRITE_INCOMPLETE")
                     stream.flush()
                     output_directory.sync_file(stream.fileno())
+                    output_directory.verify_file(name, stream.fileno())
             code.sync()
+            directory.sync()
+            temporary = ".bundle-" + str(uuid4()) + ".tmp"
+            with os.fdopen(directory.open_file(temporary, "exclusive"), "wb") as stream:
+                raw = files["bundle.json"].encode("utf-8")
+                if stream.write(raw) != len(raw):
+                    raise OSError("BUNDLE_WRITE_INCOMPLETE")
+                stream.flush()
+                directory.sync_file(stream.fileno())
+                directory.verify_file(temporary, stream.fileno())
+            directory.publish(temporary, "bundle.json")
+            directory.remove(temporary)
             directory.sync()
         finally:
             if code is not None:

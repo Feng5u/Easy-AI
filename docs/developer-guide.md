@@ -28,3 +28,8 @@ Main在打包模式只定位resources/backend的冻结可执行文件，无check
 electron-builder目前没有安装/锁定，本轮不联网新增依赖。根electron-builder.json仅提供待验证dir目标、sidecar/offline/notice资源及publish=null骨架。`pnpm package:notices` 可离线准备其dist/package-notices，拒绝覆盖；尚不能宣称该工具已产出安装器或Windows支持。项目自身许可证尚未声明，完整native/system库分发审核也未完成；本地包不作为正式分发产物。教师说明与真实验收门分别见teacher-setup.md和release-checklist.md。
 
 安全依据：[Electron官方安全指南](https://www.electronjs.org/docs/latest/tutorial/security)；序列化依据：[Blockly官方保存恢复说明](https://docs.blockly.com/guides/configure/serialization/)。
+
+
+## 完整代码导出
+
+源码桌面入口现支持“导出已保存代码 Bundle”：先保存并检查编译，再由Main原生选择父目录，创建独占UUID子目录；全套辅助文件、可移植工程快照和hash清单一并导出。不会执行Python或读取数据。详见[code-bundle-export.md](code-bundle-export.md)。当前使用既有POSIX受控目录接口，Windows安全门未开放；真实独立训练运行、原生picker与旧便携包更新未验收。

@@ -159,6 +159,13 @@ const workflow = new MainWorkflow(
       });
       return destination.canceled ? null : (destination.filePath ?? null);
     },
+    async exportBundle() {
+      const destination = await dialog.showOpenDialog(window, {
+        title: "选择代码导出父目录（创建新的 easyai-code 子目录，不覆盖）",
+        properties: ["openDirectory"],
+      });
+      return destination.canceled ? null : (destination.filePaths[0] ?? null);
+    },
   },
 );
 window.webContents.on("render-process-gone", () => workflow.dispose());

@@ -6,6 +6,8 @@ import { IdentityWorkflow, endpoint } from "./identity-workflow.mjs";
 import type { Backend } from "./backend.mjs";
 import type {
   ProjectDocument,
+  ProjectSession,
+  BundleExportResult,
   SelectionKind,
   StartRun,
   SubscriptionMessage,
@@ -40,6 +42,7 @@ export const WORKFLOW_CHANNELS = [
   "easyai:projects:create",
   "easyai:projects:import",
   "easyai:projects:export",
+  "easyai:projects:exportBundle",
   "easyai:projects:save",
   "easyai:projects:compile",
   "easyai:runs:start",
@@ -100,6 +103,7 @@ export class MainWorkflow {
         destinationPath: string;
       } | null>;
       exportProject(): Promise<string | null>;
+      exportBundle?(): Promise<string | null>;
       exportDiagnostic?(): Promise<string | null>;
       privateKey?(): Promise<string | null>;
     },
@@ -152,6 +156,7 @@ export class MainWorkflow {
       "easyai:projects:create": 2,
       "easyai:projects:import": 0,
       "easyai:projects:export": 0,
+      "easyai:projects:exportBundle": 3,
       "easyai:projects:save": 2,
       "easyai:projects:compile": 2,
       "easyai:runs:start": 1,
@@ -291,6 +296,73 @@ export class MainWorkflow {
               ...(document ? { project: document } : {}),
             })
           : null;
+      }
+      case "easyai:projects:exportBundle": {
+        const projectId = id(args[0]);
+        const revision = integer(args[1], 1);
+        const programHash = args[2];
+        if (
+          typeof programHash !== "string" ||
+          !/^[0-9a-f]{64}$/.test(programHash)
+        )
+          throw new Error("代码版本无效，请重新编译。");
+        if (!this.files?.exportBundle) throw new Error("原生目录选择不可用。");
+        const epoch = this.reportEpoch;
+        const verify = async () => {
+          if (epoch !== this.reportEpoch || this.backend() !== backend)
+            throw new Error("工程或服务已变化，请重新导出。");
+          const current = await backend.request<ProjectSession | null>(
+            "GET",
+            "/api/v1/local/session",
+          );
+          if (
+            epoch !== this.reportEpoch ||
+            this.backend() !== backend ||
+            !current?.project ||
+            current.readOnly ||
+            current.project.projectId !== projectId ||
+            current.project.revision !== revision
+          )
+            throw new Error("工程或版本已变化，请保存并重新编译后导出。");
+        };
+        await verify();
+        const parentPath = await this.files.exportBundle();
+        await verify();
+        if (parentPath === null) return null;
+        if (typeof parentPath !== "string" || !isAbsolute(parentPath))
+          throw new Error("导出目标目录无效。");
+        const result = await backend.request<BundleExportResult>(
+          "POST",
+          "/api/v1/local/export-bundle",
+          {
+            projectId,
+            expectedRevision: revision,
+            expectedProgramHash: programHash,
+            parentPath,
+          },
+        );
+        await verify();
+        object(result, [
+          "exported",
+          "projectId",
+          "projectRevision",
+          "programHash",
+          "codeHash",
+          "bundleHash",
+          "directoryName",
+        ]);
+        if (
+          !result ||
+          result.exported !== true ||
+          result.projectId !== projectId ||
+          result.projectRevision !== revision ||
+          result.programHash !== programHash ||
+          !/^[0-9a-f]{64}$/.test(result.codeHash) ||
+          !/^[0-9a-f]{64}$/.test(result.bundleHash) ||
+          !/^easyai-code-[0-9a-f-]{36}$/.test(result.directoryName)
+        )
+          throw new Error("导出结果与当前代码不一致，请检查所选目录。");
+        return result;
       }
       case "easyai:projects:save": {
         const value = project(args[0]);

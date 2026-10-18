@@ -168,6 +168,51 @@ function bridge(readOnly = false) {
   };
   return { api, save, exported, dirty, unsubscribe };
 }
+
+it("exports only the saved compiled version, treats picker cancellation as no export, and blocks dirty drafts", async () => {
+  const h = bridge();
+  h.api.runs.start = vi.fn(h.api.runs.start);
+  const digest = "a".repeat(64);
+  h.api.projects.compile = vi.fn(async () => ({
+    revision: 1,
+    programHash: digest,
+    runnable: true,
+    diagnostics: [],
+  }));
+  const exported = vi
+    .fn<NonNullable<DesktopAPI["projects"]["exportBundle"]>>()
+    .mockResolvedValueOnce(null)
+    .mockResolvedValue({
+      exported: true,
+      projectId: project().projectId,
+      projectRevision: 1,
+      programHash: digest,
+      codeHash: "b".repeat(64),
+      bundleHash: "c".repeat(64),
+      directoryName: "easyai-code-aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    });
+  h.api.projects.exportBundle = exported;
+  await mount(h.api);
+  const button = [
+    ...container.querySelectorAll<HTMLButtonElement>("button"),
+  ].find((item) => item.textContent === "导出已保存代码 Bundle")!;
+  expect(button.disabled).toBe(true);
+  await click("检查与编译");
+  expect(button.disabled).toBe(false);
+  await click("导出已保存代码 Bundle");
+  expect(container.textContent).not.toContain("已导出 revision");
+  await click("导出已保存代码 Bundle");
+  expect(exported).toHaveBeenLastCalledWith(project().projectId, 1, digest);
+  expect(container.textContent).toContain("已导出 revision 1 的完整代码");
+  expect(container.textContent).toContain(
+    "此次没有安装依赖、读取数据或启动训练",
+  );
+  expect(h.api.runs.start).not.toHaveBeenCalled();
+  await click("画布新增层");
+  expect(button.disabled).toBe(true);
+  await click("导出已保存代码 Bundle");
+  expect(exported).toHaveBeenCalledTimes(2);
+});
 function button(label: string): HTMLButtonElement {
   const target = Array.from(container.querySelectorAll("button")).find(
     (node) => node.textContent === label,
