@@ -11,6 +11,7 @@ import {
   copyFile,
   chmod,
   rename,
+  realpath,
 } from "node:fs/promises";
 import { join, resolve, dirname } from "node:path";
 import {
@@ -128,6 +129,23 @@ async function put(source, destination) {
   await mkdir(resolve(destination, ".."), { recursive: true });
   await copyFile(source, destination, 1);
 }
+export async function newApplicationEnvironment(
+  source,
+  inherited = process.env,
+) {
+  const target = resolve(source, "services/backend/.venv");
+  try {
+    await lstat(target);
+    throw Error("PACKAGE_BUILD_ENVIRONMENT_EXISTS");
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
+  return {
+    ...inherited,
+    UV_PROJECT_ENVIRONMENT: target,
+    VIRTUAL_ENV: undefined,
+  };
+}
 function requireSource(root, sourceCommit) {
   try {
     if (
@@ -234,7 +252,16 @@ export async function cleanBuildInputs(root, sourceCommit) {
       ),
     ],
     source,
+    await newApplicationEnvironment(source),
   );
+  const environmentPath = join(source, "services/backend/.venv");
+  const environmentInfo = await lstat(environmentPath);
+  if (
+    !environmentInfo.isDirectory() ||
+    environmentInfo.isSymbolicLink() ||
+    (await realpath(environmentPath)) !== environmentPath
+  )
+    throw Error("PACKAGE_BUILD_ENVIRONMENT_REPLACED");
   const payload = join(input, "payload");
   await mkdir(payload);
   const app = join(payload, "app");

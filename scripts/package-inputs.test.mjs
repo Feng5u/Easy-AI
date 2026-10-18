@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import {
   sourceSnapshot,
+  newApplicationEnvironment,
   TUTORIAL_FILES,
   INPUT_GROUPS,
   validateTutorials,
@@ -142,4 +143,29 @@ test("source snapshot excludes ignored and untracked reachable source without ch
     });
     assert.ok((await readFile(join(repo, "electron", name))).length > 0);
   }
+});
+
+test("application build overrides an inherited external uv target and refuses any existing target", async (t) => {
+  const source = await mkdtemp(join(tmpdir(), "easyai-build-env-"));
+  t.after(() => rm(source, { recursive: true, force: true }));
+  await mkdir(join(source, "services/backend"), { recursive: true });
+  const env = await newApplicationEnvironment(source, {
+    UV_PROJECT_ENVIRONMENT: "/synthetic-shared-environment",
+    VIRTUAL_ENV: "/synthetic-original-environment",
+    UV_OFFLINE: "1",
+  });
+  assert.equal(
+    env.UV_PROJECT_ENVIRONMENT,
+    join(source, "services/backend/.venv"),
+  );
+  assert.equal(env.VIRTUAL_ENV, undefined);
+  assert.equal(env.UV_OFFLINE, "1");
+  await mkdir(env.UV_PROJECT_ENVIRONMENT);
+  const marker = join(env.UV_PROJECT_ENVIRONMENT, "preserve.txt");
+  await writeFile(marker, "synthetic existing target");
+  await assert.rejects(
+    newApplicationEnvironment(source),
+    /PACKAGE_BUILD_ENVIRONMENT_EXISTS/,
+  );
+  assert.equal(await readFile(marker, "utf8"), "synthetic existing target");
 });
