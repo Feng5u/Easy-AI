@@ -1215,3 +1215,33 @@ OwnedCreation在应用根下建立独占environment-creations/UUID claim，绑�
 **CI最新证据更正**：父级核实认证邮件，`736b984b57861499f66f40a9b490080eb1f6bbb5` / **run39154349633** 于 **18:31:16 UTC completed，check SUCCESS、desktop FAIL，各2 annotations**，来源 https://github.com/T1doo/Easy-AI/actions/runs/39154349633 。中间3fbdd02/run39153498677曾双失败，但非最新；407da99仅历史。邮件没有失败步骤正文，根因未知，不能归因旧四类或本轮pip P2。未重跑同SHA、绕Actions拒绝或扩大权限；本片新SHA CI仍待独立证据。
 
 NOT RUN/仍缺：真实conda bootstrap adapter、已授权生产执行接线、实际环境创建/依赖下载安装/新SDK或许可、真实目标pip版本全矩阵、正向训练环境import/tensor、未知停止安全解除/存活安装重连、任务历史保留UI、远端安装、数据/训练/MNIST、SSH/SFTP、Windows/NTFS/安装进程、真实Electron/原生picker/课堂E2E、安装包/发布/个人PC。没有盲解锁或删除未知目录，无新拒绝/未决外部写入。下一项优先实现并核审真实conda bootstrap适配器的固定命令与配置边界（仍不实际运行）及授权执行门，或按父级指定独立关键路径推进；完整M6.3和B均未验收。无main/强推/PR/Release/部署/费用/新凭据或安全权限。
+
+## 2026-10-18 — M8 本机离线便携布局与冻结启动定位
+
+源码完整SHA：`7b91c46bc4634065b253fab4c27714fb71ab8656`；基线 `866a2d6eb2b1dde11e4d5a5fe71705961d171189`。父级要求转向原M8交付，不再无限扩安装合同。读取原M8.2/M8.4、支持平台与remaining-critical-path后，发现electron-builder没有安装/锁定，Main也只找checkout/.venv，已有pnpm build只产出Vite与PyInstaller。未尝试联网安装新工具/接受协议；保留builder缺口，复用已有Electron44.9.0缓存与PyInstaller做实际本地目录产物。单写入者，已有worker独审，无额外writer。
+
+新增 `pnpm package` / `package:verify` / `package:notices` 与6项独立Node打包测试（也接入pnpm test）。仅同宿主Linux x64，核Electron固定版本、ELF64/x86_64、12项源/frozen辅助资源hash一致后复制。输出必须不存在；不覆写、递归删除或修改缓存/系统，不运行安装器/签名/发布。复制只允许普通文件/目录，拒绝symlink与特殊文件，保留可执行位但不附加setuid。仅纳入编译assets/Main/preload、冻结sidecar/全部_internal、白名单离线文档、七教程及示例JSON；不复制checkout/.venv本体、数据、运行或机器绑定。manifest最后生成，记录全部相对文件、bytes/SHA256/mode，校验额外内容、损坏、缺失/陈旧资源与路径遍历；它不是数字签名或来源认证。
+
+Main新增 backendLocation：packaged只执行resources/backend/easyai-sidecar（Windows路径骨架.exe），args=[]，不回退开发Python/PATH；开发模式保留原venv/-m。startBackend仅多一个Main内部argv参数，原鉴权token仍只经stdin，健康检查、EOF/退出等待不变，Renderer不能选择命令。原sandbox/contextIsolation/webSecurity等设置未动。electron-builder.json是dir目标/resource/notice配置骨架、publish=null，无实际builder执行证据。
+
+**独审P1修复**：首产物保留入口名electron，Electron44.9.0按basename判app.isPackaged=false，会选错开发后端。原test-portable只传true掩盖条件，不能算窗口启动通过。核[官方固定版本源码L855–882](https://raw.githubusercontent.com/electron/electron/v44.9.0/shell/browser/api/electron_api_app.cc#L855-L882)后，产物内排他link复制入口为easyai、核原inode后只unlink本次复制的electron，缓存保持不动；manifest/verify/builder.executableName/文档同步。新fixture核产物有easyai且无electron、缓存仍有electron。原本地产物保全为 `dist/easyai-0.0.0-linux-x64-pre-review`，不是交付候选；未设ELECTRON_FORCE_IS_PACKAGED或降sandbox。独审有限接受关闭，无剩余明确新增P1/P2。真实Electron运行仍NOT RUN。
+
+最终本执行器产物：`/workspace/Easy-AI/dist/easyai-0.0.0-linux-x64/`，入口`easyai`，约**344 MiB**，**312文件**。manifest `/workspace/Easy-AI/dist/easyai-0.0.0-linux-x64/package-manifest.json`，SHA256 **`5f26ba7bb27917e717faec81c69d98ea97e3e39064ac4490b3e65fcc012fd937`**。此目录被gitignore，不进入源码提交；未上传或发布。resources/backend含独立Python冻结环境，resources/offline含teacher-setup/release-checklist/更新的developer-guide/install-contract、七教程和示例，resources/notices保留现有许可材料与未完成说明；Electron LICENSE/LICENSES.chromium.html保留根目录。许可inventory共**50项（JS依赖图7，应用Python环境43，含dev包）**，缺许可文本的easyai-backend明确列出；项目自身许可证未声明，精确冻结/native/system库义务未审全，**legalReviewComplete=false / distributionReady=false**。不擅选项目许可证，不宣称已有分发授权或完整SBOM法律审核。
+
+实际命令（cwd `/workspace/Easy-AI`）：
+
+| 命令 | PASS / FAIL / NOT RUN与证据 |
+| --- | --- |
+| `pnpm test:package`（`node --test scripts/package.test.mjs`） | 最终 **6 PASS**，`/tmp/easyai-package-fixtures-final.log`；临时fixture验证白名单、入口名/缓存、冲突保全、资源漂移先拒绝、symlink/无完成manifest、篡改/多文件/遍历、版本/架构。非Linux x64明确SKIP，此实现不冒称其他平台可用 |
+| `pnpm exec vitest run apps/desktop/electron/backend-location.test.mts apps/desktop/electron/backend.test.mts` | **6 PASS**，968ms；`/tmp/easyai-package-launch.log`，固定packaged Linux/Win/mac路径映射只是代码测试、不是这些OS支持证据；原开发启动协议/失败处理仍通过 |
+| `pnpm --filter @easyai/desktop build` | **PASS**；`/tmp/easyai-package-desktop-build.log`；静态assets/Main编译，既有chunk提示保留。复用上一片已建PyInstaller且逐项hash核source，不重复重冻/训练矩阵凑数字 |
+| `pnpm package`；`pnpm package:verify` | 最终均 **PASS**，312文件；`/tmp/easyai-package-build-final.log`、`/tmp/easyai-package-verify-final.log`。实际复制缓存Electron+冻结backend、离线文档与许可；不联网或接受新协议 |
+| `node scripts/test-portable.mjs` | **PASS**；`/tmp/easyai-package-smoke-final.log`。先核最终manifest/入口名，再加载**包内编译的Main backendLocation/startBackend**，给不存在checkout路径，用resources内真实冻结exe及独立临时state/project完成认证创建/实际golden Python编译、catalog执行关闭、EOF exit0。无依赖checkout/.venv启动；仍在同一宿主且由Node测试驱动，**不是无Node干净机、真实Electron窗口或app.isPackaged运行态验收** |
+| `pnpm package:notices` | **PASS**；`/tmp/easyai-package-notices.log`，离线准备`dist/package-notices`供未验builder配置引用，拒绝覆盖。未运行/安装electron-builder |
+| 原缓存同 `pnpm check` | **PASS**，`/tmp/easyai-package-check-final.log`；TS/Main/测试TS、strict mypy51、92 Python格式、ruff、合同/Blocklyfixture漂移、Prettier。只改打包/Main定位及文档，无后端业务变更，未重跑73/103等历史窗口 |
+| 独立只读审查 | 初fixture6 PASS/386ms并指出basename P1；修后入口fixture **1 PASS/219ms**，与最终6重合不累计；未执行Electron/安装/训练/SSH，有限审查无剩余明确新增P1/P2 |
+| `git diff --check`；`sha256sum 'docs/v0.0.0 plan.md' docs/v0.0.0.md README.md`；`git ls-remote origin refs/heads/main refs/heads/codex/demo-v0.0.0` | **PASS**；原plan116185字节/hash `dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43`、原规格 `5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190`、README `befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852`不变。推前dev=866a2d6、main=`5323f86232529efcfb52131168ad049f01b219f3`，最终普通dev push后再核 |
+
+首版6项/复制/包内后端smoke曾通过，但未覆盖P1，不能据此称初包可启动；此次保全后重建和复验是因该实质新修复，不叠加计数。本轮没有新增工具拒绝或未知外部写入。electron-builder未安装/锁定且无本轮新依赖安装授权，**实际builder dir/NSIS/安装器NOT RUN**，仅配置与notice输入就绪；既有Electron sandbox拒绝仍不重试、不使用--no-sandbox/特权修复；真实桌面/干净机、Windows/NTFS、macOS/MPS、课堂/性能/签名/许可证完整审核、SSH/MNIST/数据下载/训练、真实conda bootstrap/安装、活安装重连/unknown安全解除/个人PC均NOT RUN。资源复制不替代M8.2“至少一个平台包在干净目标机真实运行”。
+
+最新已核CI仍父级认证的 `736b984b57861499f66f40a9b490080eb1f6bbb5` / run39154349633，18:31:16UTC completed，check SUCCESS、desktop FAIL，各2 annotations；失败步骤正文缺失，根因未知，不能套旧四类或归因本轮打包。866a2d6及本轮新SHA无可判定CI证据；不重跑同SHA或绕被拒Actions端点。下一项优先取得剩余desktop精确首错证据、完成真实安全桌面/干净机验证，并在明确工具依赖/许可证授权后补electron-builder实际构建；并行独立原M5/M6代码缺口继续保留，完整B未验收。无main/强推/PR/Release/部署/费用/新凭据或权限变化。
