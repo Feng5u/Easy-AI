@@ -1124,3 +1124,32 @@ App有显式离线教程入口，所选真实Blockly积木有“查看此积木�
 其他中途FAIL保留：首次App新3项 **2 PASS/1 FAIL/19 skipped**，测试未等待实际HTTP编译就点击仍禁用的代码按钮；改为await实际compile返回且断言runnable、按钮启用，没有降低映射断言或改生产编译流程。新restore门首次整窗 **87 PASS/1 FAIL**，状态已创建但漏接按钮/入口；补双门后最终88PASS，日志`/tmp/easyai-tutorial-restoring-red.log`。初数值/教程20与App3均被最终88覆盖，不累计。
 
 NOT RUN：原阶段命令`pnpm test:e2e`及真实Electron/Blockly SVG/Monaco Worker/CSP/原生picker/课堂修复流；此前Electron sandbox拒绝边界仍保留，不重试或放宽系统权限。Windows/NTFS/冻结ABI、安装包资源、真实MNIST/10轮训练/SSH/取消重连/数据下载/包安装/个人PC均未执行。M7.3代码与定向纵切完成，不等于M7阶段或完整B验收。最新已获精确CI仍407da99/run39149608836的check SUCCESS/desktop FAILURE（2 annotations），剩余步骤正文未知；后续960f95f及本次最终新SHA CI未获证据，不套旧失败、不重复同SHA或绕被拒Actions日志。无新拒绝/未决写入、无main/强推/PR/Release/部署/费用/新凭据/权限变化。正常dev分支推送源码+证据后，下一项按原关键路径补M6.3受控安装合同/计划与M8打包骨架，先冻结独立合同，真实资源动作仍需具体授权条件。
+## 2026-10-18 — M6.3 离线计划、确认 UI 与受控任务合同
+
+源码完整 SHA：`b33adf7496114fe7260dd456b6ab74ba2038bc39`；基线 `b4c9cb9b6bb323d4b4468b1032e7696f726a7cea`。本片按原计划 §14 的组/单包、InstallPlan/fingerprint、确认、owned InstallJob/日志/取消/复检要求推进，由单一集成者写入、两位已有 worker 只读独审。合同与资源说明见 `docs/install-contract.md`。**本片不等于 M6.3 全部完成，生产执行通道明确关闭。**
+
+交付 17 包/4 组固定目录及明确 importName（含 sklearn、PIL、cv2、skimage、pytorch_lightning），5 组 Python 权威 DTO/schema/TS，5 条固定认证 API 与 5 条固定 IPC，App 显式入口、单包/组多选、同一路径生成计划、未知版本/体积/阻塞提示、明确网络确认、查询/取消及固定隐私错误。读取/规划不创建训练目录、不导入 torch、不调 subprocess/network、不接收任意命令/路径/索引；teacher-existing 始终只读。
+
+后端分配受控根下 UUID 新环境路径；UI 当前只提供新环境名称，不借用教师环境。easyai-cpu 的单包也展示完整既有 Linux x86_64 / CPython3.11 CPU 锁定闭包，来源+lock hash、基线 fingerprint、canonical planHash、十分钟 TTL；可选包未解析、平台不符或版本冲突阻断确认。体积明确为 wheel 下载/解包元数据估计，不当完整磁盘大小。确认严格要求两个布尔 true、同计划 hash，复核基线/来源；会话幂等 job，最多64计划。确认只登记 AWAITING_EXECUTION / INSTALL_EXECUTION_NOT_ENABLED，executionEnabled=false，无 execute API、无新环境创建。
+
+内部 executor/inspector 接缝仅测试：owned marker/UUID/prefix、内核 lease 后再次核计划/基线，跨独立服务实例冲突阻断；取消等待适配器证明停止，unknown 保留 reservation/lease，关闭只发信号不谎称结束；固定生命周期日志最多128条。精确版本、nonce/prefix、Python3.11、核心 imports/tensor 合同全部满足才可 verified=true。fixture executor 只写 inventory JSON，**不是实际安装、导入或 tensor 执行证据**。无生产 inspector/provisioner/caller。取消/失败不承诺回滚、仍需复检；持久账本/重启恢复/真实日志/可选解析/远端安装仍缺。
+
+实际命令（cwd `/workspace/Easy-AI`；pnpm check/PyInstaller 使用既有 `UV_CACHE_DIR=/workspace/.uv-cache UV_PYTHON_INSTALL_DIR=/workspace/.python XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/.cache`，不创建/安装训练环境）：
+
+| 命令 | 实际结果与证据 |
+| --- | --- |
+| `services/backend/.venv/bin/python -m pytest services/backend/tests/test_install_service.py services/backend/tests/test_local_api.py services/backend/tests/test_local_workspace.py -q` | **36 PASS**，2.99秒，1条第三方弃用 warning；`/tmp/easyai-install-backend-final.log`。其中新合同23项包括离线/no writer、严格输入/隐私、阻塞/TTL/hash/drift、HTTP确认取消、owned夹具执行/复检/未知停止/跨实例lease/日志上限；不是实际安装集成 |
+| `pnpm exec vitest run apps/desktop/electron/install-workflow.test.mts apps/desktop/electron/workflow.test.mts apps/desktop/src/PackageManager.test.mts apps/desktop/src/App.test.mts` | **52 PASS**，5.17秒，`/tmp/easyai-install-targeted.log`；新Main14、原workflow7、包管理UI7、App24。包含真实Main/FastAPI计划→确认→取消且 training-environments 未创建；双击/陈旧响应/错误不自动重试、teacher只读、入口隐藏保留状态且不改工程 |
+| 同缓存 `pnpm check` | **PASS**，TS/Main/测试TS、strict mypy49源文件、88 Python格式、ruff、权威合同/真实Blockly fixture漂移、Prettier；`/tmp/easyai-install-check.log`。首次因新测试 unused Path import **FAIL**，删除无用导入后完整重跑通过，未降低检查 |
+| `pnpm --filter @easyai/desktop build`；同缓存 `node scripts/python-task.mjs build` | 均 **PASS**，静态构建1.43秒，PyInstaller16.76秒；`/tmp/easyai-install-desktop-build.log`、`/tmp/easyai-install-backend-build.log`。保留已有chunk大小提示；未构建安装包或运行Electron |
+| `node scripts/test-frozen.mjs` | **PASS**，`/tmp/easyai-install-frozen-smoke.log`：新目录/来源/lock字节进入资源、临时cwd下冻结sidecar实际计划/确认/取消、execution仍关闭；原资源/native-selection API/project create/认证golden编译及EOF exit0仍通过 |
+| `node scripts/test-frozen-ssh.mjs` | **PASS**，`/tmp/easyai-install-frozen-ssh.log`：原认证/严格DTO/隐私错误/scoped取消确认/lazy Paramiko/EOF exit0；合成输入，无外连SSH |
+| 独立只读审查 | 后端先21 PASS、后来严格布尔新增2 PASS/21 deselected；前端/Main21 PASS。无剩余明确新增P1/P2，均与上面定向窗口重合，不累加。独审可选建议已明确SUCCEEDED是执行/复检合同，不冒称真实安装 |
+| `git diff --check`；`sha256sum 'docs/v0.0.0 plan.md' docs/v0.0.0.md README.md`；`wc -c 'docs/v0.0.0 plan.md'`；`git ls-remote origin refs/heads/main refs/heads/codex/demo-v0.0.0` | **PASS**；原件116185字节、SHA `dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43`；原规格 `5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190`、README `befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852` 不变。提交前远端dev=b4c9cb9、main=`5323f86232529efcfb52131168ad049f01b219f3`，无他人分支推进；最终正常push后再次核对 |
+
+修前另发现 Pydantic Literal[True] 在当前严格模型仍接受整数1；新增精确输入测试 **2 FAIL/21 deselected**，`/tmp/easyai-install-consent-red.log`，改 before validator 要求 value is True 后23项通过，生成schema无漂移。原失败保留，不把初步18/21、独审窗口和最终36/52重复累计。没有为真实执行编造成功曲线或效果。
+
+NOT RUN：实际 pip/conda/SDK 安装或许可、依赖联网解析、真实新环境/安装后import/tensor probe、教师共享环境修改、持久任务恢复、远端安装、数据下载、真实训练/MNIST、真实SSH/SFTP、Electron/原生picker/课堂E2E、Windows/NTFS/冻结ABI、个人PC。没有新增授权或尝试被拒动作。既有Electron sandbox及Actions日志拒绝边界保持，不绕路、不改安全权限、不重复同SHA CI。最新精确已知 CI 仍 `407da99effa8a46b492b79cc362f77025b5c7210` / run39149608836：check SUCCESS、desktop FAILURE（2 annotations），失败正文未知；本片新SHA CI **待证据**，不套旧根因。
+
+下一项：在上述关闭的生产门后补实际 provisioner/executor/probe 与持久恢复，或推进独立 M8 打包骨架；真实执行需一次性owned目标、明确来源/下载预算及展示具体计划后的执行授权。常规代码可继续，不以这些实测条件阻断编译/合同。完整B仍未验收；无main/强推/PR/Release/部署/费用/新凭据或权限变化。
+
