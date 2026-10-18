@@ -13,7 +13,7 @@ import {
   rename,
   symlink,
 } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { join, resolve, dirname } from "node:path";
 import {
   hash,
   collectNotices,
@@ -197,6 +197,10 @@ export async function cleanBuildInputs(root, sourceCommit) {
   await sourceSnapshot(root, source, sourceCommit);
   // Install the same registered development dependencies into a REAL directory.
   // pnpm correctly refuses a symlink as its task-state node_modules root.
+  const installed = JSON.parse(
+    await readFile(join(root, "node_modules/.modules.yaml"), "utf8"),
+  );
+  const store = dirname(installed.storeDir);
   run(
     "pnpm",
     [
@@ -205,12 +209,12 @@ export async function cleanBuildInputs(root, sourceCommit) {
       "--offline",
       "--ignore-scripts",
       "--store-dir",
-      join(root, ".pnpm-store"),
+      store,
     ],
     source,
     {
       ...process.env,
-      XDG_DATA_HOME: process.env.XDG_DATA_HOME || join(input, "tool-data"),
+      XDG_DATA_HOME: process.env.XDG_DATA_HOME || dirname(dirname(store)),
     },
   );
   await symlink(
