@@ -6,7 +6,6 @@ HTTP command input, resolver, cache download or environment deletion exists here
 
 from collections.abc import Callable
 import json
-import hashlib
 import os
 from pathlib import Path
 import threading
@@ -19,6 +18,7 @@ from easyai.domain.install import InstallInspection, InstallPlan
 from easyai.runtime.supervisor import ManagedSupervisor
 from easyai.security.files import read_regular
 from easyai.services.install_service import PROFILE_ROOT, ProbeReceipt
+from easyai.services.install_sources import IMPORTS, ML_ROOTS, constraints_hash, lock_bytes, wheels
 
 LOG_LIMIT = 1024 * 1024
 
@@ -179,16 +179,12 @@ class OfflineWheelInstaller:
         # Copy the reviewed lock bytes into this command's trusted, private root.
         # A unique immutable pathname avoids another attempt replacing its input.
         lock = self.commands.root / f"{uuid4()}.lock"
-        lock_bytes = read_regular(PROFILE_ROOT / "easyai-cpu-linux-cp311.lock", 100_000)
-        if (
-            hashlib.sha256(
-                read_regular(PROFILE_ROOT / "easyai-cpu-sources.json", 100_000) + lock_bytes
-            ).hexdigest()
-            != plan.constraints_hash
-        ):
+        selected = {item.package_id for item in plan.package_changes if item.requested}
+        reviewed_lock = lock_bytes(PROFILE_ROOT, selected)
+        if constraints_hash(PROFILE_ROOT) != plan.constraints_hash:
             raise ValueError("INSTALL_PLAN_STALE")
         with lock.open("xb") as stream:
-            stream.write(lock_bytes)
+            stream.write(reviewed_lock)
             stream.flush()
             os.fsync(stream.fileno())
         argv = [
@@ -237,8 +233,9 @@ class ManagedInstallInspector:
 
     def inspect_owned(self, prefix: Path, nonce: str, receipt: ProbeReceipt) -> InstallInspection:
         receipt.quiescent = True  # Fixed input validation has not spawned an owner.
-        packages = json.loads(read_regular(PROFILE_ROOT / "easyai-cpu-sources.json", 100_000))
-        names = [item["name"] for item in packages["packages"]]
+        if not set(receipt.import_names).issubset(IMPORTS.values()):
+            raise ValueError("INSTALL_INSPECTION_INVALID")
+        names = [item["name"] for item in wheels(PROFILE_ROOT, set(ML_ROOTS))]
         source = (
             HEADER
             + "import importlib.metadata,platform\n"
@@ -249,7 +246,9 @@ class ManagedInstallInspector:
             + " try: versions[name]=importlib.metadata.version(name)\n"
             + " except importlib.metadata.PackageNotFoundError: pass\n"
             + "imports={}\n"
-            + "for name in ('torch','torchvision','matplotlib'):\n"
+            + "for name in "
+            + repr(receipt.import_names)
+            + ":\n"
             + " try: __import__(name); imports[name]=True\n"
             + " except Exception: imports[name]=False\n"
             + "tensor=False\n"

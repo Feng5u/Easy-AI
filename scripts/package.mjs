@@ -180,6 +180,14 @@ export const resourcePairs = [
     "packages/training-profiles/easyai-cpu-linux-cp311.lock",
     "training-profiles/easyai-cpu-linux-cp311.lock",
   ],
+  [
+    "packages/training-profiles/easyai-ml-sources.json",
+    "training-profiles/easyai-ml-sources.json",
+  ],
+  [
+    "packages/training-profiles/easyai-ml-linux-cp311.lock",
+    "training-profiles/easyai-ml-linux-cp311.lock",
+  ],
   ["examples/mnist-cnn/project.easyai.json", "templates/project.easyai.json"],
   ["packages/contracts/fixtures/blank.json", "templates/blank.json"],
   ...[

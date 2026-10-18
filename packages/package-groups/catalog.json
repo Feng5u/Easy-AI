@@ -13,14 +13,14 @@
       "importName": "scipy",
       "group": "ml",
       "purpose": "科学计算",
-      "dependencyNote": "完整依赖须受控解析；MNIST核心组合采用CPU profile锁定约束。"
+      "dependencyNote": "Linux CPython 3.11固定1.17.1；复用核心NumPy 2.4.2，完整闭包进入计划。"
     },
     {
       "packageId": "pandas",
       "importName": "pandas",
       "group": "ml",
       "purpose": "表格数据",
-      "dependencyNote": "完整依赖须受控解析；MNIST核心组合采用CPU profile锁定约束。"
+      "dependencyNote": "Linux CPython 3.11固定3.0.1；复用核心NumPy/dateutil，无额外extras或平台外依赖。"
     },
     {
       "packageId": "matplotlib",
@@ -34,7 +34,7 @@
       "importName": "sklearn",
       "group": "ml",
       "purpose": "传统机器学习",
-      "dependencyNote": "完整依赖须受控解析；MNIST核心组合采用CPU profile锁定约束。"
+      "dependencyNote": "Linux CPython 3.11固定1.8.0；附带锁定scipy、joblib、threadpoolctl及核心NumPy。"
     },
     {
       "packageId": "torch",

@@ -30,6 +30,7 @@ from easyai.services.install_process import (
     _event,
 )
 from easyai.services.install_service import PROFILE_ROOT, digest
+from easyai.services.install_sources import wheels
 
 CONDA_VERSION = "25.9.1"
 FILE_LIMIT = 1024 * 1024 * 1024
@@ -287,10 +288,10 @@ class InstallRuntime:
     def request_cancel(self) -> None:
         self.commands.request_cancel()
 
-    def snapshot(self) -> Capability:
+    def snapshot(self, selected: set[str] | None = None) -> Capability:
         if not self.configuration_path.exists() and not self.configuration_path.is_symlink():
             return Capability()
-        config, fingerprint = self._read()
+        config, fingerprint = self._read(selected)
         enabled = config.execution_authorized and config.authorization_expires > datetime.now(
             timezone.utc
         )
@@ -302,7 +303,7 @@ class InstallRuntime:
             config.seconds,
         )
 
-    def _read(self) -> tuple[OfflineConfiguration, str]:
+    def _read(self, selected: set[str] | None = None) -> tuple[OfflineConfiguration, str]:
         config = OfflineConfiguration.model_validate_json(
             private_file(self.configuration_path, 65536)
         )
@@ -328,9 +329,7 @@ class InstallRuntime:
         ):
             raise ValueError("INSTALL_BOOTSTRAP_SOURCE_INVALID")
         stamps = [archive(a) for a in config.bootstrap]
-        wheels = json.loads(read_regular(PROFILE_ROOT / "easyai-cpu-sources.json", 100000))[
-            "packages"
-        ]
+        selected_wheels = wheels(PROFILE_ROOT, selected)
         wheelhouse = Path(config.wheelhouse)
         protected(wheelhouse, directory=True)
         wheel_stamps = [
@@ -341,10 +340,11 @@ class InstallRuntime:
                     bytes=w["downloadBytes"],
                 )
             )
-            for w in wheels
+            for w in selected_wheels
         ]
         if (
-            sum(a.bytes for a in config.bootstrap) + sum(w["downloadBytes"] for w in wheels)
+            sum(a.bytes for a in config.bootstrap)
+            + sum(w["downloadBytes"] for w in selected_wheels)
             > config.disk_budget_bytes
         ):
             raise ValueError("INSTALL_DISK_BUDGET_EXCEEDED")
@@ -359,7 +359,8 @@ class InstallRuntime:
         )
 
     def validated(self, plan: InstallPlan) -> OfflineConfiguration:
-        config, fingerprint = self._read()
+        selected = {item.package_id for item in plan.package_changes if item.requested}
+        config, fingerprint = self._read(selected)
         if (
             not config.execution_authorized
             or config.authorization_expires <= datetime.now(timezone.utc)

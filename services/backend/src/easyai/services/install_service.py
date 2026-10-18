@@ -30,6 +30,7 @@ from easyai.security.files import read_regular
 from easyai.security.project_lock import ProjectLock
 from easyai.services.event_journal import EventJournal, read_events
 from easyai.services.owned_creation import OwnedCreation, require_ready, read_install_job
+from easyai.services.install_sources import IMPORTS, ML_ROOTS, constraints_hash, wheels, Wheel
 
 if TYPE_CHECKING:
     from easyai.services.install_runtime import InstallRuntime
@@ -74,6 +75,7 @@ class ProbeReceipt:
     quiescent: bool = False
     owner: object | None = None
     prefix: Path | None = None
+    import_names: tuple[str, ...] = ("torch", "torchvision", "matplotlib")
 
 
 @dataclass
@@ -228,20 +230,14 @@ class InstallService:
             raise ValueError("INSTALL_ROOT_FORBIDDEN")
 
     def _profile_hash(self) -> str:
-        return hashlib.sha256(
-            read_regular(PROFILE_ROOT / "easyai-cpu-sources.json", 100_000)
-            + read_regular(PROFILE_ROOT / "easyai-cpu-linux-cp311.lock", 100_000)
-        ).hexdigest()
+        return constraints_hash(PROFILE_ROOT)
 
-    def _wheels(self) -> list[dict[str, str | int]]:
-        value: list[dict[str, str | int]] = json.loads(
-            read_regular(PROFILE_ROOT / "easyai-cpu-sources.json", 100_000)
-        )["packages"]
-        return value
+    def _wheels(self, selected: set[str] | None = None) -> list[Wheel]:
+        return wheels(PROFILE_ROOT, selected)
 
     def catalog(self) -> PackageCatalog:
         self._verify_root()
-        versions = {str(item["name"]): str(item["version"]) for item in self._wheels()}
+        versions = {item["name"]: item["version"] for item in self._wheels(set(ML_ROOTS))}
         raw = json.loads(read_regular(PACKAGES_PATH, 50_000))
         capability = self._runtime.snapshot() if self._runtime else None
         self._verify_root()
@@ -369,7 +365,7 @@ class InstallService:
             environment_id = request.owned_environment_id or str(uuid4())
             new = request.new_environment_spec is not None
             fingerprint, versions = self._baseline(environment_id, new)
-            wheels = self._wheels()
+            wheels = self._wheels(set(request.package_ids))
             locked = {str(item["name"]): str(item["version"]) for item in wheels}
             selected = set(request.package_ids)
             blockers = []
@@ -398,7 +394,15 @@ class InstallService:
             ]
             self._verify_root()  # A close request may have arrived during a read-only inspector.
             resolved = not blockers
-            capability = self._runtime.snapshot() if self._runtime else None
+            capability = (
+                (
+                    self._runtime.snapshot(selected)
+                    if selected.intersection(ML_ROOTS)
+                    else self._runtime.snapshot()
+                )
+                if self._runtime
+                else None
+            )
             value = InstallPlan(
                 plan_id=str(uuid4()),
                 plan_hash="0" * 64,
@@ -413,8 +417,8 @@ class InstallService:
                 download_bytes=sum(int(item["downloadBytes"]) for item in wheels)
                 if resolved
                 else None,
-                installed_bytes=sum(int(item["unpackedBytes"]) for item in wheels)
-                if resolved
+                installed_bytes=sum(int(item["unpackedBytes"] or 0) for item in wheels)
+                if resolved and all(item["unpackedBytes"] is not None for item in wheels)
                 else None,
                 size_status="locked-wheel-estimate" if resolved else "unresolved",
                 platform="linux-x86_64-cp311",
@@ -426,7 +430,7 @@ class InstallService:
                 execution_seconds=capability.seconds if capability else None,
                 requires_network=not bool(capability and capability.fingerprint),
             )
-            if capability and capability.fingerprint:
+            if capability and capability.fingerprint and resolved:
                 value.download_bytes = 0  # All approved sources are already local.
                 value.installed_bytes = None  # Bootstrap extraction footprint is not measured.
             value.plan_hash = digest(value.model_dump(exclude={"plan_hash"}))
@@ -443,7 +447,12 @@ class InstallService:
 
     def _fresh(self, plan: InstallPlan, receipt: ProbeReceipt | None = None) -> None:
         if self._runtime is not None:
-            capability = self._runtime.snapshot()
+            selected = {item.package_id for item in plan.package_changes if item.requested}
+            capability = (
+                self._runtime.snapshot(selected)
+                if selected.intersection(ML_ROOTS)
+                else self._runtime.snapshot()
+            )
             if capability.fingerprint != plan.runtime_fingerprint or (
                 plan.execution_enabled and not capability.enabled
             ):
@@ -726,7 +735,13 @@ class InstallService:
                     if len(job.logs) < 128:
                         job.logs.append("INSTALL_REPROBE_STARTED")
                     self._record(job)
-                probe = ProbeReceipt(cancel=token)
+                expected = {item.package_id: item.target_version for item in plan.package_changes}
+                probe = ProbeReceipt(
+                    cancel=token,
+                    import_names=tuple(
+                        module for name, module in IMPORTS.items() if name in expected
+                    ),
+                )
                 quiescent = False
                 try:
                     report = self._inspect(
@@ -736,13 +751,13 @@ class InstallService:
                     quiescent = probe.quiescent
                 if creation is not None:
                     creation.verify()
-                expected = {item.package_id: item.target_version for item in plan.package_changes}
                 if (
                     not report.python_version.startswith("3.11.")
                     or not report.tensor_ok
                     or any(
-                        not report.imports.get(name)
-                        for name in ("torch", "torchvision", "matplotlib")
+                        not report.imports.get(module)
+                        for name, module in IMPORTS.items()
+                        if name in expected
                     )
                     or any(
                         report.versions.get(name) != version for name, version in expected.items()

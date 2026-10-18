@@ -105,6 +105,22 @@ try {
   const expectedLock = await readFile(
     join(repository, "packages/training-profiles/easyai-cpu-linux-cp311.lock"),
   );
+  const expectedMlSources = await readFile(
+    join(repository, "packages/training-profiles/easyai-ml-sources.json"),
+  );
+  const expectedMlLock = await readFile(
+    join(repository, "packages/training-profiles/easyai-ml-linux-cp311.lock"),
+  );
+  assert.deepEqual(
+    await readFile(join(resources, "training-profiles/easyai-ml-sources.json")),
+    expectedMlSources,
+  );
+  assert.deepEqual(
+    await readFile(
+      join(resources, "training-profiles/easyai-ml-linux-cp311.lock"),
+    ),
+    expectedMlLock,
+  );
   assert.deepEqual(
     await readFile(join(resources, "package-groups/catalog.json")),
     await readFile(join(repository, "packages/package-groups/catalog.json")),
@@ -133,7 +149,26 @@ try {
     createHash("sha256")
       .update(expectedSources)
       .update(expectedLock)
+      .update(expectedMlSources)
+      .update(expectedMlLock)
       .digest("hex"),
+  );
+  const ml = await request("POST", "/environments/install-plan", {
+    targetId: "local",
+    profileId: "easyai-cpu",
+    packageIds: ["numpy", "scipy", "pandas", "matplotlib", "scikit-learn"],
+    newEnvironmentSpec: { name: "frozen_ml" },
+  });
+  assert.equal(ml.response.status, 200);
+  assert.equal(ml.value.executionEnabled, false);
+  assert.equal(ml.value.installedBytes, null);
+  if (process.platform === "linux" && process.arch === "x64") {
+    assert.deepEqual(ml.value.blockers, []);
+  }
+  assert.equal(
+    ml.value.packageChanges.find((c) => c.packageId === "scikit-learn")
+      .targetVersion,
+    "1.8.0",
   );
   const acknowledged = {
     planId: planned.value.planId,
