@@ -1152,4 +1152,3 @@ NOT RUN：原阶段命令`pnpm test:e2e`及真实Electron/Blockly SVG/Monaco Wor
 NOT RUN：实际 pip/conda/SDK 安装或许可、依赖联网解析、真实新环境/安装后import/tensor probe、教师共享环境修改、持久任务恢复、远端安装、数据下载、真实训练/MNIST、真实SSH/SFTP、Electron/原生picker/课堂E2E、Windows/NTFS/冻结ABI、个人PC。没有新增授权或尝试被拒动作。既有Electron sandbox及Actions日志拒绝边界保持，不绕路、不改安全权限、不重复同SHA CI。最新精确已知 CI 仍 `407da99effa8a46b492b79cc362f77025b5c7210` / run39149608836：check SUCCESS、desktop FAILURE（2 annotations），失败正文未知；本片新SHA CI **待证据**，不套旧根因。
 
 下一项：在上述关闭的生产门后补实际 provisioner/executor/probe 与持久恢复，或推进独立 M8 打包骨架；真实执行需一次性owned目标、明确来源/下载预算及展示具体计划后的执行授权。常规代码可继续，不以这些实测条件阻断编译/合同。完整B仍未验收；无main/强推/PR/Release/部署/费用/新凭据或权限变化。
-
