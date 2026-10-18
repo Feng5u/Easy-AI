@@ -597,3 +597,33 @@ CI 独立证据来自父级：`59034d7b58707fba3e65f1a46c48a64c7bd1eb60` 的 [ru
 **NOT RUN / 未验收**：真实 SSH/SFTP、真实目标上传/远端 owner、硬件/torch/实际数据与训练、真实服务器断线取消及崩溃耐久、Windows客户端/cache、本机真实 Electron/E2E。原 Electron sandbox 拒绝未重试、未关闭 sandbox；原 Actions 拒绝未重试。当前 SSH 私有本地 cache 仍为 POSIX 实现，不能宣称 Windows SSH 可用；SFTPv3同UID替换/持久fsync能力边界不变。持久连接profile/私钥、运行中持续产物同步、目标平台兼容与真实完整产物/训练验收仍待完成。M5整体、A、B 均保持未验收，不自动进入发布。
 
 本轮无新增付费/权限/凭据、部署、Release、PR、main写入、强推或Feng5u原仓库写入。下一项：先处理 Windows SSH cache/受支持平台及剩余 M5 合同；要验证真实环境须先取得明确目标、只读/写入目录、现有解释器和数据、允许命令及取消/清理范围。CI 根因需要获准可读的具体失败日志；当前失败步骤未知。编译、协议和离线兼容工作可继续，不以缺真实授权为理由捏造训练或阻断独立开发。
+
+## 2026-10-18 — 父级独审 P2：工程切换与运行 API 的 TOCTOU 修复
+
+代码提交 `b51c0e7c482f1d34f70a8d396d4013516a166617`，父提交 `3a324b0c7eace992f995716fd66091bbd686fc30`。父级独审指出旧 api.py 332–378 的 run_store 检查与后续 await/to_thread 动作分离，SSE 的检查与事件读取/交付同样分离。作者在旧提交增加有界同步屏障，先让A工程检查通过、暂停请求、切换B、再放行，实际复现 cancel 返回200并将A的CREATED运行改成CANCELLED；不是推测或真实远端事故。原94/450通过没有覆盖此窗，不能据此宣布该片验收。
+
+此次只改4个后端源模块与2个测试文件，保持单写入者，两个既有代理未写文件。没有实施 Windows cache，也没有改 UI、合同镜像、依赖、CI或安全权限。修复采用后端不可变 RunScope(runId/projectId/generation)：open（含已有/新建/只读工程）、_register 与 close 推进工程代次，A→B→A也不能复活旧请求。
+
+- api.py：run_store 在workspace模式只取得scope，删除冗余的未受保护get；状态、源码、日志、产物清单和PNG由 read_run 在工作线程前后核scope，并在 await 恢复后、交付前再次核scope。旧工程的失败响应也重新核代次，不能返回旧错误内容。没有workspace的独立RunService测试入口保留原get存在性检查。
+- SSE：每批读取与最终事件补尾走同一scope，批读取后及每条yield/heartbeat前核代次；失效后关闭流，不继续交付剩余批。HTTP头已发出时流结束，不伪称仍可改成404。
+- 历史接口：只允许当前工程，返回成功或错误前均核捕获的代次；活动ID接口仍用于Main全局退出确认，不借此暴露旧Run配置。
+- 取消：本地在workspace提交守卫内进入RunService/本地supervisor；SSH先取得真实coordinator锁，再进入workspace scope守卫并持久提交。释放core/workspace锁后才发布状态；不在持workspace锁时等待core。工程切换若先赢，旧取消返回404且不写取消证明；取消若先持守卫提交，随后工程切换不能撤销已合法提交的动作。此为提交线性化边界，不承诺取消此前已提交的请求。
+
+独审另外实复现旧历史路由切B仍200返回A配置，以及run_store冗余get抛旧工程错误的路径；均纳入同一P2修复。独立审查最终确认该P2关闭，未发现新增锁反转。检查涵盖WS→RS本地路径、core→WS远端路径、读取释放内部锁后再核scope，以及清理先释放WS再等待后台线程。
+
+实际命令/最终结果（工作目录 `/workspace/Easy-AI`，沿用既有 UV/XDG workspace缓存）：
+
+| 命令 | 结果与精确范围 |
+| --- | --- |
+| `services/backend/.venv/bin/pytest -q services/backend/tests/test_run_scope_race.py -x`（旧代码） | **FAIL**，第一项即复现上述检查后切换仍取消A；保留为缺陷证据，不算修后结果 |
+| `services/backend/.venv/bin/pytest -q services/backend/tests/test_run_scope_race.py services/backend/tests/test_remote_run_api.py services/backend/tests/test_local_api.py services/backend/tests/test_local_workspace.py services/backend/tests/test_project_editing.py services/backend/tests/test_ssh_run_coordinator.py` | **84 PASS**，12.07秒；修复主路径后的受影响窗口，未重复旧450/94矩阵 |
+| `services/backend/.venv/bin/pytest -q services/backend/tests/test_run_scope_race.py`（最终含错误门） | **25 PASS**，2.76秒；6个检查后切换、10个worker返回后交付（含ABA）、2个SSE批读取后切换/ABA、1个历史、1个本地提交边界、1个ASGI首事件交付后切工程丢弃余批、4个旧错误窗口。仅测试自有文件，无训练进程/SSH/socket |
+| `services/backend/.venv/bin/pytest -q services/backend/tests/test_run_scope_race.py services/backend/tests/test_remote_run_api.py -k 'scope or delivery or sse or history'` | **23 PASS /4 deselected**，2.70秒；包含新SSH取消提交屏障：断言真实core锁已持、workspace锁未持，切换工程能完成，恢复后404、checkpoint未取消、无owner exec。还包含一个既有binding scope用例，与其他结果重合不加总 |
+| 独审定向窗口 | 首次scope窗口23 PASS/4 deselected（2.69秒）；错误门补齐后独跑4 PASS/21 deselected（0.58秒），明确回复“该scope P2已关闭”。未运行大矩阵 |
+| `services/backend/.venv/bin/ruff check services/backend/src services/backend/tests/test_run_scope_race.py services/backend/tests/test_remote_run_api.py`、6个修改Python文件 `ruff format --check`、`services/backend/.venv/bin/mypy services/backend/src` | PASS；mypy44源文件。中途缺Event import和unused test import修正后通过，没有降低规则 |
+| `node scripts/python-task.mjs build`、`node scripts/test-frozen-ssh.mjs` | PASS；最新PyInstaller包、本机鉴权/严格DTO/脱敏拒绝/EOF退出0。不是原生Windows或真实SSH验收 |
+| `git diff --check`、原件hash | PASS；README、原规格和116185字节计划hash仍与前轮完全一致，无原件覆盖 |
+
+本轮 NOT RUN：旧完整450后端/94前端矩阵、无改动前端/合同再生成、真实Electron/E2E、Windows、真实SSH/SFTP、数据上传、torch/训练和硬件。未请求/重试 Actions API，旧desktop CI具体失败步骤/根因仍未知，新提交CI状态未知。无新拒绝或不明执行；没有main写入、强推、部署、Release、PR、付费或凭据变更。
+
+Windows缺口保持：remote_artifacts顶层fcntl、remote_cache明确POSIX、coordinator/Bundle对本地dir_fd/O_NOFOLLOW/目录fsync的直接依赖不能只换flock解决。最小设计是安全本地目录/文件/身份/内核锁/发布接口分层，保留POSIX门，再实现原生Windows handle/reparse/ACL/身份与发布语义；Linux可做接口与拒绝合同测试，Windows原生锁、NTFS ACL/junction、替换竞态、崩溃耐久与冻结桌面必须实际验证。修复scope后再按父级审查结论接续，**M5整体、A、B继续未验收**。
