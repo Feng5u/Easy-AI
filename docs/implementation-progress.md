@@ -962,3 +962,29 @@ NOT RUN：真实Electron/SVG/Monaco/原生picker/E2E、训练/真实MNIST/SSH/SF
 CI状态按父级新邮件证据去旧：`f1ecaf7866167b404d43ea359ec8ae631f1744d7` 的run39144759022（2026-10-18 16:24:52 UTC）check/desktop仍双FAIL，链接 https://github.com/T1doo/Easy-AI/actions/runs/39144759022 。这是父级已核邮件证据，本执行器未访问被拒Actions端点、未触发重试，也未取得新根因。与更早5a34286/run39137171929及9abdfebb90a5ab961cd12c21fbeae8b479e3d66b/run39140446024双FAIL分开记录；75afb6a/本修复片CI未知。仍需首个失败step/exit、日志与annotation原文，本地6/TS/build不能覆盖远端失败。
 
 NOT RUN：此前31全窗、后端整套/训练/SSH/SFTP/上传/数据下载、真实Electron/SVG/Monaco/原生picker/E2E、安装/SDK协议、个人PC、Windows/NTFS/冻结ABI。无main写入/强推/PR/发布/费用/凭据/安全权限变化；没有新拒绝或未决外部操作。下一项先由父级复核本P2修复，保持下一功能冻结；真实验收与CI日志阻塞仍在，M7.2/M7整体未验收。源与证据按正常开发分支提交推送，最终远端完整SHA见交付。
+
+## 2026-10-18 — M7.2 RunDashboard安全操作错误与结构化异常保留
+
+本片主源码SHA：`7fb252ed9090296c46e813da8ebd82acffe6f0b4`；最终来源ID守门源码SHA：`2664d59903b442b88f42f21e81888e7bbbe8ff40`，起点父证据`cd18ea8cc0caf3baee6e045787b03acb23986a81`。父级复核关闭历史错误归属P2后明确授权本片。只改桌面FailureCard/RunDashboard/runEvents与新RuntimeErrorCard及测试，没有改后端、协议/合同、编译器、环境依赖或运行权限。下一段完整NameError后端frames/hash精细映射/符号解释/脱敏报告和M7.3仍未实现，不把本片称M7.2/M7整体验收。
+
+操作错误迁移：订阅（同步抛错及回调error）、快照读取/身份不符、结果读取、停止、接续和图片均复用安全FailureCard。订阅回调任意message不直接展示，连接状态仍由RunSummary显示；其他异常不读取String(reason)/message/name/stack/cause。固定阶段提示保留“停止请求未确认”“接续读取未确认、不会重新启动任务”“读取失败不会因此将训练判为失败”。现有自动只读poll/SSE重连保持，不新增自动操作重试；卡片按钮只focus/scroll到运行标题，不调用start/cancel/resume/auth/install。停止、接续、图片、source、read、subscription各独立错误状态，读取或快照恢复不吞停止/接续提示，图片失败也不覆盖停止未知；新run仍由key隔离，原imageRequest、mounted/active和运行身份校验保留。
+
+训练异常走独立路径，不降为通用Unknown：runEvents保留校验后的exceptionType、variableName、file、正安全整数line与message，并深拷贝原始完整Event（含原payload及额外frames若有）。保持runId/序号过滤与最多20条；后端既有持久事件/原始stderr未删除或改写。RuntimeErrorCard对NameError/MemoryError/ValueError/TypeError/RuntimeError显示固定规则中文摘要和安全代码，未知异常明确无专用规则。NameError提示检查旧运行对象定义/注册，若代码检查通过则可能是生成器缺陷，不一概责怪学生；没有自动替换变量或调用LLM。卡片不打印任意原始message、异常名、变量名、路径或ID，只允许固定类别及精确train.py/有效line进入技术摘要。原始诊断保留在本地记录而非被丢弃；原有只读终端日志仍是原始日志视图，不能把本片宣传为全日志脱敏器，没有新增报告复制、上传或外发。
+
+定位复用既有旧RunSource与captureRunSnapshot/locateRunBlock，后端source原有实际codeHash校验和前端7项运行身份门未改。此片仅按事件blockId定位，不声称按异常行号精细映射。摘要明确“沿用事件来源，尚未按此行号细化”。提交前自查发现SnapshotCode原视图会打印request.blockId，因此补最终守门：useMemo捕获当前冻结来源，只有ID确实属于有效旧快照才启用按钮，回调再次核对再转交location.blockId。外来事件私密ID不会经点击进入快照；正常NameError定位仍走旧模型工作区/旧代码，不查当前编辑工程。没有改旧SnapshotCode显示规则或引入新权威映射。
+
+实际命令（cwd `/workspace/Easy-AI`）：
+
+| 命令 | 结果与边界 |
+| --- | --- |
+| `pnpm exec vitest run apps/desktop/src/RunSnapshot.test.mts apps/desktop/src/runEvents.test.mts apps/desktop/src/FailureCard.test.mts` | 最终 **47 PASS**，1.96秒，Snapshot27、runEvents9、FailureCard11。此为修改的相关文件窗口，非此前App31/错误归属6或M6旧47重跑/累计。覆盖7个操作/连接失败隐私、动作仅focus且start0、cancel/resume至多显式1、旧source身份/迟回/只读、结构化NameError安全解释+旧模型定位、完整原事件不被后续调用方篡改、未知/prototype异常名及私密字段不入卡、source/read恢复不吞cancel/image、外来ID禁导航 |
+| 独立只读审查 | 前端独跑安全/NameError **8 PASS/17 skipped**、原事件保留 **1 PASS/7 skipped**，后补恢复隔离 **1 PASS/25 skipped**、未知字段 **1 PASS/8 skipped**，最终ID守门/正常NameError **2 PASS/25 skipped**；安全审查`-t 'structured'` **2 PASS/31 skipped**。各窗口与最终47重合，不相加。均无编辑，有限源码审查未见未关闭新增明确P1/P2 |
+| `pnpm --filter @easyai/desktop check`；`pnpm exec tsc -p tsconfig.tests.json`；`pnpm exec prettier --check apps/desktop/src/FailureCard.tsx apps/desktop/src/RunDashboard.tsx apps/desktop/src/RuntimeErrorCard.tsx apps/desktop/src/runEvents.tsx apps/desktop/src/runEvents.test.mts apps/desktop/src/RunSnapshot.test.mts` | **PASS**，应用/Main TS、测试TS及格式；日志`/tmp/easyai-dashboard-check.log`。后端/合同/fixture未改，没有重跑旧后端整套/完整pnpm check |
+| `pnpm --filter @easyai/desktop build` | **PASS**，静态桌面assets，保留既有>500KB chunk提示；日志`/tmp/easyai-dashboard-build.log`。没有实际Electron启动、CSP/权限放宽或后端重建 |
+| `git diff --check`；`git ls-remote origin refs/heads/main refs/heads/codex/demo-v0.0.0`；原件hash/字节 | **PASS**；起点工作区干净且远端dev=cd18ea8，main仍`5323f86232529efcfb52131168ad049f01b219f3`。计划116185字节/hash `dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43`，原规格`5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190`、README`befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852`保留 |
+
+中途失败保留：首轮相关35项34PASS/1FAIL，原测试仍查带ID的“查看源积木 cnn”；为避免卡片展示任意ID改为固定“定位旧运行积木”，测试只更新按钮查找，旧模型tab/旧代码/只读断言均保留。第二轮44项43PASS/1FAIL，新增图片失败测试误用既有deferred helper没有的reject；改为图片API mockRejectedValue路径后44PASS，未改生产图片协议或降低隐私断言。再补恢复隔离和恶意类型后46PASS，最终来源ID守门回归后47PASS；这些窗口重合，不累计。后两次静态/构建重跑由新增来源守门生产修改触发，不扩大验证结论。
+
+CI仍按已核证据保留：f1ecaf7866167b404d43ea359ec8ae631f1744d7/run39144759022（16:24:52 UTC）check/desktop双FAIL；更早两次双FAIL不覆盖，本片及近期修复CI未知。未访问被拒Actions端点、未触发重试、没有新根因证据；仍需首个失败step/exit、日志及annotation原文。本地47/TS/build不能覆盖远端失败。
+
+NOT RUN：原App31/归属6整窗、后端整套/训练/真实MNIST/SSH/SFTP/上传/数据下载、真实Electron/SVG/Monaco/原生picker/E2E、环境安装/SDK协议、个人PC、Windows/NTFS/冻结ABI。Windows远程生产gate仍关闭，A/B、M5/M6/M7整体未验收；无main写入/强推/PR/发布/新费用/凭据/安全权限变化。没有新拒绝或未决外部写入。正常开发分支推送主源码/守门/本证据三提交，最终完整远端SHA见交付。下一项先父级复核本最小M7.2片，再接续完整运行时规则/报告或M7.3；真实验收和CI日志阻塞仍在。
