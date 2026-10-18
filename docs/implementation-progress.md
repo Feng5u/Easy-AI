@@ -2030,3 +2030,55 @@ NOT RUN：真实桌面/干净目标机/TST33远端运行、Windows/macOS/系统�
 旧5ab tar仍SHA7445fb3e57d35393d48ebcd5f08dd52266e6c04728ab341bd0f50e5b31326b78、manifest仍345a18f63253fe67b068e0df847734abd972aa7a7a6e4e8e9c53ae5f837aa76f，完整保留。旧portable source7b91c46的manifest仍5f26ba7bb27917e717faec81c69d98ea97e3e39064ac4490b3e65fcc012fd937。原计划SHA dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43、旧规格5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190、README befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852及所有core/ML/CV来源锁均不变。CIFAR待裁决、旧226PASS/1FAIL根因UNKNOWN且raw丢失不回溯关闭。
 
 下一步仅父侧复核本P2收口与上述验收条件/真实代码范围。源码与证据正常开发分支push后核对远端完整SHA与干净工作区；不改main、不强推、不建PR/Release、不发布不签名。M8.2/TST33/B均未被本地生成包替代。
+
+
+## 2026-10-18 23:41 UTC — M6.3 Lightning 可选 DL 闭包（元数据与合成合同切片）
+
+源码提交 **`2688906853d2d1a110d2d4cba928044fb43e2c49`**，起点HEAD/远端dev `a999c9d02ed992b8dbfb221d3e037f10197bf5c3`；origin仍 `https://github.com/T1doo/Easy-AI.git`，main仍 `5323f86232529efcfb52131168ad049f01b219f3`。起点既有包装源码/产物保留，无覆盖用户改动。本片遵循父级停止包装外围的范围，只把新增来源锁与文档纳入既有资源封装和冻结测试，不生成新electron-builder包。
+
+### 实现与边界
+
+依据原14.3/M6.3，pytorch-lightning固定2.6.6、CPython3.11/Linux x86_64，与现有torch2.10.0+cpu、torchvision0.25.0+cpu和核心21锁配合。新增14轮子元数据及hash锁（5909314注册表下载字节，未测解包，installedBytes=null），展开torchmetrics/lightning-utilities/PyYAML/tqdm及核心fsspec[http]的aiohttp传递闭包。单项Lightning与DL全组都是35个去重来源；混合ML/CV无重复、拒绝可选清单覆盖核心。精确版本/来源/锁hash纳入plan，复用既有来源登记、预算和固定离线hash安装器。最终复检除选定模块还要求fsspec.implementations.http；未选择DL不增加其导入，版本/import/tensor任何失败仍verified=false。
+
+官方只读采集实际命令：`services/backend/.venv/bin/python /tmp/easyai_dl_metadata_20261018.py`；`services/backend/.venv/bin/python /tmp/easyai_dl_pin_metadata_20261018.py`。只请求pypi.org版本JSON/simple PEP691及files.pythonhosted.org的.whl.metadata（PEP658并校验索引metadata hash），随后用固定版本JSON重新核对filename/url/hash/bytes/yanked/漏洞响应；**wheel请求0，训练环境安装/真实import/ABI/probe/tensor执行0**。临时采集根`/tmp/easyai-dl-metadata-20261018/`，请求URL/字节/hash见requests.json和pinned-requests.json；已提交sources保存精确上游URL、版本JSON/metadata SHA、Requires-Dist/Python/许可声明。许可声明不是接受，legalReviewComplete/distributionReady未变。不启用其他extras/语料/模型或升级核心。
+
+详见[install-dl-sources.md](install-dl-sources.md)。17卡当前10卡有元数据解析闭包，仍7卡未支持（OpenCV native未核与六张NLP卡）；真实安装、远端安装等原缺口不因本片消失。默认executionEnabled=false，来源登记仍不得授予执行权限。
+
+### 实际验证
+
+- PASS：`services/backend/.venv/bin/pytest -q services/backend/tests/test_install_dl.py`，**12 passed**。有界合成fixture强制禁止Popen与连接；覆盖元数据完整约束/extra、单项/全组去重、缺失来源与预算、离线命令捕获、核心覆盖/锁漂移、已有版本冲突、未选择不导入及5种最终检查结果。
+- PASS：`services/backend/.venv/bin/pytest -q services/backend/tests/test_install_dl.py services/backend/tests/test_install_ml.py services/backend/tests/test_install_cv.py services/backend/tests/test_install_service.py services/backend/tests/test_install_runtime.py services/backend/tests/test_install_process.py services/backend/tests/test_install_source_selection.py services/backend/tests/test_install_probe_ownership.py`，**91 passed**；Starlette/anyio deprecation warning保留。
+- PASS：`UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache pnpm check`（TS/Python/合同/fixtures/格式）。
+- PASS：`UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache XDG_CACHE_HOME=/workspace/.cache pnpm build`；仅应用/sidecar构建，非训练环境安装。
+- PASS：`node scripts/test-frozen.mjs`，临时cwd真实冻结sidecar资源逐字节/8文件constraints hash、DL单项/全组35来源/版本/禁执行计划、黄金编译及EOF退出0；没有真实训练/probe。
+- PASS：`pnpm test:package`，**20 passed**；仅既有包装保护回归，无新分发产物。
+- PASS：独立只读审查`/root/m0_m1_review`，12定向测试与32种选择组合核对无重复包/核心不变/单hash，未发现阻断P1/P2；审查未联网/下载/安装/执行探测。
+- PASS：`git diff --check`，计划116185字节、SHA dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43；旧规格5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190、README befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852与core/ML/CV六文件hash全部保持原值。
+- FAIL（已修正、记录保留）：unique1新测试创建命令在backend cwd重复了backend相对路径，创建/pytest找不到目标exit4；随后绝对目标创建。unique2为11pass/1fail，缺失来源实际按现有安全门抛FileNotFoundError，测试误期望ValueError；改为精确FileNotFoundError，unique3全通过，没有放松生产门或吞错。一次只读元数据字段打印误用license键KeyError，确认实际字段licenseExpression；一次旧包manifest检查误用package-manifest.json不存在，按既有文档实际builder-manifest.json核对，无重建/写包。
+
+### CI、产物与待满足条件
+
+release-checklist和remaining-critical-path已对齐父级认证邮件的同一检查点：**d2ac2bf2ba5562a85276a2a856f894a8a1cda492 / run39158015941 / 2026-10-18 19:18:44 UTC completed，check SUCCESS、desktop FAIL，各2 annotations**。失败步骤正文与根因仍未知，本片HEAD CI未知；Actions端点先前拒绝仍不重试/绕过/扩大权限，不猜根因。
+
+旧5b3源码包tar SHA `008a7d991e49111b27b85ca932206361635026b7aadd8c67f8d566bdb6620254`、builder manifest `a9d3b42f6d7111589091a450a3cb6d8b8835c7da5c1ca54a7c974baa2c505aa1`、旧portable manifest `5f26ba7bb27917e717faec81c69d98ea97e3e39064ac4490b3e65fcc012fd937`保持不变；这些旧包不含本片DL新增资源，不能当本片分发包。
+
+NOT RUN：真实wheel下载/训练环境安装/许可接受/实际ABI/import/tensor/probe/训练、真实SSH/图形桌面/原生picker/干净目标机、Windows/macOS原生验证、新CI读取或重跑、发布/部署/PR/Release。无未决外部安装写入；没有本片新拒绝动作。之前Electron sandbox及Actions拒绝保持，未绕过。真实纵向验收仍缺明确隔离目标、可信来源与许可/预算执行授权、已备环境/数据/指纹及测试窗口，详见release-checklist最小条件表；本片不请求扩权。
+
+下一项：父级复核本元数据闭包后继续剩余M6.3支持卡及远端受控安装原代码缺口；真实安装/桌面/SSH需先具备明确条件。本片正常dev push并核对远端完整SHA/clean，不改main/强推。旧CIFAR裁决及226PASS/1FAIL根因UNKNOWN、raw丢失的历史记录不回溯关闭。
+
+日志SHA256（唯一文件，失败未覆盖）：
+- `/tmp/easyai-dl-build-20261018-unique1.log` SHA256 `8539a18744775e55cdb5b05a0c02f11ca9accfac31c84fbc37f1ae4232bf0315`。
+- `/tmp/easyai-dl-check-20261018-unique1.log` SHA256 `9df741d13114dfa27ba3885fc8b8b0455394b0bc3c1c3597432ad57cd1f6e375`。
+- `/tmp/easyai-dl-frozen-20261018-unique1.log` SHA256 `598e651d8bfd55009c56cd315d848d8185d98d8ae4eb67c6d0dd2d14af4ed0c3`。
+- `/tmp/easyai-dl-metadata-20261018-pinned1.log` SHA256 `f74076efce10c3af1cb01f9510c1f091612681fdd76d07431fc52b2a62b9b292`。
+- `/tmp/easyai-dl-metadata-20261018-unique1.log` SHA256 `e857d7719019a5bd91b1bb179f0e3940926b3ced4e71152738b2ffa2c90eb7c6`。
+- `/tmp/easyai-dl-new-20261018-unique1.log` SHA256 `e6183a8e812d0793423b42ef1c4be1686e71b5e89c597623ff9f13c9ce0c7d4c`。
+- `/tmp/easyai-dl-new-20261018-unique2.log` SHA256 `b4684564bffb1ab8300fafbdc7956c0b9cb9f948ce595816c0e9fdf82de866df`。
+- `/tmp/easyai-dl-new-20261018-unique3.log` SHA256 `0c6588152ada0022a8322b793a7abd224cd2741941040f48c5d593d12938d0e6`。
+- `/tmp/easyai-dl-package-tests-20261018-unique1.log` SHA256 `060fe3cf1f1f910489fb9a3ffe177822639b146e932d255107e6035c7f2a24f3`。
+- `/tmp/easyai-dl-regression-20261018-unique1.log` SHA256 `cba03d6e3e5713b3dae703c04de8cde3f3b0f5c6f46ac3aa429f6d184bdc2252`。
+- `/tmp/easyai-dl-review-heEt45.log` SHA256 `3afefb101be7acd5b37312522beae453bf030d360c6ba6e5daea458da7638d0b`。
+- `/tmp/easyai-dl-metadata-20261018/requests.json` SHA256 `22e9fdbe896516187174315b5ae102059c111bd8f923e85b50e3cc05aa520ed9`。
+- `/tmp/easyai-dl-metadata-20261018/pinned-requests.json` SHA256 `604f4d8fecb0981c8fa6e206591fd7559d6de6d257f7c4e3b49d9adc38eab14c`。
+- `packages/training-profiles/easyai-dl-sources.json` SHA256 `3440d2f85a804f7dbf61b160ce932dd462b23c09cc0754275fd14c3b815ab0a7`。
+- `packages/training-profiles/easyai-dl-linux-cp311.lock` SHA256 `3d541537ad5d6628503bfa78c6c8ab8eb078fa1f88b2fcc8612f4dbff43e378c`。
