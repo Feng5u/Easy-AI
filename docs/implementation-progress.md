@@ -1245,3 +1245,30 @@ Main新增 backendLocation：packaged只执行resources/backend/easyai-sidecar�
 首版6项/复制/包内后端smoke曾通过，但未覆盖P1，不能据此称初包可启动；此次保全后重建和复验是因该实质新修复，不叠加计数。本轮没有新增工具拒绝或未知外部写入。electron-builder未安装/锁定且无本轮新依赖安装授权，**实际builder dir/NSIS/安装器NOT RUN**，仅配置与notice输入就绪；既有Electron sandbox拒绝仍不重试、不使用--no-sandbox/特权修复；真实桌面/干净机、Windows/NTFS、macOS/MPS、课堂/性能/签名/许可证完整审核、SSH/MNIST/数据下载/训练、真实conda bootstrap/安装、活安装重连/unknown安全解除/个人PC均NOT RUN。资源复制不替代M8.2“至少一个平台包在干净目标机真实运行”。
 
 最新已核CI仍父级认证的 `736b984b57861499f66f40a9b490080eb1f6bbb5` / run39154349633，18:31:16UTC completed，check SUCCESS、desktop FAIL，各2 annotations；失败步骤正文缺失，根因未知，不能套旧四类或归因本轮打包。866a2d6及本轮新SHA无可判定CI证据；不重跑同SHA或绕被拒Actions端点。下一项优先取得剩余desktop精确首错证据、完成真实安全桌面/干净机验证，并在明确工具依赖/许可证授权后补electron-builder实际构建；并行独立原M5/M6代码缺口继续保留，完整B未验收。无main/强推/PR/Release/部署/费用/新凭据或权限变化。
+
+## 2026-10-18 — M5 私钥认证的正常用户入口（合成验证）
+
+源码完整SHA：`8b58fd3befeb25d6a1a02955cea0f4397d7806ba`；基线 `d6bab57f2af80eb26d880c0fd855d23b532917cb`。按父级明确范围补私钥入口；单一写入者，既有worker独立只读审查。没有读取、配置或上传真实用户密钥，没有实际SSH、agent扫描、环境安装或训练。代码入口说明见 `docs/private-key-auth.md`。
+
+UI明确选择密码/私钥，口令可空；Main原生picker独占选择路径，Renderer仅能提交既有项目/身份/目标scope及口令，不能提交任意路径。Main限定普通非链接文件、64KiB、fd身份/大小/mtime、严格UTF-8，finally关闭fd并清零临时Buffer。取消picker、项目/后端变化和迟到返回不能发送凭据或发布会话。新增固定鉴权HTTP路由、内存SecretStr输入DTO（不导出为可持久化合同）；公开连接method增加private_key，继续沿用原独立host确认、单用grant、target/revision、pin、deadline、cancel tombstone及五分钟lease。接续运行只扩method枚举，保留project/user/endpoint/fingerprint约束。私钥不进工程/概要/报告/日志，SDK handler继续释放秘密引用；不可变字符串、HTTP/IPC及SDK内部内存不能保证硬擦除。
+
+**独审P2修复**：初版64KiB文件界限不能约束OpenSSH bcrypt成本，267字节合成容器可声明rounds=0xffffffff；原超时不能强杀工作线程内的KDF。只读审查以禁用decoder的spy验证，不实际运行高成本KDF。修后在SDK前解析并校验单key/容器边界，只允许none/空KDF或aes256-ctr/cbc+bcrypt、盐16–64字节、rounds 1–64，且只选择对应算法一个decoder。0/65/0xffffffff在decoder前固定拒绝，实际合成加密Ed25519可往返。原running/BUSY门保持到工作线程退出；仍不宣称硬实时crypto取消，不降强度/重写用户密钥。有限独审关闭此P2，无剩余明确新增P1/P2；其3 PASS窗口与最终测试重合，不累加。
+
+实际命令（cwd `/workspace/Easy-AI`，使用既有锁定缓存）：
+
+| 命令 | PASS / FAIL / NOT RUN与证据 |
+| --- | --- |
+| `services/backend/.venv/bin/python -m pytest services/backend/tests/test_private_key_auth.py services/backend/tests/test_connection_manager.py services/backend/tests/test_ssh_identity.py services/backend/tests/test_ssh_run_coordinator.py -q` | 最终 **111 PASS**，5.20s、1条第三方弃用warning；`/tmp/easyai-key-backend-final.log`。覆盖内存合成RSA/加密Ed25519、KDF成本前置拒绝、固定错误/秘密排除、HTTP鉴权与严格DTO、取消/host变化阻断、SDK handler释放、私钥lease接续运行。socket外连禁用 |
+| `pnpm exec vitest run apps/desktop/electron/private-key-workflow.test.mts apps/desktop/electron/session-workflow.test.mts apps/desktop/src/AuthenticatedPanel.test.mts` | **27 PASS**，1.15s；`/tmp/easyai-key-main-ui-final.log`。临时非真实key文件、原生picker注入、无身份不选取/发送、选择中取消及project变化、非普通/大文件/编码格式拒绝、UI显式选择/口令清空/迟到结果丢弃；不是实际窗口picker |
+| `pnpm check` | **PASS**；`/tmp/easyai-key-check-final.log`。TS/Main/测试TS、strict mypy52文件、94 Python格式/ruff、合同及真实Blocklyfixture漂移、Prettier |
+| `node scripts/check-contracts.mjs` | **PASS**；`/tmp/easyai-key-contracts.log`。仅公开AuthenticatedConnection的method合同同步生成；秘密输入不加入导出工程合同 |
+| `node scripts/python-task.mjs build` | **PASS**；`/tmp/easyai-key-frozen-build.log`。既有PyInstaller重冻应用后端，新模块经实际import纳入；未安装工具或训练依赖 |
+| `pnpm --filter @easyai/desktop build` | **PASS**；`/tmp/easyai-key-desktop-build.log`，既有bundle体积提示保留 |
+| `node scripts/test-frozen-ssh.mjs` | **PASS**；`/tmp/easyai-key-frozen-ssh.log`。真实冻结sidecar的SSH鉴权/DTO/固定错误/取消与scope/环境拒绝/lazy Paramiko，新私钥route合成请求验证且无outbound SSH；EOF exit0 |
+| `git diff --check`；原件bytes/hash；`git ls-remote origin refs/heads/main refs/heads/codex/demo-v0.0.0` | **PASS**。plan116185字节及SHA256 `dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43`、旧规格 `5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190`、README `befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852`均未改；推前dev=d6bab57，main=`5323f86232529efcfb52131168ad049f01b219f3`，普通dev push后另核 |
+
+中途FAIL如实记录：首baseline命令误指不存在test_ssh_client.py，exit4/未执行测试，改正确test_ssh_identity.py。新测试初4 PASS/1 FAIL因API Local fixture缺runs=None；修后路由才被真实覆盖。check先后暴露可选method TS比较、fixture Ruff重名/未用import、struct.unpack Any返回strict mypy、UI literal类型，均修正并由最终check覆盖。后端倒数一次110 PASS/1 FAIL是SDKcleanup合成Transport.auth_timeout=0，与实际connect设置预算不符；测试设1模拟真实初始化，生产保护未放宽。旧109/110及独审窗口不与最终111累加。
+
+NOT RUN/范围限制：真实用户密钥、真实SSH/远端训练/数据上传/运行中远端同步/重连、实际原生picker/Electron窗口、Windows/NTFS/干净机、环境安装/数据下载/MNIST/训练/个人PC均未执行。既有sandbox及Actions端点拒绝不重试、不绕过。旧M8便携目录仍对应7b91c46且**不含本轮功能**，未重打包、上传或发布；许可/精确来源绑定、干净Windows及distributionReady/legalReviewComplete仍未验收。源码/静态build不等于完整M5、M8或B通过。
+
+最新精确CI证据仍父级认证的 `736b984b57861499f66f40a9b490080eb1f6bbb5` / run39154349633（18:31:16UTC completed，check SUCCESS、desktop FAIL，各2 annotations），失败步骤正文缺失、根因未知；本片新SHA无可判定CI证据。不重跑同SHA/绕拒绝/猜根因。下一项沿原M5补数据上传/运行中远端同步的受控代码与合成测试，真实SSH及训练需明确最小条件授权；同时等待desktop首错证据。无main/强推/PR/Release/部署/费用/新凭据或权限变化，无本轮新增拒绝或未决外部写入。
