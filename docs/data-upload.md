@@ -8,7 +8,7 @@ Renderer 只提交 Main 授权的 data selectionId、当前project/connection/re
 
 当前硬上限为256文件、256MiB源数据、单文件100MiB、256子目录、12层、相对路径512字节、完成manifest64KiB、传输120秒；UI默认64文件/256MiB/120秒。超出限制需分批整理专用目录，本版不会静默提高预算。源目录使用已有POSIX持有目录身份/排他与无链接文件接口；symlink、特殊文件、不安全所有权/权限、隐藏项及常见密钥文件名会拒绝。**这不是内容脱敏器或完整秘密检测**：用户放在普通数据文件里的敏感内容仍可能被上传，必须只选择获准传输的课程数据。没有读取真实用户目录来测试此能力。
 
-计划只通过固定的 Linux `uname -s`、`id -u` 与 SFTP normalize('.') 核目标平台、UID和远端home，不在本机展开~，不需要训练Python/torch，不安装远端脚本或包。写入目标固定为远端home下 `.easyai/projects/<projectId>/data/<transferId>/`，目标不可由Renderer改成教师共享数据目录。只按需创建缺失的受保护父目录，不chmod已有目录；已有data目录必须有匹配project/UID的应用owner记录，否则拒绝，不接管未知文件。每次新slot必须不存在，标准SFTP非覆盖rename，不使用posix_rename、remove或递归清理回退。
+计划只通过固定的 Linux `uname -s`、`id -u` 与 SFTP normalize('.') 核目标平台、UID和远端home，不在本机展开~，不需要训练Python/torch，不安装远端脚本或包。写入目标固定为远端home下 `.easyai/projects/<projectId>/data/<transferId>/`，目标不可由Renderer改成教师共享数据目录。只按需创建缺失的受保护父目录，不chmod已有目录；首次初始化先在独占 `.data-init-<transferId>` 目录写完并回读owner记录，再标准非覆盖rename发布data根，避免中断留下未初始化共享根。中断暂存目录保留，不自动认领或删除；后续新UUID计划可独立继续。已有data目录必须有匹配project/UID的应用owner记录，否则拒绝，不接管未知文件。每次新slot必须不存在，标准SFTP非覆盖rename，不使用posix_rename、remove或递归清理回退。
 
 明确确认后，后台任务流式读取源文件、以64KiB以内块写 `.part`；源fd与路径身份再次验证、SHA256远端回读校验后非覆盖改名。全部文件再次回读核验，通过后最后写并读回 `.easyai-complete.json`。单文件/总字节/完成计数必须匹配计划才能返回COMPLETED；字节进度每秒读取。源字节预算不含协议、元数据和两轮远端回读流量；完成只证明本次文件内容核验，不是数据来源信任、Dataset可读性或训练效果，也不是远端崩溃耐久保证。
 

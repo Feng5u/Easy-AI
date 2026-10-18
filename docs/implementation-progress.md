@@ -1353,3 +1353,12 @@ NOT RUN/剩余：真实SSH/上传/服务器SFTP兼容性、真实用户目录/�
 CIFAR窄化完整性例外仍待用户答复，SAFE_PROBE_REQUIRED/unsafe_format_blocked未解除；上传SHA256不提供pickle来源信任。旧M8便携产物固定7b91c46，不含本轮及此前私钥/CIFAR/Bundle新入口，未重打包、上传或发布，distributionReady/legalReviewComplete仍false。Bundle文档澄清snapshot原样保留用户字段、导出器不主动收集数据/密钥，但不是秘密清洗器。
 
 最新精确CI为父级认证 `d2ac2bf2ba5562a85276a2a856f894a8a1cda492` / [run39158015941](https://github.com/T1doo/Easy-AI/actions/runs/39158015941)，19:18:44 UTC，check SUCCESS、desktop FAIL，各2 annotations；无失败步骤正文，根因未知。本轮新SHA无可判定CI证据。既有Actions端点与Electron sandbox拒绝均不重试、不绕过，无本轮新增拒绝/未决外部写入。无main/强推/PR/Release/部署/费用/新凭据或权限变化。
+
+
+## 2026-10-18 — 父级独审上传初始化 P2 修复
+
+源码完整SHA `c3e43414827060c0a865560f1babcf8bbe1253a6`，基线 `cc7af38150efaa1346703eedb920a59b69a9c8d8`。父级只读独审确认：原实现data先mkdir后owner写入，取消/断线可留下无marker共享根，使新UUID上传也永久拒绝；这超出“单任务partial”的已知限制。修复只改初始化：独占 `.data-init-<transferId>` 完整写owner并回读，重核parent与authority后标准非覆盖rename发布data根；未知data根仍拒绝，旧暂存不认领、不删除。发布后ACK丢失也只留下完整可验证共享根，不宣称当前任务完成。
+
+实际命令 `services/backend/.venv/bin/python -m pytest services/backend/tests/test_data_transfers.py -q`：**27 PASS**，1.33s，1第三方warning，`/tmp/easyai-transfer-init-fix.log`；新增5点覆盖mkdir后、半owner、owner回读、publish前/后的取消/中断，新UUID可完成且旧残留字节不变，既有未知目录sentinel拒绝仍通过。`UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache pnpm check` **PASS**，`/tmp/easyai-transfer-init-check.log`。独立只读针对复核 **5 PASS/22 deselected/0.21s**，与27重合不累计，确认关闭该P2，无新增明确问题。没有实际SSH/用户数据上传、新依赖或训练；仅后端两文件变动，不重跑无关UI/构建冒充新增证据。
+
+工作区仅此修复和对应文档，正常dev提交推送；main与原件不改。SFTP真实兼容性、同UID恶意/崩溃耐久、重启恢复补传仍NOT RUN/未完成，CIFAR门与既有工具拒绝不变。下一项继续独立运行中产物同步，设计已由既有worker只读复核，尚未计为交付。
