@@ -112,8 +112,11 @@
       "type": "boolean"
     },
     "method": {
-      "const": "password",
       "default": "password",
+      "enum": [
+        "password",
+        "private_key"
+      ],
       "title": "Method",
       "type": "string"
     },

@@ -300,6 +300,17 @@ def test_disconnect_resume_reauth_not_restart_and_pending_cancel_keeps_completed
     assert len(coordinator.events()) == 3
 
 
+def test_private_key_reauthentication_uses_same_owner_without_restart(setup):
+    coordinator, owner, _, current, _ = setup
+    coordinator.start()
+    coordinator.disconnect()
+    current[0] = auth_for(owner.identity).model_copy(update={"method": "private_key"})
+    port = Transport(owner)
+    coordinator.attach(current[0], port, lambda: current[0])
+    state = coordinator.poll()
+    assert state.connection_state == "connected" and owner.start_calls == 1
+
+
 @pytest.mark.parametrize("change", ["username", "project", "fingerprint", "host"])
 def test_reauth_requires_exact_original_target_and_user_before_any_io(change, setup):
     coordinator, owner, port, current, _ = setup

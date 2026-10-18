@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 import math
 import threading
 import time
-from typing import TYPE_CHECKING, Any, Callable, Protocol
+from typing import TYPE_CHECKING, Any, Callable, Protocol, Literal
 from uuid import uuid4
 
 from easyai.domain.connections import AuthenticationRequest, AuthenticatedConnection, SessionControl
@@ -15,6 +15,7 @@ from easyai.services.environment_service import EnvironmentService
 from easyai.services.environment_transport import SshProbeTransport
 from easyai.services.ssh_client import SshClient, VerifiedSshSession
 from easyai.services.ssh_identity import IdentityGrant, SshIdentityService
+from easyai.services.private_keys import load_private_key
 
 if TYPE_CHECKING:
     from easyai.domain.remote_run import RemoteRunCheckpoint, RemoteRunIdentity
@@ -62,6 +63,8 @@ def _failure_code(error: Exception) -> str:
         "SSH_TRUST_STORE_INVALID",
         "SSH_TRUST_STORE_BUSY",
         "SSH_HOST_KEY_INVALID",
+        "SSH_PRIVATE_KEY_INVALID",
+        "SSH_KEY_PASSPHRASE_REQUIRED",
     }
     code = str(error)
     return (
@@ -77,6 +80,7 @@ class _Authentication:
     grant: IdentityGrant
     generation: int
     deadline: float
+    method: Literal["password", "private_key"] = "password"
     cancel: threading.Event = field(default_factory=threading.Event)
     running: bool = True
     session: VerifiedSshSession | None = None
@@ -274,15 +278,41 @@ class ConnectionManager:
     def authenticate_password(
         self, request: AuthenticationRequest, password: str
     ) -> AuthenticatedConnection:
+        try:
+            return self._authenticate(request, password, "password")
+        finally:
+            password = ""
+
+    def authenticate_private_key(
+        self, request: AuthenticationRequest, private_key: str, passphrase: str = ""
+    ) -> AuthenticatedConnection:
+        try:
+            return self._authenticate(request, private_key, "private_key", passphrase)
+        finally:
+            private_key, passphrase = "", ""
+
+    def _authenticate(
+        self,
+        request: AuthenticationRequest,
+        secret: str,
+        method: Literal["password", "private_key"],
+        passphrase: str = "",
+    ) -> AuthenticatedConnection:
         operation: _Authentication | None = None
         session: VerifiedSshSession | None = None
         published = False
         failure: str | None = None
         info: AuthenticatedConnection | None = None
+        parsed_key: Any = None
         try:
-            if not 1 <= len(password) <= 1024 or any(ord(char) < 33 for char in request.username):
+            limit = 1024 if method == "password" else 65536
+            if (
+                not 1 <= len(secret) <= limit
+                or len(passphrase) > 1024
+                or any(ord(char) < 33 for char in request.username)
+            ):
                 raise SshFailure("SSH_AUTH_REQUEST_INVALID")
-            password.encode("utf-8")
+            secret.encode("utf-8")
             with self._mutex:
                 self._verify_project(request.project_id)
                 if self._lease is not None and self._clock() >= self._lease.expires_at:
@@ -300,7 +330,9 @@ class ConnectionManager:
                     request.project_id, request.identity_request_id, request.expected_fingerprint
                 )
                 self._verify_target(request, grant.endpoint)
-                operation = _Authentication(request, grant, self._generation, now + 25)
+                operation = _Authentication(
+                    request, grant, self._generation, now + 25, method=method
+                )
                 self._auth = operation
                 timer = self._timer_factory(25, lambda: self._timeout_auth(operation))
                 operation.timer = timer
@@ -316,9 +348,19 @@ class ConnectionManager:
                 ):
                     raise SshFailure("SSH_HOST_KEY_CHANGED")
                 remaining = min(operation.deadline, grant.expires_at) - self._clock()
-            session.authenticate_password(
-                request.username, password, operation.cancel, timeout=remaining
-            )
+            if method == "password":
+                session.authenticate_password(
+                    request.username, secret, operation.cancel, timeout=remaining
+                )
+            else:
+                parsed_key = load_private_key(secret, passphrase)
+                secret, passphrase = "", ""
+                with self._mutex:
+                    self._auth_guard(operation)
+                    remaining = min(operation.deadline, grant.expires_at) - self._clock()
+                session.authenticate_public_key(
+                    request.username, parsed_key, operation.cancel, timeout=remaining
+                )
             session.validate_probe_session()
             with self._mutex:
                 self._auth_guard(operation)
@@ -343,7 +385,7 @@ class ConnectionManager:
         except Exception as error:
             failure = _failure_code(error)
         finally:
-            password = ""
+            secret, passphrase, parsed_key = "", "", None
             with self._mutex:
                 if operation is not None:
                     if operation.timer:
@@ -386,6 +428,7 @@ class ConnectionManager:
             target_revision=request.target_revision,
             scope=lease.scope,
             username=request.username,
+            method=lease.operation.method,
             expires_in_seconds=max(1, min(300, math.ceil(lease.expires_at - self._clock()))),
         )
 

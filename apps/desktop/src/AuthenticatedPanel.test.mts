@@ -166,6 +166,61 @@ async function credentials() {
   await input("SSH 用户名", "synthetic");
   await input("SSH 密码", "synthetic-memory-only");
 }
+it("key mode explicitly invokes native selection API, clears passphrase before await and invalidates cancelled late response", async () => {
+  const s = setup(),
+    pending = deferred<AuthenticatedConnection>();
+  const authenticateKey = vi.fn(() => pending.promise);
+  s.api.authenticateKey = authenticateKey;
+  await mount(s);
+  await input("SSH 用户名", "synthetic");
+  await input("SSH 密码", "must-disappear-on-mode-change");
+  await input("认证方式", "private_key");
+  expect(s.api.authenticate).not.toHaveBeenCalled();
+  expect(authenticateKey).not.toHaveBeenCalled();
+  expect(container.textContent).not.toContain("must-disappear-on-mode-change");
+  await input("SSH 私钥口令", "synthetic-key-phrase");
+  await click("选择私钥并认证");
+  expect(authenticateKey).toHaveBeenCalledWith(
+    projectId,
+    expect.any(String),
+    identityRequestId,
+    "synthetic",
+    "synthetic-key-phrase",
+  );
+  expect(
+    container.querySelector<HTMLInputElement>('input[type="password"]')!.value,
+  ).toBe("");
+  expect(container.textContent).not.toContain("synthetic-key-phrase");
+  await click("关闭认证会话");
+  await act(async () => pending.resolve({ ...s.info, method: "private_key" }));
+  expect(s.api.cancelAuth).toHaveBeenCalled();
+  expect(container.textContent).not.toContain("已认证，固定会话");
+});
+it("unencrypted private key mode allows an empty passphrase and has no remember/file-content input", async () => {
+  const s = setup();
+  s.api.authenticateKey = vi.fn(async (_pid, rid) => ({
+    ...s.info,
+    requestId: rid,
+    method: "private_key" as const,
+  }));
+  await mount(s);
+  await input("SSH 用户名", "synthetic");
+  await input("认证方式", "private_key");
+  await click("选择私钥并认证");
+  expect(s.api.authenticateKey).toHaveBeenCalledWith(
+    projectId,
+    expect.any(String),
+    identityRequestId,
+    "synthetic",
+    "",
+  );
+  expect(container.textContent).toContain("已认证，固定会话");
+  expect(
+    container.querySelector(
+      'textarea,input[type="file"],input[type="checkbox"]',
+    ),
+  ).toBeNull();
+});
 beforeEach(() => {
   dom = new JSDOM("<!doctype html><html><body></body></html>", {
     url: "https://synthetic.test/",

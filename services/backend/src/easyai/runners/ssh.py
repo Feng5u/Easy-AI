@@ -277,7 +277,7 @@ class SshRunCoordinator:
         scope = auth.scope
         return (
             auth.authenticated is True
-            and auth.method == "password"
+            and auth.method in {"password", "private_key"}
             and auth.project_id == self.identity.project_id
             and scope.project_id == self.identity.project_id
             and auth.username == self.identity.username

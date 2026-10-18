@@ -59,6 +59,16 @@ class PasswordAuthenticationInput(Contract):
         self.password = SecretStr("")
 
 
+class PrivateKeyAuthenticationInput(Contract):
+    request: AuthenticationRequest
+    private_key: SecretStr = Field(min_length=1, max_length=65536, repr=False, exclude=True)
+    passphrase: SecretStr = Field(default=SecretStr(""), max_length=1024, repr=False, exclude=True)
+
+    def forget(self) -> None:
+        self.private_key = SecretStr("")
+        self.passphrase = SecretStr("")
+
+
 class SessionControl(Contract):
     project_id: Identifier
     connection_id: Identifier
@@ -71,5 +81,5 @@ class AuthenticatedConnection(ProfileReference):
     scope: EnvironmentScope
     username: str = Field(min_length=1, max_length=128)
     authenticated: Literal[True] = True
-    method: Literal["password"] = "password"
+    method: Literal["password", "private_key"] = "password"
     expires_in_seconds: int = Field(ge=1, le=300)

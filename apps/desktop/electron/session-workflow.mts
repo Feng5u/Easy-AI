@@ -1,5 +1,6 @@
 import type { Backend } from "./backend.mjs";
 import type { IdentityWorkflow } from "./identity-workflow.mjs";
+import { readSelectedPrivateKey } from "./private-key-file.mjs";
 import type {
   AuthenticatedConnection,
   EnvironmentCatalog,
@@ -60,6 +61,7 @@ export class SessionWorkflow {
   constructor(
     private backend: () => Backend | undefined,
     private identity: IdentityWorkflow,
+    private choosePrivateKey?: () => Promise<string | null>,
   ) {}
   private async race<T>(operation: Operation, promise: Promise<T>): Promise<T> {
     return Promise.race([
@@ -129,7 +131,8 @@ export class SessionWorkflow {
         value.targetId !== info.targetId ||
         value.targetRevision !== info.targetRevision ||
         value.authenticated !== true ||
-        value.method !== "password"
+        value.method !== info.method ||
+        (value.method !== "password" && value.method !== "private_key")
       )
         throw new Error("SSH_CONNECTION_INVALID");
       if (this.active !== operation || this.backend() !== operation.backend)
@@ -154,8 +157,11 @@ export class SessionWorkflow {
     return value;
   }
   async invoke(channel: string, args: unknown[]): Promise<unknown> {
-    if (channel === "easyai:connections:authenticate")
-      return this.authenticate(args);
+    if (
+      channel === "easyai:connections:authenticate" ||
+      channel === "easyai:connections:authenticateKey"
+    )
+      return this.authenticate(args, channel.endsWith("authenticateKey"));
     if (channel.startsWith("easyai:environments:"))
       return this.environment(channel, args);
     if (args.length !== 2) throw new Error("SSH_REQUEST_INVALID");
@@ -186,14 +192,28 @@ export class SessionWorkflow {
   }
   private async authenticate(
     args: unknown[],
+    usingKey = false,
   ): Promise<AuthenticatedConnection> {
+    const secretIsString = typeof args[4] === "string";
     let password = typeof args[4] === "string" ? args[4] : "";
+    let key = "";
     args[4] = "";
     let body:
-      { request: Record<string, unknown>; password: string } | undefined;
+      | {
+          request: Record<string, unknown>;
+          password?: string;
+          privateKey?: string;
+          passphrase?: string;
+        }
+      | undefined;
     let operation: Operation | undefined;
     try {
-      if (![5, 6].includes(args.length) || !password || password.length > 1024)
+      if (
+        ![5, 6].includes(args.length) ||
+        !secretIsString ||
+        (!usingKey && !password) ||
+        password.length > 1024
+      )
         throw new Error("SSH_REQUEST_INVALID");
       const projectId = id(args[0]),
         requestId = id(args[1]),
@@ -234,6 +254,15 @@ export class SessionWorkflow {
       };
       this.active = operation;
       await this.verify(operation);
+      if (usingKey) {
+        if (!this.choosePrivateKey)
+          throw new Error("SSH_PRIVATE_KEY_UNAVAILABLE");
+        const selected = await this.race(operation, this.choosePrivateKey());
+        await this.verify(operation);
+        if (!selected) throw new Error("SSH_AUTH_CANCELLED");
+        key = await readSelectedPrivateKey(selected);
+        await this.verify(operation);
+      }
       body = {
         request: {
           projectId,
@@ -243,23 +272,31 @@ export class SessionWorkflow {
           expectedFingerprint: target.fingerprint,
           ...profile,
         },
-        password,
+        ...(usingKey
+          ? { privateKey: key, passphrase: password }
+          : { password }),
       };
+      key = "";
       const value = await this.race(
         operation,
         operation.backend.request<AuthenticatedConnection>(
           "POST",
-          "/api/v1/connections/auth/password",
+          usingKey
+            ? "/api/v1/connections/auth/private-key"
+            : "/api/v1/connections/auth/password",
           body,
         ),
       );
       password = "";
-      body.password = "";
+      if (usingKey) {
+        body.privateKey = "";
+        body.passphrase = "";
+      } else body.password = "";
       await this.verify(operation);
       if (
         !value ||
         value.authenticated !== true ||
-        value.method !== "password" ||
+        value.method !== (usingKey ? "private_key" : "password") ||
         value.projectId !== projectId ||
         value.requestId !== requestId ||
         value.identityRequestId !== identityRequestId ||
@@ -286,7 +323,13 @@ export class SessionWorkflow {
       throw new Error("SSH_AUTH_FAILED");
     } finally {
       password = "";
-      if (body) body.password = "";
+      key = "";
+      if (body) {
+        if (usingKey) {
+          body.privateKey = "";
+          body.passphrase = "";
+        } else body.password = "";
+      }
     }
   }
   private async environment(

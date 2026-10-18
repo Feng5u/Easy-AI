@@ -12,7 +12,7 @@ export type Port = number;
 export type Hostfingerprint = string;
 export type Username = string;
 export type Authenticated = true;
-export type Method = "password";
+export type Method = "password" | "private_key";
 export type Expiresinseconds = number;
 
 export interface AuthenticatedConnection {

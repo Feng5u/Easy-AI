@@ -238,13 +238,18 @@ class VerifiedSshSession:
             password = ""
 
     def authenticate_public_key(
-        self, username: str, private_key: Any, cancel: threading.Event | None = None
+        self,
+        username: str,
+        private_key: Any,
+        cancel: threading.Event | None = None,
+        timeout: float | None = None,
     ) -> None:
         try:
             self._authenticate(
                 lambda done: self._transport.auth_publickey(username, private_key, event=done),
                 username,
                 cancel,
+                timeout,
             )
         finally:
             private_key = None

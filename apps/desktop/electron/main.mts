@@ -118,6 +118,13 @@ const workflow = new MainWorkflow(
       window.webContents.send("easyai:runs:message", message);
   },
   {
+    async privateKey() {
+      const selected = await dialog.showOpenDialog(window, {
+        title: "选择本次认证使用的 SSH 私钥（不复制、不记住）",
+        properties: ["openFile"],
+      });
+      return selected.canceled ? null : (selected.filePaths[0] ?? null);
+    },
     async importProject() {
       const source = await dialog.showOpenDialog(window, {
         title: "选择可移植工程 JSON",

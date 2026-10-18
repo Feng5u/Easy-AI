@@ -31,6 +31,8 @@ export function AuthenticatedPanel({
   target?: ConnectionProfile;
 }) {
   const passwordInput = useRef<HTMLInputElement>(null);
+  const passphraseInput = useRef<HTMLInputElement>(null);
+  const [method, setMethod] = useState<"password" | "private_key">("password");
   const [username, setUsername] = useState(target?.username ?? "");
   const [session, setSession] = useState<AuthenticatedConnection | null>(null);
   const [busy, setBusy] = useState(false);
@@ -53,6 +55,7 @@ export function AuthenticatedPanel({
         .close(projectId, owned.scope.connectionId)
         .catch(() => undefined);
     if (passwordInput.current) passwordInput.current.value = "";
+    if (passphraseInput.current) passphraseInput.current.value = "";
   }
   useEffect(() => () => invalidate(), [api, projectId, identityRequestId]);
   function expire() {
@@ -93,9 +96,19 @@ export function AuthenticatedPanel({
     };
   }, [api, projectId, session]);
   async function authenticate() {
-    let password = passwordInput.current?.value ?? "";
+    let password =
+      (method === "private_key"
+        ? passphraseInput.current
+        : passwordInput.current
+      )?.value ?? "";
     if (passwordInput.current) passwordInput.current.value = "";
-    if (!username || !password || auth.current) {
+    if (passphraseInput.current) passphraseInput.current.value = "";
+    if (
+      !username ||
+      (method === "password" && !password) ||
+      (method === "private_key" && !api.authenticateKey) ||
+      auth.current
+    ) {
       password = "";
       return;
     }
@@ -107,7 +120,9 @@ export function AuthenticatedPanel({
       if (auth.current === operation) expire();
     }, 25000);
     try {
-      const value = await api.authenticate(
+      const authenticate =
+        method === "private_key" ? api.authenticateKey! : api.authenticate;
+      const value = await authenticate(
         projectId,
         operation.requestId,
         identityRequestId,
@@ -126,7 +141,11 @@ export function AuthenticatedPanel({
       if (auth.current === operation) {
         invalidate();
         setBusy(false);
-        setMessage("认证未完成，请重新检查主机身份后再输入密码。");
+        setMessage(
+          method === "private_key"
+            ? "认证未完成或已取消选取；请重新检查主机身份后再选择私钥及输入口令。"
+            : "认证未完成，请重新检查主机身份后再输入密码。",
+        );
       }
     } finally {
       password = "";
@@ -146,7 +165,7 @@ export function AuthenticatedPanel({
           }}
         >
           <p>
-            已核对主机指纹。用户认证成功后才能检查环境。密码仅用于本次短时会话。
+            已核对主机指纹。用户认证成功后才能检查环境。密码和私钥口令仅用于本次短时会话，不记住凭据。
           </p>
           <label className="field">
             SSH 用户名
@@ -159,17 +178,55 @@ export function AuthenticatedPanel({
             />
           </label>
           <label className="field">
-            SSH 密码
-            <input
-              ref={passwordInput}
-              type="password"
-              autoComplete="off"
-              maxLength={1024}
+            认证方式
+            <select
+              value={method}
               disabled={busy || !!auth.current}
-            />
+              onChange={(event) => {
+                if (passwordInput.current) passwordInput.current.value = "";
+                if (passphraseInput.current) passphraseInput.current.value = "";
+                setMessage("");
+                setMethod(event.target.value as "password" | "private_key");
+              }}
+            >
+              <option value="password">密码</option>
+              <option value="private_key" disabled={!api.authenticateKey}>
+                私钥文件
+              </option>
+            </select>
           </label>
+          {method === "password" ? (
+            <label className="field">
+              SSH 密码
+              <input
+                ref={passwordInput}
+                type="password"
+                autoComplete="off"
+                maxLength={1024}
+                disabled={busy || !!auth.current}
+              />
+            </label>
+          ) : (
+            <>
+              <p>
+                点击认证后由系统对话框选择私钥；支持 OpenSSH、RSA/EC
+                PEM。文件内容及路径不传给页面、不写入工程或连接概要，不使用 SSH
+                agent 或自动寻找密钥。
+              </p>
+              <label className="field">
+                SSH 私钥口令（可选）
+                <input
+                  ref={passphraseInput}
+                  type="password"
+                  autoComplete="off"
+                  maxLength={1024}
+                  disabled={busy || !!auth.current}
+                />
+              </label>
+            </>
+          )}
           <button type="submit" disabled={busy || !!auth.current || !username}>
-            认证并建立短时会话
+            {method === "private_key" ? "选择私钥并认证" : "认证并建立短时会话"}
           </button>
           {busy && <p role="status">正在认证…</p>}
         </form>

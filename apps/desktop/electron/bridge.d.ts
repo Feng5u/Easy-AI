@@ -115,6 +115,14 @@ export interface DesktopAPI {
       password: string,
       target?: ConnectionTargetReference,
     ): Promise<AuthenticatedConnection>;
+    authenticateKey?(
+      projectId: string,
+      requestId: string,
+      identityRequestId: string,
+      username: string,
+      passphrase: string,
+      target?: ConnectionTargetReference,
+    ): Promise<AuthenticatedConnection>;
     cancelAuth(projectId: string, requestId: string): Promise<void>;
     close(projectId: string, connectionId: string): Promise<void>;
     current(

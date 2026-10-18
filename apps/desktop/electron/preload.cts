@@ -37,6 +37,23 @@ const api: DesktopAPI = {
         password,
         ...(target ? [target] : []),
       ),
+    authenticateKey: (
+      projectId,
+      requestId,
+      identityRequestId,
+      username,
+      passphrase,
+      target,
+    ) =>
+      ipcRenderer.invoke(
+        "easyai:connections:authenticateKey",
+        projectId,
+        requestId,
+        identityRequestId,
+        username,
+        passphrase,
+        ...(target ? [target] : []),
+      ),
     cancelAuth: (projectId, requestId) =>
       ipcRenderer.invoke("easyai:connections:cancelAuth", projectId, requestId),
     close: (projectId, connectionId) =>

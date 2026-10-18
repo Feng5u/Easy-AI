@@ -140,6 +140,35 @@ try {
     false,
   );
   const connectionId = "33333333-3333-4333-8333-333333333333";
+  const rejectedKey = await request("POST", "/connections/auth/private-key", {
+    request: {
+      ...scoped,
+      identityRequestId: scoped.requestId,
+      expectedFingerprint: "SHA256:" + "A".repeat(43),
+      username: "synthetic",
+    },
+    privateKey: "synthetic-private-key-not-a-real-key",
+    passphrase: "synthetic-private-passphrase",
+  });
+  assert.equal(rejectedKey.response.status, 503);
+  assert.equal(rejectedKey.value.error.code, "SSH_IDENTITY_PROJECT_CHANGED");
+  assert.equal(
+    JSON.stringify(rejectedKey.value).includes("synthetic-private"),
+    false,
+  );
+  const invalidKeyPath = await request(
+    "POST",
+    "/connections/auth/private-key",
+    {
+      privateKeyPath: "/synthetic-must-not-read",
+      passphrase: "synthetic-must-not-echo",
+    },
+  );
+  assert.equal(invalidKeyPath.response.status, 422);
+  assert.equal(
+    JSON.stringify(invalidKeyPath.value).includes("synthetic-must"),
+    false,
+  );
   const session = await request(
     "GET",
     `/connections/session?projectId=${scoped.projectId}&connectionId=${connectionId}`,

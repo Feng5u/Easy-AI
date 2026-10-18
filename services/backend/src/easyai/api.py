@@ -20,6 +20,7 @@ from easyai.domain.connections import (
     AuthenticationRequest,
     AuthenticatedConnection,
     PasswordAuthenticationInput,
+    PrivateKeyAuthenticationInput,
     SessionControl,
 )
 from easyai.domain.remote_execution import (
@@ -253,6 +254,30 @@ def create_app(
         finally:
             body.forget()
             password = ""
+
+    @app.post("/api/v1/connections/auth/private-key", response_model=AuthenticatedConnection)
+    async def authenticate_private_key(
+        body: PrivateKeyAuthenticationInput,
+    ) -> AuthenticatedConnection:
+        manager = local().connections()
+        request = body.request
+        private_key = body.private_key.get_secret_value()
+        passphrase = body.passphrase.get_secret_value()
+        try:
+            return await asyncio.to_thread(
+                manager.authenticate_private_key, request, private_key, passphrase
+            )
+        except asyncio.CancelledError:
+            await asyncio.shield(
+                asyncio.to_thread(
+                    manager.cancel_auth,
+                    IdentityRequest(project_id=request.project_id, request_id=request.request_id),
+                )
+            )
+            raise
+        finally:
+            body.forget()
+            private_key, passphrase = "", ""
 
     @app.post("/api/v1/connections/auth/cancel")
     async def cancel_auth(request: IdentityRequest) -> dict[str, bool]:

@@ -23,6 +23,7 @@ export const WORKFLOW_CHANNELS = [
   "easyai:connections:updateProfile",
   "easyai:local:preflight",
   "easyai:connections:authenticate",
+  "easyai:connections:authenticateKey",
   "easyai:connections:cancelAuth",
   "easyai:connections:close",
   "easyai:connections:current",
@@ -100,15 +101,21 @@ export class MainWorkflow {
       } | null>;
       exportProject(): Promise<string | null>;
       exportDiagnostic?(): Promise<string | null>;
+      privateKey?(): Promise<string | null>;
     },
   ) {
     this.identity = new IdentityWorkflow(backend);
-    this.sessions = new SessionWorkflow(backend, this.identity);
+    this.sessions = new SessionWorkflow(
+      backend,
+      this.identity,
+      files?.privateKey,
+    );
   }
   async invoke(channel: string, args: unknown[]): Promise<unknown> {
     if (
       [
         "easyai:connections:authenticate",
+        "easyai:connections:authenticateKey",
         "easyai:connections:cancelAuth",
         "easyai:connections:close",
         "easyai:connections:current",
