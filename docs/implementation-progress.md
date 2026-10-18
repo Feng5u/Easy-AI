@@ -658,3 +658,37 @@ require_local_cache 在创建远端binding和prepare前运行，未实现的客�
 本轮 **NOT RUN**：旧450/94全矩阵、scope25/84重复运行、原生Windows、实际Electron/E2E、真实SSH/SFTP/上传、数据/torch/训练/硬件、断电或目标服务器崩溃耐久。旧desktop CI失败根因仍未知，新提交CI未知，未重试被拒Actions或绕路；无新工具拒绝/不明执行。没有main写入、强推、发布、PR、付费/凭据/权限变更。
 
 下一项是实现并原生验证Windows LocalDirectory backend，包括受持handle的目录身份与reparse拒绝、owner/DACL、native kernel锁、源/目标保护发布、崩溃恢复收据和PyInstaller资源/ABI；既有ProjectLock也须在该平台的同一保护边界内实测。Linux只能继续做调用合同、故障门与POSIX回归；不能将当前能力注入或Windows跳过项算作原生支持。**Windows SSH仍不可用，M5整体、A、B均未验收。**
+
+## 2026-10-18 — M5 Windows 原生存储实现与待执行的 NTFS 验证门
+
+代码提交 `56a8d26f55c4bd1b00e0c24732117137d50debba`，父提交 `a4609dc60060d13e34f751fd2dd4615d2e86678d`。开始/提交前核对开发分支 `codex/demo-v0.0.0`、origin `https://github.com/T1doo/Easy-AI.git`；远端开发分支仍为父提交，远端 main 仍为计划基线 `5323f86232529efcfb52131168ad049f01b219f3`。保留前轮文件，只接续既有 WIP；单写入者，既有代理只读审查。本切片不是 M5 或 Windows 支持验收。
+
+新增真正调用 Windows API 的实验后端 `security/windows_store.py`，不是 POSIX 别名：显式 x64/Windows 固定宽度 ABI；读取当前 token SID，不提权；仅本地固定 NTFS 且有 persistent ACL；从卷根逐组件持有目录 handle，Native RootDirectory 相对打开，拒绝 reparse/junction、非普通文件、delete pending、不同卷和文件身份变化。GetSecurityInfo 检查 owner/DACL，拒绝 NULL/未知 ACE、不受信主体的危险写入/替换权限，既有不兼容 ACL 直接拒绝，不修 ACL 或 chmod。Windows 单组件名称拒绝路径逃逸、ADS、DOS 设备别名及尾点/空格。当前保守信任边界仅当前 SID、SYSTEM 和 Administrators；真实系统目录 owner/ACL 是否满足也必须由原生执行给出证据，不能假定所有 Windows 安装均兼容。
+
+文件 HANDLE→CRT fd 在每个结果上有唯一所有者，非继承，转换前失败 CloseHandle、转换后失败只关 CRT fd。Native 发布分别使用不覆盖 hard-link 与 replace rename；检查源/已有目标，文件 flush→原生发布→文件 flush→目录 FlushFileBuffers，返回值与 IO_STATUS_BLOCK 都必须明确成功。未确认、pending 或 flush 失败不发成功收据、不回退路径操作。**真实 NTFS 目录 FlushFileBuffers 能否成立尚未执行；若失败就是能力阻塞，不吞错或以文件刷盘代替目录收据。**
+
+永久 LockFileEx 内核锁不 unlink，不靠 PID/过期文件恢复。Windows owner lock 先完整写入并发布与既有 ProjectLock 相同 MAGIC，再在锁内读取；旧空锁拒绝。LocalDirectory 增加 owner_lock，POSIX 分支继续委托原 ProjectLock；coordinator 消费同一目录的 owner lock。EventJournal 新增可选借用 LocalDirectory，使用该目录打开/身份核验/内核 owner lock/刷盘，mutex 与 writer lock 下 seek EOF 后追加；coordinator 自建 journal 已接入。旧无 directory 的本地 API 路径保持既有实现。
+
+**生产 factory/require_local_cache 仍只允许 POSIX，Windows 默认拒绝完全保留。** 实验 backend 仅测试显式注入，未给用户添加绕过开关。检查 RunService 后确认仍有前置缺口：root.resolve、`.runs.lock` 的旧 ProjectLock、catalog 的 ProjectService.atomic_write，以及 RunService 注入的 application EventJournal 尚未使用受保护 WindowsDirectory。不能仅因私有 coordinator journal 已迁移便开启 Windows；这些路径的保护/发布、原生 ACL/身份替换竞态、崩溃耐久、冻结 ABI 都仍待完成。Linux 注入与字节布局断言不等于实际 Windows 调用验证。
+
+新增六项 Windows 专项测试：真实 NTFS 文件身份/非覆盖与替换/CRT 所有权/目录刷盘、受保护 journal 重开与排他、legacy marker 拒绝、有限标准库子进程跨进程锁排他及 kill 后释放、测试自有 junction 拒绝、真实本地缓存配合原有合成端点的 lost-ACK 恢复只 inspect 不二次 start。无真实 SSH/网络/训练；junction 使用固定 mklink /J 和受限测试路径，不启用 symlink 权限、不改 ACL。Linux 明确 skip，Windows 上 ACL/卷/flush 不成立则 FAIL，不转换为 skip。该测试集还没有覆盖全部原生替换/断电/ACL攻击矩阵。
+
+既有 Windows CI job 新增 native readiness（3分钟）、PyInstaller（4分钟）、冻结 HTTP/资源 smoke（2分钟），总 job 仍15分钟、contents:read、未加 runner/权限/付费。native gate 与冻结构建在非取消时分别尝试；smoke 只在冻结构建成功后执行，即使 native gate FAIL 也不把独立冻结检查隐藏。新增 hidden-import 确保实验模块进入冻结包，**本机 Linux 包含该模块不证明 WinDLL/CRT 原生冻结 ABI 已通过**。push 仅触发现有授权的有界免费 CI；本机没有查询或重试被拒 Actions API，结果未知。
+
+独审发现并实修：根 handle 校验失败曾泄漏；owner lock 错 MAGIC 后重复路径核验可能阻止 fd 清理；NtSetInformationFile 返回0但 IOSB失败曾可能误报成功。现在根统一 `_keep`，锁清理直接关闭 owned fd，所有 Native 完成收据严格核双方。独审独跑39合同 PASS，确认此前P2关闭、未发现新的明确P1/P2。新增 native 恢复测试的错误预期也经独审 POSIX复现后纠正：新 lease inspect 正常应恢复 RUNNING/acknowledged，start/stage 保持各1；没有人为制造二次失败来满足错误断言。审查不等于 Windows 执行。
+
+实际命令（工作目录 `/workspace/Easy-AI`；pnpm Python子任务设置 `UV_CACHE_DIR=/workspace/.uv-cache UV_PYTHON_INSTALL_DIR=/workspace/.python XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/.cache`）：
+
+| 命令 | 最终结果与范围 |
+| --- | --- |
+| `services/backend/.venv/bin/pytest -q services/backend/tests/test_windows_storage_contract.py services/backend/tests/test_windows_native_store.py services/backend/tests/test_event_journal.py services/backend/tests/test_ssh_run_coordinator.py services/backend/tests/test_remote_artifacts.py services/backend/tests/test_remote_run_api.py` | **155 PASS /6 SKIP**，10.98秒；39纯策略/ABI/调用故障与所有权合同，加受影响 journal/coordinator/artifact/API 回归。6项全部是 Windows 原生用例，在 Linux 未执行，不能算支持通过 |
+| `services/backend/.venv/bin/pytest -q services/backend/tests/test_windows_storage_contract.py services/backend/tests/test_windows_native_store.py`（最终小修后） | **39 PASS /6 SKIP**，0.09秒，与上述窗口重合，不加总；含返回0但 IOSB failed/pending 的8分支和错MAGIC清理fd回归。Linux实际文件仅证明资源所有权，不是 Windows 内核锁 |
+| `pnpm check` | **PASS**；严格 mypy45源文件、ruff/格式、TS、合同/Blockly fixture漂移与Prettier。未改DTO/依赖/lockfile/UI |
+| `node scripts/python-task.mjs build`、`node scripts/test-frozen-ssh.mjs` | **PASS**；Linux PyInstaller明确分析 experimental hidden import；冻结 HTTP 鉴权/严格DTO/脱敏拒绝/资源逐字比对/EOF退出0，无有效远端操作 |
+| `git diff --check`、三原件 byte/hash | **PASS**；计划116185字节 SHA256 `dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43`；原规格 `5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190`；README `befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852`。均未覆盖 |
+
+中途FAIL：首次 pnpm check 未带既有workspace缓存，uv尝试只读默认目录而失败；设置上述缓存后严格mypy发现动态 CRT 返回 Any，显式int转换后完整check通过。直接从仓库根执行mypy未加载后端strict配置的早先PASS不作为strict证据。未放宽规则或安全门。
+
+**NOT RUN / 阻塞状态**：当前执行器是 Linux；原生 Windows NTFS/ACL/多进程/异常退出/junction/冻结 ABI 等待新增 Windows CI 实际执行，结果 **pending/unknown**，不是被拒后绕路。旧desktop CI具体失败步骤/根因仍未知；原 Actions Forbidden 与 Electron sandbox 拒绝均未重试、未绕过。真实 SSH/SFTP/上传/数据/torch/训练/硬件、实际 Electron/E2E、断电耐久未运行；没有安装训练环境或用合成结果冒充训练。旧450/94完整矩阵和无改动桌面构建未重复。
+
+下一项：先取得新增 Windows CI 的实际可读步骤证据并处理原生失败；同时将 RunService 全局锁/catalog/application journal 纳入同一 Windows 保护边界并补齐替换/崩溃测试。在这些证据具备前默认门继续关闭。无 main 写入、强推、部署、Release、PR、Feng5u写入或新权限/凭据/付费；**M5整体、A、B均未验收，不能宣称 demo v0.0.0 已完成。**
