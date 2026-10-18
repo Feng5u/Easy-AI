@@ -1,0 +1,26 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "blockId": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Blockid",
+      "type": "string"
+    },
+    "workspace": {
+      "enum": [
+        "data",
+        "model",
+        "training"
+      ],
+      "title": "Workspace",
+      "type": "string"
+    }
+  },
+  "required": [
+    "blockId",
+    "workspace"
+  ],
+  "title": "Origin",
+  "type": "object"
+}

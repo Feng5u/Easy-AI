@@ -1,0 +1,106 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "artifactId": {
+      "title": "Artifactid",
+      "type": "string"
+    },
+    "runId": {
+      "title": "Runid",
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "figure",
+        "model",
+        "log",
+        "metrics"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "relativePath": {
+      "title": "Relativepath",
+      "type": "string"
+    },
+    "mimeType": {
+      "title": "Mimetype",
+      "type": "string"
+    },
+    "sizeBytes": {
+      "minimum": 0,
+      "title": "Sizebytes",
+      "type": "integer"
+    },
+    "sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Sha256",
+      "type": "string"
+    },
+    "producerBlockId": {
+      "title": "Producerblockid",
+      "type": "string"
+    },
+    "contributorBlockIds": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Contributorblockids",
+      "type": "array"
+    },
+    "phase": {
+      "anyOf": [
+        {
+          "enum": [
+            "before",
+            "epoch_end",
+            "after"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Phase"
+    },
+    "epoch": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Epoch"
+    },
+    "syncState": {
+      "enum": [
+        "pending",
+        "syncing",
+        "ready",
+        "error"
+      ],
+      "title": "Syncstate",
+      "type": "string"
+    }
+  },
+  "required": [
+    "artifactId",
+    "runId",
+    "kind",
+    "relativePath",
+    "mimeType",
+    "sizeBytes",
+    "sha256",
+    "producerBlockId",
+    "contributorBlockIds",
+    "syncState"
+  ],
+  "title": "ArtifactRecord",
+  "type": "object"
+}

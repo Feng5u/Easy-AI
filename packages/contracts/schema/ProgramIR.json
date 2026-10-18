@@ -1,0 +1,178 @@
+{
+  "$defs": {
+    "BlockIR": {
+      "additionalProperties": false,
+      "properties": {
+        "typeId": {
+          "title": "Typeid",
+          "type": "string"
+        },
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        },
+        "fields": {
+          "additionalProperties": true,
+          "title": "Fields",
+          "type": "object"
+        },
+        "inputs": {
+          "additionalProperties": {
+            "items": {
+              "$ref": "#/$defs/BlockIR"
+            },
+            "type": "array"
+          },
+          "title": "Inputs",
+          "type": "object"
+        }
+      },
+      "required": [
+        "typeId",
+        "origin",
+        "fields",
+        "inputs"
+      ],
+      "title": "BlockIR",
+      "type": "object"
+    },
+    "Origin": {
+      "additionalProperties": false,
+      "properties": {
+        "blockId": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Blockid",
+          "type": "string"
+        },
+        "workspace": {
+          "enum": [
+            "data",
+            "model",
+            "training"
+          ],
+          "title": "Workspace",
+          "type": "string"
+        }
+      },
+      "required": [
+        "blockId",
+        "workspace"
+      ],
+      "title": "Origin",
+      "type": "object"
+    },
+    "SymbolEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "transform",
+            "dataset",
+            "dataloader",
+            "model_class"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "role": {
+          "anyOf": [
+            {
+              "enum": [
+                "train",
+                "test"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Role"
+        },
+        "workspace": {
+          "enum": [
+            "data",
+            "model"
+          ],
+          "title": "Workspace",
+          "type": "string"
+        },
+        "registered": {
+          "title": "Registered",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "name",
+        "workspace",
+        "registered"
+      ],
+      "title": "SymbolEntry",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "irVersion": {
+      "const": 1,
+      "default": 1,
+      "title": "Irversion",
+      "type": "integer"
+    },
+    "symbols": {
+      "items": {
+        "$ref": "#/$defs/SymbolEntry"
+      },
+      "title": "Symbols",
+      "type": "array"
+    },
+    "transforms": {
+      "items": {
+        "$ref": "#/$defs/BlockIR"
+      },
+      "title": "Transforms",
+      "type": "array"
+    },
+    "datasets": {
+      "items": {
+        "$ref": "#/$defs/BlockIR"
+      },
+      "title": "Datasets",
+      "type": "array"
+    },
+    "dataloaders": {
+      "items": {
+        "$ref": "#/$defs/BlockIR"
+      },
+      "title": "Dataloaders",
+      "type": "array"
+    },
+    "model": {
+      "$ref": "#/$defs/BlockIR"
+    },
+    "training": {
+      "$ref": "#/$defs/BlockIR"
+    }
+  },
+  "required": [
+    "symbols",
+    "transforms",
+    "datasets",
+    "dataloaders",
+    "model",
+    "training"
+  ],
+  "title": "ProgramIR",
+  "type": "object"
+}

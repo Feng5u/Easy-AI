@@ -1,0 +1,34 @@
+body {
+  margin: 0;
+  background: #f5f6f2;
+  color: #203a35;
+  font:
+    17px/1.6 system-ui,
+    sans-serif;
+}
+main {
+  max-width: 900px;
+  margin: 12vh auto;
+  padding: 40px;
+}
+h1 {
+  font-size: 46px;
+  letter-spacing: -2px;
+}
+p.eyebrow {
+  font-size: 13px;
+  letter-spacing: 3px;
+  color: #54796d;
+}
+nav {
+  display: flex;
+  gap: 16px;
+  margin: 40px 0;
+}
+button {
+  border: 1px solid #ced8cf;
+  border-radius: 8px;
+  padding: 14px 30px;
+  background: white;
+  color: #667a70;
+}

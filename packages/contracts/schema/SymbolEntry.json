@@ -1,0 +1,60 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "transform",
+        "dataset",
+        "dataloader",
+        "model_class"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "role": {
+      "anyOf": [
+        {
+          "enum": [
+            "train",
+            "test"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Role"
+    },
+    "workspace": {
+      "enum": [
+        "data",
+        "model"
+      ],
+      "title": "Workspace",
+      "type": "string"
+    },
+    "registered": {
+      "title": "Registered",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "id",
+    "kind",
+    "name",
+    "workspace",
+    "registered"
+  ],
+  "title": "SymbolEntry",
+  "type": "object"
+}
