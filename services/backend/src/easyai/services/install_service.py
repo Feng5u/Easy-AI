@@ -150,21 +150,26 @@ class InstallService:
             self._jobs[job_id] = recovered
             self._recovered.add(job_id)
 
-    def _saved_jobs(self) -> dict[str, tuple[InstallJob, str]]:
-        """Bounded read-only ledger replay. Never acquire a writer or repair tails."""
+    def _ledger_slots(self) -> list[Path]:
+        """Every durable directory occupies a slot, including interrupted empty ones."""
         root = self.app_root / "install-jobs"
         if not root.exists() and not root.is_symlink():
-            return {}
+            return []
         if root.is_symlink() or not root.is_dir():
             raise ValueError("INSTALL_LEDGER_FORBIDDEN")
         with os.scandir(root) as entries:
             paths = [Path(entry.path) for entry in islice(entries, 65)]
         if len(paths) > 64:
             raise ValueError("INSTALL_JOB_LIMIT")
-        result = {}
         for path in paths:
             if path.is_symlink() or not path.is_dir() or str(UUID(path.name)) != path.name:
                 raise ValueError("INSTALL_LEDGER_FORBIDDEN")
+        return paths
+
+    def _saved_jobs(self) -> dict[str, tuple[InstallJob, str]]:
+        """Bounded read-only ledger replay. Never acquire a writer or repair tails."""
+        result = {}
+        for path in self._ledger_slots():
             journal_path = path / "events.jsonl"
             if not journal_path.exists():
                 # An interrupted exclusive mkdir before the first durable event is
@@ -669,9 +674,22 @@ class InstallService:
                     else "INSTALL_EXECUTION_NOT_ENABLED",
                 ],
             )
-            if len(self._jobs) >= 64:
-                raise ValueError("INSTALL_JOB_LIMIT")
-            self._record(job)  # Confirmation is durable before becoming visible.
+            # Share the existing short commit lock with source commits and
+            # execution WAL. Count durable slots under it, through exclusive
+            # mkdir and the first event; an empty crash directory still counts.
+            registration = ProjectLock(self.app_root / ".install-source.lock")
+            try:
+                try:
+                    registration.verify()
+                except Exception:
+                    raise ValueError("INSTALL_SOURCE_BUSY") from None
+                self._verify_root()
+                if len(self._ledger_slots()) >= 64:
+                    raise ValueError("INSTALL_JOB_LIMIT")
+                registration.verify()
+                self._record(job)  # Durable reservation before becoming visible.
+            finally:
+                registration.close()
             self._jobs[job.job_id] = job
             self._by_plan[plan.plan_id] = job.job_id
             self._active[plan.environment_id] = job.job_id

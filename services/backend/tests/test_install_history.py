@@ -142,6 +142,49 @@ def test_current_unknown_view_is_conservative_and_tail_is_not_repaired(tmp_path)
     service.close()
 
 
+def test_crashed_empty_directory_keeps_last_slot_after_single_instance_restart(
+    tmp_path, monkeypatch
+):
+    first = InstallService(tmp_path)
+    for _ in range(63):
+        saved(first, "FAILED")
+    plan = first.plan(request())
+
+    def failed_first_event(*args, **kwargs):
+        raise OSError("synthetic loss after exclusive mkdir, before first record")
+
+    with monkeypatch.context() as scoped:
+        scoped.setattr("easyai.services.install_service.EventJournal", failed_first_event)
+        with pytest.raises(ValueError, match="INSTALL_LEDGER_WRITE_FAILED"):
+            first.confirm(confirmation(plan))
+    directories = list((tmp_path / "install-jobs").iterdir())
+    empty = [p for p in directories if not (p / "events.jsonl").exists()]
+    assert len(directories) == 64 and len(empty) == 1
+    assert not first._workers and not first._leases and not first._executing
+    for journal in first._journals.values():
+        journal.close()
+    first._journals.clear()
+    first._closed = True
+    before = snapshot(tmp_path)
+    empty_identity = empty[0].stat().st_ino
+    recovered = InstallService(tmp_path)
+    try:
+        assert len(recovered.history().entries) == 63
+        next_plan = recovered.plan(request())
+        with pytest.raises(ValueError, match="INSTALL_JOB_LIMIT"):
+            recovered.confirm(confirmation(next_plan))
+        assert len(list((tmp_path / "install-jobs").iterdir())) == 64
+        assert empty[0].stat().st_ino == empty_identity and not list(empty[0].iterdir())
+        assert snapshot(tmp_path) == before
+        assert len(recovered.history().entries) == 63
+        assert not recovered._persistence_failed
+    finally:
+        recovered.close()
+    reopened = InstallService(tmp_path)
+    assert len(reopened.history().entries) == 63
+    reopened.close()
+
+
 def test_history_limits_identity_and_mutation_are_fail_closed(tmp_path):
     service = InstallService(tmp_path)
     job = saved(service, "FAILED")
@@ -221,3 +264,51 @@ def test_history_and_startup_stop_directory_enumeration_at_65(tmp_path, monkeypa
             InstallService(tmp_path)
         assert len(consumed) == 65
     service.close()
+
+
+def test_last_slot_registration_is_atomic_under_existing_shared_commit_lock(tmp_path, monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+
+    ledger = tmp_path / "install-jobs"
+    ledger.mkdir()
+    for _ in range(63):
+        (ledger / str(uuid4())).mkdir()
+    first, second = InstallService(tmp_path), InstallService(tmp_path)
+    first_plan, second_plan = first.plan(request()), second.plan(request())
+    entered, release = threading.Event(), threading.Event()
+    original = first._record
+
+    def held_record(job):
+        entered.set()
+        assert release.wait(5)
+        original(job)
+
+    monkeypatch.setattr(first, "_record", held_record)
+    try:
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            pending = pool.submit(first.confirm, confirmation(first_plan))
+            try:
+                assert entered.wait(5)
+                assert len(list(ledger.iterdir())) == 63
+                with pytest.raises(ValueError, match="INSTALL_SOURCE_BUSY"):
+                    second.confirm(confirmation(second_plan))
+                assert not second._jobs and not second._persistence_failed
+            finally:
+                release.set()
+            job = pending.result(timeout=5)
+        assert len(list(ledger.iterdir())) == 64
+        assert first.confirm(confirmation(first_plan)).job_id == job.job_id
+        with pytest.raises(ValueError, match="INSTALL_JOB_LIMIT"):
+            second.confirm(confirmation(second_plan))
+        assert len(list(ledger.iterdir())) == 64 and not second._persistence_failed
+        assert len(first.history().entries) == len(second.history().entries) == 1
+        assert not first._workers and not second._workers
+        assert not first.root.exists()
+    finally:
+        release.set()
+        first.close()
+        second.close()
+    reopened = InstallService(tmp_path)
+    assert len(reopened.history().entries) == 1
+    assert len(list(ledger.iterdir())) == 64
+    reopened.close()
