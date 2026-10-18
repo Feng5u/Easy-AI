@@ -448,3 +448,51 @@ def test_consumed_start_lost_ack_explicit_fresh_resume_never_restarts(harness):
     wait_for(lambda: api.get(base).json(), lambda r: r["syncState"] == "error")
     assert endpoint.commands.count("--start") == 1
     assert len((endpoint.run_base / run_id / "fixture-starts").read_text().splitlines()) == 1
+
+
+def test_ssh_cancel_scope_commits_after_core_lock_and_rejects_project_switch(harness, monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+    from contextlib import contextmanager
+    from easyai.domain.connections import SessionControl
+    from easyai.domain.remote_execution import RemoteRunStartRequest
+
+    workspace, endpoint, api, project = harness
+    _, _, request = binding(harness)
+    bound, _, _, _, evidence = workspace._remote_bindings[request["bindingId"]]
+    auth = workspace.connections().current(
+        SessionControl(project_id=project.project_id, connection_id=bound.connection_id)
+    )
+    run = workspace.runs.remote.prepare(
+        workspace._projects[project.project_id],
+        RemoteRunStartRequest.model_validate(request),
+        "scope-before",
+        bound,
+        auth,
+        evidence,
+    )
+    core = workspace.runs.remote.core(run.run_id)
+    entered, release = threading.Event(), threading.Event()
+    original = workspace.run_commit_scope
+
+    @contextmanager
+    def paused(scope):
+        # The request has acquired the real coordinator lock, but has not taken WS.
+        assert core._mutex._is_owned() and not workspace._mutex._is_owned()
+        entered.set()
+        assert release.wait(2)
+        with original(scope):
+            yield
+
+    monkeypatch.setattr(workspace, "run_commit_scope", paused)
+    with ThreadPoolExecutor() as pool:
+        response = pool.submit(api.post, f"/api/v1/runs/{run.run_id}/cancel")
+        assert entered.wait(2)
+        folder = endpoint.run_base.parent / "other-scope"
+        folder.mkdir()
+        workspace.create(workspace.select("project", folder).selection_id, "B", "blank")
+        release.set()
+        result = response.result(3)
+    assert result.status_code == 404, result.text
+    assert core.checkpoint().cancel_state == "none" and not core.checkpoint().cancelled_before_start
+    assert workspace.runs.get(run.run_id).status == "CREATED"
+    assert not endpoint.commands

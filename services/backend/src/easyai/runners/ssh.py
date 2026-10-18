@@ -5,6 +5,7 @@ This module never infers remote exit from a disconnected/closed SSH connection.
 """
 
 from collections.abc import Callable
+from contextlib import nullcontext
 from dataclasses import dataclass
 import hashlib
 import json
@@ -13,7 +14,7 @@ from pathlib import Path
 import stat
 import threading
 import time
-from typing import TYPE_CHECKING, Any, BinaryIO, Literal, Protocol
+from typing import TYPE_CHECKING, Any, BinaryIO, Literal, Protocol, ContextManager
 from uuid import uuid4
 
 from easyai.domain.connections import AuthenticatedConnection
@@ -468,26 +469,29 @@ class SshRunCoordinator:
 
         return self._operation(perform)
 
-    def request_cancel(self) -> RemoteRunCheckpoint:
+    def request_cancel(
+        self, commit_scope: Callable[[], ContextManager[None]] | None = None
+    ) -> RemoteRunCheckpoint:
         with self._mutex:
-            self._verify_store()
-            if self._checkpoint.execution_state not in TERMINAL:
-                before = self._checkpoint.model_copy(deep=True)
-                if self._checkpoint.start_outcome == "not_attempted":
-                    marker = self.root / "start-intent.json"
-                    if marker.exists() or marker.is_symlink():
-                        raise RemoteProtocolError("REMOTE_START_INTENT_CONFLICT")
-                    self._checkpoint.cancelled_before_start = True
-                    self._checkpoint.execution_state = "CANCELLED"
-                    self._checkpoint.cancel_state = "resolved"
-                else:
-                    self._checkpoint.cancel_state = "pending"
-                try:
-                    self._persist()  # Once start may have executed, this is intent only.
-                except BaseException:
-                    self._checkpoint = before
-                    raise
-            return self._checkpoint.model_copy(deep=True)
+            with commit_scope() if commit_scope is not None else nullcontext():
+                self._verify_store()
+                if self._checkpoint.execution_state not in TERMINAL:
+                    before = self._checkpoint.model_copy(deep=True)
+                    if self._checkpoint.start_outcome == "not_attempted":
+                        marker = self.root / "start-intent.json"
+                        if marker.exists() or marker.is_symlink():
+                            raise RemoteProtocolError("REMOTE_START_INTENT_CONFLICT")
+                        self._checkpoint.cancelled_before_start = True
+                        self._checkpoint.execution_state = "CANCELLED"
+                        self._checkpoint.cancel_state = "resolved"
+                    else:
+                        self._checkpoint.cancel_state = "pending"
+                    try:
+                        self._persist()  # Once start may have executed, this is intent only.
+                    except BaseException:
+                        self._checkpoint = before
+                        raise
+                return self._checkpoint.model_copy(deep=True)
 
     def poll(self) -> RemoteRunCheckpoint:
         return self._operation(self._poll)

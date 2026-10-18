@@ -3,7 +3,7 @@ import asyncio
 import time
 import re
 from pathlib import Path
-from typing import Literal
+from typing import Literal, TypeVar, Callable, Any
 from uuid import uuid4
 from collections.abc import AsyncIterator
 
@@ -37,6 +37,7 @@ from easyai.domain.contracts import (
     CompileRequest,
     CompileResponse,
     Contract,
+    Event,
     ProjectDocument,
     Run,
     ArtifactRecord,
@@ -57,7 +58,7 @@ from easyai.domain.ssh import (
 from easyai.domain.ssh import SshFailure
 from easyai.compiler.pipeline import compile_project
 from easyai.services.run_service import RunService
-from easyai.services.local_workspace import LocalWorkspace
+from easyai.services.local_workspace import LocalWorkspace, RunScope
 from easyai.services.run_views import RunViews
 
 
@@ -289,7 +290,14 @@ def create_app(
         offset: int = Query(default=0, ge=0),
         limit: int = Query(default=25, ge=1, le=50),
     ) -> list[Run]:
-        return await asyncio.to_thread(local().history, project_id, offset, limit)
+        generation = await asyncio.to_thread(local().project_generation, project_id)
+        try:
+            values = await asyncio.to_thread(local().history, project_id, offset, limit)
+        except Exception:
+            local().verify_project_generation(project_id, generation)
+            raise
+        local().verify_project_generation(project_id, generation)
+        return values
 
     @app.put("/api/v1/projects/{project_id}", response_model=ProjectSession)
     async def save_project(project_id: str, request: SaveRequest) -> ProjectSession:
@@ -329,34 +337,62 @@ def create_app(
         result = (await asyncio.to_thread(compile_project, request.project)).result
         return CompileResponse(**result.model_dump(), request_id=request.request_id)
 
-    def run_store(run_id: str) -> RunService:
+    def run_store(run_id: str) -> tuple[RunService, RunScope | None]:
         if runs is None:
             raise HTTPException(status_code=404, detail="Run store is not configured")
         try:
-            if workspace is not None:
-                workspace.require_run(run_id)
-            runs.get(run_id)
+            scope = workspace.run_scope(run_id) if workspace is not None else None
+            if workspace is None:
+                runs.get(run_id)
         except KeyError:
             raise HTTPException(status_code=404, detail="Unknown run") from None
-        return runs
+        return runs, scope
+
+    T = TypeVar("T")
+
+    def scoped_read(scope: RunScope | None, action: Callable[..., T], *args: Any) -> T:
+        if workspace is not None and scope is not None:
+            return workspace.read_run(scope, action, *args)
+        return action(*args)
+
+    def deliver(scope: RunScope | None, value: T) -> T:
+        if workspace is not None and scope is not None:
+            workspace.verify_run_scope(scope)
+        return value
+
+    async def read_response(scope: RunScope | None, action: Callable[..., T], *args: Any) -> T:
+        try:
+            value = await asyncio.to_thread(scoped_read, scope, action, *args)
+        except Exception:
+            deliver(scope, None)  # Recheck after await before forwarding even an error.
+            raise
+        return deliver(scope, value)
+
+    def scoped_cancel(service: RunService, scope: RunScope | None, run_id: str) -> Run:
+        if workspace is not None and scope is not None:
+            return workspace.cancel_run(scope)
+        return service.cancel(run_id)
 
     @app.get("/api/v1/runs/{run_id}")
     async def run_status(run_id: str) -> dict[str, object]:
-        service = await asyncio.to_thread(run_store, run_id)
-        return (await asyncio.to_thread(service.get, run_id)).model_dump(by_alias=True)
+        service, scope = await asyncio.to_thread(run_store, run_id)
+        return (await read_response(scope, service.get, run_id)).model_dump(by_alias=True)
 
     @app.post("/api/v1/runs/{run_id}/cancel")
     async def cancel_run(run_id: str) -> dict[str, object]:
-        service = await asyncio.to_thread(run_store, run_id)
+        service, scope = await asyncio.to_thread(run_store, run_id)
         try:
-            return (await asyncio.to_thread(service.cancel, run_id)).model_dump(by_alias=True)
+            return deliver(
+                scope, await asyncio.to_thread(scoped_cancel, service, scope, run_id)
+            ).model_dump(by_alias=True)
         except ValueError as error:
+            deliver(scope, None)
             raise HTTPException(status_code=409, detail=str(error)) from None
 
     @app.get("/api/v1/runs/{run_id}/source", response_model=RunSource)
     async def run_source(run_id: str) -> RunSource:
-        service = await asyncio.to_thread(run_store, run_id)
-        return await asyncio.to_thread(RunViews(service).source, run_id)
+        service, scope = await asyncio.to_thread(run_store, run_id)
+        return await read_response(scope, RunViews(service).source, run_id)
 
     @app.get("/api/v1/runs/{run_id}/logs", response_model=RunLogs)
     async def run_logs(
@@ -364,20 +400,20 @@ def create_app(
         stdoutAfter: int = Query(default=0, ge=0),
         stderrAfter: int = Query(default=0, ge=0),
     ) -> RunLogs:
-        service = await asyncio.to_thread(run_store, run_id)
-        return await asyncio.to_thread(RunViews(service).logs, run_id, stdoutAfter, stderrAfter)
+        service, scope = await asyncio.to_thread(run_store, run_id)
+        return await read_response(scope, RunViews(service).logs, run_id, stdoutAfter, stderrAfter)
 
     @app.get("/api/v1/runs/{run_id}/artifacts", response_model=list[ArtifactRecord])
     async def run_artifacts(run_id: str) -> list[ArtifactRecord]:
-        service = await asyncio.to_thread(run_store, run_id)
-        return await asyncio.to_thread(RunViews(service).artifacts, run_id)
+        service, scope = await asyncio.to_thread(run_store, run_id)
+        return await read_response(scope, RunViews(service).artifacts, run_id)
 
     @app.get("/api/v1/runs/{run_id}/artifacts/{artifact_id}/content")
     async def run_image(run_id: str, artifact_id: str) -> Response:
-        service = await asyncio.to_thread(run_store, run_id)
-        content = await asyncio.to_thread(RunViews(service).image, run_id, artifact_id)
+        service, scope = await asyncio.to_thread(run_store, run_id)
+        content = await read_response(scope, RunViews(service).image, run_id, artifact_id)
         return Response(
-            content,
+            deliver(scope, content),
             media_type="image/png",
             headers={"X-Content-Type-Options": "nosniff", "Cache-Control": "no-store"},
         )
@@ -386,30 +422,36 @@ def create_app(
     async def run_events(
         run_id: str, request: Request, after: int = Query(default=0, ge=0)
     ) -> StreamingResponse:
-        service = await asyncio.to_thread(run_store, run_id)
+        service, scope = await asyncio.to_thread(run_store, run_id)
+
+        def batch(cursor: int) -> tuple[list[Event], bool]:
+            events = service.events(run_id, cursor)
+            current = service.get(run_id)
+            settled = service.remote.settled(current)
+            if settled:
+                events = service.events(run_id, cursor)  # Include the final immutable suffix.
+            return events, settled
 
         async def stream() -> AsyncIterator[str]:
             cursor = after
             heartbeat = time.monotonic()
             while not await request.is_disconnected():
-                if workspace is not None:
-                    try:
-                        workspace.require_run(run_id)
-                    except (KeyError, ValueError):
-                        return
-                for event in await asyncio.to_thread(service.events, run_id, cursor):
-                    yield f"id: {event.seq}\nevent: {event.type}\ndata: {event.model_dump_json(by_alias=True)}\n\n"
-                    cursor = event.seq
-                current = await asyncio.to_thread(service.get, run_id)
-                if service.remote.settled(current):
-                    # get() may have ingested the final event between the first read
-                    # and status check. Drain that immutable terminal suffix too.
-                    for event in await asyncio.to_thread(service.events, run_id, cursor):
+                try:
+                    events, settled = await asyncio.to_thread(scoped_read, scope, batch, cursor)
+                    for event in events:
+                        if workspace is not None and scope is not None:
+                            workspace.verify_run_scope(scope)
                         yield f"id: {event.seq}\nevent: {event.type}\ndata: {event.model_dump_json(by_alias=True)}\n\n"
-                    return
-                if time.monotonic() - heartbeat >= 15:
-                    yield ": heartbeat\n\n"
-                    heartbeat = time.monotonic()
+                        cursor = event.seq
+                    if settled:
+                        return
+                    if time.monotonic() - heartbeat >= 15:
+                        if workspace is not None and scope is not None:
+                            workspace.verify_run_scope(scope)
+                        yield ": heartbeat\n\n"
+                        heartbeat = time.monotonic()
+                except (KeyError, ValueError):
+                    return  # Scope retirement ends delivery, never reads another project's events.
                 await asyncio.sleep(0.05)
 
         return StreamingResponse(

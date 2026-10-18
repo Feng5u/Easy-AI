@@ -11,7 +11,7 @@ import json
 from pathlib import PurePosixPath
 import threading
 import time
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, Callable, ContextManager
 from uuid import uuid4
 
 from easyai.domain.contracts import ArtifactRecord, RemoteExecution, Run, RunConfig
@@ -430,9 +430,11 @@ class RemoteRuns:
             core.disconnect()
             self._publish(run_id, core.checkpoint(), sync="error")
 
-    def cancel(self, run_id: str) -> Run:
+    def cancel(
+        self, run_id: str, commit_scope: Callable[[], ContextManager[None]] | None = None
+    ) -> Run:
         core = self.core(run_id)
-        checkpoint = core.request_cancel()  # durable intent, never cancellation confirmation
+        checkpoint = core.request_cancel(commit_scope)  # scope and durable intent commit together
         self._publish(run_id, checkpoint)
         return self.runs.get(run_id)
 

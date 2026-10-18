@@ -1,5 +1,7 @@
 """Session-only Main-authorized selections; project/data paths never come from blocks."""
 
+from contextlib import contextmanager
+from dataclasses import dataclass
 import json
 import hashlib
 import os
@@ -9,7 +11,7 @@ import threading
 import signal
 import time
 from pathlib import Path
-from typing import Any, Literal, BinaryIO, TYPE_CHECKING
+from typing import Any, Literal, BinaryIO, TYPE_CHECKING, Callable, Iterator, TypeVar
 from uuid import uuid4
 
 from easyai.compiler.pipeline import compile_project
@@ -25,6 +27,16 @@ from easyai.domain.desktop import ProjectSession, RunStartRequest, SelectionResu
 from easyai.security.files import read_regular
 from easyai.services.project_service import ProjectService, read_project, validate_project_bytes
 from easyai.services.run_service import RunService
+
+T = TypeVar("T")
+
+
+@dataclass(frozen=True)
+class RunScope:
+    run_id: str
+    project_id: str
+    generation: int
+
 
 SelectionKind = Literal["project", "python", "data"]
 if TYPE_CHECKING:
@@ -219,6 +231,7 @@ class LocalWorkspace:
         self._selections: dict[str, tuple[SelectionKind, Path]] = {}
         self._projects: dict[str, ProjectService] = {}
         self._current: str | None = None
+        self._project_generation = 0
         self._closed = False
         self._closing = False
         self._remote_bindings: dict[
@@ -354,6 +367,7 @@ class LocalWorkspace:
             return self._session(self._projects[self._current]) if self._current else None
 
     def _register(self, service: ProjectService) -> ProjectSession:
+        self._project_generation += 1
         self._invalidate_identity()
         session = self._session(service)
         assert session.project is not None
@@ -370,6 +384,7 @@ class LocalWorkspace:
 
     def open(self, selection_id: str) -> ProjectSession:
         with self._mutex:
+            self._project_generation += 1
             self._invalidate_identity()
             root = self._selection(selection_id, "project")
             for service in self._projects.values():
@@ -472,8 +487,7 @@ class LocalWorkspace:
     def history(self, project_id: str, offset: int = 0, limit: int = 25) -> list[Run]:
         with self._mutex:
             self._verify()
-            if project_id not in self._projects:
-                raise KeyError("PROJECT_NOT_OPEN")
+            self.project_generation(project_id)
             if not 0 <= offset or not 1 <= limit <= 50:
                 raise ValueError("HISTORY_CURSOR_INVALID")
             identities = [
@@ -540,6 +554,55 @@ class LocalWorkspace:
             if entry is None or entry.run.project_id != self._current or self._readonly is not None:
                 raise KeyError("RUN_NOT_IN_CURRENT_PROJECT")
             return entry.run.model_copy(deep=True)
+
+    def project_generation(self, project_id: str) -> int:
+        with self._mutex:
+            self._verify()
+            if project_id != self._current or self._readonly is not None:
+                raise KeyError("PROJECT_NOT_CURRENT")
+            return self._project_generation
+
+    def verify_project_generation(self, project_id: str, generation: int) -> None:
+        if self.project_generation(project_id) != generation:
+            raise KeyError("PROJECT_SCOPE_RETIRED")
+
+    def run_scope(self, run_id: str) -> RunScope:
+        with self._mutex:
+            run = self.require_run(run_id)
+            return RunScope(run_id, run.project_id, self._project_generation)
+
+    def verify_run_scope(self, scope: RunScope) -> None:
+        with self._mutex:
+            self.require_run(scope.run_id)
+            if scope.generation != self._project_generation or scope.project_id != self._current:
+                raise KeyError("RUN_SCOPE_RETIRED")
+
+    @contextmanager
+    def run_commit_scope(self, scope: RunScope) -> Iterator[None]:
+        with self._mutex:
+            self.verify_run_scope(scope)
+            yield
+
+    def read_run(self, scope: RunScope, action: Callable[..., T], *args: Any) -> T:
+        self.verify_run_scope(scope)
+        try:
+            value = action(*args)  # No workspace lock while acquiring core/store locks.
+        except BaseException:
+            self.verify_run_scope(scope)  # Retired requests must not deliver old errors either.
+            raise
+        self.verify_run_scope(scope)
+        return value
+
+    def cancel_run(self, scope: RunScope) -> Run:
+        run = self.require_run(scope.run_id)
+        if run.config.runner == "ssh":
+            # request_cancel takes core -> workspace, as does the coordinator guard.
+            value = self.runs.remote.cancel(scope.run_id, lambda: self.run_commit_scope(scope))
+        else:
+            with self.run_commit_scope(scope):
+                value = self.runs.cancel(scope.run_id)
+        self.verify_run_scope(scope)
+        return value
 
     def bind_remote(self, project_id: str, request: RemoteBindingRequest) -> RemoteBinding:
         with self._mutex:
@@ -725,6 +788,7 @@ class LocalWorkspace:
             if self._closed:
                 return
             self._closing = True
+            self._project_generation += 1
             self._invalidate_identity()
         # SDK workers may need the workspace guard to unwind. Never wait under it.
         self.runs.close()
