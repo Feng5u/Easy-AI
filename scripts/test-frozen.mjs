@@ -1,0 +1,125 @@
+// Real packaged sidecar, launched outside the checkout. No training or Electron window.
+import { spawn } from "node:child_process";
+import { randomBytes } from "node:crypto";
+import { mkdtemp, mkdir, readFile, rm } from "node:fs/promises";
+import { join, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { createInterface } from "node:readline";
+import assert from "node:assert/strict";
+
+const repository = resolve(import.meta.dirname, "..");
+const build = join(repository, "services/backend/dist/easyai-sidecar");
+const resources = join(build, "_internal/easyai/resources");
+for (const name of ["entry.py", "easyai_runtime.py"])
+  assert.deepEqual(
+    await readFile(join(resources, "runtime", name)),
+    await readFile(join(repository, "runtime", name)),
+  );
+assert.deepEqual(
+  await readFile(join(resources, "templates/project.easyai.json")),
+  await readFile(join(repository, "examples/mnist-cnn/project.easyai.json")),
+);
+const root = await mkdtemp(join(tmpdir(), "easyai-frozen-"));
+const project = join(root, "原生选择 项目");
+await mkdir(project);
+const token = randomBytes(32).toString("hex");
+const child = spawn(
+  join(
+    build,
+    process.platform === "win32" ? "easyai-sidecar.exe" : "easyai-sidecar",
+  ),
+  [],
+  { cwd: root, stdio: "pipe", shell: false },
+);
+child.stderr.resume();
+child.stdin.on("error", () => {});
+const exited = new Promise((resolveExit, reject) => {
+  child.once("exit", resolveExit);
+  child.once("error", reject);
+});
+void exited.catch(() => undefined);
+const lines = createInterface({ input: child.stdout });
+try {
+  const ready = await new Promise((resolveReady, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error("frozen startup timeout")),
+      15000,
+    );
+    lines.once("line", (line) => {
+      clearTimeout(timer);
+      try {
+        resolveReady(JSON.parse(line));
+      } catch (error) {
+        reject(error);
+      }
+    });
+    child.once("error", (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
+    child.stdin.write(
+      JSON.stringify({ token, storageRoot: join(root, "state") }) + "\n",
+    );
+  });
+  assert.equal(ready.protocolVersion, 1);
+  async function request(method, path, body, authorized = true) {
+    const response = await fetch(
+      `http://127.0.0.1:${ready.port}/api/v1${path}`,
+      {
+        method,
+        headers: {
+          ...(authorized ? { Authorization: `Bearer ${token}` } : {}),
+          "Content-Type": "application/json",
+        },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+        signal: AbortSignal.timeout(10000),
+        redirect: "error",
+      },
+    );
+    return { response, value: await response.json() };
+  }
+  assert.equal(
+    (await request("GET", "/local/session", undefined, false)).response.status,
+    401,
+  );
+  const selected = await request("POST", "/local/selections", {
+    kind: "project",
+    path: project,
+  });
+  assert.equal(selected.response.status, 200);
+  const opened = await request("POST", "/projects", {
+    selectionId: selected.value.selectionId,
+    name: "冻结示例",
+    template: "mnist-cnn",
+  });
+  assert.equal(opened.response.status, 200);
+  const compiled = await request(
+    "POST",
+    `/projects/${opened.value.project.projectId}/compile`,
+    { project: opened.value.project, requestId: 17 },
+  );
+  assert.equal(compiled.response.status, 200);
+  assert.equal(compiled.value.runnable, true);
+  assert.equal(
+    compiled.value.code,
+    await readFile(
+      join(repository, "services/backend/tests/fixtures/golden/mnist.py.txt"),
+      "utf8",
+    ),
+  );
+  console.log(
+    "PASS frozen resources + native-selection API + project create + authenticated golden compile from temporary cwd",
+  );
+} finally {
+  child.stdin.end();
+  const timer = setTimeout(() => child.kill("SIGKILL"), 20000);
+  try {
+    await exited;
+  } finally {
+    clearTimeout(timer);
+    lines.close();
+    await rm(root, { recursive: true, force: true });
+  }
+}
+assert.equal(child.exitCode, 0);
+console.log("PASS frozen sidecar EOF exit 0");

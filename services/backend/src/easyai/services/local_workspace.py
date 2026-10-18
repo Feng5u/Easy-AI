@@ -1,0 +1,393 @@
+"""Session-only Main-authorized selections; project/data paths never come from blocks."""
+
+import json
+import hashlib
+import os
+import struct
+import subprocess
+import threading
+import signal
+import time
+from pathlib import Path
+from typing import Any, Literal, BinaryIO
+from uuid import uuid4
+
+from easyai.compiler.pipeline import compile_project
+from easyai.domain.catalog import TEMPLATE_PATH
+from easyai.domain.contracts import ProjectDocument, Run
+from easyai.domain.desktop import ProjectSession, RunStartRequest, SelectionResult
+from easyai.security.files import read_regular
+from easyai.services.project_service import ProjectService, read_project, validate_project_bytes
+from easyai.services.run_service import RunService, TERMINAL
+
+SelectionKind = Literal["project", "python", "data"]
+
+
+def probe_python(python: Path, cache: Path) -> dict[str, Any]:
+    """Only the explicitly selected executable runs this fixed import probe, never pip."""
+    if cache.is_symlink():
+        raise ValueError("LOCAL_STORAGE_FORBIDDEN")
+    cache.mkdir(parents=True, exist_ok=True)
+    environment = os.environ.copy()
+    environment.update(PYTHONDONTWRITEBYTECODE="1", MPLCONFIGDIR=str(cache))
+    script = (
+        "import json,sys; import torch,torchvision,matplotlib; "
+        "print('EASYAI_PROBE:'+json.dumps({'python':sys.executable,'prefix':sys.prefix,"
+        "'torch':str(torch.__version__),'torchvision':str(torchvision.__version__),"
+        "'matplotlib':str(matplotlib.__version__)}))"
+    )
+    try:
+        process = subprocess.Popen(
+            [str(python), "-I", "-B", "-c", script],
+            env=environment,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            start_new_session=os.name == "posix",
+        )
+    except OSError:
+        raise ValueError("ENVIRONMENT_PYTHON_UNAVAILABLE") from None
+    buffers = [bytearray(), bytearray()]
+    overflow = threading.Event()
+    stopping = threading.Event()
+
+    def drain(stream: BinaryIO, index: int) -> None:
+        try:
+            if os.name == "posix":
+                # A descendant may retain a pipe after the selected leader exits.
+                # Cancellable reads let cleanup retire both workers even if that
+                # descendant escaped the owned group; never kill it by a bare PID.
+                os.set_blocking(stream.fileno(), False)
+            while not stopping.is_set():
+                try:
+                    chunk = os.read(stream.fileno(), 4096)
+                except BlockingIOError:
+                    stopping.wait(0.01)
+                    continue
+                if not chunk:
+                    return
+                if len(buffers[index]) + len(chunk) > 65536:
+                    overflow.set()
+                    return
+                buffers[index].extend(chunk)
+        except (OSError, ValueError):
+            overflow.set()
+
+    assert process.stdout is not None and process.stderr is not None
+    threads = [
+        threading.Thread(target=drain, args=(pipe, i), daemon=True, name=f"easyai-probe-drain-{i}")
+        for i, pipe in enumerate((process.stdout, process.stderr))
+    ]
+
+    def kill_owned_group() -> None:
+        # start_new_session above gives this probe its own POSIX group. Its
+        # leader's exit does not imply its descendants or inherited pipes exited.
+        if os.name == "posix":
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        elif process.poll() is None:
+            process.kill()
+
+    deadline = time.monotonic() + 15
+    timed_out = False
+    cleanup_pending = False
+    try:
+        for thread in threads:
+            thread.start()
+        while process.poll() is None and not overflow.wait(0.01):
+            if time.monotonic() >= deadline:
+                timed_out = True
+                break
+        if overflow.is_set() or timed_out:
+            kill_owned_group()
+        try:
+            process.wait(timeout=1)
+        except subprocess.TimeoutExpired:
+            timed_out = True
+        drain_deadline = min(deadline, time.monotonic() + 0.25)
+        for thread in threads:
+            thread.join(max(0, drain_deadline - time.monotonic()))
+        if any(thread.is_alive() for thread in threads):
+            timed_out = True
+    finally:
+        # Always retire the group, including the leader-already-exited case.
+        try:
+            kill_owned_group()
+            if process.poll() is None:
+                try:
+                    process.wait(timeout=1)
+                except subprocess.TimeoutExpired:
+                    cleanup_pending = True
+        except OSError:
+            cleanup_pending = True
+        finally:
+            cleanup_deadline = time.monotonic() + 1
+            for thread in threads:
+                if thread.ident is not None:
+                    thread.join(max(0, cleanup_deadline - time.monotonic()))
+            stopping.set()
+            for thread in threads:
+                if thread.ident is not None:
+                    thread.join(0.1)
+            process.stdout.close()
+            process.stderr.close()
+    if cleanup_pending or any(thread.is_alive() for thread in threads):
+        raise ValueError("ENVIRONMENT_PROBE_CLEANUP_PENDING")
+    if timed_out:
+        raise ValueError("ENVIRONMENT_PROBE_TIMEOUT")
+    if process.returncode != 0 or overflow.is_set():
+        raise ValueError("ENVIRONMENT_IMPORT_FAILED")
+    lines = [
+        line.removeprefix(b"EASYAI_PROBE:")
+        for line in bytes(buffers[0]).splitlines()
+        if line.startswith(b"EASYAI_PROBE:")
+    ]
+    if len(lines) != 1:
+        raise ValueError("ENVIRONMENT_PROBE_INVALID")
+    try:
+        value: Any = json.loads(lines[0])
+    except (ValueError, UnicodeDecodeError):
+        raise ValueError("ENVIRONMENT_PROBE_INVALID") from None
+    if (
+        not isinstance(value, dict)
+        or set(value) != {"python", "prefix", "torch", "torchvision", "matplotlib"}
+        or not all(isinstance(item, str) and item for item in value.values())
+    ):
+        raise ValueError("ENVIRONMENT_PROBE_INVALID")
+    return value
+
+
+def preflight_data(root: Path, dataset_names: set[str]) -> None:
+    for dataset in dataset_names:
+        if dataset not in {"MNIST", "FashionMNIST"}:
+            raise ValueError("DATASET_PREFLIGHT_NOT_SUPPORTED")
+        raw = root / dataset / "raw"
+        current = root
+        for part in (dataset, "raw"):
+            current = current / part
+            if current.is_symlink():
+                raise ValueError("DATA_PATH_FORBIDDEN")
+        for split in ("train", "t10k"):
+            images = raw / f"{split}-images-idx3-ubyte"
+            labels = raw / f"{split}-labels-idx1-ubyte"
+            try:
+                image_header = read_regular(images, 16, prefix=True)
+                label_header = read_regular(labels, 8, prefix=True)
+            except FileNotFoundError:
+                raise ValueError("DATASET_MISSING_NO_DOWNLOAD") from None
+            if len(image_header) != 16 or len(label_header) != 8:
+                raise ValueError("DATASET_IDX_INVALID")
+            magic, count, rows, columns = struct.unpack(">IIII", image_header)
+            label_magic, labels_count = struct.unpack(">II", label_header)
+            if (
+                magic != 2051
+                or label_magic != 2049
+                or count <= 0
+                or count != labels_count
+                or (rows, columns) != (28, 28)
+                or images.stat().st_size != 16 + count * rows * columns
+                or labels.stat().st_size != 8 + count
+            ):
+                raise ValueError("DATASET_IDX_INVALID")
+
+
+class LocalWorkspace:
+    def __init__(self, root: Path):
+        if not root.is_absolute() or root.is_symlink():
+            raise ValueError("LOCAL_STORAGE_FORBIDDEN")
+        root.mkdir(parents=True, exist_ok=True)
+        self.root = root.resolve(strict=True)
+        run_root = self.root / "runs"
+        if run_root.is_symlink():
+            raise ValueError("LOCAL_STORAGE_FORBIDDEN")
+        run_root.mkdir(exist_ok=True)
+        self.runs = RunService(run_root)
+        self._mutex = threading.RLock()
+        self._selections: dict[str, tuple[SelectionKind, Path]] = {}
+        self._projects: dict[str, ProjectService] = {}
+        self._current: str | None = None
+        self._closed = False
+
+    def _verify(self) -> None:
+        if self._closed:
+            raise ValueError("LOCAL_WORKSPACE_CLOSED")
+
+    def select(self, kind: SelectionKind, path: Path) -> SelectionResult:
+        with self._mutex:
+            self._verify()
+            if kind not in {"project", "python", "data"} or not path.is_absolute():
+                raise ValueError("LOCAL_SELECTION_INVALID")
+            if kind == "python":
+                selected = Path(os.path.normpath(str(path)))
+                if not selected.is_file():
+                    raise ValueError("LOCAL_SELECTION_INVALID")
+            else:
+                selected = path.resolve(strict=True)
+                if kind == "project" and selected.is_file():
+                    if selected.name != "project.easyai.json":
+                        raise ValueError("LOCAL_SELECTION_INVALID")
+                    selected = selected.parent
+                if not selected.is_dir():
+                    raise ValueError("LOCAL_SELECTION_INVALID")
+            identity = str(uuid4())
+            self._selections[identity] = (kind, selected)
+            return SelectionResult(selection_id=identity, kind=kind, label=str(selected))
+
+    def _selection(self, identity: str, kind: SelectionKind) -> Path:
+        self._verify()
+        stored = self._selections.get(identity)
+        if stored is None:
+            raise KeyError("LOCAL_SELECTION_NOT_FOUND")
+        if stored[0] != kind:
+            raise ValueError("LOCAL_SELECTION_KIND_MISMATCH")
+        return stored[1]
+
+    def _session(self, service: ProjectService) -> ProjectSession:
+        opened = read_project(service.path)
+        if opened.document is None:
+            raise ValueError("PROJECT_FORMAT_UNSUPPORTED")
+        return ProjectSession(
+            project=opened.document,
+            read_only=opened.read_only or not service.owned,
+            reason=opened.reason or service.lock_reason,
+        )
+
+    def current(self) -> ProjectSession | None:
+        with self._mutex:
+            self._verify()
+            return self._session(self._projects[self._current]) if self._current else None
+
+    def _register(self, service: ProjectService) -> ProjectSession:
+        session = self._session(service)
+        identity = session.project.project_id
+        previous = self._projects.get(identity)
+        if previous is not None and previous.root != service.root:
+            service.close()
+            raise ValueError("PROJECT_ID_CONFLICT")
+        self._projects[identity] = service
+        self._current = identity
+        return session
+
+    def open(self, selection_id: str) -> ProjectSession:
+        with self._mutex:
+            root = self._selection(selection_id, "project")
+            for service in self._projects.values():
+                if service.root == root:
+                    self._current = self._session(service).project.project_id
+                    return self._session(service)
+            # Reject unsupported bytes before creating metadata or acquiring ownership.
+            opened = read_project(root / "project.easyai.json")
+            if opened.document is None:
+                raise ValueError("PROJECT_FORMAT_UNSUPPORTED")
+            service = ProjectService(root)
+            try:
+                return self._register(service)
+            except BaseException:
+                service.close()
+                raise
+
+    def create(self, selection_id: str, name: str) -> ProjectSession:
+        with self._mutex:
+            root = self._selection(selection_id, "project")
+            path = root / "project.easyai.json"
+            if path.exists() or path.is_symlink():
+                raise ValueError("PROJECT_ALREADY_EXISTS")
+            data = root / "data"
+            if data.is_symlink() or (data.exists() and not data.is_dir()):
+                raise ValueError("DATA_PATH_FORBIDDEN")
+            template = validate_project_bytes(read_regular(TEMPLATE_PATH, 5 * 1024 * 1024))
+            value = template.model_dump(by_alias=True)
+            value.update(projectId=str(uuid4()), name=name, revision=1)
+            document = ProjectDocument.model_validate(value)
+            payload = (document.model_dump_json(by_alias=True, indent=2) + "\n").encode()
+            service = ProjectService(root)
+            try:
+                if not service.owned:
+                    raise ValueError("PROJECT_READ_ONLY")
+                data.mkdir(exist_ok=True)
+                try:
+                    descriptor = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+                except FileExistsError:
+                    raise ValueError("PROJECT_ALREADY_EXISTS") from None
+                with os.fdopen(descriptor, "wb") as stream:
+                    stream.write(payload)
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                return self._register(service)
+            except BaseException:
+                service.close()
+                raise
+
+    def save(self, project_id: str, document: ProjectDocument, revision: int) -> ProjectSession:
+        with self._mutex:
+            self._verify()
+            if document.project_id != project_id:
+                raise ValueError("PROJECT_ID_CONFLICT")
+            service = self._projects[project_id]
+            service.save(document, revision)
+            return self._session(service)
+
+    def start(self, project_id: str, request: RunStartRequest, key: str) -> Run:
+        with self._mutex:
+            self._verify()
+            project = self._projects[project_id]
+            python = self._selection(request.python_selection_id, "python")
+            data = self._selection(request.data_selection_id, "data")
+            # A retry refers to the original saved snapshot even if the editor
+            # has since advanced. RunService still verifies the complete binding
+            # identity and rejects reuse of this key for a different request.
+            key_hash = hashlib.sha256(key.encode()).hexdigest()
+            if any(
+                entry.idempotency_hash == key_hash for entry in self.runs._ledger.entries.values()
+            ):
+                existing = self.runs.prepare(
+                    project,
+                    request.expected_revision,
+                    request.expected_program_hash,
+                    key,
+                    python,
+                    data,
+                )
+                return (
+                    self.runs.start(existing.run_id) if existing.status == "CREATED" else existing
+                )
+            opened = project.snapshot(request.expected_revision)
+            assert opened.document is not None
+            compilation = compile_project(opened.document)
+            if not compilation.result.runnable or compilation.program is None:
+                raise ValueError("PROJECT_NOT_RUNNABLE")
+            if compilation.result.program_hash != request.expected_program_hash:
+                raise ValueError("PROGRAM_HASH_CONFLICT")
+            preflight_data(data, {dataset.dataset_name for dataset in compilation.program.datasets})
+            probe_python(python, self.root / "probe-cache")
+            run = self.runs.prepare(
+                project, request.expected_revision, request.expected_program_hash, key, python, data
+            )
+            if run.status == "CREATED":
+                return self.runs.start(run.run_id)
+            return run
+
+    def activity(self) -> dict[str, list[str]]:
+        with self._mutex:
+            self._verify()
+            identities = list(self.runs._ledger.entries)
+            return {
+                "activeRunIds": [
+                    identity
+                    for identity in identities
+                    if self.runs.get(identity).status not in TERMINAL
+                ]
+            }
+
+    def close(self) -> None:
+        with self._mutex:
+            if self._closed:
+                return
+            try:
+                self.runs.close()
+            finally:
+                for project in self._projects.values():
+                    project.close()
+                self._closed = True

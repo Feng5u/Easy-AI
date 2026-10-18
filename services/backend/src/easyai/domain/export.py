@@ -4,7 +4,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from easyai.domain import contracts
+from easyai.domain import contracts, desktop
 from easyai.domain.program import ProgramIR
 
 MODELS: list[type[BaseModel]] = [
@@ -23,6 +23,11 @@ MODELS: list[type[BaseModel]] = [
     contracts.ArtifactRecord,
     contracts.RunConfig,
     contracts.Run,
+    desktop.SelectionResult,
+    desktop.ProjectSession,
+    desktop.RunStartRequest,
+    desktop.RunLogs,
+    desktop.RunSource,
 ]
 
 

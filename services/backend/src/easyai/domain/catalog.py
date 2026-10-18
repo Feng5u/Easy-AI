@@ -15,6 +15,11 @@ RUNTIME_ROOT = (
     if getattr(sys, "frozen", False)
     else SOURCE_ROOT / "runtime"
 )
+TEMPLATE_PATH = (
+    Path(getattr(sys, "_MEIPASS")) / "easyai/resources/templates/project.easyai.json"
+    if getattr(sys, "frozen", False)
+    else SOURCE_ROOT / "examples/mnist-cnn/project.easyai.json"
+)
 
 
 def load_catalog() -> dict[str, Any]:

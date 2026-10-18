@@ -8,21 +8,32 @@ import threading
 import uvicorn
 
 from easyai.api import create_app
+from easyai.services.local_workspace import LocalWorkspace
+from pathlib import Path
 
 
 def main() -> None:
-    raw = sys.stdin.buffer.readline(1025)
+    raw = sys.stdin.buffer.readline(8193)
+    workspace: LocalWorkspace | None = None
     try:
         handshake = json.loads(raw)
         token = handshake["token"]
-        if set(handshake) != {"token"} or not isinstance(token, str):
+        if set(handshake) not in ({"token"}, {"token", "storageRoot"}) or not isinstance(
+            token, str
+        ):
             raise ValueError("Invalid startup handshake")
         if re.fullmatch(r"[0-9a-f]{64}", token) is None:
             raise ValueError("Invalid startup handshake")
+        if "storageRoot" in handshake:
+            storage = handshake["storageRoot"]
+            if not isinstance(storage, str) or not storage or not Path(storage).is_absolute():
+                raise ValueError("Invalid startup handshake")
     except (ValueError, KeyError, TypeError):
         print("Invalid startup handshake", file=sys.stderr)
         raise SystemExit(2) from None
-    app = create_app(token)
+    if "storageRoot" in handshake:
+        workspace = LocalWorkspace(Path(handshake["storageRoot"]))
+    app = create_app(token, workspace=workspace)
     listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     listener.bind(("127.0.0.1", 0))
     listener.listen(128)
@@ -47,7 +58,11 @@ def main() -> None:
     try:
         server.run(sockets=[listener])
     finally:
-        listener.close()
+        try:
+            if workspace is not None:
+                workspace.close()
+        finally:
+            listener.close()
 
 
 if __name__ == "__main__":

@@ -1,0 +1,271 @@
+{
+  "$defs": {
+    "BlocklyBlocks": {
+      "additionalProperties": false,
+      "properties": {
+        "languageVersion": {
+          "const": 0,
+          "default": 0,
+          "title": "Languageversion",
+          "type": "integer"
+        },
+        "blocks": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Blocks",
+          "type": "array"
+        }
+      },
+      "title": "BlocklyBlocks",
+      "type": "object"
+    },
+    "Origin": {
+      "additionalProperties": false,
+      "properties": {
+        "blockId": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Blockid",
+          "type": "string"
+        },
+        "workspace": {
+          "enum": [
+            "data",
+            "model",
+            "training"
+          ],
+          "title": "Workspace",
+          "type": "string"
+        }
+      },
+      "required": [
+        "blockId",
+        "workspace"
+      ],
+      "title": "Origin",
+      "type": "object"
+    },
+    "ProjectDocument": {
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": {
+          "const": 1,
+          "default": 1,
+          "title": "Schemaversion",
+          "type": "integer"
+        },
+        "appVersion": {
+          "const": "0.0.0",
+          "default": "0.0.0",
+          "title": "Appversion",
+          "type": "string"
+        },
+        "blockLibraryVersion": {
+          "const": "0.0.0",
+          "default": "0.0.0",
+          "title": "Blocklibraryversion",
+          "type": "string"
+        },
+        "projectId": {
+          "title": "Projectid",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "revision": {
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "workspaces": {
+          "$ref": "#/$defs/Workspaces"
+        },
+        "settings": {
+          "$ref": "#/$defs/Settings"
+        },
+        "ui": {
+          "$ref": "#/$defs/UI"
+        }
+      },
+      "required": [
+        "projectId",
+        "name",
+        "revision",
+        "workspaces"
+      ],
+      "title": "ProjectDocument",
+      "type": "object"
+    },
+    "Settings": {
+      "additionalProperties": false,
+      "properties": {
+        "dataDirectory": {
+          "const": "data",
+          "default": "data",
+          "title": "Datadirectory",
+          "type": "string"
+        },
+        "seed": {
+          "default": 42,
+          "maximum": 4294967295,
+          "minimum": 0,
+          "title": "Seed",
+          "type": "integer"
+        },
+        "executionMode": {
+          "default": "full",
+          "enum": [
+            "full",
+            "quick"
+          ],
+          "title": "Executionmode",
+          "type": "string"
+        }
+      },
+      "title": "Settings",
+      "type": "object"
+    },
+    "SourceSpan": {
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "const": "train.py",
+          "default": "train.py",
+          "title": "File",
+          "type": "string"
+        },
+        "startLine": {
+          "minimum": 1,
+          "title": "Startline",
+          "type": "integer"
+        },
+        "endLine": {
+          "minimum": 1,
+          "title": "Endline",
+          "type": "integer"
+        },
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        },
+        "kind": {
+          "enum": [
+            "semantic",
+            "scaffold"
+          ],
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "startLine",
+        "endLine",
+        "origin",
+        "kind"
+      ],
+      "title": "SourceSpan",
+      "type": "object"
+    },
+    "UI": {
+      "additionalProperties": false,
+      "properties": {
+        "activeTab": {
+          "default": "data",
+          "enum": [
+            "data",
+            "model",
+            "training"
+          ],
+          "title": "Activetab",
+          "type": "string"
+        },
+        "codeVisible": {
+          "default": false,
+          "title": "Codevisible",
+          "type": "boolean"
+        }
+      },
+      "title": "UI",
+      "type": "object"
+    },
+    "Workspace": {
+      "additionalProperties": false,
+      "properties": {
+        "blocks": {
+          "$ref": "#/$defs/BlocklyBlocks"
+        }
+      },
+      "required": [
+        "blocks"
+      ],
+      "title": "Workspace",
+      "type": "object"
+    },
+    "Workspaces": {
+      "additionalProperties": false,
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/Workspace"
+        },
+        "model": {
+          "$ref": "#/$defs/Workspace"
+        },
+        "training": {
+          "$ref": "#/$defs/Workspace"
+        }
+      },
+      "required": [
+        "data",
+        "model",
+        "training"
+      ],
+      "title": "Workspaces",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "projectRevision": {
+      "minimum": 1,
+      "title": "Projectrevision",
+      "type": "integer"
+    },
+    "programHash": {
+      "title": "Programhash",
+      "type": "string"
+    },
+    "codeHash": {
+      "title": "Codehash",
+      "type": "string"
+    },
+    "code": {
+      "title": "Code",
+      "type": "string"
+    },
+    "sourceMap": {
+      "items": {
+        "$ref": "#/$defs/SourceSpan"
+      },
+      "title": "Sourcemap",
+      "type": "array"
+    },
+    "snapshot": {
+      "$ref": "#/$defs/ProjectDocument"
+    }
+  },
+  "required": [
+    "projectRevision",
+    "programHash",
+    "codeHash",
+    "code",
+    "sourceMap",
+    "snapshot"
+  ],
+  "title": "RunSource",
+  "type": "object"
+}

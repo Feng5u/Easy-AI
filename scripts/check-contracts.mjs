@@ -31,6 +31,7 @@ try {
   );
   if (result.status !== 0) throw new Error("Schema generation failed");
   await mkdir("packages/contracts/src", { recursive: true });
+  await mkdir("packages/contracts/types", { recursive: true });
   for (const file of (await readdir(directory)).sort()) {
     const schema = await readFile(join(directory, file), "utf8");
     const ts = await compileFromFile(join(directory, file), {
@@ -39,14 +40,20 @@ try {
     });
     const tsPath = join("packages/contracts/src", file.replace(".json", ".ts"));
     const schemaPath = join("packages/contracts/schema", file);
+    const declarationPath = join(
+      "packages/contracts/types",
+      file.replace(".json", ".d.ts"),
+    );
     if (check) {
       if (
         (await readFile(schemaPath, "utf8")) !== schema ||
-        (await readFile(tsPath, "utf8")) !== ts
+        (await readFile(tsPath, "utf8")) !== ts ||
+        (await readFile(declarationPath, "utf8")) !== ts
       )
         throw new Error(`Contract drift: ${file}`);
     } else {
       await writeFile(tsPath, ts);
+      await writeFile(declarationPath, ts);
     }
   }
 } finally {

@@ -9,13 +9,18 @@ test("secure desktop startup and normal shutdown", async () => {
   });
   try {
     const page = await app.firstWindow();
-    await expect(page.getByRole("status")).toHaveText("本地服务已就绪。");
+    await expect(page.getByTestId("backend-status")).toHaveText(
+      "本地服务已就绪。",
+    );
     expect(
       await page.evaluate(() => ({
         node: typeof (globalThis as Record<string, unknown>).require,
         bridge: Object.keys((window as unknown as { easyai: object }).easyai),
       })),
-    ).toEqual({ node: "undefined", bridge: ["status"] });
+    ).toEqual({
+      node: "undefined",
+      bridge: ["status", "selections", "projects", "runs"],
+    });
     const rendererSecurity = await app.evaluate(({ app }) => ({
       platform: process.platform,
       processes: app.getAppMetrics().filter((metric) => metric.type === "Tab"),

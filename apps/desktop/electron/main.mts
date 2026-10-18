@@ -1,4 +1,14 @@
-import { app, BrowserWindow, ipcMain, protocol, session } from "electron";
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  protocol,
+  session,
+  dialog,
+  type IpcMainInvokeEvent,
+} from "electron";
+import { setTimeout as delay } from "node:timers/promises";
+import { MainWorkflow, WORKFLOW_CHANNELS } from "./workflow.mjs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, extname } from "node:path";
 import { readFile } from "node:fs/promises";
@@ -15,6 +25,7 @@ protocol.registerSchemesAsPrivileged([
 let backend: Backend | undefined;
 let quitting = false;
 let status = { ready: false, message: "本地服务尚未启动。" };
+if (!app.requestSingleInstanceLock()) app.exit(0);
 await app.whenReady();
 const assets = join(here, "../dist");
 protocol.handle("easyai", async (request) => {
@@ -57,7 +68,7 @@ const window = new BrowserWindow({
 });
 window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
 window.webContents.on("will-navigate", (event) => event.preventDefault());
-ipcMain.handle("easyai:status:get", (event) => {
+function authorizeSender(event: IpcMainInvokeEvent): void {
   if (
     event.sender !== window.webContents ||
     !trustedSender(
@@ -66,18 +77,143 @@ ipcMain.handle("easyai:status:get", (event) => {
     )
   )
     throw new Error("IPC sender forbidden");
+}
+ipcMain.handle("easyai:status:get", (event) => {
+  authorizeSender(event);
   return status;
 });
+const workflow = new MainWorkflow(
+  () => backend,
+  async (kind) => {
+    const titles = {
+      project: "选择项目目录",
+      python: "选择已有训练环境的 Python",
+      data: "选择已准备的数据目录（不会下载）",
+    };
+    const selected = await dialog.showOpenDialog(window, {
+      title: titles[kind],
+      properties: kind === "python" ? ["openFile"] : ["openDirectory"],
+    });
+    return selected.canceled ? null : (selected.filePaths[0] ?? null);
+  },
+  (message) => {
+    if (!window.isDestroyed())
+      window.webContents.send("easyai:runs:message", message);
+  },
+);
+window.webContents.on("render-process-gone", () => workflow.dispose());
+window.webContents.on("destroyed", () => workflow.dispose());
+for (const channel of WORKFLOW_CHANNELS) {
+  ipcMain.handle(channel, (event, ...args: unknown[]) => {
+    authorizeSender(event);
+    return workflow.invoke(channel, args);
+  });
+}
+ipcMain.handle("easyai:runs:subscribe", (event, ...args: unknown[]) => {
+  authorizeSender(event);
+  if (args.length !== 3) throw new Error("IPC参数无效。");
+  workflow.subscribe(args[0], args[1], args[2]);
+});
+ipcMain.handle("easyai:runs:unsubscribe", (event, ...args: unknown[]) => {
+  authorizeSender(event);
+  if (args.length !== 1) throw new Error("IPC参数无效。");
+  workflow.unsubscribe(args[0]);
+});
+let quitPending = false;
+async function requestQuit(): Promise<void> {
+  if (quitPending || quitting) return;
+  quitPending = true;
+  try {
+    if (
+      backend &&
+      backend.process.exitCode === null &&
+      backend.process.signalCode === null
+    ) {
+      const activity = await backend.request<{ activeRunIds: string[] }>(
+        "GET",
+        "/api/v1/local/activity",
+      );
+      if (activity.activeRunIds.length) {
+        const answer = await dialog.showMessageBox(window, {
+          type: "question",
+          title: "本地任务仍在运行",
+          message: "停止本地训练并退出？",
+          detail: "取消会保留已有日志与产物。确认进程停止后应用才会退出。",
+          buttons: ["留在应用", "停止任务并退出"],
+          defaultId: 0,
+          cancelId: 0,
+        });
+        if (answer.response !== 1) return;
+        for (const runId of activity.activeRunIds)
+          await backend.request("POST", `/api/v1/runs/${runId}/cancel`);
+        const deadline = Date.now() + 30000;
+        while (true) {
+          const states = await Promise.all(
+            activity.activeRunIds.map((runId) =>
+              backend!.request<{ status: string }>(
+                "GET",
+                `/api/v1/runs/${runId}`,
+              ),
+            ),
+          );
+          if (
+            states.every((state) =>
+              ["SUCCEEDED", "FAILED", "CANCELLED", "INTERRUPTED"].includes(
+                state.status,
+              ),
+            )
+          )
+            break;
+          if (Date.now() > deadline)
+            throw new Error("尚未确认本地进程已停止，应用将保持打开。");
+          await delay(100);
+        }
+      }
+    }
+    workflow.dispose();
+    await backend?.stop();
+    quitting = true;
+    app.quit();
+  } catch (error) {
+    await dialog.showMessageBox(window, {
+      type: "error",
+      title: "无法安全退出",
+      message:
+        error instanceof Error
+          ? error.message
+          : "无法确认任务状态，应用将保持打开。",
+    });
+  } finally {
+    quitPending = false;
+  }
+}
+window.on("close", (event) => {
+  if (!quitting) {
+    event.preventDefault();
+    void requestQuit();
+  }
+});
+app.on("second-instance", () => {
+  if (window.isMinimized()) window.restore();
+  window.focus();
+});
+
 const repository = join(here, "../../..");
 const python =
   process.platform === "win32"
     ? join(repository, "services/backend/.venv/Scripts/python.exe")
     : join(repository, "services/backend/.venv/bin/python");
 try {
-  backend = await startBackend(python, join(repository, "services/backend"));
+  backend = await startBackend(
+    python,
+    join(repository, "services/backend"),
+    10000,
+    join(app.getPath("userData"), "local-state"),
+  );
   status = { ready: true, message: "本地服务已就绪。" };
   backend.process.once("exit", () => {
     if (quitting || window.isDestroyed()) return;
+    workflow.dispose();
     status = { ready: false, message: "本地服务已退出，请重新启动应用。" };
     void window.webContents.reload();
   });
@@ -89,9 +225,11 @@ try {
 }
 await window.loadURL("easyai://app/index.html");
 app.on("before-quit", (event) => {
-  if (quitting) return;
-  event.preventDefault();
-  quitting = true;
-  void (backend?.stop() ?? Promise.resolve()).finally(() => app.quit());
+  if (!quitting) {
+    event.preventDefault();
+    void requestQuit();
+  }
 });
-app.on("window-all-closed", () => app.quit());
+app.on("window-all-closed", () => {
+  if (!quitting) void requestQuit();
+});

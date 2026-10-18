@@ -30,6 +30,8 @@ const operations = {
       "--add-data",
       "../../packages/block-library/manifest.json:easyai/resources",
       "--add-data",
+      "../../examples/mnist-cnn/project.easyai.json:easyai/resources/templates",
+      "--add-data",
       "../../runtime/entry.py:easyai/resources/runtime",
       "--add-data",
       "../../runtime/easyai_runtime.py:easyai/resources/runtime",
