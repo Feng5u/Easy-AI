@@ -1,8 +1,7 @@
-"""Internal, disabled-by-default install adapter using the existing process owner.
+"""Internal install/probe adapters using the existing process owner.
 
-No HTTP caller exists. Only an explicitly authorized, already owned target and an
-already supplied offline wheelhouse can be used. No dependency resolver/download,
-conda provisioner, shell command, PID recovery or environment deletion is added.
+The runtime policy must authorize exact offline sources before dispatch. No direct
+HTTP command input, resolver, cache download or environment deletion exists here.
 """
 
 from collections.abc import Callable
@@ -61,6 +60,10 @@ class ManagedInstallCommand:
         self.root = root
         self.seconds = seconds
         self.last_root: Path | None = None
+        self._shutdown = threading.Event()
+
+    def request_cancel(self) -> None:
+        self._shutdown.set()
 
     def run(
         self,
@@ -68,10 +71,12 @@ class ManagedInstallCommand:
         cwd: Path,
         cancel: threading.Event,
         progress: Callable[[], None],
+        *,
+        environment: dict[str, str] | None = None,
     ) -> tuple[Literal["completed", "cancelled", "unknown", "failed"], list[Event]]:
         if os.name != "posix":
             raise ValueError("INSTALL_PROCESS_PLATFORM_UNVERIFIED")
-        if cancel.is_set():
+        if cancel.is_set() or self._shutdown.is_set():
             return "cancelled", []
         if self.root.is_symlink() or not self.root.is_dir():
             raise ValueError("INSTALL_PROCESS_ROOT_FORBIDDEN")
@@ -84,15 +89,25 @@ class ManagedInstallCommand:
             identity,
             argv,
             cwd,
-            environment={"MPLCONFIGDIR": str(path), "PYTHONDONTWRITEBYTECODE": "1"},
+            environment=environment
+            or {
+                "PATH": "/usr/bin:/bin",
+                "HOME": str(path),
+                "TMPDIR": str(path),
+                "XDG_CACHE_HOME": str(path),
+                "MPLCONFIGDIR": str(path),
+                "PYTHONDONTWRITEBYTECODE": "1",
+            },
+            inherit_environment=False,
             cancel_grace=0.05,
             max_log_bytes=LOG_LIMIT,
         )
         deadline = time.monotonic() + self.seconds
         try:
+            progress()  # Revalidate ownership immediately before the process consumes intent.
             supervisor.start()
             while supervisor.wait(0.02) is None:
-                if cancel.is_set() or time.monotonic() >= deadline:
+                if cancel.is_set() or self._shutdown.is_set() or time.monotonic() >= deadline:
                     supervisor.request_cancel()
                     # Wait for owner-confirmed drain/exit, not merely accepted cancel.
                     supervisor.wait(2)
@@ -102,7 +117,7 @@ class ManagedInstallCommand:
                 if not done:
                     return "unknown", []
                 events = supervisor.events()
-                if cancel.is_set():
+                if cancel.is_set() or self._shutdown.is_set():
                     return "cancelled", events
                 if state == "COMPLETED" and code == 0:
                     return "completed", events
@@ -121,7 +136,7 @@ def owned_python(prefix: Path) -> Path:
 
 
 class OfflineWheelInstaller:
-    """Real pip command implementation; remains gated and is never called by API.
+    """Real pip implementation; dispatched only through the plan-bound runtime worker.
 
     The wheelhouse must already exist by separate authorization. --no-index and
     --require-hashes prohibit resolution from a network source or unpinned wheel.
@@ -202,8 +217,11 @@ class OfflineWheelInstaller:
 class ManagedInstallInspector:
     """Fresh real imports and a CPU convolution, outside the application Python."""
 
-    def __init__(self, commands: ManagedInstallCommand):
+    def __init__(
+        self, commands: ManagedInstallCommand, cancel: Callable[[], threading.Event] | None = None
+    ):
         self.commands = commands
+        self.cancel = cancel or threading.Event
 
     def __call__(self, prefix: Path, nonce: str) -> InstallInspection:
         packages = json.loads(read_regular(PROFILE_ROOT / "easyai-cpu-sources.json", 100_000))
@@ -235,7 +253,7 @@ class ManagedInstallInspector:
         outcome, events = self.commands.run(
             [str(owned_python(prefix)), "-I", "-B", "-c", source],
             prefix,
-            threading.Event(),
+            self.cancel(),
             lambda: None,
         )
         reports = [event.payload for event in events if event.type == "progress"]

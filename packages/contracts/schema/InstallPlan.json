@@ -110,7 +110,6 @@
       "type": "array"
     },
     "requiresNetwork": {
-      "const": true,
       "default": true,
       "title": "Requiresnetwork",
       "type": "boolean"
@@ -159,10 +158,62 @@
       "type": "array"
     },
     "executionEnabled": {
-      "const": false,
       "default": false,
       "title": "Executionenabled",
       "type": "boolean"
+    },
+    "runtimeFingerprint": {
+      "anyOf": [
+        {
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Runtimefingerprint"
+    },
+    "bootstrapBytes": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Bootstrapbytes"
+    },
+    "diskBudgetBytes": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Diskbudgetbytes"
+    },
+    "executionSeconds": {
+      "anyOf": [
+        {
+          "maximum": 3600,
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Executionseconds"
     }
   },
   "required": [

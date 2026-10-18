@@ -73,6 +73,7 @@ class ManagedProcess(Generic[E]):
         *,
         journal_factory: Callable[[Path, str], Journal[E]],
         max_log_bytes: int | None = None,
+        inherit_environment: bool = True,
     ) -> None:
         if run_root.is_symlink() or not run_root.is_dir():
             raise ValueError("Supervisor requires an existing nonsymlink run root")
@@ -91,6 +92,7 @@ class ManagedProcess(Generic[E]):
         self.cwd = cwd.resolve(strict=True)
         if not self.cwd.is_dir():
             raise ValueError("Supervisor cwd must be a directory")
+        self.inherit_environment = inherit_environment
         self.environment = None if environment is None else dict(environment)
         self.cancel_grace = cancel_grace
         self._status = "CREATED"
@@ -195,7 +197,7 @@ class ManagedProcess(Generic[E]):
         try:
             stdout_log = self._open_log("train.log")
             stderr_log = self._open_log("stderr.log")
-            env = os.environ.copy()
+            env = os.environ.copy() if self.inherit_environment else {}
             if self.environment is not None:
                 env.update(self.environment)
             env["PYTHONUNBUFFERED"] = "1"

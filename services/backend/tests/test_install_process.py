@@ -60,7 +60,10 @@ def owned(tmp_path):
         )
     )
     yield service, plan, job, prefix, inventory, request
-    service.close()
+    try:
+        service.close()
+    except ValueError as error:
+        assert str(error) == "INSTALL_STOP_UNCONFIRMED" and service._leases and service._journals
     for lease in service._leases.values():
         lease.close()  # Test knows its controlled child is stopped, unlike production recovery.
 
@@ -172,7 +175,9 @@ def test_recovery_quarantines_uncertain_writer_without_relaunch_or_pid_signal(ow
             return "unknown"
 
     assert service.execute(job.job_id, Unknown()).state == "CANCEL_REQUESTED"
-    service.close()
+    with pytest.raises(ValueError, match="INSTALL_STOP_UNCONFIRMED"):
+        service.close()
+    assert not service._closed and service._journals
 
     def forbidden(*args, **kwargs):
         pytest.fail("Recovery must not spawn or signal any process")
@@ -426,7 +431,9 @@ def test_preexisting_instance_rechecks_durable_writer_after_kernel_lease_disappe
             )
         )
         assert service.execute(job.job_id, Unknown()).state == "CANCEL_REQUESTED"
-        service.close()
+        with pytest.raises(ValueError, match="INSTALL_STOP_UNCONFIRMED"):
+            service.close()
+        assert not service._closed and service._journals
         # Model app-owner death releasing flock, NOT proof a writer child stopped.
         # No real process exists in this test. Persisted intent must still block.
         for lease in service._leases.values():

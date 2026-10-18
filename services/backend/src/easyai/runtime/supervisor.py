@@ -17,6 +17,7 @@ class ManagedSupervisor(ManagedProcess[Event]):
         cancel_grace: float = 0.5,
         *,
         max_log_bytes: int | None = None,
+        inherit_environment: bool = True,
     ):
         super().__init__(
             run_root,
@@ -27,4 +28,5 @@ class ManagedSupervisor(ManagedProcess[Event]):
             cancel_grace,
             journal_factory=lambda path, identity: EventJournal(path, identity, "runtime"),
             max_log_bytes=max_log_bytes,
+            inherit_environment=inherit_environment,
         )

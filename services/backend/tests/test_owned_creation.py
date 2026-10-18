@@ -46,7 +46,10 @@ def pending(tmp_path):
         )
     )
     yield service, plan, job
-    service.close()
+    try:
+        service.close()
+    except ValueError as error:
+        assert str(error) == "INSTALL_STOP_UNCONFIRMED" and service._leases and service._journals
     for lease in service._leases.values():
         lease.close()  # Fixtures know no unknown live process exists.
 

@@ -14,7 +14,7 @@ export type Logs = string[];
 export type Needsreprobe = boolean;
 export type Changespossible = boolean;
 export type Verified = boolean;
-export type Executionenabled = false;
+export type Executionenabled = boolean;
 
 export interface InstallJob {
   jobId: Jobid;

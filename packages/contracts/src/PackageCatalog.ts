@@ -11,7 +11,7 @@ export type Installedversion = string | null;
 export type Targetversion = string | null;
 export type Packages = PackageCard[];
 export type Profiles = ("teacher-existing" | "easyai-cpu")[];
-export type Executionenabled = false;
+export type Executionenabled = boolean;
 
 export interface PackageCatalog {
   catalogVersion?: Catalogversion;

@@ -15,16 +15,17 @@ const groups = {
   nlp: "自然语言处理",
 };
 const states: Record<InstallJob["state"], string> = {
-  AWAITING_EXECUTION: "已登记，等待执行（本版执行未启用）",
+  AWAITING_EXECUTION: "已登记，等待执行",
   INSTALLING: "安装进行中",
   VERIFYING: "重新检查中",
-  SUCCEEDED: "执行与复检合同通过（真实执行通道未启用）",
+  SUCCEEDED: "执行与复检通过",
   FAILED: "任务失败，需要重新检查",
   CANCEL_REQUESTED: "已请求停止，尚未确认停止",
   CANCELLED: "登记或任务已取消；不代表环境健康",
 };
 const logLabels: Record<string, string> = {
   PLAN_CONFIRMED: "已确认计划",
+  INSTALL_EXECUTION_QUEUED: "已登记，等待唯一安装任务执行",
   INSTALL_EXECUTION_NOT_ENABLED: "执行通道未启用，尚未安装",
   INSTALL_PROGRESS: "安装任务进度记录",
   INSTALL_REPROBE_STARTED: "开始重新检查",
@@ -169,8 +170,10 @@ export function PackageManager({ api }: { api: API }) {
         受控包安装计划
       </h2>
       <p>
-        当前可离线生成计划、明确确认登记和取消登记；真实安装执行、新环境创建与真实依赖复检尚未启用。不会修改应用
-        Python 或教师共享环境，也不会下载数据。
+        {catalog?.executionEnabled
+          ? "本机离线安装来源已获授权；是否执行仍以具体计划及本次明确确认为准。"
+          : "当前可离线生成计划、明确确认登记和取消登记；真实安装执行、新环境创建与真实依赖复检尚未启用。"}
+        不会修改应用 Python 或教师共享环境，也不会下载数据。
       </p>
       <p>
         目标是本机应用管理的新环境，独立于当前工程。任务状态保存在本机，重启不自动恢复执行；此界面只显示本次打开的任务。
@@ -322,7 +325,22 @@ export function PackageManager({ api }: { api: API }) {
           <p>
             约束 hash：<code>{plan.constraintsHash}</code>
           </p>
-          <p>未来执行需要联网：是；本次仅登记，不会联网安装。</p>
+          <p>
+            {plan.requiresNetwork
+              ? "未来执行需要联网：是。"
+              : "本次来源已在本机，不下载依赖。"}
+            {plan.executionEnabled
+              ? "确认后将创建或修改本机应用受控环境并实际复检。"
+              : "本次仅登记，不执行安装。"}
+          </p>
+          {plan.runtimeFingerprint && (
+            <p>
+              执行来源指纹：<code>{plan.runtimeFingerprint}</code>；bootstrap
+              本地文件：{size(plan.bootstrapBytes ?? null)}；磁盘预算：
+              {size(plan.diskBudgetBytes ?? null)}；单进程时间预算：
+              {plan.executionSeconds ?? "未知"} 秒。
+            </p>
+          )}
           <p>
             下载量估计：{size(plan.downloadBytes)}；wheel 解包量估计：
             {size(plan.installedBytes)}。
@@ -384,7 +402,9 @@ export function PackageManager({ api }: { api: API }) {
               disabled={busy || activeJob || plan.blockers.length > 0}
               onChange={(event) => setAcknowledged(event.target.checked)}
             />
-            我已核对目标、包变更、约束及未来联网需求；本次仅登记计划
+            {plan.executionEnabled
+              ? "我已核对目标、来源、包变更及预算，确认执行受控安装"
+              : "我已核对目标、包变更、约束及未来联网需求；本次仅登记计划"}
           </label>
           <button
             type="button"
@@ -393,7 +413,9 @@ export function PackageManager({ api }: { api: API }) {
             }
             onClick={confirm}
           >
-            确认计划并登记任务
+            {plan.executionEnabled
+              ? "确认计划并执行受控安装"
+              : "确认计划并登记任务"}
           </button>
         </section>
       )}
@@ -413,7 +435,9 @@ export function PackageManager({ api }: { api: API }) {
           <p>
             {job.needsReprobe
               ? "环境仍需真实复检；取消不代表健康。"
-              : "已通过复检合同；真实执行通道仍需另行验收。"}
+              : job.executionEnabled
+                ? "本次受控环境已通过依赖与张量复检；不代表数据或训练验收。"
+                : "已通过复检合同；真实执行通道仍需另行验收。"}
           </p>
           <ul>
             {job.logs.map((code, index) => (

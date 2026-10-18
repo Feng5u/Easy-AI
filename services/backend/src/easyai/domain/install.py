@@ -24,7 +24,7 @@ class PackageCatalog(Contract):
     catalog_version: Literal[1] = 1
     packages: list[PackageCard]
     profiles: list[Literal["teacher-existing", "easyai-cpu"]]
-    execution_enabled: Literal[False] = False
+    execution_enabled: bool = False
 
 
 class NewEnvironmentSpec(Contract):
@@ -66,13 +66,17 @@ class InstallPlan(Contract):
     baseline_fingerprint: Digest
     constraints_hash: Digest
     package_changes: list[PackageChange]
-    requires_network: Literal[True] = True
+    requires_network: bool = True
     download_bytes: int | None = Field(ge=0)
     installed_bytes: int | None = Field(ge=0)
     size_status: Literal["locked-wheel-estimate", "unresolved"]
     platform: str
     blockers: list[str]
-    execution_enabled: Literal[False] = False
+    execution_enabled: bool = False
+    runtime_fingerprint: Digest | None = None
+    bootstrap_bytes: int | None = Field(default=None, ge=0)
+    disk_budget_bytes: int | None = Field(default=None, ge=1)
+    execution_seconds: int | None = Field(default=None, ge=1, le=3600)
 
 
 class InstallConfirmation(Contract):
@@ -119,4 +123,4 @@ class InstallJob(Contract):
     needs_reprobe: bool = True
     changes_possible: bool = False
     verified: bool = False
-    execution_enabled: Literal[False] = False
+    execution_enabled: bool = False

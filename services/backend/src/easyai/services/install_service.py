@@ -1,7 +1,7 @@
-"""Offline plans and durable job ledger. Production installation is not connected.
+"""Offline plans and durable jobs with an optional trusted, plan-bound runtime.
 
-The internal executor/inspector seams are tested contracts, not HTTP execution inputs.
-No installer, network resolver, subprocess or environment writer is invoked here.
+Default configuration never executes. Confirmed policy-enabled jobs use one owned
+worker; commands and paths are not accepted as HTTP execution inputs.
 """
 
 from dataclasses import dataclass
@@ -12,7 +12,7 @@ from pathlib import Path
 import sys
 import threading
 import time
-from typing import Callable, Literal, Protocol
+from typing import Callable, Literal, Protocol, TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from easyai.domain.catalog import SOURCE_ROOT
@@ -30,6 +30,9 @@ from easyai.security.files import read_regular
 from easyai.security.project_lock import ProjectLock
 from easyai.services.event_journal import EventJournal, read_events
 from easyai.services.owned_creation import OwnedCreation, require_ready, read_install_job
+
+if TYPE_CHECKING:
+    from easyai.services.install_runtime import InstallRuntime
 
 RESOURCE_ROOT = Path(getattr(sys, "_MEIPASS", SOURCE_ROOT))
 PACKAGES_PATH = RESOURCE_ROOT / (
@@ -81,9 +84,15 @@ class InstallService:
         application_root: Path,
         inspector: Inspector | None = None,
         clock: Callable[[], float] = time.monotonic,
+        runtime: "InstallRuntime | None" = None,
     ):
         self.app_root = application_root
         self.root = application_root / "training-environments"
+        self._runtime = runtime
+        self._workers: dict[str, threading.Thread] = {}
+        self._executing: set[threading.Thread] = set()
+        self._closing = False
+        self._close_requested = threading.Event()
         self._inspector = inspector
         self._clock = clock
         self._mutex = threading.RLock()
@@ -193,7 +202,7 @@ class InstallService:
                 raise ValueError("INSTALL_ENVIRONMENT_CONFLICT")
 
     def _verify_root(self) -> None:
-        if self._closed:
+        if self._closed or self._closing or self._close_requested.is_set():
             raise ValueError("INSTALL_SESSION_CLOSED")
         if self._persistence_failed:
             raise ValueError("INSTALL_LEDGER_WRITE_FAILED")
@@ -222,12 +231,15 @@ class InstallService:
         self._verify_root()
         versions = {str(item["name"]): str(item["version"]) for item in self._wheels()}
         raw = json.loads(read_regular(PACKAGES_PATH, 50_000))
+        capability = self._runtime.snapshot() if self._runtime else None
+        self._verify_root()
         return PackageCatalog(
             packages=[
                 PackageCard(**item, target_version=versions.get(item["packageId"]))
                 for item in raw["packages"]
             ],
             profiles=["teacher-existing", "easyai-cpu"],
+            execution_enabled=capability.enabled if capability else False,
         )
 
     def _prefix(self, environment_id: str) -> Path:
@@ -333,7 +345,9 @@ class InstallService:
                 )
                 for name in sorted(set(locked) | selected)
             ]
+            self._verify_root()  # A close request may have arrived during a read-only inspector.
             resolved = not blockers
+            capability = self._runtime.snapshot() if self._runtime else None
             value = InstallPlan(
                 plan_id=str(uuid4()),
                 plan_hash="0" * 64,
@@ -354,7 +368,16 @@ class InstallService:
                 size_status="locked-wheel-estimate" if resolved else "unresolved",
                 platform="linux-x86_64-cp311",
                 blockers=blockers,
+                execution_enabled=bool(capability and capability.enabled and resolved),
+                runtime_fingerprint=capability.fingerprint if capability else None,
+                bootstrap_bytes=capability.bootstrap_bytes if capability else None,
+                disk_budget_bytes=capability.disk_budget_bytes if capability else None,
+                execution_seconds=capability.seconds if capability else None,
+                requires_network=not bool(capability and capability.fingerprint),
             )
+            if capability and capability.fingerprint:
+                value.download_bytes = 0  # All approved sources are already local.
+                value.installed_bytes = None  # Bootstrap extraction footprint is not measured.
             value.plan_hash = digest(value.model_dump(exclude={"plan_hash"}))
             self._plans = {
                 key: item
@@ -363,11 +386,19 @@ class InstallService:
             }
             if len(self._plans) >= 64:
                 raise ValueError("INSTALL_PLAN_LIMIT")
+            self._verify_root()  # Includes the potentially slow source snapshot/hash window.
             self._plans[value.plan_id] = _Plan(value.model_copy(deep=True), self._clock() + 600)
             return value
 
     def _fresh(self, plan: InstallPlan) -> None:
+        if self._runtime is not None:
+            capability = self._runtime.snapshot()
+            if capability.fingerprint != plan.runtime_fingerprint or (
+                plan.execution_enabled and not capability.enabled
+            ):
+                raise ValueError("INSTALL_PLAN_STALE")
         fingerprint, _ = self._baseline(plan.environment_id, plan.new_environment)
+        self._verify_root()
         if (
             fingerprint != plan.baseline_fingerprint
             or self._profile_hash() != plan.constraints_hash
@@ -399,8 +430,16 @@ class InstallService:
                 plan_hash=plan.plan_hash,
                 environment_id=plan.environment_id,
                 state="AWAITING_EXECUTION",
-                status_code="INSTALL_EXECUTION_NOT_ENABLED",
-                logs=["PLAN_CONFIRMED", "INSTALL_EXECUTION_NOT_ENABLED"],
+                status_code="INSTALL_EXECUTION_QUEUED"
+                if plan.execution_enabled
+                else "INSTALL_EXECUTION_NOT_ENABLED",
+                execution_enabled=plan.execution_enabled,
+                logs=[
+                    "PLAN_CONFIRMED",
+                    "INSTALL_EXECUTION_QUEUED"
+                    if plan.execution_enabled
+                    else "INSTALL_EXECUTION_NOT_ENABLED",
+                ],
             )
             if len(self._jobs) >= 64:
                 raise ValueError("INSTALL_JOB_LIMIT")
@@ -409,6 +448,48 @@ class InstallService:
             self._by_plan[plan.plan_id] = job.job_id
             self._active[plan.environment_id] = job.job_id
             self._cancel[job.job_id] = threading.Event()
+            if plan.execution_enabled:
+                if self._runtime is None:
+                    raise ValueError("INSTALL_EXECUTION_NOT_ENABLED")
+                runtime = self._runtime
+
+                def work() -> None:
+                    try:
+                        with runtime.job(self._cancel[job.job_id]):
+                            self.execute(
+                                job.job_id, runtime.executor, provisioner=runtime.provisioner
+                            )
+                    except Exception:
+                        with self._mutex:
+                            # No external exception text; uncertain writers retain lease.
+                            if job.state not in {"CANCELLED", "SUCCEEDED", "FAILED"}:
+                                job.state = (
+                                    "CANCEL_REQUESTED" if job.job_id in self._leases else "FAILED"
+                                )
+                                job.status_code = (
+                                    "INSTALL_STOP_UNCONFIRMED"
+                                    if job.job_id in self._leases
+                                    else "INSTALL_EXECUTION_FAILED"
+                                )
+                                if job.job_id not in self._leases:
+                                    self._active.pop(job.environment_id, None)
+                                job.verified, job.needs_reprobe = False, True
+                                try:
+                                    self._record(job)
+                                except Exception:
+                                    job.status_code = "INSTALL_LEDGER_WRITE_FAILED"
+
+                worker = threading.Thread(
+                    target=work, name="easyai-install-" + job.job_id, daemon=True
+                )
+                self._workers[job.job_id] = worker  # Unique registration under confirmation mutex.
+                try:
+                    worker.start()
+                except Exception:
+                    self._workers.pop(job.job_id)
+                    self._active.pop(job.environment_id, None)
+                    job.state, job.status_code = "FAILED", "INSTALL_EXECUTION_FAILED"
+                    self._record(job)
             return job.model_copy(deep=True)
 
     def get(self, job_id: str) -> InstallJob:
@@ -419,21 +500,24 @@ class InstallService:
     def cancel(self, job_id: str) -> InstallJob:
         with self._mutex:
             self._verify_root()
-            job = self._jobs[job_id]
-            if job_id in self._recovered:
-                return job.model_copy(deep=True)  # No PID-based stop or automatic replay.
-            previous = job.state
-            if job.state == "AWAITING_EXECUTION":
-                job.state, job.status_code = "CANCELLED", "INSTALL_CANCELLED_NO_EXECUTION"
-                self._active.pop(job.environment_id, None)
-            elif job.state in {"INSTALLING", "VERIFYING", "CANCEL_REQUESTED"}:
-                job.state, job.status_code = "CANCEL_REQUESTED", "INSTALL_STOP_UNCONFIRMED"
-                self._cancel[job_id].set()
-            if previous != job.state:
-                if len(job.logs) < 128:
-                    job.logs.append(job.status_code)
-                self._record(job)
-            return job.model_copy(deep=True)
+            return self._cancel_job(job_id)
+
+    def _cancel_job(self, job_id: str) -> InstallJob:
+        job = self._jobs[job_id]
+        if job_id in self._recovered:
+            return job.model_copy(deep=True)  # No PID-based stop or automatic replay.
+        previous = job.state
+        if job.state == "AWAITING_EXECUTION":
+            job.state, job.status_code = "CANCELLED", "INSTALL_CANCELLED_NO_EXECUTION"
+            self._active.pop(job.environment_id, None)
+        elif job.state in {"INSTALLING", "VERIFYING", "CANCEL_REQUESTED"}:
+            job.state, job.status_code = "CANCEL_REQUESTED", "INSTALL_STOP_UNCONFIRMED"
+            self._cancel[job_id].set()
+        if previous != job.state:
+            if len(job.logs) < 128:
+                job.logs.append(job.status_code)
+            self._record(job)
+        return job.model_copy(deep=True)
 
     def execute(
         self,
@@ -442,7 +526,7 @@ class InstallService:
         *,
         provisioner: EnvironmentProvisioner | None = None,
     ) -> InstallJob:
-        """Internal lifecycle seam only. No production caller/HTTP route exists."""
+        """Internal lifecycle used by the unique confirmed runtime worker, never arbitrary HTTP input."""
         with self._mutex:
             self._verify_root()
             job = self._jobs[job_id]
@@ -478,15 +562,26 @@ class InstallService:
                 lease.close()
                 raise
             self._leases[job_id] = lease
+            self._executing.add(threading.current_thread())
             job.state, job.status_code, job.changes_possible = "INSTALLING", "INSTALL_STARTED", True
             token = self._cancel[job_id]
             try:
                 self._record(job)  # Write-ahead: never start an unrecorded writer.
             except BaseException:
                 self._leases.pop(job_id).close()
+                self._executing.discard(threading.current_thread())
                 raise
 
         def progress() -> None:
+            lease.verify()
+            if (
+                self._runtime is not None
+                and plan.execution_enabled
+                and plan.disk_budget_bytes is not None
+            ):
+                self._runtime.budget(prefix, plan.disk_budget_bytes)
+            if creation is not None and creation.prefix_identity is not None:
+                creation.verify()
             with self._mutex:
                 if len(job.logs) < 128:
                     job.logs.append("INSTALL_PROGRESS")
@@ -612,15 +707,47 @@ class InstallService:
                 except ValueError:
                     job.state, job.status_code = "FAILED", "INSTALL_LEDGER_WRITE_FAILED"
                     job.verified, job.needs_reprobe = False, True
+                finally:
+                    self._executing.discard(threading.current_thread())
         return job.model_copy(deep=True)
 
     def close(self) -> None:
-        with self._mutex:
-            for job_id in self._active.values():
-                token = self._cancel.get(job_id)
-                if token is not None:
-                    token.set()
+        deadline = time.monotonic() + 3
+        self._close_requested.set()  # Reject new operations even while a probe holds the mutex.
+        if self._runtime is not None:
+            self._runtime.request_cancel()  # Inspector owners also observe this outside the mutex.
+        if not self._mutex.acquire(timeout=max(0, deadline - time.monotonic())):
+            raise ValueError("INSTALL_STOP_UNCONFIRMED")
+        try:
+            if self._closed:
+                return
+            if not self._closing:
+                for job_id in list(self._active.values()):
+                    if (
+                        self._jobs[job_id].state == "AWAITING_EXECUTION"
+                        and job_id not in self._workers
+                    ):
+                        self._cancel[job_id].set()
+                    elif not self._persistence_failed:
+                        self._cancel_job(job_id)
+                    else:
+                        self._cancel[job_id].set()
+                self._closing = True
+            threads = set(self._workers.values()) | self._executing
+        finally:
+            self._mutex.release()
+        for thread in threads:
+            if thread is threading.current_thread():
+                raise ValueError("INSTALL_STOP_UNCONFIRMED")
+            thread.join(max(0, deadline - time.monotonic()))
+        if not self._mutex.acquire(timeout=max(0, deadline - time.monotonic())):
+            raise ValueError("INSTALL_STOP_UNCONFIRMED")
+        try:
+            if any(t.is_alive() for t in threads) or self._executing or self._leases:
+                raise ValueError("INSTALL_STOP_UNCONFIRMED")
             for journal in self._journals.values():
                 journal.close()
             self._journals.clear()
             self._closed = True
+        finally:
+            self._mutex.release()

@@ -1031,7 +1031,12 @@ class LocalWorkspace:
         with self._mutex:
             self._verify()
             if self._install_service is None:
-                self._install_service = InstallService(self.root)
+                from easyai.services.install_runtime import InstallRuntime
+
+                runtime = InstallRuntime(self.root)
+                self._install_service = InstallService(
+                    self.root, inspector=runtime.inspector, runtime=runtime
+                )
             return self._install_service
 
     def transfers(self) -> "DataTransfers":
@@ -1080,13 +1085,13 @@ class LocalWorkspace:
             if self._closed:
                 return
             self._closing = True
-            if self._install_service is not None:
-                self._install_service.close()
             if self._data_transfers is not None:
                 self._data_transfers.close()
             self._project_generation += 1
             self._invalidate_identity()
         # SDK workers may need the workspace guard to unwind. Never wait under it.
+        if self._install_service is not None:
+            self._install_service.close()
         if self._data_transfers is not None:
             self._data_transfers.wait_idle()
         self.runs.close()

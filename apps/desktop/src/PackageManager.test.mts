@@ -393,3 +393,30 @@ it("actual Main and authenticated sidecar generate and confirm/cancel without cr
     await rm(rootPath, { recursive: true, force: true });
   }
 }, 20000);
+
+it("an enabled host still requires the exact plan and a fresh explicit install confirmation", async () => {
+  const h = setup();
+  h.catalog.executionEnabled = true;
+  h.api.plan.mockResolvedValue({
+    ...plan(),
+    executionEnabled: true,
+    requiresNetwork: false,
+    runtimeFingerprint: "d".repeat(64),
+    bootstrapBytes: 100,
+    diskBudgetBytes: 1000,
+  });
+  await mount(h.api);
+  await click("只生成安装计划");
+  expect(container.textContent).toContain("本次来源已在本机，不下载依赖");
+  expect(button("确认计划并执行受控安装").disabled).toBe(true);
+  expect(h.api.confirm).not.toHaveBeenCalled();
+  await checkbox("我已核对目标、来源");
+  await click("确认计划并执行受控安装");
+  expect(h.api.confirm).toHaveBeenCalledTimes(1);
+  expect(h.api.confirm).toHaveBeenLastCalledWith({
+    planId,
+    planHash: plan().planHash,
+    confirmed: true,
+    networkAcknowledged: true,
+  });
+});

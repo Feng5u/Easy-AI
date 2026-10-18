@@ -15,13 +15,17 @@ export type Targetversion = string | null;
 export type Action = "add" | "keep" | "unresolved";
 export type Requested = boolean;
 export type Packagechanges = PackageChange[];
-export type Requiresnetwork = true;
+export type Requiresnetwork = boolean;
 export type Downloadbytes = number | null;
 export type Installedbytes = number | null;
 export type Sizestatus = "locked-wheel-estimate" | "unresolved";
 export type Platform = string;
 export type Blockers = string[];
-export type Executionenabled = false;
+export type Executionenabled = boolean;
+export type Runtimefingerprint = string | null;
+export type Bootstrapbytes = number | null;
+export type Diskbudgetbytes = number | null;
+export type Executionseconds = number | null;
 
 export interface InstallPlan {
   planId: Planid;
@@ -41,6 +45,10 @@ export interface InstallPlan {
   platform: Platform;
   blockers: Blockers;
   executionEnabled?: Executionenabled;
+  runtimeFingerprint?: Runtimefingerprint;
+  bootstrapBytes?: Bootstrapbytes;
+  diskBudgetBytes?: Diskbudgetbytes;
+  executionSeconds?: Executionseconds;
 }
 export interface PackageChange {
   packageId: Packageid;

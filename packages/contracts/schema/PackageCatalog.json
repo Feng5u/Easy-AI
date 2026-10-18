@@ -99,7 +99,6 @@
       "type": "array"
     },
     "executionEnabled": {
-      "const": false,
       "default": false,
       "title": "Executionenabled",
       "type": "boolean"

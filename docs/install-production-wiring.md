@@ -1,10 +1,10 @@
 # M6.3 生产安装接线审计与最小方案
 
-审计范围为原计划14节及M6.3。**尚未代码完工：真实conda bootstrap adapter缺失，LocalWorkspace未注入inspector，confirm未调度execute。** 真实目标缺失只是验收条件，不能掩盖这些可独立实现的代码缺口。本文件是接线方案；本轮没有开启安装、安装conda、下载依赖、创建训练环境或接受新的许可。
+审计范围为原计划14节及M6.3。**本文件记录实施前审计基线。四项缺口现已落实源码与受控验证：固定离线CondaBootstrap、LocalWorkspace inspector注入、confirm唯一execute worker、静止后关闭journal。** 默认执行能力仍false；实际conda/bootstrap/pip/安装/tensor验收NOT RUN。精确来源与权限合同见install-runtime-configuration.md，没有配置真实来源、安装conda、下载依赖或接受新许可。
 
 现有代码核对：
 
-| 环节 | 已有基础 | 生产缺口 |
+| 环节 | 已有基础 | 实施前缺口（历史） |
 | --- | --- | --- |
 | 产品入口 | API install-plan/confirm/get/cancel；Main固定IPC；UI包卡、计划/确认/任务状态 | confirm只持久化AWAITING_EXECUTION，executionEnabled固定false，无执行调度 |
 | LocalWorkspace.installs | `InstallService(self.root)`，应用/训练根分开 | 未传ManagedInstallInspector，无可信安装runtime配置，已有owned环境实际probe拒绝 |
@@ -15,7 +15,7 @@
 | ManagedInstallInspector | 选定训练Python独立metadata/import/CPU卷积、nonce/prefix核验 | 尚未接LocalWorkspace；实际正向核心依赖probe未验，现有只读负向探测不能替代 |
 | sources/lock | CPU Linux x64 CPython3.11的真实wheel来源/hash/字节清单；17包/4组目录 | 无conda bootstrap explicit包清单/hash/体积/可信launcher记录；可选包未全部解析，已有unresolved blocker应保留 |
 
-最小接线分四个可审查提交，先限定Linux x64 CPU、本机新UUID受控环境及现有锁支持的包。远端安装、Windows、未知可选包不随这一片启用。
+本轮按以下四个步骤落实接线，保留设计约束供审查；先限定Linux x64 CPU、本机新UUID受控环境及现有锁支持的包。远端安装、Windows、未知可选包不随这一片启用。
 
 1. **可信runtime配置与bootstrap来源合同。** Main通过受控原生选择已有conda launcher/其base Python、预先获准的本地conda包缓存及wheelhouse；仅后端持有native selection映射，Renderer请求仍只有包ID、profile、新环境名/owned UUID。v0.0.0不自动安装conda。只读核平台、launcher身份、来源清单/hash、CPython3.11精确版本及pip基础包；没有缓存/可信来源时给固定不可执行状态，不隐式联网解析。bootstrap来源尚未确定，不能凭空填版本/hash或把wheel体积当Python创建总量。
 2. **CondaBootstrap实现EnvironmentProvisioner.create。** 使用已有ManagedInstallCommand/ManagedSupervisor的进程所有权。固定参数列表、shell=False，不接受命令/频道/URL/prefix自由文本，不使用conda activate。只消费审核的离线explicit bootstrap清单，目标严格为OwnedCreation已锁定/已分配空prefix；执行前/后核claim、应用根、prefix身份，拒绝symlink/替换/未知文件。命令参数与“已有空prefix”兼容性必须按选定conda版本官方接口及本地受控协议验证后冻结，不能用未经验证的create覆盖/force替代。通过固定标准库launcher桥接原始conda输出与已有进程协议，包管理器输出只作raw log，不解释为可信应用事件；取消始终由同一进程owner管理，不增加PID扫描或删除回退。

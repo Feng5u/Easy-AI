@@ -62,7 +62,6 @@
       "type": "boolean"
     },
     "executionEnabled": {
-      "const": false,
       "default": false,
       "title": "Executionenabled",
       "type": "boolean"

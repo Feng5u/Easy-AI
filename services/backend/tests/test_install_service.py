@@ -42,7 +42,10 @@ def service(tmp_path, monkeypatch):
     app.mkdir()
     value = InstallService(app)
     yield value
-    value.close()
+    try:
+        value.close()
+    except ValueError as error:
+        assert str(error) == "INSTALL_STOP_UNCONFIRMED" and value._leases and value._journals
     # Fixtures prohibit all subprocesses: any retained unknown-stop lease belongs
     # to these controlled test adapters and is safe to retire at fixture cleanup.
     for lease in value._leases.values():

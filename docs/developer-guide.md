@@ -15,7 +15,7 @@ setup仅建立应用后端环境并运行Electron官方安装器，不安装torc
 
 `pnpm fixtures`由真实Blockly重建fixtures；`pnpm contracts`由Pydantic生成schema和TS。check以只读比较模式检测漂移。生成文件不手改。`pnpm test:e2e`使用真实Electron且明确chromiumSandbox:true，不能为绿色测试关闭sandbox。
 
-原始计划和原需求位于docs。现已有Python权威编译器、真实Blockly序列化、项目持久化/本地训练进程与SSH基础、21类积木和离线教程；真实MNIST课堂链与完整B仍未验。训练环境与应用环境分离，生产安装命令仍关闭。完整剩余代码与实测门见remaining-critical-path.md，不把局部测试当全阶段通过。
+原始计划和原需求位于docs。现已有Python权威编译器、真实Blockly序列化、项目持久化/本地训练进程与SSH基础、21类积木和离线教程；真实MNIST课堂链与完整B仍未验。训练环境与应用环境分离，生产安装源码已有受具体离线来源/时效授权约束的接线，默认仍禁用；没有执行真实安装验收，详见install-runtime-configuration.md。完整剩余代码与实测门见remaining-critical-path.md，不把局部测试当全阶段通过。
 
 ## 本地打包
 
