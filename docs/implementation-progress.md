@@ -1551,3 +1551,58 @@ NOT RUN：真实SSH/新入口execute/下载/安装/conda创建/训练/新凭据/
 下一项为按最小方案冻结可信conda bootstrap/来源合同，再做受控本地adapter和唯一worker生产接线；真实执行门保持关闭。方案不替代尚未实现的adapter或真实纵向验收。
 
 本片M6.3接线方案亦经既有worker独立只读核对，四项代码缺口与现状一致，无重大事实误述；没有启用安装或把内部接口当真实安装完成。
+
+
+## 2026-10-18 — M6.3 四项生产接线（默认禁用；真实安装NOT RUN）
+
+源码完整SHA **`446afaada4e41dd42f8e20e9e81a1f1b598938a0`**；基线 `14f03fa8d4fbaef8e702bd8c13f6a3edf0c71587`。按父级明确授权，实现已审最小方案中的四项代码缺口；不因缺真实目标停在方案。单一集成者，复用既有worker独立只读审查。范围仅本机Linux x64 CPU/应用owned目标/既有CPU锁覆盖包，不把本片当完整M6.3/B。
+
+先只读核精确官方conda25.9.1 tag：main_create125–149区分已有conda环境（可remove）与已有non-environment目录（确认后继续）；misc支持本地file+SHA256，install纯explicit分支绕solver。支持准确25.9.1，固定empty-prefix/claim前置与返回核验、无force/clone/删除；来源不齐/版本不符保持拒绝。官方25.9.x CLI页标题dev4仅参数参考，裁决用tag。链接及完整权限/私有配置合同见 `docs/install-runtime-configuration.md`，未虚构实际launcher/hash/来源/体积，没有获取安装器/依赖或运行conda。
+
+实现结果：
+
+- 新InstallRuntime/CondaBootstrap读取**缺失即无能力**的私有配置；同fd核配置，launcher实际hash/身份、显式完整模块树hash、离线bootstrap档案、既有wheel来源、预算/时效绑定runtimeFingerprint→planHash。执行前与kernel lease后重核。来源文件逐级受保护祖先，拒绝链接/不安全可写目录；不把版本字符串当来源信任。
+- base Python用-I/-S/-B与受核moduleRoot，禁.pth；准确版本/模块路径先核。固定私有Context配置搜索路径覆盖CLI再次初始化；offline/纯@EXPLICIT/file SHA256/no-default-packages/copy、禁external plugins/更新/notices/共享注册。ManagedProcess新增inherit_environment默认true，既有训练默认不变；安装命令用false及白名单HOME/tmp/cache/pkgs/envs，避免继承PIP/CONDA/PYTHON/proxy/LD配置。沿用ManagedInstallCommand/ManagedSupervisor owner，不另造writer或自由命令入口。
+- LocalWorkspace注入既有ManagedInstallInspector，confirm在mutex内先持久登记同job唯一worker，再只调原execute；确认重放不spawn。每job cancel token供inspector使用；close在workspace锁外，先取消包括planning/probe，再用从mutex获取前开始的总等待预算等worker静止；未知保留journal/lease，不提前释放物理门。restart仍只读隔离旧任务。
+- executionEnabled从固定false改为**默认false且具体主机/具体plan的能力**，未配置没有worker/环境创建；不是全局true。合同生成新增runtimeFingerprint/bootstrapBytes/diskBudgetBytes/executionSeconds，来源已在本机的计划requiresNetwork=false/downloadBytes=0，真实解包占用未知保留null。UI展示来源/预算，并区分“明确确认执行”与“仅登记”，17包中未锁可选项继续block。没有创建实际配置或启用本机真实安装。
+
+独审实证并关闭三个P2：1）leaf保护不涵盖0777非sticky祖先，现复用既有逐级目录策略及回归；2）旧close等planning mutex前未设取消/计入deadline，现先发close请求/全owner取消，mutex获取亦有界、未知保留，Inspector后再核scope；3）runtime.snapshot全树hash可跨close，现保存plan前最终核scope，snapshot专用屏障拒绝迟到enabled计划。原前两项纯stdlib独审实证在消息中，未编造其本地原始日志。支持精确tag的私有Context wrapper亦经独立核源；最终未发现新增明确P1/P2。
+
+| 实际命令 | 结果与范围 |
+| --- | --- |
+| `services/backend/.venv/bin/pytest services/backend/tests/test_install_runtime.py services/backend/tests/test_install_service.py services/backend/tests/test_install_process.py services/backend/tests/test_owned_creation.py services/backend/tests/test_supervisor.py services/backend/tests/test_compilation.py -q` | **121 PASS/12.55s**，`/tmp/easyai-install-final-tests-1792359074247-2bafe8.log`。9个新runtime门/既有安装和创建生命周期/继承默认及进程组取消/编译与runtime资源回归。HTTP→唯一worker正向只复用已标注的synthetic inventory、claim/ready与复检合同；固定conda命令仅compile/capture，**不执行真实adapter/conda/pip/安装/torch**。真实stdlib子进程只核环境白名单 |
+| `pnpm exec vitest run apps/desktop/src/PackageManager.test.mts apps/desktop/electron/install-workflow.test.mts` | **22 PASS/2 files**，`/tmp/easyai-install-final-ui-1792359074247-2bafe8.log`；新增enabled主机仍需具体plan/checkbox确认，默认分支、固定IPC、源码sidecar协议仍覆盖；不启动Electron或原生picker |
+| `UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache pnpm contracts`，同缓存 `pnpm check` | 合同生成及 **check PASS**，`/tmp/easyai-install-final-check-1792359074247-2bafe8.log`；TS/Main/tests、110Python ruff/format、strict mypy61、合同/真实Blocklyfixture/Prettier。最终后续仅更新两个模块docstring说明已接生产worker，并定向ruff check/format PASS，无行为改动 |
+| `UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache XDG_CACHE_HOME=/workspace/.cache pnpm build` | **PASS**，`/tmp/easyai-install-final-build-1792359074247-2bafe8.log`；Main TS/Vite/PyInstaller，保留既有chunk提示，无新依赖或真实安装；构建后仅上述docstring文案更新，无行为改动 |
+| `node scripts/test-frozen.mjs` | **PASS**，`/tmp/easyai-install-final-test-frozen.mjs-1792359074247-2bafe8.log`；实际冻结后端临时cwd资源/选择API/工程/黄金编译、默认安装plan/登记/取消（execution仍false）、EOF exit0 |
+| `node scripts/test-frozen-install-recovery.mjs` | **PASS**，`/tmp/easyai-install-final-test-frozen-install-recovery.mjs-1792359074247-2bafe8.log`；实际重启冻结后端持久job读取/旧确认失效；没有环境、安装器或安装正向链 |
+| 既有worker只读独审 | runtime **8 PASS/6.41s** `/tmp/easyai-install-runtime-review-jU5zZI.log`；补迟到snapshot/命令捕获/唯一worker **3 PASS/6 deselected/3.37s** `/tmp/easyai-install-final-gate-review-o2Cd5h.log`，范围重合不累计。关闭三个P2，源码/官方接口核对无明确新增P1/P2 |
+| `git diff --check` / 原件hash / `git ls-remote origin refs/heads/main refs/heads/codex/demo-v0.0.0` | **PASS**。推前dev=14f03fa8d4fbaef8e702bd8c13f6a3edf0c71587、main=5323f86232529efcfb52131168ad049f01b219f3；源码/文档普通dev提交，随后push核对 |
+
+失败与中间窗口如实保全，不与最终累加：初稿mypy1项records类型缺注解/Ruff lambda，修正；既有60项第一次58PASS/2FAIL/5teardown为新close正确拒绝unknown lease及持久失败路径，修正close安全关闭的固定错误处理，强化旧fixture明确expect pending且保留journal/lease，不放宽执行门。新runtime初稿6PASS/1FAIL是Headers.update错误参数；其后7PASS/1FAIL是测试误期望200而产品原契约202，改断言。包含旧60的中间窗口67PASS/1FAIL同202误断言，未改产品状态；最后9runtime/121综合通过。所有文件唯一noclobber，不覆盖失败。
+
+- `/tmp/easyai-install-final-build-1792359074247-2bafe8.log` SHA256 `20580bda83df6c27d0e80ad85831f84bea62f4d1a9dfd4078725a6f29eb5612f`。
+- `/tmp/easyai-install-final-check-1792359074247-2bafe8.log` SHA256 `0ba42ea8d706375620f36169cc55b8ed1bdcdc915708fd2bc1d5c578fe6e6fbf`。
+- `/tmp/easyai-install-final-gate-review-o2Cd5h.log` SHA256 `2330fe8b057ddbaadc3a3d3c8059bdc56c326c3355fa89b99c7f275c2417be46`。
+- `/tmp/easyai-install-final-test-frozen-install-recovery.mjs-1792359074247-2bafe8.log` SHA256 `46986004fa5ba8e2972c26335394e67612cf6f7b4021c7a00a6cfbc9f57cc1c8`。
+- `/tmp/easyai-install-final-test-frozen.mjs-1792359074247-2bafe8.log` SHA256 `598e651d8bfd55009c56cd315d848d8185d98d8ae4eb67c6d0dd2d14af4ed0c3`。
+- `/tmp/easyai-install-final-tests-1792359074247-2bafe8.log` SHA256 `3c982fd57e313a104fa9907d1a5042e1873de6ef2346c1bd8aaba5740df046f7`。
+- `/tmp/easyai-install-final-ui-1792359074247-2bafe8.log` SHA256 `712367ce59b6be8eeef357f5c34300e849258269082314002072b234092da0ec`。
+- `/tmp/easyai-install-runtime-review-jU5zZI.log` SHA256 `233d1d856e1a757a55ffe2d3ab84c24497f297021d477af9c33bb0aa5f014687`。
+- `/tmp/easyai-install-wiring-baseline-20261018-unique1.log` SHA256 `f638066495cdf56861265ea846d68b5cc20ebfabd61c19b9215a5935647eebe7`。
+- `/tmp/easyai-install-wiring-baseline-20261018-unique2.log` SHA256 `dd45a33bbf343ce3963a4921662bf94fa4561201cd5859ba0477a04b6e968f34`。
+- `/tmp/easyai-install-wiring-check-1792358840639-93b4a9.log` SHA256 `0ba42ea8d706375620f36169cc55b8ed1bdcdc915708fd2bc1d5c578fe6e6fbf`。
+- `/tmp/easyai-install-wiring-new-20261018-unique1.log` SHA256 `4fe979b5865f11039fa2cc6d709638b7aa04efcbd082308d89155dd4f248321c`。
+- `/tmp/easyai-install-wiring-new-20261018-unique2.log` SHA256 `6f3eeddc77e9c1853e3febd1f916f33c6db7015e6869430fe4f4a0bab37094d1`。
+- `/tmp/easyai-install-wiring-new-20261018-unique3.log` SHA256 `d1b57cd7859067a3929e0ed721995bdec8fa0509c64ffd137132a3bb28c0a74b`。
+- `/tmp/easyai-install-wiring-new-20261018-unique4.log` SHA256 `c6e3f9790bff1ca7a8ff6259410d3654b79807390b46f175403d080ab1022eea`。
+- `/tmp/easyai-install-wiring-tests-1792358840639-93b4a9.log` SHA256 `0403b3124c691934d5a46abe5613c202fae59d3a283b6e61ffa3917cc0b93b3e`。
+- `/tmp/easyai-install-wiring-types-20261018-unique1.log` SHA256 `0681ab94e73d171c0d806d1c114f40e382d2c54ab6ff28b18427906aa08fc3f2`。
+- `/tmp/easyai-install-wiring-ui-1792358840639-93b4a9.log` SHA256 `4921881ad8eb2a1124ef80286cddfd8d543280f6a15ab6992321f959c445dc52`。
+
+
+NOT RUN：真实CondaBootstrap/pip、依赖/缓存/数据下载、环境创建/安装/实际正向imports/tensor、训练/新凭据/许可接受、真实SSH/桌面/Windows/干净机/全套大矩阵/重打便携包/发布。私有真实launcher及模块/bootstrap/wheel来源、许可与一次性owned目标/预算授权未提供，**未授权且未执行**，没有“已安装后重试”的不确定外部动作。默认能力仍关闭；本片是四项源码接线完成与受控验证，不是实际兼容/安装验收。
+
+plan原件116185字节hash dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43、旧规格5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190、README befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852均未改。CIFAR仍待用户裁决，旧226PASS/1FAIL根因UNKNOWN且原始日志丢失，不回溯套新P2；既有Actions读取/sandbox拒绝未重试/绕过。旧source7b91c46便携目录未含本片、未重打包/上传，distributionReady/legalReviewComplete仍false；无本片新CI判定。无新工具拒绝/未知外部写入/main/强推/PR/Release/部署/费用/凭据/权限变化。
+
+下一项是父侧复核四项源码接线与精确支持合同；随后真实验收只有在上述具体来源/目标/许可/预算授权齐备后可进行。可选包解析、安装历史/保留策略、未知停止安全解除、活安装重连、远端安装仍是独立剩余代码范围；M5真实SSH、完整M6.3/B仍未验。
