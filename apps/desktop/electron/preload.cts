@@ -2,6 +2,27 @@ import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
 import type { DesktopAPI, SubscriptionMessage } from "./bridge.js";
 const api: DesktopAPI = {
   connections: {
+    authenticate: (
+      projectId,
+      requestId,
+      identityRequestId,
+      username,
+      password,
+    ) =>
+      ipcRenderer.invoke(
+        "easyai:connections:authenticate",
+        projectId,
+        requestId,
+        identityRequestId,
+        username,
+        password,
+      ),
+    cancelAuth: (projectId, requestId) =>
+      ipcRenderer.invoke("easyai:connections:cancelAuth", projectId, requestId),
+    close: (projectId, connectionId) =>
+      ipcRenderer.invoke("easyai:connections:close", projectId, connectionId),
+    current: (projectId, connectionId) =>
+      ipcRenderer.invoke("easyai:connections:current", projectId, connectionId),
     probe: (projectId, requestId, endpoint) =>
       ipcRenderer.invoke(
         "easyai:connections:probe",
@@ -18,6 +39,14 @@ const api: DesktopAPI = {
       ),
     cancel: (projectId, requestId) =>
       ipcRenderer.invoke("easyai:connections:cancel", projectId, requestId),
+  },
+  environments: {
+    discover: (request) =>
+      ipcRenderer.invoke("easyai:environments:discover", request),
+    probe: (request) =>
+      ipcRenderer.invoke("easyai:environments:probe", request),
+    cancel: (request) =>
+      ipcRenderer.invoke("easyai:environments:cancel", request),
   },
   status: {
     get: () => ipcRenderer.invoke("easyai:status:get"),

@@ -64,6 +64,9 @@ class CommandResult:
 class ProbeTransport(Protocol):
     scope: EnvironmentScope
 
+    @property
+    def quiescent(self) -> bool: ...
+
     def execute(self, command: ReadOnlyCommand, cancel: threading.Event) -> CommandResult: ...
     def close(self) -> None: ...
 
@@ -90,6 +93,14 @@ class SshProbeTransport:
         self._clock = clock
         self._busy = threading.Lock()
         self._closed = threading.Event()
+
+    @property
+    def quiescent(self) -> bool:
+        acquired = self._busy.acquire(blocking=False)
+        if not acquired:
+            return False
+        self._busy.release()
+        return not self._closed.is_set() or bool(getattr(self._session, "closed_quiescent", False))
 
     def close(self) -> None:
         self._closed.set()

@@ -62,6 +62,22 @@ interface Operation {
 export class IdentityWorkflow {
   private active?: Operation;
   constructor(private backend: () => Backend | undefined) {}
+  trustedTarget(projectId: string, requestId: string) {
+    const operation = this.active;
+    if (
+      !operation ||
+      operation.projectId !== projectId ||
+      operation.requestId !== requestId ||
+      this.backend() !== operation.backend ||
+      operation.observation?.trustState !== "trusted"
+    )
+      throw new Error("SSH_IDENTITY_CONFIRMATION_STALE");
+    return {
+      backend: operation.backend,
+      endpoint: { ...operation.endpoint },
+      fingerprint: operation.observation.fingerprint,
+    };
+  }
   private cancelOperation(operation: Operation): Promise<void> {
     return operation.backend
       .request("POST", "/api/v1/connections/identity/cancel", {

@@ -427,6 +427,7 @@ export function App({ api }: { api?: DesktopAPI }) {
         <ConnectionPanel
           key={project.projectId}
           api={bridge.connections}
+          environments={bridge.environments}
           projectId={project.projectId}
           onClose={() => setIdentityVisible(false)}
         />

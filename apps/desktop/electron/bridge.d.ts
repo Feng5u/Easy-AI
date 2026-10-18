@@ -1,3 +1,17 @@
+import type { AuthenticatedConnection } from "../../../packages/contracts/types/AuthenticatedConnection.js";
+import type { EnvironmentCatalog } from "../../../packages/contracts/types/EnvironmentCatalog.js";
+import type { EnvironmentDiscoveryRequest } from "../../../packages/contracts/types/EnvironmentDiscoveryRequest.js";
+import type { EnvironmentProbeRequest } from "../../../packages/contracts/types/EnvironmentProbeRequest.js";
+import type { EnvironmentProbeResult } from "../../../packages/contracts/types/EnvironmentProbeResult.js";
+import type { EnvironmentRequest } from "../../../packages/contracts/types/EnvironmentRequest.js";
+export type {
+  AuthenticatedConnection,
+  EnvironmentCatalog,
+  EnvironmentDiscoveryRequest,
+  EnvironmentProbeRequest,
+  EnvironmentProbeResult,
+  EnvironmentRequest,
+};
 import type { HostKeyObservation } from "../../../packages/contracts/types/HostKeyObservation.js";
 import type { SshEndpoint } from "../../../packages/contracts/types/SshEndpoint.js";
 import type { IdentityResult } from "../../../packages/contracts/types/IdentityResult.js";
@@ -34,6 +48,19 @@ export interface StartRun {
 export type ConnectionState = "connected" | "reconnecting" | "closed" | "error";
 export interface DesktopAPI {
   connections: {
+    authenticate(
+      projectId: string,
+      requestId: string,
+      identityRequestId: string,
+      username: string,
+      password: string,
+    ): Promise<AuthenticatedConnection>;
+    cancelAuth(projectId: string, requestId: string): Promise<void>;
+    close(projectId: string, connectionId: string): Promise<void>;
+    current(
+      projectId: string,
+      connectionId: string,
+    ): Promise<AuthenticatedConnection | null>;
     probe(
       projectId: string,
       requestId: string,
@@ -45,6 +72,11 @@ export interface DesktopAPI {
       fingerprint: string,
     ): Promise<IdentityResult>;
     cancel(projectId: string, requestId: string): Promise<void>;
+  };
+  environments: {
+    discover(request: EnvironmentDiscoveryRequest): Promise<EnvironmentCatalog>;
+    probe(request: EnvironmentProbeRequest): Promise<EnvironmentProbeResult>;
+    cancel(request: EnvironmentRequest): Promise<void>;
   };
   status: {
     get(): Promise<{ ready: boolean; message: string }>;

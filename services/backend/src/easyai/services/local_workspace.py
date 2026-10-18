@@ -22,6 +22,8 @@ from easyai.services.run_service import RunService, TERMINAL
 
 SelectionKind = Literal["project", "python", "data"]
 if TYPE_CHECKING:
+    from easyai.domain.ssh import IdentityRequest
+    from easyai.services.connection_manager import ConnectionManager
     from easyai.services.ssh_identity import SshIdentityService
     from easyai.services.ssh_client import SshClient
 
@@ -214,6 +216,7 @@ class LocalWorkspace:
         self._closed = False
         self._ssh_client: SshClient | None = None
         self._ssh_identity: SshIdentityService | None = None
+        self._connections: ConnectionManager | None = None
         self._readonly: tuple[Path, bytes, ProjectSession] | None = None
         self._restore_error = False
         remembered = self.root / "last-project.json"
@@ -250,9 +253,33 @@ class LocalWorkspace:
                 from easyai.services.ssh_identity import SshIdentityService
 
                 self._ssh_identity = SshIdentityService(
-                    self.ssh(), self._mutex, self._identity_project
+                    self.ssh(),
+                    self._mutex,
+                    self._identity_project,
+                    before_probe=self.begin_identity_probe,
                 )
             return self._ssh_identity
+
+    def connections(self) -> "ConnectionManager":
+        with self._mutex:
+            self._verify()
+            if self._connections is None:
+                from easyai.services.connection_manager import ConnectionManager
+
+                self._connections = ConnectionManager(
+                    self.ssh(), self.identity(), self._mutex, self._identity_project
+                )
+            return self._connections
+
+    def begin_identity_probe(self) -> None:
+        with self._mutex:
+            if self._connections is not None:
+                self._connections.invalidate()
+
+    def cancel_identity_connection(self, request: "IdentityRequest") -> None:
+        with self._mutex:
+            if self._connections is not None:
+                self._connections.cancel_identity(request)
 
     def _identity_project(self, project_id: str) -> None:
         self._verify()
@@ -260,6 +287,8 @@ class LocalWorkspace:
             raise ValueError("SSH_IDENTITY_PROJECT_CHANGED")
 
     def _invalidate_identity(self) -> None:
+        if self._connections is not None:
+            self._connections.invalidate()
         if self._ssh_identity is not None:
             self._ssh_identity.invalidate()
 
@@ -555,3 +584,5 @@ class LocalWorkspace:
                 for project in self._projects.values():
                     project.close()
                 self._closed = True
+        if self._connections is not None:
+            self._connections.wait_idle()

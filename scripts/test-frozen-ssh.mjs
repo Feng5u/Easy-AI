@@ -70,39 +70,37 @@ try {
     );
     return { response, value: await response.json() };
   }
-  assert.equal(
-    (
-      await request(
-        "POST",
-        "/connections/probe",
-        { host: "offline.invalid" },
-        false,
-      )
-    ).response.status,
-    401,
-  );
-  assert.equal(
-    (await request("POST", "/connections/probe", { host: "invalid/host" }))
-      .response.status,
-    422,
-  );
-  const rejected = await request("POST", "/connections/probe", {
-    host: "offline.invalid",
-    password: "DO_NOT_ECHO_TEST_MARKER",
-  });
-  assert.equal(rejected.response.status, 422);
-  assert.equal(JSON.stringify(rejected.value).includes("DO_NOT_ECHO"), false);
-  // This path lazily imports packaged Paramiko without dialing any SSH endpoint.
-  const expired = await request("POST", "/connections/trust-host-key", {
-    challengeId: "00000000-0000-0000-0000-000000000000",
-    fingerprint: "SHA256:" + "A".repeat(43),
-  });
-  assert.equal(expired.response.status, 422);
-  assert.equal(expired.value.error.code, "SSH_CONFIRMATION_EXPIRED");
   const scoped = {
     projectId: "11111111-1111-4111-8111-111111111111",
     requestId: "22222222-2222-4222-8222-222222222222",
   };
+  const probe = { ...scoped, endpoint: { host: "offline.invalid", port: 22 } };
+  assert.equal(
+    (await request("POST", "/connections/identity/probe", probe, false))
+      .response.status,
+    401,
+  );
+  assert.equal(
+    (
+      await request("POST", "/connections/identity/probe", {
+        ...probe,
+        endpoint: { host: "invalid/host" },
+      })
+    ).response.status,
+    422,
+  );
+  const rejected = await request("POST", "/connections/identity/probe", {
+    ...probe,
+    password: "DO_NOT_ECHO_TEST_MARKER",
+  });
+  assert.equal(rejected.response.status, 422);
+  assert.equal(JSON.stringify(rejected.value).includes("DO_NOT_ECHO"), false);
+  for (const legacy of ["probe", "trust-host-key"]) {
+    assert.equal(
+      (await request("POST", "/connections/" + legacy, {})).response.status,
+      404,
+    );
+  }
   const cancelled = await request(
     "POST",
     "/connections/identity/cancel",
@@ -119,8 +117,41 @@ try {
   });
   assert.equal(invalidScope.response.status, 422);
   assert.equal(invalidScope.value.error.code, "SSH_IDENTITY_PROJECT_CHANGED");
+  const rejectedAuth = await request("POST", "/connections/auth/password", {
+    request: {
+      ...scoped,
+      identityRequestId: scoped.requestId,
+      expectedFingerprint: "SHA256:" + "A".repeat(43),
+      username: "synthetic",
+    },
+    password: "synthetic-memory-only",
+  });
+  assert.equal(rejectedAuth.response.status, 503);
+  assert.equal(rejectedAuth.value.error.code, "SSH_IDENTITY_PROJECT_CHANGED");
+  assert.equal(
+    JSON.stringify(rejectedAuth.value).includes("synthetic-memory-only"),
+    false,
+  );
+  const connectionId = "33333333-3333-4333-8333-333333333333";
+  const session = await request(
+    "GET",
+    `/connections/session?projectId=${scoped.projectId}&connectionId=${connectionId}`,
+  );
+  assert.equal(session.response.status, 200);
+  assert.equal(session.value, null);
+  const environment = await request("POST", "/environments/discover", {
+    ...scoped,
+    connectionId,
+  });
+  assert.equal(environment.response.status, 503);
+  assert.equal(environment.value.error.code, "SSH_AUTHENTICATION_REQUIRED");
+  const closed = await request("POST", "/connections/session/close", {
+    projectId: scoped.projectId,
+    connectionId,
+  });
+  assert.equal(closed.response.status, 200);
   console.log(
-    "PASS frozen SSH routes + auth + strict DTO + sanitized errors + scoped cancel/confirm + lazy Paramiko; no outbound SSH",
+    "PASS frozen SSH routes + auth + strict DTO + sanitized errors + scoped cancel/confirm + auth lease/environment rejection + lazy Paramiko; synthetic inputs, no outbound SSH",
   );
 } finally {
   child.stdin.end();

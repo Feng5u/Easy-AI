@@ -11,6 +11,7 @@ from easyai.domain.ssh import (
     IdentityProbeRequest,
     IdentityRequest,
     IdentityResult,
+    SshEndpoint,
 )
 from easyai.services.ssh_client import SshClient
 
@@ -21,6 +22,15 @@ class _Operation:
     cancel: threading.Event = field(default_factory=threading.Event)
     running: bool = True
     observation: HostKeyObservation | None = None
+    observed_at: float = 0
+    auth_consumed: bool = False
+
+
+@dataclass(frozen=True)
+class IdentityGrant:
+    endpoint: SshEndpoint
+    fingerprint: str
+    expires_at: float
 
 
 class SshIdentityService:
@@ -30,10 +40,12 @@ class SshIdentityService:
         mutex: threading.RLock,
         verify_project: Callable[[str], None],
         clock: Callable[[], float] = time.monotonic,
+        before_probe: Callable[[], None] | None = None,
     ):
         self._client = client
         self._mutex = mutex
         self._verify_project = verify_project
+        self._before_probe = before_probe
         self._clock = clock
         self._active: _Operation | None = None
         self._retired: dict[tuple[str, str], float] = {}
@@ -79,6 +91,8 @@ class SshIdentityService:
             if self._active and self._active.running:
                 raise ValueError("SSH_IDENTITY_BUSY")
             self._retire(request)  # Each request id can initiate at most one probe.
+            if self._before_probe is not None:
+                self._before_probe()  # Only accepted new probes can invalidate a live lease.
             if self._active:
                 self._discard(self._active)
             operation = _Operation(request)
@@ -87,6 +101,7 @@ class SshIdentityService:
             observed = self._client.probe(request.endpoint, operation.cancel)
             with self._mutex:
                 operation.observation = observed
+                operation.observed_at = self._clock()
                 try:
                     self._verify_project(request.project_id)
                     if observed.endpoint != request.endpoint:
@@ -104,6 +119,30 @@ class SshIdentityService:
         finally:
             with self._mutex:
                 operation.running = False
+
+    def consume_auth_grant(
+        self, project_id: str, request_id: str, fingerprint: str
+    ) -> IdentityGrant:
+        with self._mutex:
+            self._verify_project(project_id)
+            operation = self._active
+            if (
+                operation is None
+                or operation.running
+                or operation.cancel.is_set()
+                or operation.auth_consumed
+                or operation.request.project_id != project_id
+                or operation.request.request_id != request_id
+                or operation.observation is None
+                or operation.observation.trust_state != "trusted"
+                or operation.observation.fingerprint != fingerprint
+                or operation.observed_at + 600 <= self._clock()
+            ):
+                raise ValueError("SSH_IDENTITY_AUTHORIZATION_STALE")
+            operation.auth_consumed = True
+            return IdentityGrant(
+                operation.request.endpoint, fingerprint, operation.observed_at + 600
+            )
 
     def confirm(self, request: IdentityConfirmRequest) -> IdentityResult:
         with self._mutex:

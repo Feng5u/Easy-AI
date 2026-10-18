@@ -19,7 +19,14 @@ test("secure desktop startup and normal shutdown", async () => {
       })),
     ).toEqual({
       node: "undefined",
-      bridge: ["connections", "status", "selections", "projects", "runs"],
+      bridge: [
+        "connections",
+        "environments",
+        "status",
+        "selections",
+        "projects",
+        "runs",
+      ],
     });
     const rendererSecurity = await app.evaluate(({ app }) => ({
       platform: process.platform,

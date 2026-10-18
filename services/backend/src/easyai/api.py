@@ -2,7 +2,6 @@ import secrets
 import asyncio
 import time
 import re
-import threading
 from pathlib import Path
 from typing import Literal
 from uuid import uuid4
@@ -14,6 +13,20 @@ from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.responses import StreamingResponse, JSONResponse, Response
 from pydantic import Field
 
+from easyai.domain.connections import (
+    AuthenticationRequest,
+    AuthenticatedConnection,
+    PasswordAuthenticationInput,
+    SessionControl,
+)
+from easyai.domain.environment import (
+    EnvironmentCatalog,
+    EnvironmentDiscoveryRequest,
+    EnvironmentProbeRequest,
+    EnvironmentProbeResult,
+    EnvironmentRequest,
+)
+from easyai.services.environment_transport import EnvironmentFailure
 from easyai.domain.catalog import load_catalog
 from easyai.domain.contracts import (
     CompileRequest,
@@ -36,7 +49,7 @@ from easyai.domain.ssh import (
     IdentityConfirmRequest,
     IdentityResult,
 )
-from easyai.domain.ssh import SshEndpoint, HostKeyObservation, HostKeyConfirmation, SshFailure
+from easyai.domain.ssh import SshFailure
 from easyai.compiler.pipeline import compile_project
 from easyai.services.run_service import RunService, TERMINAL
 from easyai.services.local_workspace import LocalWorkspace
@@ -92,7 +105,7 @@ def create_app(
 
     @app.exception_handler(RequestValidationError)
     async def invalid_request(request: Request, error: RequestValidationError) -> Response:
-        if request.url.path.startswith("/api/v1/connections/"):
+        if request.url.path.startswith(("/api/v1/connections/", "/api/v1/environments/")):
             # Validation errors normally echo input, including rejected secret fields.
             return JSONResponse(status_code=422, content={"error": {"code": "SSH_REQUEST_INVALID"}})
         return await request_validation_exception_handler(request, error)
@@ -115,6 +128,13 @@ def create_app(
             status_code=status,
             content={"error": {"code": code, "message": code, "requestId": str(uuid4())}},
         )
+
+    @app.exception_handler(EnvironmentFailure)
+    async def environment_failure(_request: Request, error: EnvironmentFailure) -> JSONResponse:
+        code = str(error)
+        if not re.fullmatch(r"ENVIRONMENT_[A-Z_]{1,80}", code):
+            code = "ENVIRONMENT_OPERATION_FAILED"
+        return JSONResponse(status_code=503, content={"error": {"code": code, "message": code}})
 
     @app.exception_handler(SshFailure)
     async def ssh_failure(_request: Request, error: SshFailure) -> JSONResponse:
@@ -140,21 +160,6 @@ def create_app(
             raise HTTPException(status_code=404, detail="Local workspace is not configured")
         return workspace
 
-    @app.post("/api/v1/connections/probe", response_model=HostKeyObservation)
-    async def probe_host(endpoint: SshEndpoint) -> HostKeyObservation:
-        # Pre-authentication only. No username/password/key fields are accepted.
-        cancel = threading.Event()
-        try:
-            return await asyncio.to_thread(lambda: local().ssh().probe(endpoint, cancel))
-        finally:
-            cancel.set()
-
-    @app.post("/api/v1/connections/trust-host-key", response_model=HostKeyObservation)
-    async def trust_host(request: HostKeyConfirmation) -> HostKeyObservation:
-        return await asyncio.to_thread(
-            lambda: local().ssh().store.confirm(request.challenge_id, request.fingerprint)
-        )
-
     @app.post("/api/v1/connections/identity/probe", response_model=IdentityResult)
     async def probe_identity(request: IdentityProbeRequest) -> IdentityResult:
         service = local().identity()
@@ -166,12 +171,77 @@ def create_app(
 
     @app.post("/api/v1/connections/identity/cancel")
     async def cancel_identity(request: IdentityRequest) -> dict[str, bool]:
+        local().cancel_identity_connection(request)
         await asyncio.to_thread(local().identity().cancel, request)
         return {"cancelled": True}
 
     @app.post("/api/v1/connections/identity/confirm", response_model=IdentityResult)
     async def confirm_identity(request: IdentityConfirmRequest) -> IdentityResult:
         return await asyncio.to_thread(local().identity().confirm, request)
+
+    @app.post("/api/v1/connections/auth/password", response_model=AuthenticatedConnection)
+    async def authenticate_password(body: PasswordAuthenticationInput) -> AuthenticatedConnection:
+        manager = local().connections()
+        request: AuthenticationRequest = body.request
+        password = body.password.get_secret_value()
+        try:
+            return await asyncio.to_thread(manager.authenticate_password, request, password)
+        except asyncio.CancelledError:
+            await asyncio.shield(
+                asyncio.to_thread(
+                    manager.cancel_auth,
+                    IdentityRequest(project_id=request.project_id, request_id=request.request_id),
+                )
+            )
+            raise
+        finally:
+            body.forget()
+            password = ""
+
+    @app.post("/api/v1/connections/auth/cancel")
+    async def cancel_auth(request: IdentityRequest) -> dict[str, bool]:
+        await asyncio.to_thread(local().connections().cancel_auth, request)
+        return {"invalidated": True}
+
+    @app.post("/api/v1/connections/session/close")
+    async def close_connection(request: SessionControl) -> dict[str, bool]:
+        await asyncio.to_thread(local().connections().close, request)
+        return {"invalidated": True}
+
+    @app.get("/api/v1/connections/session", response_model=AuthenticatedConnection | None)
+    async def current_connection(
+        project_id: str = Query(alias="projectId", pattern=r"^[0-9a-f-]{36}$"),
+        connection_id: str = Query(alias="connectionId", pattern=r"^[0-9a-f-]{36}$"),
+    ) -> AuthenticatedConnection | None:
+        return await asyncio.to_thread(
+            local().connections().current,
+            SessionControl(project_id=project_id, connection_id=connection_id),
+        )
+
+    @app.post("/api/v1/environments/discover", response_model=EnvironmentCatalog)
+    async def discover_environment(request: EnvironmentDiscoveryRequest) -> EnvironmentCatalog:
+        manager = local().connections()
+        service = manager.environments(request)
+        try:
+            return await asyncio.to_thread(service.discover, request)
+        except asyncio.CancelledError:
+            await asyncio.shield(asyncio.to_thread(manager.cancel_environment, request))
+            raise
+
+    @app.post("/api/v1/environments/probe", response_model=EnvironmentProbeResult)
+    async def probe_environment(request: EnvironmentProbeRequest) -> EnvironmentProbeResult:
+        manager = local().connections()
+        service = manager.environments(request)
+        try:
+            return await asyncio.to_thread(service.probe, request)
+        except asyncio.CancelledError:
+            await asyncio.shield(asyncio.to_thread(manager.cancel_environment, request))
+            raise
+
+    @app.post("/api/v1/environments/cancel")
+    async def cancel_environment(request: EnvironmentRequest) -> dict[str, bool]:
+        await asyncio.to_thread(local().connections().cancel_environment, request)
+        return {"invalidated": True}
 
     @app.post("/api/v1/local/selections", response_model=SelectionResult)
     async def select(request: SelectionRequest) -> SelectionResult:

@@ -106,7 +106,16 @@ function bridge(readOnly = false) {
     throw new Error("Unexpected operation in component unit test");
   };
   const api: DesktopAPI = {
+    environments: {
+      discover: unsupported,
+      probe: unsupported,
+      cancel: unsupported,
+    },
     connections: {
+      authenticate: unsupported,
+      cancelAuth: async () => {},
+      close: async () => {},
+      current: async () => null,
       probe: unsupported,
       confirm: unsupported,
       cancel: async () => {},
@@ -414,4 +423,93 @@ it("opens the normal SSH identity panel and closes without authenticating", asyn
     project().projectId,
     probe.mock.calls[0][1],
   );
+});
+
+it("opens normal SSH authentication and explicit environment discovery through App controls", async () => {
+  const { api } = bridge();
+  const pid = project().projectId;
+  const cid = "33333333-3333-4333-8333-333333333333";
+  const environmentId = "44444444-4444-4444-8444-444444444444";
+  const scope = {
+    projectId: pid,
+    connectionId: cid,
+    endpoint: { host: "synthetic.invalid", port: 22 },
+    hostFingerprint: "SHA256:" + "A".repeat(43),
+  };
+  api.connections.probe = async (projectId, requestId, endpoint) => ({
+    projectId,
+    requestId,
+    observation: {
+      endpoint,
+      algorithm: "ssh-ed25519",
+      fingerprint: scope.hostFingerprint,
+      trustState: "trusted",
+    },
+  });
+  api.connections.authenticate = vi.fn<
+    DesktopAPI["connections"]["authenticate"]
+  >(async (projectId, requestId, identityRequestId, username, password) => {
+    expect(password).toBe("synthetic-memory-only");
+    expect(
+      container.querySelector<HTMLInputElement>('input[type="password"]')!
+        .value,
+    ).toBe("");
+    return {
+      projectId,
+      requestId,
+      identityRequestId,
+      username,
+      scope,
+      authenticated: true,
+      method: "password",
+      expiresInSeconds: 300,
+    };
+  });
+  const close = vi.fn(async () => {});
+  api.connections.close = close;
+  api.environments.discover = vi.fn<DesktopAPI["environments"]["discover"]>(
+    async (request) => ({
+      ...request,
+      scope,
+      environments: [
+        {
+          environmentId,
+          kind: "python",
+          location: "/synthetic/python",
+          readOnly: true,
+        },
+      ],
+      note: "unprobed",
+    }),
+  );
+  await mount(api);
+  await click("SSH 主机身份设置");
+  async function enter(label: string, value: string) {
+    await act(async () => {
+      const input = [...container.querySelectorAll("label")]
+        .find((node) => node.textContent?.startsWith(label))!
+        .querySelector("input")!;
+      Object.getOwnPropertyDescriptor(
+        dom.window.HTMLInputElement.prototype,
+        "value",
+      )!.set!.call(input, value);
+      input.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+    });
+  }
+  await enter("主机名或 IP", "synthetic.invalid");
+  await click("检查主机指纹");
+  expect(api.connections.authenticate).not.toHaveBeenCalled();
+  await enter("SSH 用户名", "synthetic");
+  await enter("SSH 密码", "synthetic-memory-only");
+  await click("认证并建立短时会话");
+  expect(container.textContent).toContain("已认证，固定会话最长 5 分钟");
+  expect(api.environments.discover).not.toHaveBeenCalled();
+  await click("发现环境");
+  expect(api.environments.discover).toHaveBeenCalledWith(
+    expect.objectContaining({ projectId: pid, connectionId: cid }),
+  );
+  expect(container.textContent).toContain("发现 1 个环境，尚未探测");
+  await click("关闭主机身份");
+  expect(close).toHaveBeenCalledWith(pid, cid);
+  expect(container.textContent).not.toContain("synthetic-memory-only");
 });

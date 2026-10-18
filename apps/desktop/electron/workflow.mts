@@ -1,3 +1,4 @@
+import { SessionWorkflow } from "./session-workflow.mjs";
 import { IdentityWorkflow } from "./identity-workflow.mjs";
 import type { Backend } from "./backend.mjs";
 import type {
@@ -9,6 +10,14 @@ import type {
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const WORKFLOW_CHANNELS = [
+  "easyai:connections:authenticate",
+  "easyai:connections:cancelAuth",
+  "easyai:connections:close",
+  "easyai:connections:current",
+  "easyai:environments:discover",
+  "easyai:environments:probe",
+  "easyai:environments:cancel",
+
   "easyai:connections:probe",
   "easyai:connections:confirm",
   "easyai:connections:cancel",
@@ -60,6 +69,7 @@ function project(value: unknown): ProjectDocument {
   return value as ProjectDocument;
 }
 export class MainWorkflow {
+  private sessions: SessionWorkflow;
   private identity: IdentityWorkflow;
   private subscriptions = new Map<string, AbortController>();
   constructor(
@@ -75,8 +85,24 @@ export class MainWorkflow {
     },
   ) {
     this.identity = new IdentityWorkflow(backend);
+    this.sessions = new SessionWorkflow(backend, this.identity);
   }
   async invoke(channel: string, args: unknown[]): Promise<unknown> {
+    if (
+      [
+        "easyai:connections:authenticate",
+        "easyai:connections:cancelAuth",
+        "easyai:connections:close",
+        "easyai:connections:current",
+        "easyai:environments:discover",
+        "easyai:environments:probe",
+        "easyai:environments:cancel",
+      ].includes(channel)
+    )
+      return this.sessions.invoke(channel, args);
+    if (channel === "easyai:connections:probe") this.sessions.invalidate();
+    if (channel === "easyai:connections:cancel")
+      this.sessions.cancelIdentity(args[0], args[1]);
     if (
       channel === "easyai:connections:probe" ||
       channel === "easyai:connections:confirm" ||
@@ -116,8 +142,10 @@ export class MainWorkflow {
         "easyai:projects:create",
         "easyai:projects:import",
       ].includes(channel)
-    )
+    ) {
+      this.sessions.invalidate();
       this.identity.invalidate();
+    }
     switch (channel) {
       case "easyai:selections:pick": {
         const kind = args[0];
@@ -291,6 +319,7 @@ export class MainWorkflow {
     this.subscriptions.delete(key);
   }
   dispose(): void {
+    this.sessions.invalidate();
     this.identity.invalidate();
     this.clearSubscriptions();
   }

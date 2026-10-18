@@ -36,6 +36,10 @@ function result(
 }
 function setup() {
   const api = {
+    authenticate: vi.fn<DesktopAPI["connections"]["authenticate"]>(),
+    cancelAuth: vi.fn<DesktopAPI["connections"]["cancelAuth"]>(async () => {}),
+    close: vi.fn<DesktopAPI["connections"]["close"]>(async () => {}),
+    current: vi.fn<DesktopAPI["connections"]["current"]>(async () => null),
     probe: vi.fn<DesktopAPI["connections"]["probe"]>(async (pid, rid) =>
       result(pid, rid),
     ),
@@ -141,7 +145,7 @@ it("unknown requires explicit verification; changed has no override; trusted nev
     api.probe.mock.calls[0][1],
     fp,
   );
-  expect(container.textContent).toContain("尚未进行用户认证");
+  expect(container.textContent).toContain("信任指纹本身不代表用户认证");
   api.probe.mockImplementation(async (pid, rid) => result(pid, rid, "changed"));
   await click("重新检查主机指纹");
   expect(container.textContent).toContain("主机密钥已变化，已拒绝信任");

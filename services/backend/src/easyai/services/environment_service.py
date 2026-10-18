@@ -119,6 +119,22 @@ class EnvironmentService:
             raise EnvironmentFailure("ENVIRONMENT_REQUEST_LIMIT")
         self._retired[request_id] = now + 600
 
+    @property
+    def quiescent(self) -> bool:
+        with self._mutex:
+            return (self._active is None or not self._active.running) and self._transport.quiescent
+
+    def cancel_running(self, request: EnvironmentRequest) -> bool:
+        with self._mutex:
+            self._request_scope(request)
+            running = (
+                self._active is not None
+                and self._active.running
+                and self._active.request_id == request.request_id
+            )
+            self.cancel(request)
+            return running
+
     def invalidate(self) -> None:
         with self._mutex:
             self._closed = True

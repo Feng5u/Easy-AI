@@ -269,34 +269,46 @@ def test_authenticated_probe_api_accepts_no_credentials_and_confirmation_is_boun
     store = HostKeyStore(tmp_path / "host-state")
     ssh, connection, transport = client(store)
     workspace._ssh_client = ssh
+    selected = tmp_path / "project"
+    selected.mkdir()
+    session = workspace.create(
+        workspace.select("project", selected).selection_id, "offline", "blank"
+    )
+    request = identity_request(project_id=session.project.project_id)
+    payload = request.model_dump(by_alias=True)
+    base = "/api/v1/connections/identity/"
     api = TestClient(create_app("offline-test-token", workspace=workspace))
     headers = {"Authorization": "Bearer offline-test-token"}
     try:
-        assert (
-            api.post("/api/v1/connections/probe", json={"host": "offline.invalid"}).status_code
-            == 401
-        )
+        for legacy in ("probe", "trust-host-key"):
+            assert (
+                api.post("/api/v1/connections/" + legacy, json={}, headers=headers).status_code
+                == 404
+            )
+        assert api.post(base + "probe", json=payload).status_code == 401
         rejected = api.post(
-            "/api/v1/connections/probe",
-            json={"host": "offline.invalid", "password": "DO_NOT_ECHO_TEST_MARKER"},
-            headers=headers,
+            base + "probe", json={**payload, "password": "DO_NOT_ECHO_TEST_MARKER"}, headers=headers
         )
         assert rejected.status_code == 422
         assert "DO_NOT_ECHO" not in rejected.text and "password" not in rejected.text
-        response = api.post(
-            "/api/v1/connections/probe", json={"host": "offline.invalid"}, headers=headers
+        response = api.post(base + "probe", json=payload, headers=headers)
+        assert (
+            response.status_code == 200
+            and response.json()["observation"]["trustState"] == "unknown"
         )
-        assert response.status_code == 200 and response.json()["trustState"] == "unknown"
-        observation = response.json()
+        from easyai.domain.ssh import IdentityResult
+
         confirmed = api.post(
-            "/api/v1/connections/trust-host-key",
-            json={
-                "challengeId": observation["challengeId"],
-                "fingerprint": observation["fingerprint"],
-            },
+            base + "confirm",
+            json=identity_confirm(IdentityResult.model_validate(response.json())).model_dump(
+                by_alias=True
+            ),
             headers=headers,
         )
-        assert confirmed.status_code == 200 and confirmed.json()["trustState"] == "trusted"
+        assert (
+            confirmed.status_code == 200
+            and confirmed.json()["observation"]["trustState"] == "trusted"
+        )
         assert transport.auth_calls == [] and connection.closed and transport.closed
     finally:
         workspace.close()
@@ -716,3 +728,113 @@ def test_probe_channel_requires_authenticated_still_pinned_session(tmp_path):
         session.open_probe_channel(2)
     assert calls == [2]
     session.close()
+
+
+def test_paramiko_handler_secret_references_clear_but_auth_state_is_preserved(tmp_path):
+    store = HostKeyStore(tmp_path / "sdk-cleanup")
+    endpoint = SshEndpoint(host="synthetic.invalid")
+    pin(store, endpoint, key())
+    ssh, connection, transport = client(store)
+    handler = paramiko.auth_handler.AuthHandler(transport)
+    transport.auth_handler = handler
+    transport.saved_exception = RuntimeError("synthetic-memory-only")
+    completed = threading.Event()
+
+    def authenticate(username, password, event, fallback):
+        assert password == "synthetic-memory-only" and fallback is False
+        handler.password = password
+        handler.private_key = object()  # Reference sentinel, no actual private key.
+        handler.auth_event = completed
+        handler.authenticated = True
+        transport.authenticated = True
+        event.set()
+
+    transport.auth_password = authenticate
+    session = ssh.connect_verified(endpoint)
+    session.authenticate_password("synthetic", "synthetic-memory-only")
+    assert handler.password is None and handler.private_key is None
+    assert handler.authenticated is True and handler.auth_event is completed
+    assert transport.saved_exception is None
+    session.close()
+    assert session.closed_quiescent and connection.closed
+
+
+def test_sdk_logger_is_disabled_before_handshake_and_hexdump_is_off(tmp_path, monkeypatch):
+    import logging
+    from easyai.services import ssh_client
+
+    events = []
+
+    class LoggingTransport(TransportFixture):
+        def set_log_channel(self, name):
+            events.append("channel")
+            self.channel = name
+
+        def set_hexdump(self, enabled):
+            assert enabled is False
+            events.append("hexdump")
+
+        def start_client(self, event):
+            logger = logging.getLogger(self.channel)
+            assert logger.disabled and not logger.propagate
+            assert events == ["channel", "hexdump"]
+            events.append("handshake")
+            super().start_client(event)
+
+    transport = LoggingTransport(key())
+    connection = SocketFixture()
+    monkeypatch.setattr(ssh_client.paramiko, "Transport", lambda _socket: transport)
+    ssh = SshClient(HostKeyStore(tmp_path / "quiet-sdk"), dial=lambda *_args: connection)
+    assert ssh.probe(SshEndpoint(host="synthetic.invalid")).trust_state == "unknown"
+    assert events == ["channel", "hexdump", "handshake"] and connection.closed
+
+
+@pytest.mark.parametrize("mode", ["failure", "cancel", "cleanup_failure"])
+def test_sdk_secret_cleanup_on_failure_cancel_and_cleanup_refusal(tmp_path, mode):
+    from types import SimpleNamespace
+
+    endpoint = SshEndpoint(host="synthetic.invalid")
+    store = HostKeyStore(tmp_path / "sdk-failure")
+    pin(store, endpoint, key())
+    ssh, connection, transport = client(store)
+    cancel = threading.Event()
+    handler = SimpleNamespace(password=None, private_key=None)
+    transport.auth_handler = handler
+    transport.saved_exception = None
+
+    def authenticate(username, password, event, fallback):
+        if mode == "cleanup_failure":
+
+            class Unclearable:
+                @property
+                def password(self):
+                    return "synthetic-memory-only"
+
+                @password.setter
+                def password(self, value):
+                    raise RuntimeError("synthetic cleanup refusal")
+
+            transport.auth_handler = Unclearable()
+        else:
+            handler.password = password
+            handler.private_key = object()
+            transport.saved_exception = RuntimeError("synthetic-memory-only")
+        if mode == "failure":
+            raise RuntimeError("synthetic-memory-only")
+        transport.authenticated = True
+        if mode == "cancel":
+            cancel.set()
+        event.set()
+
+    transport.auth_password = authenticate
+    session = ssh.connect_verified(endpoint)
+    with pytest.raises(SshFailure) as raised:
+        session.authenticate_password("synthetic", "synthetic-memory-only", cancel)
+    assert connection.closed and transport.closed
+    assert "synthetic-memory-only" not in repr(raised.value)
+    if mode == "cleanup_failure":
+        assert str(raised.value) == "SSH_SECRET_CLEANUP_FAILED"
+        assert not session.closed_quiescent
+    else:
+        assert handler.password is None and handler.private_key is None
+        assert transport.saved_exception is None and session.closed_quiescent

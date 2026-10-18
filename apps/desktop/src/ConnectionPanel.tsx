@@ -1,3 +1,4 @@
+import { AuthenticatedPanel } from "./AuthenticatedPanel.js";
 import { useEffect, useRef, useState } from "react";
 import type { DesktopAPI, IdentityResult } from "../electron/bridge.js";
 
@@ -20,10 +21,12 @@ interface Pending {
 }
 export function ConnectionPanel({
   api,
+  environments,
   projectId,
   onClose,
 }: {
   api: DesktopAPI["connections"];
+  environments?: DesktopAPI["environments"];
   projectId: string;
   onClose(): void;
 }) {
@@ -232,9 +235,19 @@ export function ConnectionPanel({
               <code>{observed.previousFingerprint}</code>。请联系管理员核对。
             </p>
           )}
+          {observed.trustState === "trusted" && environments && result && (
+            <AuthenticatedPanel
+              key={result.requestId}
+              api={api}
+              environments={environments}
+              projectId={projectId}
+              identityRequestId={result.requestId}
+              onInvalidated={reset}
+            />
+          )}
           {observed.trustState === "trusted" && (
             <p role="status">
-              主机指纹与信任记录一致。尚未进行用户认证或远端环境检查。
+              主机指纹与信任记录一致。信任指纹本身不代表用户认证或环境就绪。
             </p>
           )}
         </div>

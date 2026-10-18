@@ -1,6 +1,7 @@
 """Single-hop SSH identity gate. No agent, implicit keys, shell or persisted secrets."""
 
 import socket
+import logging
 import threading
 import time
 from typing import Any, Callable, Protocol, cast
@@ -40,7 +41,32 @@ def _dial(endpoint: SshEndpoint, timeout: float) -> Socket:
 
 
 def _transport(connection: Socket) -> Transport:
-    return cast(Transport, paramiko.Transport(connection))
+    channel = "easyai.ssh.protocol"
+    logger = logging.getLogger(channel)
+    logger.disabled = True
+    logger.propagate = False
+    transport = paramiko.Transport(connection)
+    transport.set_log_channel(channel)
+    transport.set_hexdump(False)
+    return cast(Transport, transport)
+
+
+def _auth_failure_code(error: Exception) -> str:
+    code = str(error)
+    return (
+        code
+        if code
+        in {
+            "SSH_USERNAME_INVALID",
+            "SSH_SESSION_CLOSED",
+            "SSH_CANCELLED",
+            "SSH_TIMEOUT",
+            "SSH_AUTH_FAILED",
+            "SSH_HOST_KEY_CHANGED",
+            "SSH_HOST_KEY_CONFIRMATION_REQUIRED",
+        }
+        else "SSH_AUTH_FAILED"
+    )
 
 
 class VerifiedSshSession:
@@ -58,6 +84,8 @@ class VerifiedSshSession:
         self._socket = connection
         self._transport = transport
         self._closed = threading.Event()
+        self._close_done = threading.Event()
+        self._close_failed = False
         self._auth_started = False
         self._guard = threading.Lock()
 
@@ -85,20 +113,45 @@ class VerifiedSshSession:
         self.validate_probe_session()
         return self._transport.open_session(timeout=timeout)
 
+    @property
+    def closed_quiescent(self) -> bool:
+        return self._close_done.is_set() and not self._close_failed
+
+    def _forget_auth_material(self) -> bool:
+        # Locked Paramiko 4.0 AuthHandler retains these after its completion
+        # event. Preserve authenticated/auth_event; drop only secret references.
+        try:
+            handler = getattr(self._transport, "auth_handler", None)
+            if handler is not None:
+                for field in ("password", "private_key"):
+                    if hasattr(handler, field):
+                        setattr(handler, field, None)
+            if hasattr(self._transport, "saved_exception"):
+                self._transport.saved_exception = None
+        except Exception:
+            return False
+        return True
+
     def close(self) -> None:
         with self._guard:
-            if self._closed.is_set():
-                return
+            owner = not self._closed.is_set()
             self._closed.set()
+        if not owner:
+            self._close_done.wait(2)
+            return
         try:
-            self._transport.close()
-        except Exception:
-            pass
-        finally:
+            try:
+                self._transport.close()
+            except Exception:
+                self._close_failed = True
             try:
                 self._socket.close()
             except Exception:
-                pass
+                self._close_failed = True
+        finally:
+            if not self._forget_auth_material():
+                self._close_failed = True
+            self._close_done.set()
 
     def _wait(
         self,
@@ -123,7 +176,9 @@ class VerifiedSshSession:
         operation: Callable[[threading.Event], Any],
         username: str,
         cancel: threading.Event | None,
+        timeout: float | None = None,
     ) -> None:
+        failure: str | None = None
         try:
             if not username or len(username) > 128 or any(ord(char) < 33 for char in username):
                 raise SshFailure("SSH_USERNAME_INVALID")
@@ -139,44 +194,58 @@ class VerifiedSshSession:
             self._store.require_trusted(self._endpoint, current)
             completed = threading.Event()
             operation(completed)
-            self._wait(completed, self._transport.auth_timeout, cancel, "SSH_AUTH_FAILED")
+            budget = (
+                self._transport.auth_timeout
+                if timeout is None
+                else min(timeout, self._transport.auth_timeout)
+            )
+            if budget <= 0:
+                raise SshFailure("SSH_TIMEOUT")
+            self._wait(completed, budget, cancel, "SSH_AUTH_FAILED")
             if not self._transport.is_authenticated():
                 raise SshFailure("SSH_AUTH_FAILED")
-        except SshFailure:
-            self.close()
-            raise
-        except ValueError as error:
-            self.close()
-            code = str(error)
-            raise SshFailure(
-                code
-                if code in {"SSH_HOST_KEY_CHANGED", "SSH_HOST_KEY_CONFIRMATION_REQUIRED"}
-                else "SSH_AUTH_FAILED"
-            ) from None
+        except (SshFailure, ValueError) as error:
+            failure = _auth_failure_code(error)
         except Exception:
+            failure = "SSH_AUTH_FAILED"
+        if failure is not None:
             self.close()
-            raise SshFailure("SSH_AUTH_FAILED") from None
+            # Raise outside except: do not retain SDK exception/traceback context.
+            raise SshFailure(failure) from None
+        if not self._forget_auth_material():
+            self.close()
+            raise SshFailure("SSH_SECRET_CLEANUP_FAILED") from None
 
     def authenticate_password(
-        self, username: str, password: str, cancel: threading.Event | None = None
+        self,
+        username: str,
+        password: str,
+        cancel: threading.Event | None = None,
+        timeout: float | None = None,
     ) -> None:
-        # The secret exists only in this call/the transport's session memory.
-        self._authenticate(
-            lambda done: self._transport.auth_password(
-                username, password, event=done, fallback=False
-            ),
-            username,
-            cancel,
-        )
+        try:
+            self._authenticate(
+                lambda done: self._transport.auth_password(
+                    username, password, event=done, fallback=False
+                ),
+                username,
+                cancel,
+                timeout,
+            )
+        finally:
+            password = ""
 
     def authenticate_public_key(
         self, username: str, private_key: Any, cancel: threading.Event | None = None
     ) -> None:
-        self._authenticate(
-            lambda done: self._transport.auth_publickey(username, private_key, event=done),
-            username,
-            cancel,
-        )
+        try:
+            self._authenticate(
+                lambda done: self._transport.auth_publickey(username, private_key, event=done),
+                username,
+                cancel,
+            )
+        finally:
+            private_key = None
 
     def __enter__(self) -> "VerifiedSshSession":
         return self
