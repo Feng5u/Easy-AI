@@ -1022,3 +1022,33 @@ SSE在既有scoped_read/deliver及逐次scope门内使用派生视图，附paylo
 CI边界不变：已核f1ecaf7866167b404d43ea359ec8ae631f1744d7/run39144759022（16:24:52 UTC）check/desktop双FAIL，更早两次双FAIL保留；本片CI未知。未访问被拒Actions端点、未触发重试，仍缺首失败step/exit、日志及annotation原文。当前本地检查不能覆盖远端失败。
 
 NOT RUN：真实Electron/SVG/Monaco/原生picker/E2E、训练/真实MNIST/SSH/SFTP/上传/数据下载、新环境安装/SDK协议、个人PC、Windows/NTFS/冻结ABI、上片47/原App31/后端全套。Windows远程生产gate保持关闭，A/B、M5/M6/M7整体未验收。无main写入/强推/PR/发布/部署/Release/新费用/凭据/安全权限。源与本证据按正常开发分支推送，最终完整证据/远端SHA见交付。下一项先父级独审本精确定位切片，再按原§16.3接冻结符号解释/注册对象与脱敏报告，或父级明确安排M7.3；不提前扩v0.0.1，真实验收与CI日志阻塞仍在。
+
+## 2026-10-18 — 已提供CI原日志后的四组跨平台最小修复
+
+源码SHA：`273e7527b7336a9fc2b930a0934da5b7df576cae`，基线`d651a496fc2a2fd34ac1755556bbd06d73990032`。父级转交用户f1ecaf7/run39144759022完整首错日志后，立即优先修复；不再把旧日志缺失作为等待。符号/报告新功能WIP完整留在`/workspace/Easy-AI`，本片在`/workspace/Easy-AI-ci`独立git工作树/正常开发分支实现和验证，复用原应用venv，仅用PYTHONPATH指向此源码，没有新建/同步环境或安装依赖，单一集成者。原工作区WIP尚未验收、不包含在本CI提交。
+
+四组分别核实，未改workflow/runner ACL或关安全门：
+
+1. **CRLF**：固定f1ecaf7与当前test_project_persistence.py原断言相同，Windows日志真实b'True\\r\\n'对b'True\\n'不等。仅readline.replace(CRLF,LF)后严格等于True+换行；仍核live contender不能owned、kill/exit后的重新获取与save revision2，无删测试/Windows skip。
+2. **FIFO catalog契约**：原路径RunService._read_store→LocalDirectory.open_file→check_file为REMOTE_CACHE_FILE_UNSAFE，其他snapshot/config/bundle仍read_regular→FILE_NOT_REGULAR。修前catalog真实回归 **1 FAIL/4 deselected**，0.39秒，`/tmp/easyai-ci-fifo-red.log`。只按场景参数化预期，不统一/放宽生产错误码；3秒子进程timeout、必须拒绝且FIFO不改写均保留。
+3. **Windows frozen第116行422**：`git show f1ecaf7:scripts/test-frozen-ssh.mjs`与当前同一请求`POST /connections/identity/cancel`，预期仍200。模拟HostKeyStore平台不可用真实TestClient复现422，body为固定SSH_TRUST_PLATFORM_UNVERIFIED，而不是猜路径/Node版本；冷cancel与祖先policy合并red **2 FAIL/80 deselected**，0.57秒，`/tmp/easyai-ci-reproduce.log`。根因LocalWorkspace.identity()/connections()为无活动操作的控制请求提前构造HostKeyStore。现在SshClient接收惰性store factory并用锁缓存成功实例；真正_open在任何dial之前验证store，Windows平台门未动。冷cancel仍进入原SshIdentityService，保留取消先于probe注册的tombstone，不能用no-op丢该保证。冷confirm/auth/session/environment/close保持原状态码/作用域/脱敏拒绝；新valid probe仍平台拒绝且socket禁止，未连接offline.invalid。原冻结脚本完全无diff，未接受422假成功。
+4. **Windows native祖先**：日志owner SID精确对应Microsoft TrustedInstaller，首拒发生在C:\\ anchor，未进入junction。新增该**完整SID仅not final祖先**的owner/ACE信任；应用leaf原政策、未知/近似S-1-5-80、危险写ACE/reparse/identity检查均保留，未改DACL或系统权限。官方语义来源：[Microsoft文件与注册表权限说明](https://learn.microsoft.com/en-us/archive/msdn-magazine/2008/november/access-control-understanding-windows-file-and-registry-permissions)。纯policy反例与coldstore合并red如上；修后policy通过不代表后续Windows native关卡已验。生产Windows远程默认门仍关闭。
+
+实际命令（CI树源码，应用解释器仍`/workspace/Easy-AI/services/backend/.venv/bin/python`；Python测试设置`PYTHONPATH=/workspace/Easy-AI-ci/services/backend/src`）：
+
+| 命令 | 结果及边界 |
+| --- | --- |
+| 该解释器`-m pytest services/backend/tests/test_project_persistence.py services/backend/tests/test_persistence_files.py services/backend/tests/test_ssh_identity.py services/backend/tests/test_connection_manager.py services/backend/tests/test_windows_storage_contract.py services/backend/tests/test_windows_native_store.py -q` | **115 PASS/7 SKIP**，2.65秒，1项第三方弃用警告；Linux policy/ABI通过，7个Windows原生测试按平台未执行，不能当原生PASS |
+| cwd `services/backend`，同解释器`-m pytest -q` | **610 PASS/8 SKIP**，40.19秒，1项Starlette/AnyIO弃用警告；源基线已含前片诊断15，不能与f1旧592PASS/1FAIL窗口直接混称。collection发生在末项并发回归加入前，故不宣称610包含该新项。真实训练集成及Windows native未执行，未用新skip隐藏关键失败 |
+| 同解释器`-m pytest services/backend/tests/test_ssh_identity.py -k 'cold_cancel or concurrent_readers' -q` | 最终 **2 PASS/41 deselected**，0.49秒；cold route保留200/confirm422/auth503/sessionnull/environment503/close200、密码不回显、随后匹配工程的旧request仍retired，新request在平台门拒且禁止socket；8并发reader仅factory1次且返回同实例，无dial。cold与610重合，不能相加 |
+| 独立只读复核 | 安全独跑cold/installer **2 PASS/80 deselected**，0.40秒，并另实际8并发核factory；测试审查独跑persistence/FIFO **13 PASS**，1.36秒。均与上述窗口重合，不累加；无新明确未关闭P1/P2，未编辑/安装/SSH/Actions |
+| 原venv `python -m ruff check .`、`ruff format --check .`、`mypy src`（cwd CI树/backend） | **PASS**，84 Python文件格式与strict mypy47源码；日志`/tmp/easyai-ci-python-check.log`。隔离树不带原WIP合同，验证对应本源码SHA |
+| 原venv `python -m PyInstaller --noconfirm --onedir --name easyai-sidecar --hidden-import easyai.services.environment_service --hidden-import easyai.security.windows_store --paths src`加原python-task.mjs完全相同resource add-data清单与main.py | **PASS**，Linux冻结构建，日志`/tmp/easyai-ci-frozen-build.log`；已有venv只读复用，无uv同步/新env writer |
+| `node scripts/test-frozen-ssh.mjs`、`node scripts/test-frozen.mjs`（CI树） | 均 **PASS**、EOF exit0。重新冻结的实际sidecar保留取消200、原错误码、鉴权/严格DTO/租约拒绝、资源字节、选择API/工程/黄金编译；日志`/tmp/easyai-ci-frozen-ssh.log`、`/tmp/easyai-ci-frozen-basic.log`。仅合成输入/本机loopback，无outbound SSH，不宣称Windows冻结通过 |
+| `git diff --check`、原件hash/字节 | **PASS**；plan116185字节/hash `dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43`，原规格`5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190`、README`befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852`保持 |
+
+另一次补测试命令误在backend cwd使用重复services/backend相对路径，append/format均报不存在且未写文件；随后正确路径加入并发回归并定向通过，未改生产保证来过测试。无隐藏FAIL：原用户日志四组、catalog red、cold/ancestor red均保留，Linux结果不能覆盖原Windows红。
+
+最新已知远端仍是**d651a496fc2a2fd34ac1755556bbd06d73990032/run39147472362于17:00:51 UTC失败**（父级通知desktop4/check3 annotations，仅摘要，不能推断等同f1四根因）。f1ecaf7/run39144759022原完整日志中的四根因才是本片依据。Node20 action弃用/ubuntu迁移通知不是已证实根因。未重试被拒Actions端点、未重跑旧job；正常dev push后新SHA的既有有界CI自动执行，结果待新证据，不能预称绿。
+
+本片不改main、强推、PR、部署/发布/Release、费用/凭据/安全权限；未实际Windows原生/NTFS/Windows冻结ABI/桌面/真实训练/SSH/数据下载/个人PC。真实资源条件未获授权前仍不执行。接下来优先读取新SHA CI结果、必要时修后续原生问题；原符号/报告WIP保留后继续其定向验证。完整B剩余代码、实际验证与外部条件另见`docs/remaining-critical-path.md`，代码预算是条件化低置信滚动估计，不是新交付日期或缩减B。
