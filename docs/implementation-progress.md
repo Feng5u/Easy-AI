@@ -940,3 +940,25 @@ NOT RUN：真实Electron/SVG/Monaco/原生picker/E2E、训练/SSH/SFTP/上传/�
 CI阻塞仍保持：5a34286/run39137171929、9abdfebb90a5ab961cd12c21fbeae8b479e3d66b/run39140446024的check与desktop均FAIL，本片CI未知。此前Actions读取被拒，未重试被拒操作、未换路、未触发重跑；仍需要失败job首个失败step/exit、错误日志与annotation原文。本地31/check/build不覆盖远端FAIL。
 
 NOT RUN：真实Electron/SVG/Monaco/原生picker/E2E、训练/真实MNIST/SSH/SFTP/上传/数据下载、新训练或桌面环境安装/SDK协议、个人电脑、Windows/NTFS/冻结ABI、前片后端整套矩阵。Windows远程生产gate仍关闭，A/B、M5/M6/M7整体仍未验收。没有main写入、强推、PR、发布/部署/Release、新费用/凭据/安全权限。本片未遭新拒绝或未决外部写入。下一项：父级复核本最小片后接续M7.2其余运行时友好错误/报告或明确授权的M7.3本地教程；同时取得精确CI失败日志及真实桌面/训练/SSH所需最小条件。
+
+## 2026-10-18 — 父级独审P2：历史错误归属隔离修复
+
+源码完整SHA：`3a7be94a35e391c807ec74fb70e8323b63b80b68`，父提交`75afb6ab8f72d8c11cad5f47b5ef8f820ebec94f`。本轮只处理父级独审指出的精确P2，暂缓RunDashboard/M7.3。此前“历史成功仅清history错误”的实现仍有缺陷：历史失败先无条件覆盖主error，之后成功只看见history便清空，导致未解决的start/save/export提示丢失。此前本地31PASS和两位有限独审没有覆盖这个失败→恢复交错，不能作为无此缺陷的证明。
+
+先复现后修复：新增参数化3项真实App DOM回归，各自先产生启动确认丢失/保存/导出失败，再显式刷新历史失败→显式刷新成功。首次在失败阶段断言主提示已消失，**3 FAIL/16 skipped**，1.10秒，`/tmp/easyai-history-ownership-red.log`。调整回归使完整两次刷新都执行后才断言，再跑原生产逻辑仍 **3 FAIL/16 skipped**，1.14秒，`/tmp/easyai-history-ownership-red-complete.log`，确认恢复后提示亦丢失。两次是同三项复现，不累计，没有弱化保留提示断言。此为执行器模拟服务/IPC异常的UI事故复现，不代表真实用户或训练事故。
+
+最小修复只增加独立historyError状态：历史读取成功、失败均不再写主error，自己的卡片显示在历史区域；成功只清自己的读取错误。acceptSession清除旧工程的historyError，既有effect valid清理继续隔离旧工程/旧刷新迟到响应。主操作error、ProjectDraft、自动保存暂停、启动幂等intent与所有训练门保持原逻辑，不因只读刷新消除未解决的操作提示，不自动重试启动/保存/导出。这里没有扩展为其他主操作之间的通用错误队列。
+
+实际命令与结果（cwd `/workspace/Easy-AI`）：
+
+| 命令 | 结果/边界 |
+| --- | --- |
+| `pnpm exec vitest run apps/desktop/src/App.test.mts -t 'history failure then recovery\|history refresh\|uncertain start'` | 修复后 **6 PASS/13 skipped**，1.36秒。含新3项交错、已有旧刷新迟错隔离/读取恢复2项及丢ACK显式刷新1项。新3项同时检查失败/成功时原操作提示均在、读取错误只在失败时在、start总调用至多显式1次；保存片再推进4秒仍只save1次、草稿画布仍1块、autosave仍暂停。未重跑此前完整31 |
+| 两位独立只读复核 | 前端独跑同6项 **6 PASS/13 skipped**，1.35秒；安全独跑 `-t 'history failure then recovery'` **3 PASS/16 skipped**，1.09秒；均与根6重合不相加。两位确认前次审查遗漏此失败覆盖路径，本轮P2关闭；未编辑或访问Actions |
+| `pnpm --filter @easyai/desktop check`；`pnpm exec tsc -p tsconfig.tests.json`；`pnpm exec prettier --check apps/desktop/src/App.tsx apps/desktop/src/App.test.mts` | **PASS**，应用/Main TS、测试TS及两改动文件格式；日志`/tmp/easyai-history-ownership-check.log`。后端/合同/fixtures未改，无必要重跑旧后端或完整pnpm check |
+| `pnpm --filter @easyai/desktop build` | **PASS**，静态桌面assets，既有>500KB chunk提示保留；日志`/tmp/easyai-history-ownership-build.log`。没有实际Electron启动、CSP/权限放宽或后端重建 |
+| `git diff --check` | **PASS**；只改App及对应测试，原计划/原规格/README未改。开发前工作区干净，HEAD为父证据SHA |
+
+CI状态按父级新邮件证据去旧：`f1ecaf7866167b404d43ea359ec8ae631f1744d7` 的run39144759022（2026-10-18 16:24:52 UTC）check/desktop仍双FAIL，链接 https://github.com/T1doo/Easy-AI/actions/runs/39144759022 。这是父级已核邮件证据，本执行器未访问被拒Actions端点、未触发重试，也未取得新根因。与更早5a34286/run39137171929及9abdfebb90a5ab961cd12c21fbeae8b479e3d66b/run39140446024双FAIL分开记录；75afb6a/本修复片CI未知。仍需首个失败step/exit、日志与annotation原文，本地6/TS/build不能覆盖远端失败。
+
+NOT RUN：此前31全窗、后端整套/训练/SSH/SFTP/上传/数据下载、真实Electron/SVG/Monaco/原生picker/E2E、安装/SDK协议、个人PC、Windows/NTFS/冻结ABI。无main写入/强推/PR/发布/费用/凭据/安全权限变化；没有新拒绝或未决外部操作。下一项先由父级复核本P2修复，保持下一功能冻结；真实验收与CI日志阻塞仍在，M7.2/M7整体未验收。源与证据按正常开发分支提交推送，最终远端完整SHA见交付。
