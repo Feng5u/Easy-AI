@@ -55,9 +55,18 @@ class RemoteStreams(Contract):
     stderr: RemoteStream
 
 
+class ArtifactReceipt(Contract):
+    """Immutable manifest and exact raw-event prefix, published before owner status."""
+
+    sha256: Digest
+    source_seq: int = Field(ge=1)
+    events_sha256: Digest
+
+
 class RemoteRunObservation(Contract):
     identity: RemoteRunIdentity
     heartbeat: int = Field(ge=1)
+    artifact_receipt: ArtifactReceipt | None = None
     state: RemoteState
     sealed: bool
     spawn_failed: bool = False

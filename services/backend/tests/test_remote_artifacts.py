@@ -220,7 +220,13 @@ class Case:
 
     def snapshot(self):
         return ArtifactSnapshot.verified(
-            self.checkpoint, self.events, self.bundle_manifest, self.source_map
+            self.checkpoint,
+            self.events,
+            self.bundle_manifest,
+            self.source_map,
+            self.observation.artifact_receipt.events_sha256
+            if self.observation.artifact_receipt
+            else None,
         )
 
     def sync(self, cancel=None, seconds=2):
@@ -575,3 +581,185 @@ def test_ready_lookup_rejects_self_consistent_index_substitution_against_frozen_
     index_path.write_text(json.dumps(index))
     with pytest.raises(ArtifactFailure):
         SftpArtifactSync.read_ready(case.cache, case.identity, ready[0].artifact_id, expected)
+
+
+def running_receipt(case):
+    """Synthetic immutable receipt; the real coordinator-prefix proof has its own integration test."""
+    from easyai.domain.remote_run import ArtifactReceipt
+
+    case.events = [event for event in case.events if event.type == "artifact_created"]
+    raw_events = b"".join(
+        event.model_dump_json(by_alias=True).encode() + b"\n" for event in case.events
+    )
+    case.observation = case.observation.model_copy(
+        update={
+            "sealed": False,
+            "exit_code": None,
+            "state": "RUNNING",
+            "streams": case.observation.streams.model_copy(
+                update={
+                    "events": case.observation.streams.events.model_copy(
+                        update={"size_bytes": len(raw_events), "sha256": digest(raw_events)}
+                    )
+                }
+            ),
+        },
+        deep=True,
+    )
+    case.manifest.update(
+        sourceSeq=len(case.events),
+        eventsSha256=digest(raw_events),
+        artifacts=[event.payload for event in case.events],
+    )
+    raw = json.dumps(case.manifest).encode()
+    receipt = ArtifactReceipt(
+        sha256=digest(raw), source_seq=len(case.events), events_sha256=digest(raw_events)
+    )
+    case.observation.artifact_receipt = receipt
+    case.checkpoint = case.checkpoint.model_copy(
+        update={"execution_state": "RUNNING", "last_observation": case.observation}
+    )
+    case.write_records()
+    (case.root / ("remote-artifacts-" + receipt.sha256 + ".json")).write_bytes(raw)
+    return case.snapshot()
+
+
+def add_figure(case, suffix):
+    record = dict(case.record, artifactId=str(uuid4()), relativePath="outputs/" + suffix + ".png")
+    (case.root / record["relativePath"]).write_bytes(case.raw)
+    event = case.events[0].model_copy(
+        update={"seq": len(case.events) + 1, "source_seq": len(case.events) + 1, "payload": record},
+        deep=True,
+    )
+    case.events.append(event)
+    return record
+
+
+def test_running_receipts_incremental_hash_dedup_and_real_byte_progress(case):
+    snapshot = running_receipt(case)
+    progress = []
+    ready = case.service.sync(
+        snapshot, case.cache, threading.Event(), progress=lambda *v: progress.append(v)
+    )
+    assert ready[0].sync_state == "ready" and not case.observation.sealed
+    assert progress[-1] == (len(case.raw), len(case.raw), len(case.raw))
+    assert case.checkpoint.artifacts_verified is False
+    first_reads = case.sftp.opened.count(str(case.root / case.record["relativePath"]))
+    second = add_figure(case, "epoch2")
+    newer = running_receipt(case)
+    case.session.channel = Channel()
+    ready = case.service.sync(
+        newer, case.cache, threading.Event(), progress=lambda *v: progress.append(v)
+    )
+    assert len(ready) == 2 and progress[-1] == (0, 2 * len(case.raw), 2 * len(case.raw))
+    assert case.sftp.opened.count(str(case.root / case.record["relativePath"])) == first_reads
+    # Same hash deduplicates both per-run artifacts without reading the second remote file.
+    assert str(case.root / second["relativePath"]) not in case.sftp.opened
+    assert SftpArtifactSync.read_ready(case.cache, case.identity, second["artifactId"]) == case.raw
+    index = (case.cache / "artifact-index.json").read_bytes()
+    case.session.channel = Channel()
+    with pytest.raises(ArtifactFailure):
+        case.service.sync(snapshot, case.cache, threading.Event())
+    assert (case.cache / "artifact-index.json").read_bytes() == index
+
+
+def test_running_model_is_registered_but_not_downloaded(case):
+    record = case.events[0].payload
+    record.update(
+        kind="model", mimeType="application/octet-stream", relativePath="outputs/model.pth"
+    )
+    snapshot = running_receipt(case)
+    assert case.service.sync(snapshot, case.cache, threading.Event()) == []
+    assert not any(path.endswith("model.pth") for path in case.sftp.opened)
+
+
+def test_new_incomplete_file_never_replaces_previous_verified_index(case):
+    running_receipt(case)
+    case.sync()
+    index = (case.cache / "artifact-index.json").read_bytes()
+    record = add_figure(case, "incomplete")
+    record.update(sha256=digest(case.raw + b"different"), sizeBytes=len(case.raw) + 9)
+    snapshot = running_receipt(case)
+    case.session.channel = Channel()
+    with pytest.raises(ArtifactFailure):
+        case.service.sync(snapshot, case.cache, threading.Event())
+    assert (case.cache / "artifact-index.json").read_bytes() == index
+    assert (
+        SftpArtifactSync.read_ready(case.cache, case.identity, case.record["artifactId"])
+        == case.raw
+    )
+    assert not list(case.cache.glob(".artifact-part-*"))
+
+
+def test_running_receipt_requires_exact_committed_prefix_and_immutable_digest(case):
+    snapshot = running_receipt(case)
+    with pytest.raises(ArtifactFailure):
+        ArtifactSnapshot.verified(
+            case.checkpoint, case.events, case.bundle_manifest, case.source_map, "0" * 64
+        )
+    path = case.root / ("remote-artifacts-" + case.observation.artifact_receipt.sha256 + ".json")
+    path.write_bytes(path.read_bytes() + b" ")
+    with pytest.raises(ArtifactFailure):
+        case.service.sync(snapshot, case.cache, threading.Event())
+    assert not (case.cache / "artifact-index.json").exists()
+
+
+def test_newer_owner_status_cannot_expand_frozen_receipt_reads(case):
+    snapshot = running_receipt(case)
+    later = add_figure(case, "not-in-committed-snapshot")
+    running_receipt(case)
+    ready = case.service.sync(snapshot, case.cache, threading.Event())
+    assert [item.artifact_id for item in ready] == [case.record["artifactId"]]
+    assert str(case.root / later["relativePath"]) not in case.sftp.opened
+    assert not case.checkpoint.artifacts_verified
+
+
+def test_live_snapshot_never_re_reads_mutable_heartbeat_for_artifact_authority(case):
+    snapshot = running_receipt(case)
+
+    def racing_heartbeat(path):
+        if str(path).endswith("owner-status.json"):
+            pytest.fail(
+                "Live downloads must use the committed receipt, not race a mutable heartbeat"
+            )
+
+    case.sftp.before_read = racing_heartbeat
+    assert case.service.sync(snapshot, case.cache, threading.Event())[0].sync_state == "ready"
+    assert not any(path.endswith("owner-status.json") for path in case.sftp.opened)
+
+
+def test_cancel_interrupt_worker_must_retire_before_gate_release(case):
+    entered, read_release, close_entered, close_release = (threading.Event() for _ in range(4))
+    cancel = threading.Event()
+    original_close = case.session.channel.close
+
+    def blocked_close():
+        if threading.current_thread().name == "easyai-artifact-interrupt":
+            close_entered.set()
+            assert close_release.wait(3)
+        original_close()
+
+    def blocked_read(path):
+        if str(path).endswith(".png"):
+            entered.set()
+            assert read_release.wait(3)
+
+    case.session.channel.close = blocked_close
+    case.sftp.before_read = blocked_read
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        operation = executor.submit(case.sync, cancel)
+        try:
+            assert entered.wait(1)
+            cancel.set()
+            assert close_entered.wait(1)
+            with pytest.raises(ArtifactFailure, match="CLEANUP_UNCONFIRMED"):
+                operation.result(1)
+            read_release.set()
+            # The data worker can close its channel, but its interrupt owner is still blocked.
+            assert not case.service.quiescent and case.session.io_lock.locked()
+            assert not (case.cache / "artifact-index.json").exists()
+        finally:
+            read_release.set()
+            close_release.set()
+    case.service._worker.join(2)
+    assert case.service.quiescent and not case.session.io_lock.locked()

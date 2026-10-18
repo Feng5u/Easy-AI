@@ -167,6 +167,14 @@ export function RunSummary({
             产物同步：{run.syncState}；产物校验：
             {run.remote?.artifactsVerified ? "已通过" : "尚未通过"}
           </span>
+          {run.artifactSync && (
+            <span>
+              文件读取：{run.artifactSync.state} · 本轮收到{" "}
+              {run.artifactSync.receivedBytes ?? 0} 字节 · 已核验{" "}
+              {run.artifactSync.verifiedBytes ?? 0} /{" "}
+              {run.artifactSync.totalBytes ?? 0} 字节
+            </span>
+          )}
           <span>
             配置设备：{run.config.device ?? "auto"}；实际设备：
             {device ?? "等待执行事件确认"}
@@ -225,6 +233,9 @@ function RunDashboardForRun({
     () => (source ? captureRunSnapshot(source) : null),
     [source],
   );
+  const [syncBusy, setSyncBusy] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const syncRequest = useRef(0);
   const [artifacts, setArtifacts] = useState<ArtifactRecord[]>([]);
   const [stdout, setStdout] = useState("");
   const [stderr, setStderr] = useState("");
@@ -375,12 +386,38 @@ function RunDashboardForRun({
       active = false;
       mounted.current = false;
       imageRequest.current += 1;
+      syncRequest.current += 1;
       if (timer) clearTimeout(timer);
       unsubscribe();
     };
     // The subscription belongs to the immutable run ID, not each polled snapshot.
   }, [api, runId, initial, onRunUpdate, readGeneration]);
 
+  async function controlSync(paused: boolean) {
+    const action = paused
+      ? api.runs.pauseArtifactSync
+      : api.runs.resumeArtifactSync;
+    if (!action) return;
+    const request = ++syncRequest.current;
+    setSyncBusy(true);
+    setSyncError(null);
+    try {
+      const updated = await action(runId);
+      if (mounted.current && request === syncRequest.current) {
+        verifyRunIdentity(updated);
+        setRun(updated);
+        onRunUpdate(updated);
+      }
+    } catch {
+      if (mounted.current && request === syncRequest.current)
+        setSyncError(
+          "未能确认文件同步状态。请查看连接与清理状态；断线后需核对身份并接续原任务。",
+        );
+    } finally {
+      if (mounted.current && request === syncRequest.current)
+        setSyncBusy(false);
+    }
+  }
   async function cancel() {
     setStopping(true);
     setCancelError(null);
@@ -558,6 +595,40 @@ function RunDashboardForRun({
             {resuming ? "正在接续读取…" : "接续原任务（不重跑）"}
           </button>
           {!sameTarget && <p>接续需要原目标的已认证新会话。</p>}
+          {api.runs.pauseArtifactSync &&
+            api.runs.resumeArtifactSync &&
+            !isRunSettled(run) && (
+              <>
+                <button
+                  type="button"
+                  disabled={
+                    syncBusy ||
+                    run.artifactSync?.state === "paused" ||
+                    run.artifactSync?.state === "cleanup_pending"
+                  }
+                  onClick={() => void controlSync(true)}
+                >
+                  暂停文件同步（训练继续）
+                </button>
+                <button
+                  type="button"
+                  disabled={
+                    syncBusy ||
+                    run.artifactSync?.state !== "paused" ||
+                    run.connectionState !== "connected"
+                  }
+                  onClick={() => void controlSync(false)}
+                >
+                  继续文件同步
+                </button>
+                {run.artifactSync?.state === "cleanup_pending" && (
+                  <p>
+                    文件通道尚未确认清理，暂不能恢复同步；训练状态独立显示。
+                  </p>
+                )}
+                {syncError && <p role="alert">{syncError}</p>}
+              </>
+            )}
         </div>
       )}
       {run.config.executionMode === "quick" && (

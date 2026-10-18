@@ -56,6 +56,10 @@ export type Executionstate =
 export type Startoutcome = "not_attempted" | "unknown" | "acknowledged";
 export type Cancelstate = "none" | "pending" | "acknowledged" | "resolved";
 export type Artifactsverified = boolean;
+export type State = "idle" | "syncing" | "paused" | "cleanup_pending" | "error";
+export type Receivedbytes = number;
+export type Verifiedbytes = number;
+export type Totalbytes = number;
 
 export interface Run {
   runId: Runid;
@@ -65,6 +69,7 @@ export interface Run {
   syncState: Syncstate;
   config: RunConfig;
   remote?: RemoteExecution | null;
+  artifactSync?: ArtifactSyncProgress | null;
 }
 export interface RunConfig {
   configVersion?: Configversion;
@@ -102,4 +107,10 @@ export interface RemoteExecution {
   startOutcome: Startoutcome;
   cancelState: Cancelstate;
   artifactsVerified?: Artifactsverified;
+}
+export interface ArtifactSyncProgress {
+  state?: State;
+  receivedBytes?: Receivedbytes;
+  verifiedBytes?: Verifiedbytes;
+  totalBytes?: Totalbytes;
 }

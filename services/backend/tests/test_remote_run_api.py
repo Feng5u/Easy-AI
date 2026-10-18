@@ -829,3 +829,100 @@ def test_updating_profile_a_does_not_retire_unrelated_b_lease(harness):
         SessionControl(project_id=project.project_id, connection_id=auth["scope"]["connectionId"])
     )
     assert current is not None and current.target_id == second["targetId"]
+
+
+def test_running_png_sync_pause_resume_keeps_training_owner_and_rejects_retired_scope(
+    harness, monkeypatch
+):
+    workspace, endpoint, api, project = harness
+    _, _, request = binding(harness)
+    entered, release = threading.Event(), threading.Event()
+    retired, resume_return = threading.Event(), threading.Event()
+    paused_once = []
+    from easyai.services.remote_runs import RemoteRuns
+
+    original_progress = RemoteRuns._sync_progress
+
+    def hold_paused(self, run_id, owner, **kwargs):
+        original_progress(self, run_id, owner, **kwargs)
+        if (
+            kwargs.get("state") == "paused"
+            and threading.current_thread().name.startswith("easyai-run-")
+            and not retired.is_set()
+        ):
+            retired.set()
+            assert resume_return.wait(4)
+
+    monkeypatch.setattr(RemoteRuns, "_sync_progress", hold_paused)
+
+    def block(action, path):
+        if action == "read" and path.name == "synthetic.png" and not paused_once:
+            entered.set()
+            assert release.wait(4)
+            paused_once.append(True)
+
+    endpoint.sessions[-1].hook = block
+    response = api.post(
+        f"/api/v1/projects/{project.project_id}/runs",
+        json=request,
+        headers={"Idempotency-Key": "live-sync"},
+    )
+    assert response.status_code == 202, response.text
+    run_id = response.json()["runId"]
+    base = f"/api/v1/runs/{run_id}"
+    try:
+        assert entered.wait(5)
+        paused = api.post(base + "/artifacts/sync/pause")
+        assert paused.status_code == 200, paused.text
+        assert paused.json()["artifactSync"]["state"] == "cleanup_pending"
+        assert api.get(base).json()["status"] == "RUNNING"
+        assert "--cancel" not in endpoint.commands
+        assert api.get(base + "/artifacts").json()[0]["syncState"] == "pending"
+    finally:
+        release.set()
+    run = wait_for(
+        lambda: api.get(base).json(),
+        lambda value: value.get("artifactSync", {}).get("state") == "paused",
+    )
+    assert run["status"] == "RUNNING" and run["syncState"] == "pending"
+    assert retired.wait(2)
+    try:
+        resumed = api.post(base + "/artifacts/sync/resume")
+        assert resumed.status_code == 200, resumed.text
+    finally:
+        resume_return.set()
+    try:
+        files = wait_for(
+            lambda: api.get(base + "/artifacts").json(),
+            lambda values: values and values[0]["syncState"] == "ready",
+        )
+    except AssertionError:
+        owner = workspace.runs.remote._workers[run_id]
+        raise AssertionError(
+            (
+                api.get(base).json(),
+                owner.thread.is_alive(),
+                owner.paused,
+                endpoint.sessions[-1].closed,
+                endpoint.commands,
+            )
+        ) from None
+    current = api.get(base).json()
+    assert current["status"] == "RUNNING" and not current["remote"]["artifactsVerified"]
+    assert current["artifactSync"]["verifiedBytes"] == len(png())
+    assert current["artifactSync"]["receivedBytes"] == len(png())
+    image = api.get(base + "/artifacts/" + files[0]["artifactId"] + "/content")
+    assert image.status_code == 200 and image.content == png()
+    assert endpoint.commands.count("--start") == 1 and "--cancel" not in endpoint.commands
+    # Real coordinator snapshot validated receipt against committed raw event bytes.
+    core = workspace.runs.remote.core(run_id)
+    checkpoint = core.checkpoint()
+    assert checkpoint.last_observation.artifact_receipt is not None
+    (endpoint.run_base / run_id / "fixture-finish").touch()
+    final = wait_for(lambda: api.get(base).json(), lambda value: value["syncState"] == "error")
+    assert final["status"] == "COMPLETED" and not final["remote"]["artifactsVerified"]
+    # Missing final model/figures cannot turn the structural PNG into training success.
+    other = endpoint.run_base.parent / "other-project"
+    other.mkdir()
+    workspace.create(workspace.select("project", other).selection_id, "other", "mnist-cnn")
+    assert api.post(base + "/artifacts/sync/pause").status_code == 404

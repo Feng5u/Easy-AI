@@ -728,6 +728,16 @@ class LocalWorkspace:
         self.verify_run_scope(scope)
         return value
 
+    def control_artifact_sync(self, scope: RunScope, paused: bool) -> Run:
+        run = self.require_run(scope.run_id)
+        if run.config.runner != "ssh":
+            raise ValueError("REMOTE_RUN_REQUIRED")
+        value = self.runs.remote.sync_control(
+            scope.run_id, paused, lambda: self.run_commit_scope(scope)
+        )
+        self.verify_run_scope(scope)
+        return value
+
     def cancel_run(self, scope: RunScope) -> Run:
         run = self.require_run(scope.run_id)
         if run.config.runner == "ssh":

@@ -542,6 +542,8 @@ def serve(root, identity, config):
             if not spawn_failed and supervisor.status != "FAILED":
                 raise
         heartbeat = 0
+        receipt, receipt_records = None, []
+        receipt_count = 0
         while True:
             supervisor._done.wait(0.1)
             try:
@@ -557,9 +559,32 @@ def serve(root, identity, config):
                     name: stamp(root, path, launch["generations"][name])
                     for name, path in STREAMS.items()
                 }
+                manifest = artifact_manifest(identity, supervisor.events(), streams)
+                records = manifest["artifacts"]
+                if records != receipt_records or sealed:
+                    # Each immutable event may introduce one artifact; at most
+                    # 256 growing snapshots plus the final sealed receipt.
+                    if records[: len(receipt_records)] != receipt_records or receipt_count >= 257:
+                        raise ValueError("REMOTE_ARTIFACT_RECEIPT_CHANGED")
+                    raw = encoded(manifest)
+                    digest = hashlib.sha256(raw).hexdigest()
+                    name = "remote-artifacts-" + digest + ".json"
+                    try:
+                        root.write(name, manifest, once=True)
+                    except FileExistsError:
+                        if root.read(name) != raw:
+                            raise ValueError("REMOTE_ARTIFACT_RECEIPT_CHANGED")
+                    receipt = {
+                        "sha256": digest,
+                        "sourceSeq": manifest["sourceSeq"],
+                        "eventsSha256": manifest["eventsSha256"],
+                    }
+                    receipt_records = list(records)
+                    receipt_count += 1
                 status = {
                     "identity": identity,
                     "heartbeat": heartbeat,
+                    "artifactReceipt": receipt,
                     "state": state,
                     "sealed": sealed,
                     "spawnFailed": spawn_failed,

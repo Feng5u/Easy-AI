@@ -565,6 +565,25 @@ def create_app(
             deliver(scope, None)
             raise HTTPException(status_code=409, detail=str(error)) from None
 
+    async def artifact_sync_control(run_id: str, paused: bool) -> Run:
+        _, scope = await asyncio.to_thread(run_store, run_id)
+        if workspace is None or scope is None:
+            raise ValueError("REMOTE_RUN_REQUIRED")
+        try:
+            value = await asyncio.to_thread(workspace.control_artifact_sync, scope, paused)
+        except Exception:
+            deliver(scope, None)
+            raise
+        return deliver(scope, value)
+
+    @app.post("/api/v1/runs/{run_id}/artifacts/sync/pause", response_model=Run)
+    async def pause_artifact_sync(run_id: str) -> Run:
+        return await artifact_sync_control(run_id, True)
+
+    @app.post("/api/v1/runs/{run_id}/artifacts/sync/resume", response_model=Run)
+    async def resume_artifact_sync(run_id: str) -> Run:
+        return await artifact_sync_control(run_id, False)
+
     @app.get("/api/v1/runs/{run_id}/source", response_model=RunSource)
     async def run_source(run_id: str) -> RunSource:
         service, scope = await asyncio.to_thread(run_store, run_id)

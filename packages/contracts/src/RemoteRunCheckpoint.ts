@@ -31,13 +31,16 @@ export type Artifactsverified = false;
 export type Cancelledbeforestart = boolean;
 export type Lastconnectionid = string | null;
 export type Heartbeat = number;
+export type Sha256 = string;
+export type Sourceseq = number;
+export type Eventssha256 = string;
 export type State = "STARTING" | "RUNNING" | "CANCELLING" | "CLEANUP_PENDING" | "COMPLETED" | "FAILED" | "CANCELLED";
 export type Sealed = boolean;
 export type Spawnfailed = boolean;
 export type Exitcode = number | null;
 export type Generation = string;
 export type Sizebytes = number;
-export type Sha256 = string;
+export type Sha2561 = string;
 
 export interface RemoteRunCheckpoint {
   protocolVersion?: Protocolversion;
@@ -72,11 +75,20 @@ export interface SshEndpoint {
 export interface RemoteRunObservation {
   identity: RemoteRunIdentity;
   heartbeat: Heartbeat;
+  artifactReceipt?: ArtifactReceipt | null;
   state: State;
   sealed: Sealed;
   spawnFailed?: Spawnfailed;
   exitCode?: Exitcode;
   streams: RemoteStreams;
+}
+/**
+ * Immutable manifest and exact raw-event prefix, published before owner status.
+ */
+export interface ArtifactReceipt {
+  sha256: Sha256;
+  sourceSeq: Sourceseq;
+  eventsSha256: Eventssha256;
 }
 export interface RemoteStreams {
   events: RemoteStream;
@@ -86,5 +98,5 @@ export interface RemoteStreams {
 export interface RemoteStream {
   generation: Generation;
   sizeBytes: Sizebytes;
-  sha256: Sha256;
+  sha256: Sha2561;
 }

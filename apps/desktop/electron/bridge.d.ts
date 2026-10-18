@@ -229,6 +229,8 @@ export interface DesktopAPI {
       stdoutAfter: number,
       stderrAfter: number,
     ): Promise<RunLogs>;
+    pauseArtifactSync?(runId: string): Promise<Run>;
+    resumeArtifactSync?(runId: string): Promise<Run>;
     artifacts(runId: string): Promise<ArtifactRecord[]>;
     image(runId: string, artifactId: string): Promise<{ dataUrl: string }>;
     subscribe(

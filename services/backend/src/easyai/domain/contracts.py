@@ -240,6 +240,13 @@ class RemoteExecution(Contract):
     artifacts_verified: bool = False
 
 
+class ArtifactSyncProgress(Contract):
+    state: Literal["idle", "syncing", "paused", "cleanup_pending", "error"] = "idle"
+    received_bytes: int = Field(default=0, ge=0, le=256 * 1024 * 1024)
+    verified_bytes: int = Field(default=0, ge=0, le=256 * 1024 * 1024)
+    total_bytes: int = Field(default=0, ge=0, le=256 * 1024 * 1024)
+
+
 class Run(Contract):
     run_id: str
     project_id: str
@@ -261,6 +268,7 @@ class Run(Contract):
     sync_state: Literal["pending", "syncing", "complete", "error"]
     config: RunConfig
     remote: RemoteExecution | None = None
+    artifact_sync: ArtifactSyncProgress | None = None
 
 
 class CompileRequest(Contract):

@@ -1,0 +1,17 @@
+# M5 运行中远端产物同步（当前源码）
+
+启动或显式接续原SSH运行后，既有后台worker持续读取执行状态、事件和日志。每次收到新的受控产物收据时，自动同步该run已经登记的完整图像/固定文本快照；不会遍历服务器目录，不复制模型或数据目录，不接受Renderer提供远端路径。单个已经登记的最终权重仍只在执行封存后按原协议校验下载，不做反序列化或执行。
+
+新owner在产物集合增加或最终封存时，先排他发布内容寻址 `remote-artifacts-<sha256>.json`，再让owner-status引用收据。每份manifest最多64KiB、256记录、总量256MiB；每run最多256次集合增长加一份最终收据。已有收据只可逐字节相同，既有产物不可被后续集合替换。无新产物的heartbeat复用旧收据，不按batch无限生成文件。旧owner没有收据时仍仅支持原sealed同步；不修改正在执行的旧bundle。
+
+收据绑定run/launch/主机身份、sourceSeq及对应原始JSONL前缀SHA256；coordinator从本机已经提交的事件字节（含换行）计算，不能用重新序列化后的Event代替。manifest每条记录还须与实际runtime事件、冻结bundle/source-map的producer/contributors一致。服务器status后来前进也只读取当前冻结收据允许的文件；不顺便下载新声明但本机尚未承诺的产物。
+
+只对完整、已关闭并有固定size/hash的产物使用此通道；增长中的stdout/stderr/CSV不作为可变产物追加下载，日志沿用原游标协议。读取继续逐组件lstat/持有handle检查、100MiB单文件上限（PNG8MiB，文本1MiB），下载到本机随机 `.artifact-part-*`，size/hash/PNG结构或UTF-8验证后发布内容寻址blob。相同hash先验证已有blob再复用；旧sourceSeq及任何已登记元数据变化不能覆盖新index。损坏/中断不会覆盖已完成缓存；未经索引提交不显示ready。仅PNG可走既有预览服务，不执行远端HTML、JS、模型或任何文件。
+
+运行面板区分远端已生成（pending）与本地可预览（ready），按秒读取本轮实际收到、已核验/计划总字节。复用缓存可使收到字节为0而核验数增加；没有估算下载百分比、耗时或训练指标。运行中图像ready后，整体syncState仍pending，artifactsVerified仍false；最终要求的权重/图像及执行退出证据仍须全部通过才可SUCCEEDED。后续同步失败保留原执行结果，结果未完整获取单独显示。
+
+“暂停文件同步（训练继续）”只取消专用SFTP通道，保留缓存、训练owner与start事实，继续读训练状态/日志；它不发送远端训练cancel，不杀PID、不删除文件。通道未确认退场时显示cleanup_pending并阻止恢复，物理I/O门继续占有。恢复复用当前有效session与同run收据，不重新start；暂停旧调用即使在恢复之后迟到返回，也不会退出训练读取worker。关闭应用仍沿用原owner清理边界，不承诺阻塞SDK的硬实时中断。
+
+断线/失效会停止同步，显示最后已知执行状态，不能凭I/O错误伪造训练FAILED或退出码。需要原主机核对、重新认证和显式接续；不自动申请新session或重跑。HTTP操作使用当前project的RunScope及generation提交门，Main固定runId/两条路由；UI卸载/切换丢弃迟到控制回执。已提交缓存可保留，撤销在提交前生效，不能回滚已经持久发布的真实文件。
+
+本轮仅API兼容本地SFTP、临时合成PNG和本机stdlib子进程验证。该PNG是结构fixture，不是科学图表/训练效果；没有SSH连接、用户远端数据下载、torch、数据下载/环境安装或个人PC操作。真实SFTP/SDK兼容性、同UID恶意替换、跨进程断电/重启持久恢复和目标桌面仍未验；SFTP v3没有O_NOFOLLOW/openat/可靠fsync保证。暂停意图和实时计数不作为重启恢复协议；上传任务持久历史/缺失文件补传另列依赖。旧M8便携产物不含新功能，未重打包/发布。CIFAR保护门不变，完整M5/B尚未验收。

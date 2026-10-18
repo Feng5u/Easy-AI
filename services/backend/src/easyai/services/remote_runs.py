@@ -4,7 +4,7 @@ No second wire protocol: all execution ownership goes through SshRunCoordinator.
 HTTP reads are cached; explicit start/resume alone establish a background I/O owner.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import codecs
 import hashlib
 import json
@@ -14,7 +14,13 @@ import time
 from typing import TYPE_CHECKING, Any, Literal, Callable, ContextManager
 from uuid import uuid4
 
-from easyai.domain.contracts import ArtifactRecord, RemoteExecution, Run, RunConfig
+from easyai.domain.contracts import (
+    ArtifactRecord,
+    ArtifactSyncProgress,
+    RemoteExecution,
+    Run,
+    RunConfig,
+)
 from easyai.domain.desktop import RunLogs
 from easyai.domain.connections import AuthenticatedConnection, SessionControl
 from easyai.domain.remote_execution import RemoteBinding, RemoteRunStartRequest
@@ -34,6 +40,10 @@ FINAL = {"COMPLETED", "FAILED", "CANCELLED"}
 class _Worker:
     stop: threading.Event
     thread: threading.Thread | None = None
+    paused: bool = False
+    sync_cancel: threading.Event = field(default_factory=threading.Event)
+    sync_transport: Any = None
+    last_receipt: str | None = None
 
 
 class RemoteRuns:
@@ -263,6 +273,9 @@ class RemoteRuns:
             if entry.run.config.runner != "ssh":
                 continue
             checkpoint = self.core(run_id).checkpoint()
+            entry.run.artifact_sync = (
+                ArtifactSyncProgress()
+            )  # No live transfer survives app restart.
             # Recovery imports committed facts only; no credentials, sockets or start.
             verified = False
             try:
@@ -353,20 +366,39 @@ class RemoteRuns:
                 self.runs._persist()
             owner = _Worker(threading.Event())
             self._workers[run_id] = owner
+            self._sync_progress(run_id, owner, state="idle", counts=(0, 0, 0))
 
             def work() -> None:
                 try:
                     if initial:
                         core.start()
                     while not owner.stop.is_set():
+                        if owner.sync_transport is not None and not owner.sync_transport.quiescent:
+                            self._sync_progress(run_id, owner, state="cleanup_pending")
+                            owner.stop.wait(0.1)
+                            continue
                         checkpoint = core.poll()
                         self._publish(run_id, checkpoint)
-                        if (
-                            checkpoint.last_observation is not None
-                            and checkpoint.last_observation.sealed
+                        observed = checkpoint.last_observation
+                        receipt = observed.artifact_receipt if observed else None
+                        with self._gate:
+                            quiet = owner.sync_transport is None or owner.sync_transport.quiescent
+                            paused = owner.paused
+                        if not quiet:
+                            self._sync_progress(run_id, owner, state="cleanup_pending")
+                        elif paused:
+                            self._sync_progress(run_id, owner, state="paused")
+                        elif observed is not None and (
+                            observed.sealed
+                            or (receipt is not None and receipt.sha256 != owner.last_receipt)
                         ):
-                            self._sync(run_id, manager, control, owner.stop, checkpoint)
-                            return
+                            if not self._sync(run_id, manager, control, owner, checkpoint):
+                                if owner.paused or owner.sync_cancel.is_set():
+                                    continue
+                                return  # Explicit reconnect, never automatic new credentials/start.
+                            if observed.sealed:
+                                return
+                            owner.last_receipt = receipt.sha256 if receipt else None
                         owner.stop.wait(0.5)
                 except Exception:
                     # A failed I/O operation says nothing about whether the owner ran.
@@ -391,9 +423,9 @@ class RemoteRuns:
         run_id: str,
         manager: "ConnectionManager",
         control: SessionControl,
-        stop: threading.Event,
+        owner: _Worker,
         checkpoint: Any,
-    ) -> None:
+    ) -> bool:
         from easyai.services.remote_artifacts import SftpArtifactSync
         from easyai.services.run_completion import artifacts_complete
 
@@ -405,11 +437,26 @@ class RemoteRuns:
                 read_regular(directory / "bundle.json", 65536),
                 read_regular(directory / "code/source-map.json", 8 * 1024 * 1024),
             )
-            ready = manager.artifact_sync(control, core.identity).sync(
-                snapshot, directory / "cache/artifacts", stop
+            with self._gate:
+                if owner.paused or owner.stop.is_set():
+                    return False
+                owner.sync_cancel = threading.Event()
+                owner.sync_transport = manager.artifact_sync(control, core.identity)
+            self._sync_progress(run_id, owner, state="syncing", counts=(0, 0, 0))
+            ready = owner.sync_transport.sync(
+                snapshot,
+                directory / "cache/artifacts",
+                owner.sync_cancel,
+                progress=lambda received, verified, total: self._sync_progress(
+                    run_id, owner, state="syncing", counts=(received, verified, total)
+                ),
             )
             with self.runs._mutex:
                 self._ready[run_id] = ready
+            if not snapshot.observation.sealed:
+                self._sync_progress(run_id, owner, state="paused" if owner.paused else "idle")
+                self._publish(run_id, checkpoint, verified=False, sync="pending")
+                return True
             self.runs._verify_snapshot(run_id)
             program = ProgramIR.model_validate_json(
                 read_regular(directory / "program.ir.json", 5 * 1024 * 1024)
@@ -433,9 +480,70 @@ class RemoteRuns:
                 if complete or checkpoint.execution_state != "COMPLETED"
                 else "error",
             )
+            self._sync_progress(run_id, owner, state="paused" if owner.paused else "idle")
+            return True
         except Exception:
-            core.disconnect()
-            self._publish(run_id, core.checkpoint(), sync="error")
+            if owner.paused or owner.stop.is_set() or owner.sync_cancel.is_set():
+                quiet = owner.sync_transport is None or owner.sync_transport.quiescent
+                self._sync_progress(
+                    run_id,
+                    owner,
+                    state=("paused" if owner.paused else "idle") if quiet else "cleanup_pending",
+                )
+                self._publish(run_id, core.checkpoint(), sync="pending")
+            else:
+                core.disconnect()
+                self._sync_progress(run_id, owner, state="error")
+                self._publish(run_id, core.checkpoint(), sync="error")
+            return False
+
+    def _sync_progress(
+        self,
+        run_id: str,
+        owner: _Worker,
+        *,
+        state: Literal["idle", "syncing", "paused", "cleanup_pending", "error"],
+        counts: tuple[int, int, int] | None = None,
+    ) -> None:
+        with self._gate:
+            if self._workers.get(run_id) is not owner or self._closing:
+                return
+            if state == "syncing" and (
+                owner.paused or owner.sync_cancel.is_set() or owner.stop.is_set()
+            ):
+                raise ValueError("REMOTE_ARTIFACT_CANCELLED")
+            with self.runs._mutex:
+                if self.runs._closed:
+                    return
+                run = self.runs._ledger.entries[run_id].run
+                current = run.artifact_sync or ArtifactSyncProgress()
+                run.artifact_sync = ArtifactSyncProgress(
+                    state=state,
+                    received_bytes=counts[0] if counts else current.received_bytes,
+                    verified_bytes=counts[1] if counts else current.verified_bytes,
+                    total_bytes=counts[2] if counts else current.total_bytes,
+                )  # Live byte counters are polled; never append per-chunk journal events.
+
+    def sync_control(
+        self, run_id: str, paused: bool, commit_scope: Callable[[], ContextManager[None]]
+    ) -> Run:
+        with self._gate:
+            owner = self._workers.get(run_id)
+            if owner is None or owner.thread is None or not owner.thread.is_alive():
+                raise ValueError("REMOTE_SYNC_RECONNECT_REQUIRED")
+            quiet = owner.sync_transport is None or owner.sync_transport.quiescent
+            with commit_scope():
+                if not paused and not quiet:
+                    raise ValueError("REMOTE_ARTIFACT_CLEANUP_UNCONFIRMED")
+                owner.paused = paused
+                if paused:
+                    owner.sync_cancel.set()
+                self._sync_progress(
+                    run_id,
+                    owner,
+                    state=("paused" if paused else "idle") if quiet else "cleanup_pending",
+                )
+            return self.runs.get(run_id)
 
     def cancel(
         self, run_id: str, commit_scope: Callable[[], ContextManager[None]] | None = None
@@ -472,12 +580,18 @@ class RemoteRuns:
         )
 
     def artifacts(self, run_id: str) -> list[ArtifactRecord]:
-        ready_ids = {item.artifact_id for item in self._ready.get(run_id, [])}
+        ready = {item.artifact_id: item for item in self._ready.get(run_id, [])}
         return [
             ArtifactRecord.model_validate(event.payload).model_copy(
                 update={
                     "sync_state": "ready"
-                    if event.payload.get("artifactId") in ready_ids
+                    if (
+                        event.payload.get("artifactId") in ready
+                        and ArtifactRecord.model_validate(event.payload).model_copy(
+                            update={"sync_state": "ready"}
+                        )
+                        == ready[event.payload["artifactId"]]
+                    )
                     else "pending"
                 }
             )
@@ -508,6 +622,7 @@ class RemoteRuns:
             cores = list(self._cores.items())
             for owner in owners:
                 owner.stop.set()
+                owner.sync_cancel.set()
             # SDK close can itself block. Retain one owner and all store locks
             # until both the I/O worker and its dedicated retirement finish.
             for run_id, core in cores:

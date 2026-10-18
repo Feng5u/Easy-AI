@@ -1,4 +1,4 @@
-"""Sealed-run SFTP downloads. No remote writes, commands, deserialization or public path API.
+"""Snapshot-bound SFTP downloads. No remote writes, commands, deserialization or public path API.
 
 SFTP v3 cannot express O_NOFOLLOW. Protected owner directories, lstat/handle
 checks and hashes constrain reads; a malicious same-UID concurrent replacement
@@ -108,9 +108,14 @@ class ArtifactSnapshot:
         events: list[Event],
         bundle_manifest: bytes,
         source_map: bytes,
+        receipt_prefix_sha256: str | None = None,
     ) -> "ArtifactSnapshot":
         observation = checkpoint.last_observation
-        if observation is None or not observation.sealed:
+        if observation is None or (not observation.sealed and observation.artifact_receipt is None):
+            _reject()
+        assert observation is not None
+        receipt = observation.artifact_receipt
+        if receipt is not None and receipt.events_sha256 != receipt_prefix_sha256:
             _reject()
         assert observation is not None
         identity = checkpoint.identity
@@ -154,16 +159,26 @@ class ArtifactSnapshot:
             paths.add(record.relative_path)
             total += record.size_bytes
             records.append(record.model_copy(deep=True))
+        if receipt is not None and (
+            receipt.source_seq > len(runtime)
+            or any(event.type == "artifact_created" for event in runtime[receipt.source_seq :])
+            or (observation.sealed and receipt.source_seq != len(runtime))
+        ):
+            _reject()
         if not runtime or len(records) > 256 or total > MAX_TOTAL:
             _reject()
         return cls(observation.model_copy(deep=True), len(runtime), tuple(records))
 
     def manifest(self, raw: bytes) -> ArtifactManifest:
         value = ArtifactManifest.model_validate(_decode(raw))
+        receipt = self.observation.artifact_receipt
+        if receipt is not None and hashlib.sha256(raw).hexdigest() != receipt.sha256:
+            _reject()
         if (
             value.identity != self.observation.identity
-            or value.source_seq != self.source_seq
-            or value.events_sha256 != self.observation.streams.events.sha256
+            or value.source_seq != (receipt.source_seq if receipt else self.source_seq)
+            or value.events_sha256
+            != (receipt.events_sha256 if receipt else self.observation.streams.events.sha256)
             or value.artifacts != list(self.records)
         ):
             _reject()
@@ -349,6 +364,12 @@ class SftpArtifactSync:
     ):
         self.session, self.identity = session, identity
         self.mutex, self.guard, self.factory = mutex, guard, sftp_factory or paramiko.SFTPClient
+        self._worker: threading.Thread | None = None
+        self._retained = False
+
+    @property
+    def quiescent(self) -> bool:
+        return self._worker is None or (not self._worker.is_alive() and not self._retained)
 
     def sync(
         self,
@@ -357,6 +378,7 @@ class SftpArtifactSync:
         cancel: threading.Event,
         *,
         seconds: float = 20,
+        progress: Callable[[int, int, int], None] | None = None,
     ) -> list[ArtifactRecord]:
         if snapshot.observation.identity != self.identity or not 0 < seconds <= 20:
             _reject()
@@ -366,6 +388,19 @@ class SftpArtifactSync:
         values: list[list[ArtifactRecord]] = []
         failed = threading.Event()
         deadline = time.monotonic() + seconds
+        channels: list[Any] = []
+        selected = tuple(
+            record
+            for record in snapshot.records
+            if snapshot.observation.sealed or record.kind != "model"
+        )
+        total_bytes = sum(record.size_bytes for record in selected)
+        received_bytes = verified_bytes = 0
+
+        def report() -> None:
+            check()
+            if progress is not None:
+                progress(received_bytes, verified_bytes, total_bytes)
 
         def check() -> None:
             with self.mutex:
@@ -381,35 +416,111 @@ class SftpArtifactSync:
                 except Exception:
                     raise ArtifactFailure("REMOTE_ARTIFACT_AUTH_STALE") from None
 
+        interrupted, finished = threading.Event(), threading.Event()
+
+        def interrupt() -> None:
+            while not finished.wait(0.01):
+                if abandoned.is_set() or cancel.is_set() or time.monotonic() >= deadline:
+                    for owned_channel in channels:
+                        try:
+                            owned_channel.close()
+                        except Exception:
+                            interrupted.set()  # No SDK text from background threads.
+                    return
+
+        watcher = threading.Thread(target=interrupt, name="easyai-artifact-interrupt", daemon=True)
+
         def worker() -> None:
+            nonlocal received_bytes, verified_bytes
             channel, sftp, cache = None, None, None
             try:
                 check()
                 channel = self.session.open_probe_channel(timeout=min(2, seconds))
+                channels.append(channel)
                 channel.settimeout(min(2, seconds))
                 check()
                 channel.invoke_subsystem("sftp")
                 sftp = self.factory(channel)
                 check()
                 reader = _Reader(sftp, self.identity, check)
-                status = RemoteRunObservation.model_validate(
-                    _decode(reader.record("owner-status.json"))
+                receipt = snapshot.observation.artifact_receipt
+                if receipt is None:
+                    # Legacy sealed protocol has a stable status/manifest pair.
+                    status = RemoteRunObservation.model_validate(
+                        _decode(reader.record("owner-status.json"))
+                    )
+                    if status != snapshot.observation:
+                        _reject()
+                # New receipts are immutable and already bound to the committed
+                # coordinator observation. Re-reading a mutable heartbeat here
+                # would race every live snapshot and add no artifact authority.
+                manifest_name = (
+                    "remote-artifacts-" + receipt.sha256 + ".json"
+                    if receipt
+                    else "remote-artifacts.json"
                 )
-                if status != snapshot.observation:
-                    _reject()
-                manifest = snapshot.manifest(reader.record("remote-artifacts.json"))
+                manifest = snapshot.manifest(reader.record(manifest_name))
                 reader.uid = manifest.uid
                 # Recheck bootstrap records now that UID is bound to the owner receipt.
-                reader._parents("owner-status.json")
-                reader._parents("remote-artifacts.json")
+                if receipt is None:
+                    reader._parents("owner-status.json")
+                reader._parents(manifest_name)
                 cache = _Cache(cache_path)
                 cache.bind(self.identity)
+                # A stale snapshot must never replace a newer committed index.
+                try:
+                    descriptor = cache.directory.open_file("artifact-index.json")
+                except FileNotFoundError:
+                    pass
+                else:
+                    with os.fdopen(descriptor, "rb") as source:
+                        prior = _decode(source.read(MAX_MANIFEST + 1))
+                    prior_records = TypeAdapter(list[ArtifactRecord]).validate_python(
+                        prior["artifacts"]
+                    )
+                    expected = {item.artifact_id: item for item in selected}
+                    if (
+                        type(prior.get("sourceSeq", 0)) is not int
+                        or prior.get("sourceSeq", 0) > snapshot.source_seq
+                    ):
+                        _reject()
+                    if len(prior_records) > 256 or len(
+                        {item.artifact_id for item in prior_records}
+                    ) != len(prior_records):
+                        _reject()
+                    for item in prior_records:
+                        if (
+                            item.artifact_id not in expected
+                            or item.model_copy(
+                                update={"sync_state": expected[item.artifact_id].sync_state}
+                            )
+                            != expected[item.artifact_id]
+                        ):
+                            _reject()
+                report()
                 ready = []
-                for record in snapshot.records:
+                for record in selected:
+                    check()
+                    try:
+                        _content(record, cache.blob(record.sha256, record.size_bytes))
+                    except FileNotFoundError:
+                        pass
+                    else:
+                        verified_bytes += record.size_bytes
+                        report()
+                        ready.append(record.model_copy(update={"sync_state": "ready"}, deep=True))
+                        continue
                     name, descriptor = cache.temporary()
                     try:
                         with os.fdopen(descriptor, "w+b") as target:
-                            reader.read(record.relative_path, record.size_bytes, target.write)
+
+                            def consume(raw: bytes) -> None:
+                                nonlocal received_bytes
+                                target.write(raw)
+                                received_bytes += len(raw)
+                                report()
+
+                            reader.read(record.relative_path, record.size_bytes, consume)
                             target.flush()
                             target.seek(0)
                             _content(record, target.read(record.size_bytes + 1))
@@ -422,6 +533,8 @@ class SftpArtifactSync:
                             except FileExistsError:
                                 _content(record, cache.blob(record.sha256, record.size_bytes))
                             cache.directory.sync()
+                        verified_bytes += record.size_bytes
+                        report()
                         ready.append(record.model_copy(update={"sync_state": "ready"}, deep=True))
                     finally:
                         # Only the random temporary created by this worker is removable.
@@ -440,6 +553,7 @@ class SftpArtifactSync:
                     index = _encoded(
                         {
                             "identity": self.identity.model_dump(mode="json", by_alias=True),
+                            "sourceSeq": snapshot.source_seq,
                             "artifacts": [
                                 record.model_dump(mode="json", by_alias=True) for record in ready
                             ],
@@ -449,10 +563,10 @@ class SftpArtifactSync:
                         _reject()
                     name, descriptor = cache.temporary()
                     try:
-                        with os.fdopen(descriptor, "wb") as target:
-                            target.write(index)
-                            target.flush()
-                            cache.directory.sync_file(target.fileno())
+                        with os.fdopen(descriptor, "wb") as manifest_target:
+                            manifest_target.write(index)
+                            manifest_target.flush()
+                            cache.directory.sync_file(manifest_target.fileno())
                         check()
                         cache.directory.publish(name, "artifact-index.json", replace=True)
                         values.append(ready)
@@ -461,21 +575,40 @@ class SftpArtifactSync:
             except Exception:
                 failed.set()
             finally:
+                cleanup_failed = False
                 for resource in (sftp, channel, cache):
                     if resource is not None:
                         try:
                             resource.close()
                         except Exception:
                             failed.set()
-                if failed.is_set():
-                    self.session.close()
-                self.session.io_lock.release()
+                            cleanup_failed = True
+                finished.set()
+                watcher.join()  # Keep the physical gate until the interrupt owner also exits.
+                cleanup_failed = cleanup_failed or interrupted.is_set()
+                quiet = all(getattr(item, "closed", False) is True for item in channels)
+                if cleanup_failed or not quiet:
+                    failed.set()
+                    try:
+                        self.session.close()
+                    except Exception:
+                        quiet = False
+                    if not quiet:
+                        quiet = bool(getattr(self.session, "closed_quiescent", False))
+                self._retained = not quiet
+                if quiet:
+                    self.session.io_lock.release()
                 done.set()
 
         thread = threading.Thread(target=worker, name="easyai-artifact-sftp", daemon=True)
+        self._worker = thread
         try:
+            watcher.start()
             thread.start()
         except BaseException:
+            finished.set()
+            if watcher.ident is not None:
+                watcher.join()
             self.session.io_lock.release()
             raise
         while not done.wait(0.01):
@@ -488,9 +621,6 @@ class SftpArtifactSync:
             if abandoned.is_set():
                 # The SDK close may itself block. Retain the physical gate/cache lock
                 # in the worker until it has actually quiesced; never kill the owner.
-                threading.Thread(
-                    target=self.session.close, name="easyai-artifact-close", daemon=True
-                ).start()
                 raise ArtifactFailure("REMOTE_ARTIFACT_CLEANUP_UNCONFIRMED")
         with self.mutex:
             if failed.is_set() or not values:
@@ -512,7 +642,8 @@ class SftpArtifactSync:
             with os.fdopen(descriptor, "rb") as source:
                 value = _decode(source.read(MAX_MANIFEST + 1))
             if (
-                set(value) != {"identity", "artifacts"}
+                set(value)
+                not in ({"identity", "artifacts"}, {"identity", "sourceSeq", "artifacts"})
                 or RemoteRunIdentity.model_validate(value["identity"]) != identity
             ):
                 _reject()

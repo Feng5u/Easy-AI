@@ -149,6 +149,10 @@ const api: DesktopAPI = {
       ipcRenderer.invoke("easyai:runs:exportDiagnostic", id, seq),
     logs: (id, stdout, stderr) =>
       ipcRenderer.invoke("easyai:runs:logs", id, stdout, stderr),
+    pauseArtifactSync: (id) =>
+      ipcRenderer.invoke("easyai:runs:pauseArtifactSync", id),
+    resumeArtifactSync: (id) =>
+      ipcRenderer.invoke("easyai:runs:resumeArtifactSync", id),
     artifacts: (id) => ipcRenderer.invoke("easyai:runs:artifacts", id),
     image: (id, artifact) =>
       ipcRenderer.invoke("easyai:runs:image", id, artifact),

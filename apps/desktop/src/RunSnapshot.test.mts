@@ -1114,3 +1114,70 @@ it("selected real Blockly object exposes its local tutorial help type without ch
   expect(changed).not.toHaveBeenCalled();
   expect(JSON.stringify(saved.snapshot)).toBe(before);
 });
+
+it("shows actual remote sync bytes and pauses only file reads", async () => {
+  const h = dashboard(source(), "live-sync-run");
+  h.run.status = "RUNNING";
+  h.run.config.runner = "ssh";
+  h.run.connectionState = "connected";
+  h.api.runs.cancel = vi.fn(async () => h.run);
+  h.api.runs.resume = vi.fn(async () => h.run);
+  h.run.artifactSync = {
+    state: "syncing",
+    receivedBytes: 8,
+    verifiedBytes: 0,
+    totalBytes: 69,
+  };
+  const paused = structuredClone(h.run);
+  paused.artifactSync = { ...h.run.artifactSync, state: "paused" };
+  h.api.runs.pauseArtifactSync = vi.fn(async () => paused);
+  h.api.runs.resumeArtifactSync = vi.fn(async () => h.run);
+  await render(
+    createElement(RunDashboard, {
+      api: h.api,
+      initialRun: h.run,
+      onRunUpdate: vi.fn(),
+    }),
+  );
+  expect(container.textContent).toContain("本轮收到 8 字节");
+  expect(container.textContent).toContain("已核验 0 / 69 字节");
+  await click("暂停文件同步（训练继续）");
+  expect(h.api.runs.pauseArtifactSync).toHaveBeenCalledWith("live-sync-run");
+  expect(h.api.runs.cancel).not.toHaveBeenCalled();
+  expect(container.textContent).toContain("paused");
+  await click("继续文件同步");
+  expect(h.api.runs.resumeArtifactSync).toHaveBeenCalledWith("live-sync-run");
+  expect(h.api.runs.resume).not.toHaveBeenCalled();
+});
+
+it("ignores a late file-sync control reply after switching runs", async () => {
+  const old = dashboard(source(), "old-file-sync");
+  old.run.status = "RUNNING";
+  old.run.config.runner = "ssh";
+  const reply = deferred<Run>();
+  old.api.runs.pauseArtifactSync = vi.fn(() => reply.promise);
+  old.api.runs.resumeArtifactSync = vi.fn(async () => old.run);
+  const updated = vi.fn();
+  await render(
+    createElement(RunDashboard, {
+      api: old.api,
+      initialRun: old.run,
+      onRunUpdate: updated,
+    }),
+  );
+  await click("暂停文件同步（训练继续）");
+  const fresh = dashboard(source(), "new-file-sync");
+  await render(
+    createElement(RunDashboard, {
+      api: fresh.api,
+      initialRun: fresh.run,
+      onRunUpdate: updated,
+    }),
+  );
+  updated.mockClear();
+  await act(async () => {
+    reply.resolve({ ...old.run, artifactSync: { state: "paused" } });
+  });
+  expect(updated).not.toHaveBeenCalled();
+  expect(container.querySelector(".run-id")?.textContent).toBe("new-file-sync");
+});

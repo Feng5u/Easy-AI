@@ -1,5 +1,33 @@
 {
   "$defs": {
+    "ArtifactReceipt": {
+      "additionalProperties": false,
+      "description": "Immutable manifest and exact raw-event prefix, published before owner status.",
+      "properties": {
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "sourceSeq": {
+          "minimum": 1,
+          "title": "Sourceseq",
+          "type": "integer"
+        },
+        "eventsSha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Eventssha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sha256",
+        "sourceSeq",
+        "eventsSha256"
+      ],
+      "title": "ArtifactReceipt",
+      "type": "object"
+    },
     "RemoteRunIdentity": {
       "additionalProperties": false,
       "properties": {
@@ -163,6 +191,17 @@
       "minimum": 1,
       "title": "Heartbeat",
       "type": "integer"
+    },
+    "artifactReceipt": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ArtifactReceipt"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "state": {
       "enum": [

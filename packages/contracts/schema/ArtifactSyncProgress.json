@@ -1,0 +1,40 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "state": {
+      "default": "idle",
+      "enum": [
+        "idle",
+        "syncing",
+        "paused",
+        "cleanup_pending",
+        "error"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "receivedBytes": {
+      "default": 0,
+      "maximum": 268435456,
+      "minimum": 0,
+      "title": "Receivedbytes",
+      "type": "integer"
+    },
+    "verifiedBytes": {
+      "default": 0,
+      "maximum": 268435456,
+      "minimum": 0,
+      "title": "Verifiedbytes",
+      "type": "integer"
+    },
+    "totalBytes": {
+      "default": 0,
+      "maximum": 268435456,
+      "minimum": 0,
+      "title": "Totalbytes",
+      "type": "integer"
+    }
+  },
+  "title": "ArtifactSyncProgress",
+  "type": "object"
+}

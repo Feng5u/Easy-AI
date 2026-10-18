@@ -62,6 +62,8 @@ export const WORKFLOW_CHANNELS = [
   "easyai:runs:exportDiagnostic",
   "easyai:runs:logs",
   "easyai:runs:artifacts",
+  "easyai:runs:pauseArtifactSync",
+  "easyai:runs:resumeArtifactSync",
   "easyai:runs:image",
 ] as const;
 function id(value: unknown): string {
@@ -187,6 +189,8 @@ export class MainWorkflow {
       "easyai:runs:exportDiagnostic": 2,
       "easyai:runs:logs": 3,
       "easyai:runs:artifacts": 1,
+      "easyai:runs:pauseArtifactSync": 1,
+      "easyai:runs:resumeArtifactSync": 1,
       "easyai:runs:image": 2,
     };
     if (
@@ -666,6 +670,12 @@ export class MainWorkflow {
         );
         return { exported: true };
       }
+      case "easyai:runs:pauseArtifactSync":
+      case "easyai:runs:resumeArtifactSync":
+        return backend.request(
+          "POST",
+          `/api/v1/runs/${id(args[0])}/artifacts/sync/${channel.endsWith("pauseArtifactSync") ? "pause" : "resume"}`,
+        );
       case "easyai:runs:source":
         return backend.request("GET", `/api/v1/runs/${id(args[0])}/source`);
       case "easyai:runs:artifacts":

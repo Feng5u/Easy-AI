@@ -501,6 +501,16 @@ class SshRunCoordinator:
                 raise RemoteProtocolError("REMOTE_HEARTBEAT_ROLLBACK")
             if previous.sealed and observed != previous:
                 raise RemoteProtocolError("REMOTE_TERMINAL_CHANGED")
+            prior_receipt, next_receipt = previous.artifact_receipt, observed.artifact_receipt
+            if prior_receipt is not None and (
+                next_receipt is None
+                or next_receipt.source_seq < prior_receipt.source_seq
+                or (
+                    next_receipt.source_seq == prior_receipt.source_seq
+                    and next_receipt != prior_receipt
+                )
+            ):
+                raise RemoteProtocolError("REMOTE_ARTIFACT_RECEIPT_ROLLBACK")
             for stream in STREAMS:
                 before, after = getattr(previous.streams, stream), getattr(observed.streams, stream)
                 if before.generation != after.generation or after.size_bytes < before.size_bytes:
@@ -673,11 +683,23 @@ class SshRunCoordinator:
             self._verify_store()
             self._verify_committed_cache()
             assert self._journal is not None
+            receipt_hash = None
+            observed = self._checkpoint.last_observation
+            if observed is not None and observed.artifact_receipt is not None:
+                digest = hashlib.sha256()
+                with self._file(STREAMS["events"]) as source:
+                    for _ in range(observed.artifact_receipt.source_seq):
+                        raw = source.readline(MAX_LINE_BYTES + 1)
+                        if not raw.endswith(b"\n") or len(raw) > MAX_LINE_BYTES:
+                            raise RemoteProtocolError("REMOTE_ARTIFACT_PREFIX_INVALID")
+                        digest.update(raw)
+                receipt_hash = digest.hexdigest()
             return ArtifactSnapshot.verified(
                 self._checkpoint.model_copy(deep=True),
                 self._journal.after(0),
                 bundle_manifest,
                 source_map,
+                receipt_hash,
             )
 
     def log_bytes(

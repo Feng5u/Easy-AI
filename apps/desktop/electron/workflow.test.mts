@@ -201,3 +201,28 @@ it("profile IPC accepts only non-secret fields and routes explicit CRUD without 
     ),
   ).toBe(false);
 });
+
+it("file sync controls accept only opaque run IDs and fixed pause/resume routes", async () => {
+  const { bridge, request } = setup();
+  await bridge.invoke("easyai:runs:pauseArtifactSync", [identity]);
+  expect(request).toHaveBeenLastCalledWith(
+    "POST",
+    `/api/v1/runs/${identity}/artifacts/sync/pause`,
+  );
+  await bridge.invoke("easyai:runs:resumeArtifactSync", [identity]);
+  expect(request).toHaveBeenLastCalledWith(
+    "POST",
+    `/api/v1/runs/${identity}/artifacts/sync/resume`,
+  );
+  request.mockClear();
+  for (const args of [
+    ["../teacher-data"],
+    [identity, "/server/file"],
+    [{ runId: identity, path: "/x" }],
+  ]) {
+    await expect(
+      bridge.invoke("easyai:runs:pauseArtifactSync", args),
+    ).rejects.toThrow();
+  }
+  expect(request).not.toHaveBeenCalled();
+});
