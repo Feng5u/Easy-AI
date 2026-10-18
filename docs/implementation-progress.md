@@ -1432,3 +1432,54 @@ NOT RUN：全套/大矩阵、构建/冻结smoke（本片无打包验收）、真
 实际命令：`services/backend/.venv/bin/python -m pytest services/backend/tests/test_remote_artifacts.py -k 'first_failure_survives_deadline or cancel_interrupt_worker or fixed_sync_failure_stages' -q`，最终 **11 PASS/52 deselected/0.86s**，日志 `/tmp/easyai-diag-first-cause-final-1792355931836-f68d2d.log`，SHA256 `37c9c4cd69d39ea43ea002a3943a2066600174c3844111ca32e2d1cd4b641eb4`。此前修后11项日志 `/tmp/easyai-diag-first-cause-green-1792355892861-359b42.log`保留但不累计；同时间戳 `/tmp/easyai-diag-first-cause-check-1792355892861-359b42.log` 的offline workspace缓存 `pnpm check` **PASS**（之后成功路径两处close也包同一已检查helper，最终11再次覆盖）。未重跑大矩阵/构建。独立只读两个barrier+旧watcher **3 PASS/60 deselected/0.60s**，`/tmp/easyai-first-cause-review-P3MfbH.log` SHA256 `b6f2d417b187e9d05748d187ec450c124ffb2b762b3684fc788bef5a775e1181`，确认关闭此P2、无明确新增P1/P2；与作者窗口重合不累计。
 
 旧226P1F特定根因仍UNKNOWN且原日志丢失，不把本次确定P2回溯当成它的已证原因。新验证均唯一noclobber文件，红/绿原件保全，无SDK原文/path/secret诊断。真实SSH/下载/安装/训练/桌面仍NOT RUN，CIFAR门不变，无新工具拒绝或未知外部写入。正常dev push，main和原件不改。接续原任务仍为上传本机持久恢复→显式重新选源/目标确认→只读inspect→同slot缺失文件补传；不自动网络或接管未知partial。
+
+
+## 2026-10-18 — M5 上传持久历史与同slot缺失文件恢复（合成纵向闭环）
+
+源码完整SHA **`84a7cd52e14129c44a3070023c462f940b6ebfc3`**；基线 `0c10ee07caf88177df2f2b25ffb6496822d3b591`。在既有显式上传之上，接通私有intent持久化→重启仅本机历史→新认证/主动重选源→只读inspect→新60秒计划明确确认→同slot仅发送缺失完整文件。单一集成者写入；复用既有worker独立只读审查，无新writer。不是M5/B完整验收。
+
+持久记录固定应用私有目录、排他writer lock，先登记attempt再任何远端写；不存本机源绝对路径/selectionId/session/凭据，不写工程。相对文件名、hash和远端目标概要也属可能私密的元数据，见data-upload.md。上限16slot×16attempt，满额/未知记录/不确定持久化均拒绝，无自动淘汰/清理。新slot也先暂存完整intent再非覆盖发布。恢复绑定原project/target revision/endpoint/user/pin/home/UID，重新全SHA核原manifest；只读检查全文件而非信任complete marker。未知/冲突内容拒绝保留，精确known-attempt partial只识别不认领/读内容/覆盖/删除；不做任意字节续传。写前重核missing集合，最终全文件回读与marker收口。进度区分本次sent/reused；dataReady始终false，仍须独立Dataset probe/绑定，CIFAR保护门不变。
+
+独审复现并关闭一项P2：旧wait_idle仅等job，在途prepare仍持SDK gate却先释放ledger，第二实例可取得writer lock。确定性屏障先红后绿：close发planning取消，wait_idle在workspace mutex外有界等待planning/job/SDK，超时保留writer lock；传输保留probe quiescence和cleanup_pending证据，未知不接管。没有用取消请求代替已静止回执。既有清理中job仍返回BUSY，不改变错误合同。
+
+最终实际命令与结果（日志在执行器/tmp，合成内容未提交公开库；均唯一noclobber，不覆盖失败）：
+
+| 实际命令 | 结果 / 日志 |
+|---|---|
+| `services/backend/.venv/bin/pytest services/backend/tests/test_data_transfer_recovery.py services/backend/tests/test_data_transfers.py -q` | **40 PASS/7.13s**；`/tmp/easyai-recovery-tests-1792357020069-3be862.log`。重启构造无网络、重选源/同目标/manifest、只读拒绝、unknown/冲突/marker伪完成、missing-only不改已有文件/partial、writer lock/篡改、planning关闭超时、持久化失败零远端写、inspect后源变化零调用及HTTP鉴权/历史/inspect/completed复用 |
+| `pnpm exec vitest run apps/desktop/electron/data-transfers.test.mts apps/desktop/src/DataUpload.test.mts` | **9 PASS/2 files**；`/tmp/easyai-recovery-main-ui-1792357020069-3be862.log`。固定IPC、history不授写权、同slot新attempt、原生重选/只读核验/明确确认、旧授权失效 |
+| `UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache pnpm check` | **PASS**；`/tmp/easyai-recovery-check-1792357020069-3be862.log`；TS/Main/testsTS、strict mypy60、106Python格式/ruff、合同生成一致、真实Blockly fixtures、Prettier |
+| `UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache XDG_CACHE_HOME=/workspace/.cache pnpm build` | **PASS**；`/tmp/easyai-recovery-build-1792357020069-3be862.log`；Main TS/Vite与PyInstaller，无新依赖；保留既有chunk大小提示，无Electron启动 |
+| `node scripts/test-frozen.mjs` | **PASS**；`/tmp/easyai-recovery-test-frozen.mjs-1792357020069-3be862.log`；临时cwd实际冻结sidecar、资源/选择API/工程/黄金编译、受控包计划取消（execution仍关闭）与EOF exit0；不是冻结恢复正向全链 |
+| `node scripts/test-frozen-ssh.mjs` | **PASS**；`/tmp/easyai-recovery-test-frozen-ssh.mjs-1792357020069-3be862.log`；冻结鉴权/strict DTO/固定拒绝/scoped cancel/lease/环境拒绝/lazyParamiko、EOF exit0，无外连SSH |
+| 独立只读恢复集与两项补充守门 | **11 PASS/4.04s**，`/tmp/easyai-upload-owner-fix-review-9AWCJ8.log`；新增持久化失败及源变化 **2 PASS/11 deselected/0.24s**，`/tmp/easyai-upload-two-gates-review-K4s8eg.log`。合计范围与作者40重合不累计。P2关闭，无明确新增P1/P2 |
+| `git diff --check` / 原件hash / `git ls-remote origin refs/heads/main refs/heads/codex/demo-v0.0.0` | **PASS**；推前dev=0c10ee07caf88177df2f2b25ffb6496822d3b591、main=5323f86232529efcfb52131168ad049f01b219f3；正常开发分支提交，随后push再核。plan116185字节/hash dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43，旧规格5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190、README befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852均未改 |
+
+失败与中间验证不隐藏、不累计：新恢复测试初稿10 ERROR系持久记录硬链接临时名删除改变ctime，采样顺序错误；改先remove/sync再采样。随后9 PASS/1 FAIL系writer lock原始BlockingIOError未归固定BUSY，已修。两次check FAIL系fixture导入shadowing的Ruff F811/F401，改别名后成功。planning红测1 FAIL确证提前释放；首次绿窗口37 PASS/1 FAIL是新检查遮盖既有BUSY码，调整检查顺序后38PASS，追加两项最终40PASS。所有原始日志保全，hash如下。
+
+- `/tmp/easyai-recovery-build-1792357020069-3be862.log` SHA256 `ddd971fe7fe16d275addc3f00cb00a491002f2affd51ddb1721982ef63f26863`。
+- `/tmp/easyai-recovery-check-1792357020069-3be862.log` SHA256 `aacb8c37ca0ed0c0340e5e61be4fd5f65f9dd8f3069869d74fe690a2fcbab5b8`。
+- `/tmp/easyai-recovery-main-ui-1792357020069-3be862.log` SHA256 `2c29d1f9f56f8692aad2da1fd87692bc960fb85eb320165703c1845ec7070ca4`。
+- `/tmp/easyai-recovery-test-frozen-ssh.mjs-1792357020069-3be862.log` SHA256 `22f2385a15cb8225eeb616e9ba80946a0d2640aa5451f6b05058ec08c85ebc44`。
+- `/tmp/easyai-recovery-test-frozen.mjs-1792357020069-3be862.log` SHA256 `598e651d8bfd55009c56cd315d848d8185d98d8ae4eb67c6d0dd2d14af4ed0c3`。
+- `/tmp/easyai-recovery-tests-1792357020069-3be862.log` SHA256 `2abf9f621b5481574c2d9effecee3564f5f728bb519000c859a21ccf28c68b8e`。
+- `/tmp/easyai-upload-owner-fix-review-9AWCJ8.log` SHA256 `fcab03affec201173435461d56ea6cd777c965956a28b2d8d1987cbaf0fabf21`。
+- `/tmp/easyai-upload-planning-green-20261018-unique1.log` SHA256 `f2757546e3b35b502c9c206618b480b1bf9272c706edfa1cb1b1778374a963b4`。
+- `/tmp/easyai-upload-planning-green-20261018-unique2.log` SHA256 `17a0c69e71f113c416d803ac931d52eb7c75718362fcc4740d9ec72fd360f4e7`。
+- `/tmp/easyai-upload-planning-red-20261018-unique1.log` SHA256 `686a5ad8ace221065ec315996a249bb67c4554282f92ea694cac4246eb6affbe`。
+- `/tmp/easyai-upload-recovery-baseline-1792356344439-e6afb6.log` SHA256 `5c05af19d63fdb4af46d905a373a01e6d47bbe025c1dc9c52f7883b386daf8dd`。
+- `/tmp/easyai-upload-recovery-check-1792356571403-725a8d.log` SHA256 `8c5e8c5e8f720f484c5b7e17b983a0348c30298ab3765beee18509ccf60c421b`。
+- `/tmp/easyai-upload-recovery-check-1792356643407-9673fc.log` SHA256 `43754785d399b6bf269ef6dd0f8286b6e1c344bce65d7ab0507b4ddc91fe0b63`。
+- `/tmp/easyai-upload-recovery-check-1792356731026-44e6aa.log` SHA256 `aacb8c37ca0ed0c0340e5e61be4fd5f65f9dd8f3069869d74fe690a2fcbab5b8`。
+- `/tmp/easyai-upload-recovery-contracts-1792356344439-e6afb6.log` SHA256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`。
+- `/tmp/easyai-upload-recovery-new-1792356472024-365e84.log` SHA256 `f789d3b792867a0154b1dcf084abcd24e9aa5c337388a6df4046c4d970a33165`。
+- `/tmp/easyai-upload-recovery-new-1792356501925-bb412f.log` SHA256 `5becc483d8ccfeea2df1408360306fb337381dc10f5e3498eb0b4e33bc58d1e7`。
+- `/tmp/easyai-upload-recovery-tests-1792356571403-725a8d.log` SHA256 `1c0c4f7f4670321a696c84d1fc7f410545649db0458b579af136a0c4ad304d6d`。
+- `/tmp/easyai-upload-recovery-tests-1792356731026-44e6aa.log` SHA256 `9b51b32f55956c45f35a9235510f4366b083f688330ac1b18a93c3e9aa1ac02d`。
+- `/tmp/easyai-upload-recovery-ui-1792356643407-9673fc.log` SHA256 `1da2a72bbd1b12b94276ae10b01aad49425d3777d6b6cee575ed8bd8232b094b`。
+- `/tmp/easyai-upload-two-gates-review-K4s8eg.log` SHA256 `ca89921a236f4c5e4e2361f61baada16ced4d70cfdec493a937dcb3de2282af3`。
+
+
+旧226 PASS/1 FAIL的确切根因仍 **UNKNOWN**，原始日志丢失，不重建或用本轮绿灯/新P2回溯关闭。NOT RUN：完整大矩阵、真实SSH/SFTP及跨进程/目标机故障、真实用户数据/原生picker/Electron/Windows/干净机、训练环境安装/下载/训练/个人PC。旧344MiB便携目录仍source7b91c46，不含本片，未重打包/发布；distributionReady/legalReviewComplete均false。既有Actions读取/桌面sandbox拒绝未重试或绕过，最新父级认证CI仍d2ac2bf2ba5562a85276a2a856f894a8a1cda492/run39158015941：check SUCCESS、desktop FAIL各2annotations，无step body/rootcause，不推断本片CI。无新工具拒绝、未知外部写入、main/强推/PR/Release/部署/费用/凭据/权限变化。
+
+下一项仍按原M5收口：盘点与准备正常test:ssh入口及目标机验证的最小授权条件；真实服务器、环境安装接线/训练、CIFAR裁决不能由合成绿灯放行。旧UNKNOWN需新精确证据而非猜测。
