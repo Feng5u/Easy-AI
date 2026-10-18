@@ -914,3 +914,29 @@ NOT RUN：真实训练/SSH/SFTP/上传/数据下载/新环境或桌面安装/SDK
 CI继续保留失败边界：已知5a34286/run39137171929、9abdfebb90a5ab961cd12c21fbeae8b479e3d66b/run39140446024的check和desktop均FAIL；本片及近期提交CI未知。未访问/换路此前被拒Actions端点、未触发重跑；仍缺两job首个失败step/exit、错误日志及annotation原文。不能用本机16/check/build或先前47覆盖远端失败。
 
 NOT RUN：真实Electron/SVG/Monaco/原生picker/E2E、训练/SSH/SFTP/上传/下载MNIST或其他数据、新环境/桌面安装/SDK协议、个人电脑、Windows/NTFS/冻结ABI、前片47/51及旧后端整套矩阵。无main写入、强推、PR、发布/部署/Release、新费用/凭据/安全权限。Windows远程生产gate关闭，真实MNIST/安全桌面条件仍缺；A/B、M5/M6/M7整体均未验收。下一项：父级独审此最小向导，再按原M7.2友好错误或M7.3本地七主题与真实数值卷积交互独立接续，不提前扩v0.0.1。
+
+## 2026-10-18 — M7.2 最小工程操作友好错误与启动确认丢失恢复
+
+源码完整SHA：`bc4e5199b155f6714ef64f4b1f232008a80deec1`，父提交`f1ecaf7866167b404d43ea359ec8ae631f1744d7`。父级接受M7.1后授权先核实App裸String(reason)入口，实施最小阶段/建议动作/折叠技术详情。本片只改App与纯展示FailureCard及对应测试；没有改后端、合同、编译器、Blockly数据、Main IPC或训练协议。原计划M7.2完整运行时NameError规则/注册对象解释/报告导出和M7.3教程尚未实现；RunDashboard、LocalPreflight等其余错误入口仍待后续迁移，不称M7.2或M7整体完成。
+
+实际缺口：本地服务连接、工程恢复/打开/新建/导入/导出/保存、环境数据选择、编译、启动和历史读取原来直接拼接异常。现在各操作显式传入固定阶段；卡片给出对应建议和既有工程/运行位置/检查/历史导航。导航与向导共用focus/scroll函数，零训练/认证/安装/选择器/自动重试。现有结构化编译诊断的积木定位保留，不建立第二套映射。保存失败仍保留ProjectDraft并暂停自动保存，原手动保存和导出当前工程能力未改。
+
+隐私边界：技术详情默认折叠，仅含固定stage和通过instanceof得到的Error/TypeError/RangeError/Unknown类别。不拼接任何原始message/stack/cause/自定义name，不调用未知对象toString；因此也不显示异常中的主机、用户名、绝对路径、口令/token或任意私密字符串。这里是固定安全摘要，不冒充完整脱敏报告，也未自动上传原始日志。正常工程名/用户已选择的路径和其他既有视图没有重新定义为报告或改写。
+
+启动异常采用“启动运行未确认”，保留原幂等intent，不说任务已失败/已停止。前端独审发现P2：历史导航只移动焦点，原历史缓存无法发现服务已登记但响应丢失的任务。已加显式“刷新运行历史”只读按钮，回第一页并触发原list effect；原valid清理门丢弃旧刷新/旧页/旧工程迟到响应。读取成功仅清除history阶段错误，保留save/start等其他操作卡。新测试模拟start已登记后抛异常：导航不读、用户显式刷新后出现RUNNING记录、start总计1次且原activeRun门阻止再次启动；没有自动重发、终止或修改运行状态。
+
+实际命令（cwd `/workspace/Easy-AI`；Python任务沿用`UV_CACHE_DIR=/workspace/.uv-cache UV_PYTHON_INSTALL_DIR=/workspace/.python XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/.cache`）：
+
+| 命令 | 结果及边界 |
+| --- | --- |
+| `pnpm exec vitest run apps/desktop/src/FailureCard.test.mts apps/desktop/src/App.test.mts apps/desktop/src/GettingStarted.test.mts` | 最终 **31 PASS**，2.81秒，FailureCard11、App16、向导4。真实React DOM App/卡片，画布沿用既有测试替身；不是Electron/原生桌面验收。覆盖固定阶段、默认折叠、敏感message/cause/name/stack与toString不读取、工程/编译错误导航零执行、丢启动确认后的只读恢复、旧刷新迟到失败隔离、成功刷新清除已恢复的读取错误；既有草稿冲突/导出等App回归通过 |
+| 独立只读审查 | 两位审查者，无编辑。前端先发现上述P2，修复后独跑FailureCard **11 PASS**、App `-t 'friendly\|uncertain start'` **3 PASS/11 skipped**；最终小补另独跑App `-t 'history refresh'` **2 PASS/14 skipped**。安全审查独跑草稿冲突 **1 PASS/10 skipped**、后独跑App `-t 'uncertain start'` **1 PASS/13 skipped**。都是与最终31重合，不相加；有限源码范围未见未关闭明确P1/P2 |
+| 同缓存 `pnpm check` | **PASS**，TS、strict mypy46既有后端源码、ruff/格式、合同/真实Blockly fixtures漂移、Prettier。日志`/tmp/easyai-friendly-check.log`；后端无改动，未跑旧后端整套或训练 |
+| `pnpm --filter @easyai/desktop build` | **PASS**；Main TS/Vite静态assets，保留既有>500KB chunk提示。日志`/tmp/easyai-friendly-build.log`；未启动Electron、未放宽CSP、未重建未改后端 |
+| `git diff --check`、`git ls-remote origin refs/heads/main refs/heads/codex/demo-v0.0.0`、`sha256sum`、`wc -c` | **PASS**；开发前工作区干净、远端dev为父SHA，main仍`5323f86232529efcfb52131168ad049f01b219f3`。原计划116185字节/hash `dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43`；原规格`5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190`、README`befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852`均保留 |
+
+本窗口没有测试FAIL；先25PASS，补历史刷新隔离后30PASS，补恢复错误清卡后最终31PASS，窗口相互重合不累计。独审P2已由实际恢复测试关闭，不隐藏其原始发现。正常开发分支源提交与本证据提交一并推送；最终完整证据SHA/远端一致性见执行器交付记录。
+
+CI阻塞仍保持：5a34286/run39137171929、9abdfebb90a5ab961cd12c21fbeae8b479e3d66b/run39140446024的check与desktop均FAIL，本片CI未知。此前Actions读取被拒，未重试被拒操作、未换路、未触发重跑；仍需要失败job首个失败step/exit、错误日志与annotation原文。本地31/check/build不覆盖远端FAIL。
+
+NOT RUN：真实Electron/SVG/Monaco/原生picker/E2E、训练/真实MNIST/SSH/SFTP/上传/数据下载、新训练或桌面环境安装/SDK协议、个人电脑、Windows/NTFS/冻结ABI、前片后端整套矩阵。Windows远程生产gate仍关闭，A/B、M5/M6/M7整体仍未验收。没有main写入、强推、PR、发布/部署/Release、新费用/凭据/安全权限。本片未遭新拒绝或未决外部写入。下一项：父级复核本最小片后接续M7.2其余运行时友好错误/报告或明确授权的M7.3本地教程；同时取得精确CI失败日志及真实桌面/训练/SSH所需最小条件。
