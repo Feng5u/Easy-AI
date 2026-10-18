@@ -533,3 +533,38 @@ def test_artifact_service_is_bound_to_exact_live_lease(setup, mismatch):
         with service.mutex, pytest.raises(SshFailure, match="SESSION_INVALID"):
             service.guard()
     assert client.sessions[0].channel_calls == 0  # Accessor and guards never start SFTP.
+
+
+@pytest.mark.parametrize("outcome", ["not_attempted", "unknown", "acknowledged"])
+def test_owner_factory_uses_persisted_start_permission_and_exact_lease(setup, outcome):
+    from easyai.domain.remote_run import RemoteRunCheckpoint
+    from easyai.runners.ssh import RemoteUnavailable
+    from easyai.services.remote_bundle import RemoteBundle
+    from test_ssh_run_coordinator import identity as run_identity
+
+    manager, identities, client, clock, current, timers = setup
+    info = manager.authenticate_password(grant(identities), SYNTHETIC_PASSWORD)
+    identity = run_identity().model_copy(
+        update={
+            "project_id": info.project_id,
+            "username": info.username,
+            "endpoint": info.scope.endpoint,
+            "host_fingerprint": info.scope.host_fingerprint,
+        }
+    )
+    # Metadata-only factory fixture; never used for stage/exec and not a production bundle.
+    bundle = RemoteBundle(identity, "/synthetic/python", ())
+    checkpoint = RemoteRunCheckpoint(identity=identity, start_outcome=outcome)
+    transport = manager.owner_transport(control(info), bundle, checkpoint)
+    assert transport._allow_start is (outcome == "not_attempted")
+    if outcome != "not_attempted":
+        with pytest.raises(RemoteUnavailable):
+            transport.start(identity, timeout=1)
+        with pytest.raises(RemoteUnavailable):
+            transport.stage(identity, timeout=1)
+    with transport.mutex:
+        transport.guard()
+    clock[0] += 301
+    with transport.mutex, pytest.raises(SshFailure):
+        transport.guard()
+    assert client.sessions[0].channel_calls == 0

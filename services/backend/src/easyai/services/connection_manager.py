@@ -16,8 +16,10 @@ from easyai.services.ssh_client import SshClient, VerifiedSshSession
 from easyai.services.ssh_identity import IdentityGrant, SshIdentityService
 
 if TYPE_CHECKING:
-    from easyai.domain.remote_run import RemoteRunIdentity
+    from easyai.domain.remote_run import RemoteRunCheckpoint, RemoteRunIdentity
     from easyai.services.remote_artifacts import SftpArtifactSync
+    from easyai.services.remote_bundle import RemoteBundle
+    from easyai.services.owner_transport import OwnerSshTransport
 
 
 class Timer(Protocol):
@@ -431,6 +433,39 @@ class ConnectionManager:
 
             guard()
             return SftpArtifactSync(lease.session, identity, self._mutex, guard)
+
+    def owner_transport(
+        self, request: SessionControl, bundle: "RemoteBundle", checkpoint: "RemoteRunCheckpoint"
+    ) -> "OwnerSshTransport":
+        """Internal factory. Reconnect permission comes from the persisted coordinator intent."""
+        from easyai.services.owner_transport import OwnerSshTransport
+
+        identity = bundle.identity
+        with self._mutex:
+            lease = self._valid_lease(request.project_id, request.connection_id)
+            if lease is None or checkpoint.identity != identity:
+                raise SshFailure("SSH_SESSION_INVALID")
+
+            def guard() -> None:
+                current = self._valid_lease(request.project_id, request.connection_id)
+                if (
+                    current is not lease
+                    or identity.project_id != lease.scope.project_id
+                    or identity.endpoint != lease.scope.endpoint
+                    or identity.host_fingerprint != lease.scope.host_fingerprint
+                    or identity.username != lease.operation.request.username
+                ):
+                    raise SshFailure("SSH_SESSION_INVALID")
+
+            guard()
+            return OwnerSshTransport(
+                lease.session,
+                bundle,
+                self._mutex,
+                guard,
+                allow_start=checkpoint.start_outcome == "not_attempted"
+                and checkpoint.cancel_state == "none",
+            )
 
     def cancel_environment(self, request: EnvironmentRequest) -> None:
         with self._mutex:

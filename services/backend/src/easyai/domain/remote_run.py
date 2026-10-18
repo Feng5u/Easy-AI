@@ -151,3 +151,13 @@ def identity_from_config(
         bundle_hash=config.bundle_hash,
         config_hash=hashlib.sha256(raw).hexdigest(),
     )
+
+
+def identity_digest(identity: RemoteRunIdentity) -> str:
+    raw = json.dumps(
+        identity.model_dump(mode="json", by_alias=True),
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode()
+    return hashlib.sha256(raw).hexdigest()

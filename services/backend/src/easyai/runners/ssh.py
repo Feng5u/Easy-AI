@@ -1,6 +1,6 @@
-"""Durable SSH run coordination core. No network adapter, remote commands or credentials.
+"""Durable SSH run coordination, independent of network I/O and credentials.
 
-A future SFTP/portable-owner adapter must implement the bounded typed port below.
+The fixed adapter in services.owner_transport implements the bounded port below.
 This module never infers remote exit from a disconnected/closed SSH connection.
 """
 
@@ -70,7 +70,7 @@ class RemoteRunTransport(Protocol):
     bytes preceding offset (not merely the latest chunk). cancel requests only the
     same owner, is idempotent, and its ACK does not imply exit. No PID kill proxy.
     A transport's close must stop I/O only; it MUST NOT cancel detached execution.
-    No concrete SSH/SFTP implementation is supplied or claimed by this slice.
+    The concrete fixed adapter is services.owner_transport.OwnerSshTransport.
     """
 
     @property

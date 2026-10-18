@@ -9,6 +9,19 @@ from easyai.compiler.pipeline import Compilation
 from easyai.domain.catalog import RUNTIME_ROOT
 
 
+def runtime_sources() -> dict[str, str]:
+    """The single source of truth for packaged, portable execution helpers."""
+    sources = {
+        f"code/{helper}": (RUNTIME_ROOT / helper).read_text(encoding="utf-8")
+        for helper in ("easyai_runtime.py", "entry.py", "supervisor.py", "portable_journal.py")
+    }
+    managed = Path(__file__).parents[1] / "runtime/managed.py"
+    if not managed.is_file():
+        managed = RUNTIME_ROOT / "managed.py"
+    sources["code/managed.py"] = managed.read_text(encoding="utf-8")
+    return sources
+
+
 def export_bundle(compilation: Compilation, destination: Path) -> dict[str, str]:
     result, program = compilation.result, compilation.program
     if not result.runnable or result.code is None or result.source_map is None or program is None:
@@ -43,12 +56,7 @@ def export_bundle(compilation: Compilation, destination: Path) -> dict[str, str]
             "Quick mode is a capped small-sample check and does not replace the formal example.\n"
         ),
     }
-    for helper in ("easyai_runtime.py", "entry.py", "supervisor.py", "portable_journal.py"):
-        files[f"code/{helper}"] = (RUNTIME_ROOT / helper).read_text(encoding="utf-8")
-    managed = Path(__file__).parents[1] / "runtime/managed.py"
-    if not managed.is_file():
-        managed = RUNTIME_ROOT / "managed.py"
-    files["code/managed.py"] = managed.read_text(encoding="utf-8")
+    files.update(runtime_sources())
     # Check every generated/exported Python file without importing or executing it.
     for path, text in files.items():
         if path.endswith(".py"):

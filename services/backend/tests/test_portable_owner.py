@@ -107,6 +107,8 @@ class Bundle:
                 "--" + action,
                 "--run-dir",
                 str(self.root),
+                "--expected-identity",
+                digest(canonical(self.identity.model_dump(mode="json", by_alias=True))),
             ],
             cwd=self.root.parent,
             stdin=subprocess.DEVNULL,

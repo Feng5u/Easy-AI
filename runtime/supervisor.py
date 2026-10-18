@@ -387,6 +387,13 @@ def inspect(root, identity):
     return value
 
 
+def identity_digest(identity):
+    # ASCII canonical JSON matches the authoritative application identity digest.
+    return hashlib.sha256(
+        json.dumps(identity, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
+    ).hexdigest()
+
+
 def start(root, identity):
     lock = root.lock(".start.lock")
     try:
@@ -421,6 +428,8 @@ def start(root, identity):
                     "--serve",
                     "--run-dir",
                     str(root.path),
+                    "--expected-identity",
+                    identity_digest(identity),
                 ],
                 stdin=subprocess.DEVNULL,
                 stdout=descriptors[0],
@@ -599,10 +608,16 @@ def main():
     for name in ("start", "serve", "inspect", "cancel"):
         action.add_argument("--" + name, action="store_true")
     parser.add_argument("--run-dir", required=True)
+    parser.add_argument("--expected-identity", required=True)
     args = parser.parse_args()
     root = Root(args.run_dir)
     try:
         identity, config = validate(root)
+        if (
+            not re.fullmatch("[0-9a-f]{64}", args.expected_identity)
+            or identity_digest(identity) != args.expected_identity
+        ):
+            raise ValueError("REMOTE_EXPECTED_IDENTITY_MISMATCH")
         if args.start:
             result = start(root, identity)
         elif args.serve:
