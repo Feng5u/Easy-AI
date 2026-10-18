@@ -65,3 +65,21 @@ class HostKeyObservation(Contract):
 class HostKeyConfirmation(Contract):
     challenge_id: str = Field(pattern=r"^[0-9a-f-]{36}$")
     fingerprint: str = Field(pattern=r"^SHA256:[A-Za-z0-9+/]{43}$")
+
+
+class IdentityRequest(Contract):
+    model_config = ConfigDict(frozen=True)
+    project_id: str = Field(pattern=r"^[0-9a-f-]{36}$")
+    request_id: str = Field(pattern=r"^[0-9a-f-]{36}$")
+
+
+class IdentityProbeRequest(IdentityRequest):
+    endpoint: SshEndpoint
+
+
+class IdentityConfirmRequest(IdentityRequest):
+    confirmation: HostKeyConfirmation
+
+
+class IdentityResult(IdentityRequest):
+    observation: HostKeyObservation

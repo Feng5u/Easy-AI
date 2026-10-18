@@ -14,6 +14,7 @@ import type {
   Run,
   SelectionResult,
 } from "../electron/bridge.js";
+import { ConnectionPanel } from "./ConnectionPanel.js";
 import { CodeView } from "./CodeView.js";
 import { RunDashboard } from "./RunDashboard.js";
 import { isTerminal } from "./runEvents.js";
@@ -53,6 +54,7 @@ export function App({ api }: { api?: DesktopAPI }) {
   const [history, setHistory] = useState<Run[]>([]);
   const [historyOffset, setHistoryOffset] = useState(0);
   const [viewTab, setViewTab] = useState<WorkspaceTab>("data");
+  const [identityVisible, setIdentityVisible] = useState(false);
   const [viewCode, setViewCode] = useState(false);
   const draft = useRef<ProjectDraft | null>(null);
   const compiledSemantic = useRef(-1);
@@ -411,6 +413,23 @@ export function App({ api }: { api?: DesktopAPI }) {
         <p className="error" role="alert">
           自动保存已暂停。未保存状态仍在内存中，请导出草稿或手动重试。
         </p>
+      )}
+      <div className="button-row">
+        <button
+          type="button"
+          disabled={!ready || !project}
+          onClick={() => setIdentityVisible((value) => !value)}
+        >
+          SSH 主机身份设置
+        </button>
+      </div>
+      {identityVisible && ready && bridge && project && (
+        <ConnectionPanel
+          key={project.projectId}
+          api={bridge.connections}
+          projectId={project.projectId}
+          onClose={() => setIdentityVisible(false)}
+        />
       )}
       <div className="setup-grid">
         <section className="panel" aria-labelledby="project-heading">

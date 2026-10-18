@@ -1,6 +1,24 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
 import type { DesktopAPI, SubscriptionMessage } from "./bridge.js";
 const api: DesktopAPI = {
+  connections: {
+    probe: (projectId, requestId, endpoint) =>
+      ipcRenderer.invoke(
+        "easyai:connections:probe",
+        projectId,
+        requestId,
+        endpoint,
+      ),
+    confirm: (projectId, requestId, fingerprint) =>
+      ipcRenderer.invoke(
+        "easyai:connections:confirm",
+        projectId,
+        requestId,
+        fingerprint,
+      ),
+    cancel: (projectId, requestId) =>
+      ipcRenderer.invoke("easyai:connections:cancel", projectId, requestId),
+  },
   status: {
     get: () => ipcRenderer.invoke("easyai:status:get"),
     subscribe: (onStatus) => {

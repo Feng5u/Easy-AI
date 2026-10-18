@@ -6,7 +6,15 @@ from pydantic import BaseModel
 
 from easyai.domain import contracts, desktop
 from easyai.domain.program import ProgramIR
-from easyai.domain.ssh import SshEndpoint, HostKeyObservation, HostKeyConfirmation
+from easyai.domain.ssh import (
+    SshEndpoint,
+    HostKeyObservation,
+    HostKeyConfirmation,
+    IdentityRequest,
+    IdentityProbeRequest,
+    IdentityConfirmRequest,
+    IdentityResult,
+)
 
 MODELS: list[type[BaseModel]] = [
     contracts.ProjectDocument,
@@ -32,6 +40,10 @@ MODELS: list[type[BaseModel]] = [
     SshEndpoint,
     HostKeyObservation,
     HostKeyConfirmation,
+    IdentityRequest,
+    IdentityProbeRequest,
+    IdentityConfirmRequest,
+    IdentityResult,
 ]
 
 

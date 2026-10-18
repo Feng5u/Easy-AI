@@ -95,8 +95,28 @@ try {
   });
   assert.equal(expired.response.status, 422);
   assert.equal(expired.value.error.code, "SSH_CONFIRMATION_EXPIRED");
+  const scoped = {
+    projectId: "11111111-1111-4111-8111-111111111111",
+    requestId: "22222222-2222-4222-8222-222222222222",
+  };
+  const cancelled = await request(
+    "POST",
+    "/connections/identity/cancel",
+    scoped,
+  );
+  assert.equal(cancelled.response.status, 200);
+  assert.equal(cancelled.value.cancelled, true);
+  const invalidScope = await request("POST", "/connections/identity/confirm", {
+    ...scoped,
+    confirmation: {
+      challengeId: "00000000-0000-0000-0000-000000000000",
+      fingerprint: "SHA256:" + "A".repeat(43),
+    },
+  });
+  assert.equal(invalidScope.response.status, 422);
+  assert.equal(invalidScope.value.error.code, "SSH_IDENTITY_PROJECT_CHANGED");
   console.log(
-    "PASS frozen SSH routes + auth + strict DTO + sanitized errors + lazy Paramiko; no outbound SSH",
+    "PASS frozen SSH routes + auth + strict DTO + sanitized errors + scoped cancel/confirm + lazy Paramiko; no outbound SSH",
   );
 } finally {
   child.stdin.end();

@@ -1,3 +1,4 @@
+import { IdentityWorkflow } from "./identity-workflow.mjs";
 import type { Backend } from "./backend.mjs";
 import type {
   ProjectDocument,
@@ -8,6 +9,9 @@ import type {
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const WORKFLOW_CHANNELS = [
+  "easyai:connections:probe",
+  "easyai:connections:confirm",
+  "easyai:connections:cancel",
   "easyai:selections:pick",
   "easyai:projects:current",
   "easyai:projects:open",
@@ -56,6 +60,7 @@ function project(value: unknown): ProjectDocument {
   return value as ProjectDocument;
 }
 export class MainWorkflow {
+  private identity: IdentityWorkflow;
   private subscriptions = new Map<string, AbortController>();
   constructor(
     private backend: () => Backend | undefined,
@@ -68,8 +73,16 @@ export class MainWorkflow {
       } | null>;
       exportProject(): Promise<string | null>;
     },
-  ) {}
+  ) {
+    this.identity = new IdentityWorkflow(backend);
+  }
   async invoke(channel: string, args: unknown[]): Promise<unknown> {
+    if (
+      channel === "easyai:connections:probe" ||
+      channel === "easyai:connections:confirm" ||
+      channel === "easyai:connections:cancel"
+    )
+      return this.identity.invoke(channel, args);
     const backend = this.backend();
     if (!backend) throw new Error("本地服务未就绪。");
     const counts: Record<string, number> = {
@@ -97,6 +110,14 @@ export class MainWorkflow {
         !(channel === "easyai:projects:export" && args.length === 1))
     )
       throw new Error("IPC接口或参数无效。");
+    if (
+      [
+        "easyai:projects:open",
+        "easyai:projects:create",
+        "easyai:projects:import",
+      ].includes(channel)
+    )
+      this.identity.invalidate();
     switch (channel) {
       case "easyai:selections:pick": {
         const kind = args[0];
@@ -231,7 +252,7 @@ export class MainWorkflow {
     const cursor = integer(after);
     const backend = this.backend();
     if (!backend) throw new Error("本地服务未就绪。");
-    this.dispose(); // One visible run stream per window; tab changes cannot multiply readers.
+    this.clearSubscriptions(); // One visible run stream per window; tab changes cannot multiply readers.
     const controller = new AbortController();
     this.subscriptions.set(key, controller);
     const send = (message: SubscriptionMessage) => {
@@ -270,6 +291,10 @@ export class MainWorkflow {
     this.subscriptions.delete(key);
   }
   dispose(): void {
+    this.identity.invalidate();
+    this.clearSubscriptions();
+  }
+  private clearSubscriptions(): void {
     for (const controller of this.subscriptions.values()) controller.abort();
     this.subscriptions.clear();
   }

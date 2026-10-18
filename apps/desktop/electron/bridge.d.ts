@@ -1,3 +1,7 @@
+import type { HostKeyObservation } from "../../../packages/contracts/types/HostKeyObservation.js";
+import type { SshEndpoint } from "../../../packages/contracts/types/SshEndpoint.js";
+import type { IdentityResult } from "../../../packages/contracts/types/IdentityResult.js";
+export type { HostKeyObservation, SshEndpoint, IdentityResult };
 import type { ProjectDocument } from "../../../packages/contracts/types/ProjectDocument.js";
 import type { CompileResult } from "../../../packages/contracts/types/CompileResult.js";
 import type { ProjectSession } from "../../../packages/contracts/types/ProjectSession.js";
@@ -29,6 +33,19 @@ export interface StartRun {
 }
 export type ConnectionState = "connected" | "reconnecting" | "closed" | "error";
 export interface DesktopAPI {
+  connections: {
+    probe(
+      projectId: string,
+      requestId: string,
+      endpoint: SshEndpoint,
+    ): Promise<IdentityResult>;
+    confirm(
+      projectId: string,
+      requestId: string,
+      fingerprint: string,
+    ): Promise<IdentityResult>;
+    cancel(projectId: string, requestId: string): Promise<void>;
+  };
   status: {
     get(): Promise<{ ready: boolean; message: string }>;
     subscribe(

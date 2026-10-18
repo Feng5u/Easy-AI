@@ -106,6 +106,11 @@ function bridge(readOnly = false) {
     throw new Error("Unexpected operation in component unit test");
   };
   const api: DesktopAPI = {
+    connections: {
+      probe: unsupported,
+      confirm: unsupported,
+      cancel: async () => {},
+    },
     status: {
       get: async () => ({ ready: true, message: "ready" }),
       subscribe: () => unsubscribe,
@@ -367,4 +372,46 @@ describe("real App DOM persistence lifecycle", () => {
     expect(container.textContent).toContain("当前未保存草稿已导出为新文件");
     expect(mocked.dirty).toHaveBeenLastCalledWith(true);
   });
+});
+
+it("opens the normal SSH identity panel and closes without authenticating", async () => {
+  const { api } = bridge();
+  const probe = vi.fn<DesktopAPI["connections"]["probe"]>(
+    async (projectId, requestId, endpoint) => ({
+      projectId,
+      requestId,
+      observation: {
+        endpoint,
+        algorithm: "ssh-ed25519",
+        fingerprint: "SHA256:" + "A".repeat(43),
+        trustState: "unknown",
+        challengeId: "44444444-4444-4444-8444-444444444444",
+      },
+    }),
+  );
+  const cancel = vi.fn<DesktopAPI["connections"]["cancel"]>(async () => {});
+  api.connections.probe = probe;
+  api.connections.cancel = cancel;
+  await mount(api);
+  await click("SSH 主机身份设置");
+  expect(container.textContent).toContain("不登录、不上传或运行任务");
+  await act(async () => {
+    const input = container.querySelector(
+      'section[aria-labelledby="ssh-identity-heading"] input',
+    )!;
+    Object.getOwnPropertyDescriptor(
+      dom.window.HTMLInputElement.prototype,
+      "value",
+    )!.set!.call(input, "offline.invalid");
+    input.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+  });
+  await click("检查主机指纹");
+  expect(probe).toHaveBeenCalledTimes(1);
+  expect(button("确认信任此指纹").disabled).toBe(true);
+  await click("关闭主机身份");
+  expect(container.querySelector("#ssh-identity-heading")).toBeNull();
+  expect(cancel).toHaveBeenCalledWith(
+    project().projectId,
+    probe.mock.calls[0][1],
+  );
 });

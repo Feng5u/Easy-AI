@@ -22,6 +22,7 @@ from easyai.services.run_service import RunService, TERMINAL
 
 SelectionKind = Literal["project", "python", "data"]
 if TYPE_CHECKING:
+    from easyai.services.ssh_identity import SshIdentityService
     from easyai.services.ssh_client import SshClient
 
 
@@ -212,6 +213,7 @@ class LocalWorkspace:
         self._current: str | None = None
         self._closed = False
         self._ssh_client: SshClient | None = None
+        self._ssh_identity: SshIdentityService | None = None
         self._readonly: tuple[Path, bytes, ProjectSession] | None = None
         self._restore_error = False
         remembered = self.root / "last-project.json"
@@ -240,6 +242,26 @@ class LocalWorkspace:
 
                 self._ssh_client = SshClient(HostKeyStore(self.root / "ssh-host-identity"))
             return self._ssh_client
+
+    def identity(self) -> "SshIdentityService":
+        with self._mutex:
+            self._verify()
+            if self._ssh_identity is None:
+                from easyai.services.ssh_identity import SshIdentityService
+
+                self._ssh_identity = SshIdentityService(
+                    self.ssh(), self._mutex, self._identity_project
+                )
+            return self._ssh_identity
+
+    def _identity_project(self, project_id: str) -> None:
+        self._verify()
+        if self._current != project_id or self._readonly is not None:
+            raise ValueError("SSH_IDENTITY_PROJECT_CHANGED")
+
+    def _invalidate_identity(self) -> None:
+        if self._ssh_identity is not None:
+            self._ssh_identity.invalidate()
 
     def select(self, kind: SelectionKind, path: Path) -> SelectionResult:
         with self._mutex:
@@ -291,6 +313,7 @@ class LocalWorkspace:
             return self._session(self._projects[self._current]) if self._current else None
 
     def _register(self, service: ProjectService) -> ProjectSession:
+        self._invalidate_identity()
         session = self._session(service)
         assert session.project is not None
         identity = session.project.project_id
@@ -306,6 +329,7 @@ class LocalWorkspace:
 
     def open(self, selection_id: str) -> ProjectSession:
         with self._mutex:
+            self._invalidate_identity()
             root = self._selection(selection_id, "project")
             for service in self._projects.values():
                 if service.root == root:
@@ -524,6 +548,7 @@ class LocalWorkspace:
         with self._mutex:
             if self._closed:
                 return
+            self._invalidate_identity()
             try:
                 self.runs.close()
             finally:

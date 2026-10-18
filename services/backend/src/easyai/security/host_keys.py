@@ -74,44 +74,89 @@ class HostKeyStore:
     def __init__(self, root: Path, clock: Callable[[], float] = time.monotonic):
         if not root.is_absolute() or root.is_symlink():
             raise ValueError("SSH_TRUST_PATH_INVALID")
-        root.mkdir(parents=True, exist_ok=True)
         self.root = root
-        self._verify_chain()
-        initial = root.stat()
-        self._root_identity = (initial.st_dev, initial.st_ino)
+        self._root_identity: tuple[int, int] | None = None
+        if os.name != "posix":
+            raise ValueError("SSH_TRUST_PLATFORM_UNVERIFIED")
+        self._uid = os.geteuid()
+        # The kernel-provided filesystem root is the platform trust anchor (some
+        # containers map its owner to a nonzero uid). Never extend this to files.
+        self._system_uid = Path(root.anchor).stat().st_uid
+        with self._directory(create=True) as fd:
+            initial = os.fstat(fd)
+            self._root_identity = (initial.st_dev, initial.st_ino)
         self.path = self.root / "known_hosts"
         self._clock = clock
         self._mutex = threading.RLock()
         self._pending: dict[str, _Pending] = {}
 
+    def _check_directory(self, info: os.stat_result, *, final: bool) -> None:
+        if not stat.S_ISDIR(info.st_mode):
+            raise ValueError("SSH_TRUST_PATH_INVALID")
+        owners = {self._uid} if final else {0, self._uid, self._system_uid}
+        if info.st_uid not in owners:
+            raise ValueError("SSH_TRUST_PERMISSIONS_UNSAFE")
+        # Sticky system temp ancestors protect a user's owned child against
+        # other users' rename/unlink. A trust root itself must never be shared.
+        if info.st_mode & 0o022 and (final or not info.st_mode & stat.S_ISVTX):
+            raise ValueError("SSH_TRUST_PERMISSIONS_UNSAFE")
+
+    def _check_file(self, info: os.stat_result) -> None:
+        if not stat.S_ISREG(info.st_mode):
+            raise ValueError("FILE_NOT_REGULAR")
+        if info.st_uid != self._uid or info.st_mode & 0o022:
+            raise ValueError("SSH_TRUST_PERMISSIONS_UNSAFE")
+
     def _verify_chain(self) -> None:
         for path in reversed((self.root, *self.root.parents)):
-            info = path.lstat()
-            if not stat.S_ISDIR(info.st_mode):
-                raise ValueError("SSH_TRUST_PATH_INVALID")
+            self._check_directory(path.lstat(), final=path == self.root)
 
     @contextmanager
-    def _directory(self, *, exclusive: bool = False) -> Iterator[int]:
-        # dir_fd anchors every read/temp/publication to the verified directory inode.
-        # Windows trust persistence stays fail-closed until equivalent handle tests exist.
-        if os.name != "posix":
-            raise ValueError("SSH_TRUST_PLATFORM_UNVERIFIED")
+    def _directory(self, *, exclusive: bool = False, create: bool = False) -> Iterator[int]:
+        # Walk from the kernel filesystem root, keeping descriptors for every
+        # ancestor; never follow symlinks, chmod/chown, or trust path-only checks.
         import fcntl
 
-        self._verify_chain()
-        fd = os.open(self.root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        descriptors: list[int] = []
         try:
-            info = os.fstat(fd)
-            if (info.st_dev, info.st_ino) != self._root_identity:
+            current = os.open(self.root.anchor, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+            descriptors.append(current)
+            self._check_directory(os.fstat(current), final=self.root == Path(self.root.anchor))
+            parts = self.root.parts[1:]
+            for index, part in enumerate(parts):
+                try:
+                    child = os.open(
+                        part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=current
+                    )
+                except NotADirectoryError:
+                    raise ValueError("SSH_TRUST_PATH_INVALID") from None
+                except FileNotFoundError:
+                    if not create:
+                        raise ValueError("SSH_TRUST_PATH_INVALID") from None
+                    os.mkdir(part, 0o700, dir_fd=current)
+                    child = os.open(
+                        part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=current
+                    )
+                descriptors.append(child)
+                current = child
+                self._check_directory(os.fstat(current), final=index == len(parts) - 1)
+            info = os.fstat(current)
+            if (
+                self._root_identity is not None
+                and (info.st_dev, info.st_ino) != self._root_identity
+            ):
                 raise ValueError("SSH_TRUST_PATH_INVALID")
             if exclusive:
                 try:
-                    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    fcntl.flock(current, fcntl.LOCK_EX | fcntl.LOCK_NB)
                 except BlockingIOError:
                     raise ValueError("SSH_TRUST_STORE_BUSY") from None
-            yield fd
+            yield current
+            for index, descriptor in enumerate(descriptors):
+                self._check_directory(os.fstat(descriptor), final=index == len(descriptors) - 1)
         finally:
-            os.close(fd)
+            for descriptor in reversed(descriptors):
+                os.close(descriptor)
 
     def _verify_publication(self) -> None:
         self._verify_chain()
@@ -131,13 +176,17 @@ class HostKeyStore:
             return {}
         with os.fdopen(fd, "rb") as stream:
             info = os.fstat(stream.fileno())
-            if not stat.S_ISREG(info.st_mode):
-                raise ValueError("FILE_NOT_REGULAR")
+            self._check_file(info)
             if info.st_size > MAX_STORE_BYTES:
                 raise ValueError("SSH_TRUST_STORE_LIMIT")
             raw = stream.read(MAX_STORE_BYTES + 1)
             if len(raw) > MAX_STORE_BYTES:
                 raise ValueError("SSH_TRUST_STORE_LIMIT")
+            self._check_file(os.fstat(stream.fileno()))
+            published = os.stat("known_hosts", dir_fd=directory, follow_symlinks=False)
+            self._check_file(published)
+            if (published.st_dev, published.st_ino) != (info.st_dev, info.st_ino):
+                raise ValueError("SSH_TRUST_PATH_INVALID")
         records: dict[str, PublicIdentity] = {}
         try:
             text = raw.decode("ascii")
@@ -176,9 +225,11 @@ class HostKeyStore:
         try:
             fd = os.open(temp, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600, dir_fd=directory)
             with os.fdopen(fd, "wb") as stream:
+                self._check_file(os.fstat(stream.fileno()))
                 stream.write(payload)
                 stream.flush()
                 os.fsync(stream.fileno())
+                self._check_file(os.fstat(stream.fileno()))
             self._verify_publication()
             os.replace(temp, "known_hosts", src_dir_fd=directory, dst_dir_fd=directory)
             os.fsync(directory)
@@ -220,6 +271,10 @@ class HostKeyStore:
                 trust_state="unknown",
                 challenge_id=challenge,
             )
+
+    def discard(self, challenge_id: str) -> None:
+        with self._mutex:
+            self._pending.pop(challenge_id, None)
 
     def require_trusted(self, endpoint: SshEndpoint, identity: PublicIdentity) -> None:
         observation = self.observe(endpoint, identity)

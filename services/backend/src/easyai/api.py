@@ -30,6 +30,12 @@ from easyai.domain.desktop import (
     RunLogs,
     SelectionResult,
 )
+from easyai.domain.ssh import (
+    IdentityRequest,
+    IdentityProbeRequest,
+    IdentityConfirmRequest,
+    IdentityResult,
+)
 from easyai.domain.ssh import SshEndpoint, HostKeyObservation, HostKeyConfirmation, SshFailure
 from easyai.compiler.pipeline import compile_project
 from easyai.services.run_service import RunService, TERMINAL
@@ -148,6 +154,24 @@ def create_app(
         return await asyncio.to_thread(
             lambda: local().ssh().store.confirm(request.challenge_id, request.fingerprint)
         )
+
+    @app.post("/api/v1/connections/identity/probe", response_model=IdentityResult)
+    async def probe_identity(request: IdentityProbeRequest) -> IdentityResult:
+        service = local().identity()
+        try:
+            return await asyncio.to_thread(service.probe, request)
+        except (Exception, asyncio.CancelledError):
+            await asyncio.shield(asyncio.to_thread(service.cancel, request))
+            raise
+
+    @app.post("/api/v1/connections/identity/cancel")
+    async def cancel_identity(request: IdentityRequest) -> dict[str, bool]:
+        await asyncio.to_thread(local().identity().cancel, request)
+        return {"cancelled": True}
+
+    @app.post("/api/v1/connections/identity/confirm", response_model=IdentityResult)
+    async def confirm_identity(request: IdentityConfirmRequest) -> IdentityResult:
+        return await asyncio.to_thread(local().identity().confirm, request)
 
     @app.post("/api/v1/local/selections", response_model=SelectionResult)
     async def select(request: SelectionRequest) -> SelectionResult:

@@ -390,3 +390,304 @@ def test_explicit_key_auth_gate_accepts_only_caller_supplied_object(tmp_path):
         session.authenticate_public_key("student", object())
         assert transport.auth_calls == [("publickey", "student")]
     assert connection.closed and transport.closed
+
+
+@pytest.mark.parametrize("unsafe_umask", [0o000, 0o002])
+def test_private_trust_creation_ignores_unsafe_umask_without_changing_existing_modes(
+    tmp_path, unsafe_umask
+):
+    before = tmp_path.stat().st_mode
+    previous = os.umask(unsafe_umask)
+    try:
+        store = HostKeyStore(tmp_path / "new-parent" / "private-trust")
+        pin(store, SshEndpoint(host="offline.invalid"), key())
+    finally:
+        os.umask(previous)
+    assert store.root.stat().st_mode & 0o777 == 0o700
+    assert store.root.parent.stat().st_mode & 0o777 == 0o700
+    assert store.path.stat().st_mode & 0o777 == 0o600
+    assert tmp_path.stat().st_mode == before
+
+
+@pytest.mark.parametrize("mode", [0o777, 0o770, 0o702])
+def test_existing_writable_trust_directory_is_rejected_without_chmod(tmp_path, mode):
+    root = tmp_path / "unsafe"
+    root.mkdir(mode=mode)
+    root.chmod(mode)  # Only a task-owned synthetic fixture.
+    with pytest.raises(ValueError, match="SSH_TRUST_PERMISSIONS_UNSAFE"):
+        HostKeyStore(root)
+    assert root.stat().st_mode & 0o777 == mode
+    assert list(root.iterdir()) == []
+
+
+def test_unsafe_ancestor_and_regular_file_replacement_are_not_trusted(tmp_path):
+    parent = tmp_path / "shared"
+    parent.mkdir()
+    parent.chmod(0o777)
+    with pytest.raises(ValueError, match="SSH_TRUST_PERMISSIONS_UNSAFE"):
+        HostKeyStore(parent / "not-created")
+    assert list(parent.iterdir()) == []
+    store = HostKeyStore(tmp_path / "private")
+    endpoint = SshEndpoint(host="offline.invalid")
+    pin(store, endpoint, key())
+    other = PublicIdentity.from_key(key(2))
+    replacement = store.root / "replacement"
+    replacement.write_text(
+        f"offline.invalid {other.algorithm} {base64.b64encode(other.raw).decode()}\n"
+    )
+    replacement.chmod(0o666)
+    replacement.replace(store.path)
+    with pytest.raises(ValueError, match="SSH_TRUST_PERMISSIONS_UNSAFE"):
+        store.observe(endpoint, other)
+    assert store.path.stat().st_mode & 0o777 == 0o666
+
+
+@pytest.mark.parametrize("which", ["directory", "file"])
+def test_wrong_owner_metadata_is_rejected_without_chown(tmp_path, monkeypatch, which):
+    store = HostKeyStore(tmp_path / "private")
+    endpoint = SshEndpoint(host="offline.invalid")
+    pin(store, endpoint, key())
+    inode = (store.root if which == "directory" else store.path).stat().st_ino
+    original = os.fstat
+
+    def wrong_owner(fd):
+        info = original(fd)
+        if info.st_ino == inode:
+            fields = list(info)
+            fields[4] = store._uid + 12345
+            return os.stat_result(fields)
+        return info
+
+    # Metadata boundary simulation only: never chown a real directory/file.
+    monkeypatch.setattr(os, "fstat", wrong_owner)
+    with pytest.raises(ValueError, match="SSH_TRUST_PERMISSIONS_UNSAFE"):
+        store.observe(endpoint, PublicIdentity.from_key(key()))
+
+
+def test_permissions_changed_while_reading_pinned_fd_are_rechecked(tmp_path, monkeypatch):
+    store = HostKeyStore(tmp_path / "private")
+    endpoint = SshEndpoint(host="offline.invalid")
+    pin(store, endpoint, key())
+    original = os.fstat
+    inode = store.path.stat().st_ino
+    reads = [0]
+
+    def change_after_initial_check(fd):
+        info = original(fd)
+        if info.st_ino == inode:
+            reads[0] += 1
+            if reads[0] == 2:
+                store.path.chmod(0o666)
+                info = original(fd)
+        return info
+
+    monkeypatch.setattr(os, "fstat", change_after_initial_check)
+    with pytest.raises(ValueError, match="SSH_TRUST_PERMISSIONS_UNSAFE"):
+        store.observe(endpoint, PublicIdentity.from_key(key()))
+
+
+def identity_service(tmp_path):
+    from easyai.services.ssh_identity import SshIdentityService
+
+    current = ["11111111-1111-4111-8111-111111111111"]
+
+    def verify(project):
+        if current[0] != project:
+            raise ValueError("SSH_IDENTITY_PROJECT_CHANGED")
+
+    store = HostKeyStore(tmp_path / "identity")
+    ssh, connection, transport = client(store)
+    service = SshIdentityService(ssh, threading.RLock(), verify)
+    return service, store, ssh, connection, transport, current
+
+
+def identity_request(host="offline.invalid", request_id=None, project_id=None):
+    from uuid import uuid4
+    from easyai.domain.ssh import IdentityProbeRequest
+
+    return IdentityProbeRequest(
+        project_id=project_id or "11111111-1111-4111-8111-111111111111",
+        request_id=request_id or str(uuid4()),
+        endpoint=SshEndpoint(host=host),
+    )
+
+
+def identity_confirm(result):
+    from easyai.domain.ssh import IdentityConfirmRequest, HostKeyConfirmation
+
+    return IdentityConfirmRequest(
+        project_id=result.project_id,
+        request_id=result.request_id,
+        confirmation=HostKeyConfirmation(
+            challenge_id=result.observation.challenge_id,
+            fingerprint=result.observation.fingerprint,
+        ),
+    )
+
+
+def test_scoped_identity_confirmation_matches_exact_request_project_and_target(tmp_path):
+    service, store, ssh, connection, transport, current = identity_service(tmp_path)
+    request = identity_request()
+    result = service.probe(request)
+    confirmation = identity_confirm(result)
+    # Pydantic copy creates fixtures only; production DTO validation remains strict.
+    for stale in [
+        confirmation.model_copy(update={"request_id": "22222222-2222-4222-8222-222222222222"}),
+        confirmation.model_copy(update={"project_id": "22222222-2222-4222-8222-222222222222"}),
+    ]:
+        with pytest.raises(ValueError, match="SSH_IDENTITY_"):
+            service.confirm(stale)
+    assert not store.path.exists()
+    assert service.confirm(confirmation).observation.trust_state == "trusted"
+    assert store.path.exists() and transport.auth_calls == [] and connection.closed
+    with pytest.raises(ValueError, match="STALE"):
+        service.confirm(confirmation)
+    with pytest.raises(ValueError, match="RETIRED"):
+        service.probe(request)
+
+
+def test_cancel_before_registration_after_result_and_project_change_reject_confirmation(tmp_path):
+    service, store, ssh, connection, transport, current = identity_service(tmp_path)
+    request = identity_request()
+    service.cancel(request)
+    with pytest.raises(ValueError, match="RETIRED"):
+        service.probe(request)
+    assert not connection.closed  # No transport opened at all.
+    result = service.probe(identity_request())
+    confirmation = identity_confirm(result)
+    service.cancel(result)
+    with pytest.raises(ValueError, match="STALE"):
+        service.confirm(confirmation)
+    assert not store.path.exists() and len(store._pending) == 0
+    result = service.probe(identity_request())
+    current[0] = "22222222-2222-4222-8222-222222222222"
+    service.invalidate()
+    with pytest.raises(ValueError, match="PROJECT_CHANGED"):
+        service.confirm(identity_confirm(result))
+    assert not store.path.exists() and len(store._pending) == 0
+
+
+def test_cancelled_late_probe_is_drained_without_reuse_or_parallel_dial(tmp_path):
+    from concurrent.futures import ThreadPoolExecutor
+
+    service, store, ssh, connection, transport, current = identity_service(tmp_path)
+    entered, release = threading.Event(), threading.Event()
+    original = ssh.probe
+
+    def blocked(endpoint, cancel):
+        entered.set()
+        assert release.wait(2)
+        # Simulate a late result even though cancellation arrived already.
+        return original(endpoint, None)
+
+    ssh.probe = blocked
+    request = identity_request()
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        future = pool.submit(service.probe, request)
+        assert entered.wait(2)
+        try:
+            service.cancel(request)
+            with pytest.raises(ValueError, match="BUSY"):
+                service.probe(identity_request(host="other.invalid"))
+        finally:
+            release.set()
+        with pytest.raises(ValueError, match="CANCELLED"):
+            future.result(timeout=2)
+    assert len(store._pending) == 0 and not store.path.exists()
+    assert connection.closed and transport.closed and transport.auth_calls == []
+
+
+def test_new_target_invalidates_old_challenge_and_request_retention_is_bounded(tmp_path):
+    service, store, ssh, connection, transport, current = identity_service(tmp_path)
+    result = service.probe(identity_request())
+    confirmation = identity_confirm(result)
+    second = service.probe(identity_request(host="other.invalid"))
+    assert second.observation.endpoint.host == "other.invalid"
+    with pytest.raises(ValueError, match="STALE"):
+        service.confirm(confirmation)
+    assert confirmation.confirmation.challenge_id not in store._pending
+    for index in range(62):
+        service.cancel(identity_request())
+    with pytest.raises(ValueError, match="REQUEST_LIMIT"):
+        service.probe(identity_request())
+    assert len(service._retired) == 64 and not store.path.exists()
+
+
+def test_normal_api_rejects_cross_project_then_confirms_and_invalidates_on_switch(tmp_path):
+    workspace = LocalWorkspace(tmp_path / "app")
+    store = HostKeyStore(tmp_path / "identity")
+    ssh, connection, transport = client(store)
+    workspace._ssh_client = ssh
+    selected = tmp_path / "project"
+    selected.mkdir()
+    selection = workspace.select("project", selected)
+    session = workspace.create(selection.selection_id, "offline", "blank")
+    project_id = session.project.project_id
+    api = TestClient(create_app("offline-test-token", workspace=workspace))
+    headers = {"Authorization": "Bearer offline-test-token"}
+    request = identity_request(project_id=project_id)
+    base = "/api/v1/connections/identity/"
+    try:
+        assert api.post(base + "probe", json=request.model_dump(by_alias=True)).status_code == 401
+        wrong = request.model_copy(update={"project_id": "22222222-2222-4222-8222-222222222222"})
+        assert (
+            api.post(
+                base + "probe", json=wrong.model_dump(by_alias=True), headers=headers
+            ).status_code
+            == 422
+        )
+        response = api.post(base + "probe", json=request.model_dump(by_alias=True), headers=headers)
+        assert response.status_code == 200, response.text
+        from easyai.domain.ssh import IdentityResult
+
+        result = IdentityResult.model_validate(response.json())
+        confirmation = identity_confirm(result)
+        cancelled = api.post(
+            base + "cancel",
+            json={"projectId": project_id, "requestId": request.request_id},
+            headers=headers,
+        )
+        assert cancelled.status_code == 200
+        rejected = api.post(
+            base + "confirm", json=confirmation.model_dump(by_alias=True), headers=headers
+        )
+        assert rejected.status_code == 422 and not store.path.exists()
+        request = identity_request(project_id=project_id)
+        result = IdentityResult.model_validate(
+            api.post(base + "probe", json=request.model_dump(by_alias=True), headers=headers).json()
+        )
+        accepted = api.post(
+            base + "confirm",
+            json=identity_confirm(result).model_dump(by_alias=True),
+            headers=headers,
+        )
+        assert (
+            accepted.status_code == 200
+            and accepted.json()["observation"]["trustState"] == "trusted"
+        )
+        assert transport.auth_calls == []
+        new_dir = tmp_path / "next-project"
+        new_dir.mkdir()
+        workspace.create(workspace.select("project", new_dir).selection_id, "next", "blank")
+        assert (
+            api.post(
+                base + "confirm", json=confirmation.model_dump(by_alias=True), headers=headers
+            ).status_code
+            == 422
+        )
+    finally:
+        workspace.close()
+
+
+def test_mismatched_probe_target_is_rejected_before_persisting_any_trust(tmp_path):
+    service, store, ssh, connection, transport, current = identity_service(tmp_path)
+    original = ssh.probe
+
+    def different_target(endpoint, cancel):
+        return original(SshEndpoint(host="different.invalid", port=2222), cancel)
+
+    ssh.probe = different_target
+    with pytest.raises(ValueError, match="RESPONSE_INVALID"):
+        service.probe(identity_request())
+    assert not store.path.exists() and len(store._pending) == 0
+    assert transport.auth_calls == [] and connection.closed
