@@ -92,6 +92,17 @@ class ProjectService:
         with self._save_lock:
             self._project_lock.close()
 
+    def snapshot(self, expected_revision: int) -> OpenedProject:
+        """Capture saved bytes under the same gate as save/close, never preview state."""
+        with self._save_lock:
+            self._project_lock.verify()
+            opened = read_project(self.path)
+            if opened.read_only or opened.document is None:
+                raise ValueError("PROJECT_READ_ONLY")
+            if opened.document.revision != expected_revision:
+                raise ValueError("PROJECT_REVISION_CONFLICT")
+            return opened
+
     def save(self, document: ProjectDocument, expected_revision: int) -> ProjectDocument:
         with self._save_lock:
             return self._save(document, expected_revision)

@@ -275,3 +275,13 @@ def test_runtime_failure_persisted_before_close_without_duplicate_entry(tmp_path
     assert len(records) == 1
     assert json.loads(records[0])["payload"]["variableName"] == "missing"
     assert failure._easyai_event_reported
+
+
+def test_atomic_temp_basename_is_compatible_with_file_serializers(tmp_path):
+    _, ctx = context(tmp_path)
+    with ctx.atomic_target("outputs/model.pth") as target:
+        assert not target.name.startswith(".")
+        assert target.suffix == ".pth"
+        assert not (ctx.output_root / "outputs/model.pth").exists()
+        target.write_bytes(b"serializer output")
+    assert (ctx.output_root / "outputs/model.pth").read_bytes() == b"serializer output"

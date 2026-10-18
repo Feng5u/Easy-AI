@@ -249,7 +249,11 @@ class RunContext:
         destination = self._artifact_path(relative, create=True)
         if destination.exists():
             raise FileExistsError("Refusing to overwrite a previous artifact")
-        descriptor, temporary = tempfile.mkstemp(prefix=".easyai-", dir=destination.parent)
+        # PyTorch's zip writer rejects a dot-prefixed basename. Keep the suffix
+        # for file serializers, while publication remains atomic and exclusive.
+        descriptor, temporary = tempfile.mkstemp(
+            prefix="easyai-part-", suffix=destination.suffix, dir=destination.parent
+        )
         os.close(descriptor)
         try:
             yield Path(temporary)
