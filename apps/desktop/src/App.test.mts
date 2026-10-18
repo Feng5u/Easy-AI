@@ -658,3 +658,150 @@ it("beginner guide navigates without execution and SSH mode hides local-only sel
   expect(document.activeElement?.id).toBe("compile-heading");
   expect(container.textContent).toContain("先保存或选择服务器概要");
 });
+
+it.each([
+  ["project", "选择目录并打开", "打开或新建工程未完成", "project-heading"],
+  ["compile", "检查与编译", "检查与编译未完成", "compile-heading"],
+] as const)(
+  "friendly %s failure hides private text and navigates without repeating operations",
+  async (stage, label, message, heading) => {
+    const { api, save } = bridge();
+    const secret =
+      "alice@private.example /home/alice/private password=secret token=key";
+    api.selections.pick = vi.fn(async (kind) => ({
+      kind,
+      selectionId: "selected",
+      label: "selected",
+    }));
+    api.projects.open = vi.fn(async () => {
+      throw new Error(secret);
+    });
+    api.projects.compile = vi.fn(async () => {
+      throw new Error(secret);
+    });
+    api.runs.start = vi.fn(api.runs.start);
+    api.connections.authenticate = vi.fn(api.connections.authenticate);
+    await mount(api);
+    await click(label);
+    const card = container.querySelector('[role="alert"]')!;
+    expect(card.textContent).toContain(message);
+    expect(card.textContent).not.toContain(secret);
+    const details = card.querySelector("details")!;
+    expect(details.open).toBe(false);
+    await act(async () => {
+      details.open = true;
+    });
+    expect(details.textContent).not.toContain("private.example");
+    await act(async () => {
+      card.querySelector("button")!.click();
+    });
+    expect(document.activeElement?.id).toBe(heading);
+    expect(
+      stage === "project" ? api.projects.open : api.projects.compile,
+    ).toHaveBeenCalledTimes(1);
+    for (const action of [api.runs.start, api.connections.authenticate, save])
+      expect(action).not.toHaveBeenCalled();
+  },
+);
+
+it("uncertain start can explicitly refresh history without retrying training", async () => {
+  const { api } = bridge();
+  api.selections.pick = vi.fn(async (kind) => ({
+    kind,
+    selectionId: `${kind}-selected`,
+    label: "selected",
+  }));
+  api.projects.compile = vi.fn(async () => ({
+    revision: 1,
+    programHash: "a".repeat(64),
+    runnable: true,
+    diagnostics: [],
+  }));
+  let accepted = false;
+  api.runs.start = vi.fn(async () => {
+    accepted = true;
+    throw new Error("/home/private token=secret");
+  });
+  const record: import("../electron/bridge.js").Run = {
+    runId: "accepted-run",
+    projectId: project().projectId,
+    status: "RUNNING",
+    connectionState: "connected",
+    syncState: "pending",
+    config: {
+      runId: "accepted-run",
+      projectId: project().projectId,
+      projectRevision: 1,
+      programHash: "a".repeat(64),
+      codeHash: "b".repeat(64),
+      bundleHash: "c".repeat(64),
+      targetId: "local",
+      runner: "local",
+      dataRoot: "test-data",
+      runRoot: "test-run",
+      pythonExecutable: "test-python",
+      executionMode: "full",
+      seed: 0,
+      numWorkers: 0,
+    },
+  };
+  api.runs.list = vi.fn(async () => (accepted ? [record] : []));
+  await mount(api);
+  await click("选择现有 Python");
+  await click("选择数据目录");
+  await click("检查与编译");
+  await click("开始本次运行");
+  const card = container.querySelector('[role="alert"]')!;
+  expect(card.textContent).toContain("启动运行未确认");
+  expect(card.textContent).not.toContain("secret");
+  expect(container.textContent).toContain("暂无运行记录");
+  await act(async () => {
+    card.querySelector("button")!.click();
+  });
+  expect(document.activeElement?.id).toBe("history-heading");
+  expect(api.runs.list).toHaveBeenCalledTimes(1);
+  await click("刷新运行历史");
+  expect(api.runs.list).toHaveBeenCalledTimes(2);
+  expect(container.textContent).toContain("accepted");
+  expect(container.textContent).toContain("RUNNING");
+  expect(api.runs.start).toHaveBeenCalledTimes(1);
+  expect(button("开始本次运行").disabled).toBe(true);
+});
+
+it("history refresh discards a late failure from the previous request", async () => {
+  const { api } = bridge();
+  api.runs.list = vi.fn(async () => []);
+  api.runs.start = vi.fn(api.runs.start);
+  await mount(api);
+  let reject!: (reason: unknown) => void;
+  const previous = new Promise<import("../electron/bridge.js").Run[]>(
+    (_resolve, fail) => {
+      reject = fail;
+    },
+  );
+  vi.mocked(api.runs.list).mockImplementationOnce(() => previous);
+  await click("刷新运行历史");
+  await click("刷新运行历史");
+  await act(async () => {
+    reject(new Error("late private /home/user token=secret"));
+  });
+  expect(api.runs.list).toHaveBeenCalledTimes(3);
+  expect(container.querySelector('[role="alert"]')).toBeNull();
+  expect(container.textContent).toContain("暂无运行记录");
+  expect(api.runs.start).not.toHaveBeenCalled();
+});
+
+it("successful explicit history refresh clears only its recovered read error", async () => {
+  const { api } = bridge();
+  api.runs.list = vi
+    .fn<DesktopAPI["runs"]["list"]>()
+    .mockRejectedValueOnce(new Error("private history error"))
+    .mockResolvedValue([]);
+  await mount(api);
+  expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+    "读取历史未完成",
+  );
+  await click("刷新运行历史");
+  expect(container.querySelector('[role="alert"]')).toBeNull();
+  expect(api.runs.list).toHaveBeenCalledTimes(2);
+});

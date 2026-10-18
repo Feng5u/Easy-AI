@@ -1,3 +1,5 @@
+import { FailureCard, operationFailure } from "./FailureCard.js";
+import type { OperationFailure, FailureStage } from "./FailureCard.js";
 import { GettingStarted } from "./GettingStarted.js";
 import type { GuideDestination } from "./GettingStarted.js";
 import { LocalPreflight } from "./LocalPreflight.js";
@@ -57,13 +59,14 @@ export function App({ api }: { api?: DesktopAPI }) {
   const [compilation, setCompilation] = useState<CompileResult | null>(null);
   const [run, setRun] = useState<Run | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<OperationFailure | null>(null);
   const [notice, setNotice] = useState("");
   const [selectedBlock, setSelectedBlock] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [autosaveStopped, setAutosaveStopped] = useState(false);
   const [history, setHistory] = useState<Run[]>([]);
   const [historyOffset, setHistoryOffset] = useState(0);
+  const [historyRefresh, setHistoryRefresh] = useState(0);
   const [viewTab, setViewTab] = useState<WorkspaceTab>("data");
   const [identityVisible, setIdentityVisible] = useState(false);
   const [viewCode, setViewCode] = useState(false);
@@ -176,7 +179,10 @@ export function App({ api }: { api?: DesktopAPI }) {
         }
       })
       .catch((reason) => {
-        if (mounted) setStatus(`无法连接本地服务：${String(reason)}`);
+        if (mounted) {
+          setStatus("无法连接本地服务，请查看错误卡片。");
+          setError(operationFailure("service", reason));
+        }
       });
     void bridge.projects
       .current()
@@ -186,7 +192,7 @@ export function App({ api }: { api?: DesktopAPI }) {
         }
       })
       .catch((reason) => {
-        if (mounted) setError(`无法恢复当前工程：${String(reason)}`);
+        if (mounted) setError(operationFailure("restore", reason));
       });
     return () => {
       mounted = false;
@@ -200,14 +206,20 @@ export function App({ api }: { api?: DesktopAPI }) {
     if (bridge) void bridge.projects.setDirty(dirty).catch(() => undefined);
   }, [bridge, dirty]);
 
-  async function perform(label: string, operation: () => Promise<void>) {
+  async function perform(
+    stage: FailureStage,
+    label: string,
+    operation: () => Promise<void>,
+  ) {
     setBusy(label);
-    setError("");
+    setError(null);
     setNotice("");
     try {
       await operation();
     } catch (reason) {
-      if (active.current) setError(`${label}失败：${String(reason)}`);
+      if (active.current) {
+        setError(operationFailure(stage, reason));
+      }
     } finally {
       if (active.current) setBusy(null);
     }
@@ -235,7 +247,7 @@ export function App({ api }: { api?: DesktopAPI }) {
     template: "mnist-cnn" | "blank" = "mnist-cnn",
   ) {
     if (!bridge) return;
-    await perform(create ? "新建工程" : "打开工程", async () => {
+    await perform("project", create ? "新建工程" : "打开工程", async () => {
       const choice = await bridge.selections.pick("project");
       if (!choice || !active.current) return;
       const opened = create
@@ -260,6 +272,7 @@ export function App({ api }: { api?: DesktopAPI }) {
   async function choose(kind: "python" | "data") {
     if (!bridge) return;
     await perform(
+      "selection",
       kind === "python" ? "选择 Python" : "选择数据目录",
       async () => {
         const choice = await bridge.selections.pick(kind);
@@ -327,9 +340,7 @@ export function App({ api }: { api?: DesktopAPI }) {
     } catch (reason) {
       if (active.current && draft.current === current) {
         setAutosaveStopped(true);
-        setError(
-          `保存失败，未保存内容仍保留。自动保存已暂停；可导出当前工程或手动重试：${String(reason)}`,
-        );
+        setError(operationFailure("save", reason));
       }
       return false;
     } finally {
@@ -366,29 +377,34 @@ export function App({ api }: { api?: DesktopAPI }) {
     void bridge.runs
       .list(project.projectId, historyOffset, 25)
       .then((values) => {
-        if (valid) setHistory(values);
+        if (valid) {
+          setHistory(values);
+          setError((previous) =>
+            previous?.stage === "history" ? null : previous,
+          );
+        }
       })
       .catch((reason) => {
-        if (valid) setError(`读取历史失败：${String(reason)}`);
+        if (valid) setError(operationFailure("history", reason));
       });
     return () => {
       valid = false;
     };
-  }, [bridge, project?.projectId, historyOffset, run?.runId]);
+  }, [bridge, project?.projectId, historyOffset, historyRefresh, run?.runId]);
   async function save() {
-    setError("");
+    setError(null);
     await saveDraft();
   }
   async function importProject() {
     if (!bridge) return;
-    await perform("导入工程", async () => {
+    await perform("import", "导入工程", async () => {
       const opened = await bridge.projects.importProject();
       if (active.current && opened) acceptSession(opened);
     });
   }
   async function exportProject() {
     if (!bridge) return;
-    await perform("导出工程", async () => {
+    await perform("export", "导出工程", async () => {
       const result = await bridge.projects.exportProject(
         dirty ? (project ?? undefined) : undefined,
       );
@@ -403,7 +419,7 @@ export function App({ api }: { api?: DesktopAPI }) {
   async function compile() {
     if (!bridge || !project) return;
     const request = ++compileRequest.current;
-    await perform("检查与编译", async () => {
+    await perform("compile", "检查与编译", async () => {
       const result = await bridge.projects.compile(project, request);
       if (
         active.current &&
@@ -453,7 +469,7 @@ export function App({ api }: { api?: DesktopAPI }) {
     if (intent.current?.signature !== signature)
       intent.current = { signature, key: crypto.randomUUID() };
     const idempotencyKey = intent.current.key;
-    await perform("启动运行", async () => {
+    await perform("start", "启动运行", async () => {
       const created = await bridge.runs.start({ ...request, idempotencyKey });
       if (active.current) {
         setRun(created);
@@ -465,6 +481,17 @@ export function App({ api }: { api?: DesktopAPI }) {
         );
       }
     });
+  }
+  function navigate(destination: GuideDestination) {
+    const ids: Record<GuideDestination, string> = {
+      project: "project-heading",
+      environment: "environment-heading",
+      compile: "compile-heading",
+      history: "history-heading",
+    };
+    const target = document.getElementById(ids[destination]);
+    target?.focus();
+    target?.scrollIntoView?.({ block: "start" });
   }
   const writable = project && session && !session.readOnly;
   const canRun =
@@ -496,11 +523,7 @@ export function App({ api }: { api?: DesktopAPI }) {
       <p className="notice">
         通过数据、模型和训练三个工作区构建工程。真实桌面交互与完整版本验收仍在进行。
       </p>
-      {error && (
-        <div className="error" role="alert">
-          {error}
-        </div>
-      )}
+      {error && <FailureCard failure={error} onNavigate={navigate} />}
       {notice && (
         <p className="notice" role="status">
           {notice}
@@ -539,17 +562,7 @@ export function App({ api }: { api?: DesktopAPI }) {
         ready={ready}
         blocked={Boolean(busy) || saving || activeRun}
         onServer={openServerSettings}
-        onNavigate={(destination: GuideDestination) => {
-          const ids: Record<GuideDestination, string> = {
-            project: "project-heading",
-            environment: "environment-heading",
-            compile: "compile-heading",
-            history: "history-heading",
-          };
-          const target = document.getElementById(ids[destination]);
-          target?.focus();
-          target?.scrollIntoView?.({ block: "start" });
-        }}
+        onNavigate={navigate}
       />
       <div className="button-row">
         <button
@@ -975,6 +988,16 @@ export function App({ api }: { api?: DesktopAPI }) {
             运行历史（只读快照）
           </h2>
           <p className="muted">查看旧运行不会替换当前编辑工程或映射。</p>
+          <button
+            type="button"
+            disabled={!ready}
+            onClick={() => {
+              setHistoryOffset(0);
+              setHistoryRefresh((value) => value + 1);
+            }}
+          >
+            刷新运行历史
+          </button>
           {history.length ? (
             <ul className="history-list">
               {history.map((item) => (
