@@ -15,6 +15,16 @@ setup仅建立应用后端环境并运行Electron官方安装器，不安装torc
 
 `pnpm fixtures`由真实Blockly重建fixtures；`pnpm contracts`由Pydantic生成schema和TS。check以只读比较模式检测漂移。生成文件不手改。`pnpm test:e2e`使用真实Electron且明确chromiumSandbox:true，不能为绿色测试关闭sandbox。
 
-原始计划和原需求位于docs。当前只实现启动骨架与合同基础；无可运行训练入口。完整项目API/编译器/Runner、UI与SSH按M2以后实现。训练安装命令尚未开放，避免误装到应用环境。实际验证和限制见implementation-progress.md。
+原始计划和原需求位于docs。现已有Python权威编译器、真实Blockly序列化、项目持久化/本地训练进程与SSH基础、21类积木和离线教程；真实MNIST课堂链与完整B仍未验。训练环境与应用环境分离，生产安装命令仍关闭。完整剩余代码与实测门见remaining-critical-path.md，不把局部测试当全阶段通过。
+
+## 本地打包
+
+先 `pnpm build`，再 `pnpm package`；它只用已安装Electron和PyInstaller onedir产物离线复制，当前实现同宿主Linux x64便携目录。输出 `dist/easyai-0.0.0-linux-x64` 必须不存在；失败半成品保留，不自动覆盖或删除。需要重做时由开发者自行保全/移走旧目录。`pnpm package:verify` 核资源manifest、完整文件集合、hash和可执行位。它不启动Electron、不修改sandbox、不下载工具/数据，也不生成或发布Release。
+
+Main在打包模式只定位resources/backend的冻结可执行文件，无checkout/.venv/PATH回退；开发模式仍使用应用venv。便携根 `easyai` 是保留原sandbox的入口，不把它改名为electron：Electron44会按该默认文件名将app.isPackaged判为false，进而走开发路径。冻结sidecar及所有辅助资源在resources/backend，离线文档/教程在resources/offline，已有许可文本及不完整性说明在resources/notices，原Electron LICENSE和LICENSES.chromium.html留在根。manifest最后写入，缺失或校验失败的目录不能算完整包。
+
+`pnpm test:package` 校验受控fixture的复制/冲突/资源漂移/篡改/链接拒绝；`node scripts/test-portable.mjs` 使用已生成便携目录的Main后端启动函数验证实际冻结HTTP/编译与EOF，不是Electron窗口或干净机器验收。
+
+electron-builder目前没有安装/锁定，本轮不联网新增依赖。根electron-builder.json仅提供待验证dir目标、sidecar/offline/notice资源及publish=null骨架。`pnpm package:notices` 可离线准备其dist/package-notices，拒绝覆盖；尚不能宣称该工具已产出安装器或Windows支持。项目自身许可证尚未声明，完整native/system库分发审核也未完成；本地包不作为正式分发产物。教师说明与真实验收门分别见teacher-setup.md和release-checklist.md。
 
 安全依据：[Electron官方安全指南](https://www.electronjs.org/docs/latest/tutorial/security)；序列化依据：[Blockly官方保存恢复说明](https://docs.blockly.com/guides/configure/serialization/)。

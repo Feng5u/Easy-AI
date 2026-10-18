@@ -10,7 +10,7 @@
 | M6 数据/图表 | 21类积木、三数据集编译、SGD/Adam/Dropout、shape、图表字段与布局已有 | CIFAR10本机preflight当前明确拒绝，运行覆盖未闭合；桌面完整Bundle导出仍缺（现为工程JSON导出） |
 | M6.3 受控包管理 | 两份CPU profile lock/来源；17包4组、离线计划/确认/取消UI；内部owned lease/受管进程/固定离线pip与真实probe适配器、持久任务/保守重启隔离；新UUID独占FS创建、bootstrap→安装→终检接线与半成品隔离已有，真实执行关闭 | 真实conda bootstrap adapter；许可/来源/目标授权及生产接线；可选包解析；任务历史/保留策略、存活安装重连/未知停止安全解除；远端安装与真实新环境纵向验收。固定pip只验证命令/配置解析未实际安装，probe仅负向实测；不是“只缺安装验证” |
 | M7 | 向导、安全错误卡、旧运行精确来源、冻结对象解释/本地报告及原子新文件发布；七主题本地Markdown、块帮助/只读代码/新目录示例副本入口、5×5/3×3真实数值卷积已实现并定向验证（3cc9a0c） | 真实Electron/原生对话框/课堂错误修复与环境恢复E2E仍未验；不把定向组件链当M7阶段通过 |
-| M8 | 桌面静态构建、PyInstaller onedir、冻结sidecar smoke已有 | electron-builder/`package`入口、完整资源布置及安装包；课堂/失败恢复桌面E2E，当前仅startup smoke；teacher-setup/release-checklist、更新已过时developer-guide、性能记录与最终支持矩阵 |
+| M8 | 复用已缓存Electron/PyInstaller的同宿主Linux x64离线便携目录、package/verify入口、Main冻结sidecar定位、manifest/资源漂移及包内后端smoke；已有许可证/教程/teacher-setup/release-checklist随包，developer-guide已更新；builder配置仅骨架 | electron-builder工具未安装/锁定与实际dir/安装器构建；项目许可证和精确native/system许可审核；真实Electron/干净机/Windows安装及课堂失败恢复E2E；签名授权（如需要）、性能基准与最终支持矩阵。当前本地产物distributionReady=false，不能替代M8.2实际目标机包验收 |
 
 证据入口：`services/backend/src/easyai/services/local_workspace.py`（CIFAR拒绝）、`services/backend/src/easyai/domain/connections.py`（password）、`packages/training-profiles/`、`packages/block-library/manifest.json`（helpKey不是教程）、`apps/desktop/src/`、`package.json`、`apps/desktop/package.json`、`tests/e2e/startup.spec.ts`、`.github/workflows/ci.yml`、`docs/developer-guide.md`。已有编译器/工作区/runner不从零重写，也不另建重复环境writer。
 

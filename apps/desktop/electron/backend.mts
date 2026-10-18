@@ -28,9 +28,10 @@ export async function startBackend(
   cwd: string,
   timeoutMs = 10000,
   storageRoot?: string,
+  args: string[] = ["-m", "easyai.main"],
 ): Promise<Backend> {
   const token = randomBytes(32).toString("hex");
-  const child = spawn(python, ["-m", "easyai.main"], {
+  const child = spawn(python, args, {
     cwd,
     shell: false,
     stdio: "pipe",

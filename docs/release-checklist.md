@@ -1,0 +1,23 @@
+# v0.0.0 发布验收清单
+
+此表是待执行门槛，不授权发布。状态只使用 PASS / FAIL / NOT RUN；代码存在、单元测试通过或产物生成不能替代真实平台结果。完整 B 尚未通过。
+
+| 项目 | 当前状态 | 必需证据 |
+| --- | --- | --- |
+| 原计划、原规格与README保存 | PASS | 原始plan116185字节及SHA见implementation-progress |
+| Python权威合同/编译器、21类积木 | PASS（定向代码测试） | 真实Blockly fixtures、schema漂移与编译测试；不等于完整课堂验收 |
+| 本机Linux便携布局/冻结sidecar | 待本轮记录 | 精确源码SHA、资源hash manifest、暂存目录独立启动/EOF退出记录 |
+| 真Electron安全启动/编辑/原生picker/Monaco/Blockly | NOT RUN | sandbox=true；可用桌面上的完整课堂操作，无安全绕过 |
+| Windows 11 x64 | FAIL（CI desktop） | 最新736b984/run39154349633失败正文待取得；后续原生新SHA独立验证 |
+| macOS/MPS/GPU矩阵 | NOT RUN | 真实设备、驱动、环境与实际结果；不得伪称支持 |
+| 至少一个干净目标机包 | NOT RUN | 无Node/开发Python/本机torch，能启动编辑并连接已准备环境 |
+| 真实MNIST正式10轮 | NOT RUN | 机器/环境/数据来源、seed/模式、实际指标与截图，非合成曲线 |
+| SSH取消/断线/接续/重启/日志与产物映射 | NOT RUN | 授权隔离目标及真实生命周期记录；不以接受请求代替退出 |
+| 受控安装 | NOT RUN（生产关闭） | 真实conda bootstrap、授权计划、只写owned环境、实际退出与真实复检；失败/取消隔离 |
+| 私钥入口/本地数据上传/运行中远端同步/完整Bundle导出 | NOT RUN（代码仍缺） | 完成原功能及验证，不能仅列为外部实测等待 |
+| 离线教程、教师准备与已知限制随包 | 待本轮记录 | 本地文件/hash、七主题教程与无网络加载，不含私密材料 |
+| 许可证与分发授权 | NOT RUN（未完成） | 保留Electron/Chromium及前端/Python许可文本，补精确冻结native/system库审核，项目自身许可证由所有者决定；不得自选新增授权 |
+| 签名/安装器/升级卸载 | NOT RUN | 当前仅未签名便携目录；electron-builder未安装/锁定，配置仅待验证骨架，无自动发布 |
+| 性能基准 | NOT RUN | 目标机器、工程/日志规模、启动/编译/图表延迟和内存实际值 |
+
+交付报告须绑定完整SHA、平台/架构、构建命令、测试实际结果和包hash；未验项不得改为PASS。资源manifest只检测相对完整性，不是数字签名或可信来源证明。出现关键启动/SSH/取消/映射失败不放行。Release、部署、签名凭据、收费服务和主分支变更均需另有明确授权。

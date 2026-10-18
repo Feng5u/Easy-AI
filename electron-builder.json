@@ -1,0 +1,22 @@
+{
+  "appId": "io.easyai.desktop",
+  "productName": "Easy-AI",
+  "executableName": "easyai",
+  "asar": true,
+  "npmRebuild": false,
+  "publish": null,
+  "directories": { "app": "apps/desktop", "output": "dist/builder" },
+  "files": ["dist/**/*", "dist-electron/**/*", "package.json", "!**/*.test.*"],
+  "extraResources": [
+    { "from": "services/backend/dist/easyai-sidecar", "to": "backend" },
+    { "from": "tutorials/zh-CN", "to": "offline/tutorials/zh-CN" },
+    { "from": "docs/teacher-setup.md", "to": "offline/docs/teacher-setup.md" },
+    {
+      "from": "docs/release-checklist.md",
+      "to": "offline/docs/release-checklist.md"
+    },
+    { "from": "dist/package-notices", "to": "notices" }
+  ],
+  "linux": { "target": ["dir"] },
+  "win": { "target": ["dir"], "signAndEditExecutable": false }
+}

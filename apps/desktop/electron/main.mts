@@ -15,6 +15,7 @@ import { dirname, join, extname } from "node:path";
 import { readFile } from "node:fs/promises";
 import { startBackend, type Backend } from "./backend.mjs";
 import { trustedSender, SECURE_PREFERENCES } from "./security.mjs";
+import { backendLocation } from "./backend-location.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 protocol.registerSchemesAsPrivileged([
@@ -264,16 +265,19 @@ app.on("second-instance", () => {
 });
 
 const repository = join(here, "../../..");
-const python =
-  process.platform === "win32"
-    ? join(repository, "services/backend/.venv/Scripts/python.exe")
-    : join(repository, "services/backend/.venv/bin/python");
+const launch = backendLocation(
+  app.isPackaged,
+  process.resourcesPath,
+  repository,
+  process.platform,
+);
 try {
   backend = await startBackend(
-    python,
-    join(repository, "services/backend"),
+    launch.executable,
+    launch.cwd,
     10000,
     join(app.getPath("userData"), "local-state"),
+    launch.args,
   );
   status = { ready: true, message: "本地服务已就绪。" };
   backend.process.once("exit", () => {
