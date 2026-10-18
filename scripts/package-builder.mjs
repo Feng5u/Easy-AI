@@ -1,5 +1,6 @@
 // Real electron-builder API. Same-host local unsigned artifacts only; never publish.
 import { build, Platform, Arch } from "electron-builder";
+import baseConfiguration from "../electron-builder.json" with { type: "json" };
 import { createRequire } from "node:module";
 import { execFileSync } from "node:child_process";
 import { mkdir, readFile, writeFile, readdir, lstat } from "node:fs/promises";
@@ -22,41 +23,20 @@ const asar = dependencyRequire("@electron/asar");
 const manifestName = "builder-manifest.json";
 export function builderConfiguration(stage, output, electronDist, version) {
   return {
-    appId: "io.github.t1doo.easyai",
-    productName: "Easy-AI",
+    ...baseConfiguration,
     electronVersion: version,
     electronDist,
     directories: { app: join(stage, "resources/app"), output },
-    files: [
-      "package.json",
-      "dist/**/*",
-      "dist-electron/*.mjs",
-      "dist-electron/preload.cjs",
-      "!**/*.test.*",
-      "!**/*.map",
-    ],
     extraResources: ["backend", "offline", "notices"].map((name) => ({
       from: join(stage, "resources", name),
       to: name,
-      filter: ["**/*"],
+      filter: ["**/*", "!**/.env*", "!**/machine.local.json"],
     })),
     // Vendor licenses stay outside ASAR for inspection.
     extraFiles: ["LICENSE", "LICENSES.chromium.html"].map((name) => ({
       from: join(electronDist, name),
       to: name,
     })),
-    asar: true,
-    npmRebuild: false,
-    nodeGypRebuild: false,
-    buildDependenciesFromSource: false,
-    forceCodeSigning: false,
-    publish: null,
-    artifactName: "easyai-${version}-${os}-${arch}.${ext}",
-    linux: {
-      executableName: "easyai",
-      category: "Education",
-      target: ["dir", "tar.gz"],
-    },
   };
 }
 async function inventory(root, prefix = "") {
@@ -123,7 +103,7 @@ export async function verifyBuilder(output) {
   const entries = asar.listPackage(archive);
   if (
     entries.some((name) =>
-      /(?:^|\/)(?:node_modules|src|\.env|\.git)(?:\/|$)|\.map$|\.test\.[^/]+$/.test(
+      /(?:^|\/)(?:node_modules|src|\.env[^/]*|\.git|machine\.local\.json)(?:\/|$)|\.map$|\.test\.[^/]+$/.test(
         name,
       ),
     )

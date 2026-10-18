@@ -2,7 +2,7 @@
 
 精确开发依赖 electron-builder 26.15.3，来自 npm 正规注册表，完整 integrity/transitive graph 在 pnpm-lock.yaml。安装时使用 --ignore-scripts；不新增 lifecycle 白名单，不安装训练依赖。Node/Electron 等原直接版本保持；pnpm 自动解析的可选 peer 绑定变化保留于锁文件并定向复检。MIT 依赖声明不代表项目或所有捆绑资源已完成法律审查。
 
-入口：先 `pnpm build`，再 `pnpm package:builder`。当前仅同主机 Linux x64；其他平台提前拒绝。真实调用 electron-builder API，显式 Linux dir 与 tar.gz，publish=never、publish配置null、不签名、不原生重建、不下载替代Electron。使用已安装、版本与ELF匹配的Electron目录；builder默认目标、自动发布和系统安装器不在本入口范围。
+入口：先 `pnpm build`，再 `pnpm package:builder`。当前仅同主机 Linux x64；其他平台提前拒绝。根electron-builder.json保存固定基础选项，保留原appId io.easyai.desktop；其默认app路径为未准备目录，避免裸CLI跳过资源门。包装入口绑定独占暂存目录，真实调用 electron-builder API，显式 Linux dir 与 tar.gz（首个本地验证包使用compression=store以约束压缩CPU耗时，归档尺寸据实记录），publish=never、publish配置null、不签名、不原生重建、不下载替代Electron。使用已安装、版本与ELF匹配的Electron目录；builder默认目标、自动发布和系统安装器不在本入口范围。tar.gz使用builder内置固定7zip@1.0.0工具集，首次可能从官方electron-userland/electron-builder-binaries下载；26.15.3代码内含精确SHA256，不是离线复制流程。无训练依赖、数据或模型下载。
 
 打包前复用原stagePortable的资源/架构/hash、显式应用/离线文档/教程/示例与notices allowlist。暂存位于独立dist/easyai-builder-<完整HEAD前12位>-<本次时间戳>-linux-x64/input；此处临时复制完整Electron以复用已验证的流程，增加磁盘占用，不改旧便携包或缓存。输出目录独占mkdir，已有或失败目录原样保留，不覆盖重跑。
 

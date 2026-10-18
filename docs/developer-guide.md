@@ -25,7 +25,7 @@ Main在打包模式只定位resources/backend的冻结可执行文件，无check
 
 `pnpm test:package` 校验受控fixture的复制/冲突/资源漂移/篡改/链接拒绝；`node scripts/test-portable.mjs` 使用已生成便携目录的Main后端启动函数验证实际冻结HTTP/编译与EOF，不是Electron窗口或干净机器验收。
 
-electron-builder目前没有安装/锁定，本轮不联网新增依赖。根electron-builder.json仅提供待验证dir目标、sidecar/offline/notice资源及publish=null骨架。`pnpm package:notices` 可离线准备其dist/package-notices，拒绝覆盖；尚不能宣称该工具已产出安装器或Windows支持。项目自身许可证尚未声明，完整native/system库分发审核也未完成；本地包不作为正式分发产物。教师说明与真实验收门分别见teacher-setup.md和release-checklist.md。
+正式M8.2入口现为 `pnpm package:builder`，精确锁定electron-builder26.15.3，经原资源/许可清单门后实际生成同主机Linux x64 dir与tar.gz；`pnpm package:builder:verify <输出目录>`核完整性及ASAR入口。根electron-builder.json仅供包装入口绑定已核暂存路径，裸CLI默认app目录未准备。未签名、不发布；项目/native/system许可及原生窗口/干净目标机仍未验，distributionReady/legalReviewComplete=false。见[electron-builder合同](electron-builder.md)。旧 `pnpm package` 复制流程与旧portable保持独立。
 
 安全依据：[Electron官方安全指南](https://www.electronjs.org/docs/latest/tutorial/security)；序列化依据：[Blockly官方保存恢复说明](https://docs.blockly.com/guides/configure/serialization/)。
 

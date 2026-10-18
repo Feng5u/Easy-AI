@@ -110,3 +110,9 @@ test("builder verifier rejects development inputs inside an otherwise hashed ASA
   });
   await assert.rejects(verifyBuilder(root), /BUILDER_ASAR_UNEXPECTED_INPUT/);
 });
+test("builder verifier rejects private environment files even when hashes match", async (t) => {
+  const { root } = await fixture(t, {
+    "dist/.env.local": "SYNTHETIC_SECRET_ONLY",
+  });
+  await assert.rejects(verifyBuilder(root), /BUILDER_ASAR_UNEXPECTED_INPUT/);
+});
