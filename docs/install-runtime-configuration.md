@@ -28,4 +28,6 @@ bootstrap以已批准base Python的`-I -S -B`启动，禁site/.pth，显式添�
 
 确认在同mutex内持久登记并注册唯一job worker，重放不spawn；后台只调原InstallService.execute。默认未配置分支仍AWAITING_EXECUTION。每job取消token也传给inspector；关闭先发全runtime取消并阻止新操作，等待预算包含mutex/规划及worker，锁外等静止；超时不关journal、不释放未知lease。重启只读恢复，不按PID或旧确认重跑。
 
+baseline/bootstrap/final probe各有自己的owner收据；上一条bootstrap/pip退出不能证明下一条probe静止。异常后若reader/monitor/cancel线程或leader未确认退出，保留实际owner、lease与journal，拒绝同prefix新dispatch；其他prefix的取消token独立。执行前baseline先写WAL并持lease。未确认静止的规划probe也阻关闭；当前没有自动解除未知停止的入口。
+
 UI按具体计划显示离线来源、bootstrap字节、未知实际解包占用、磁盘/时间预算和“确认执行”或“仅登记”。catalog能力不是全局授权，每份计划还受包锁、来源、基线、时效与明确确认约束。完整M6.3/B还需实际一次性owned目标上真实bootstrap/pip/复检验收；本轮没有该执行授权。

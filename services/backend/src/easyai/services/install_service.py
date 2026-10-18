@@ -4,7 +4,7 @@ Default configuration never executes. Confirmed policy-enabled jobs use one owne
 worker; commands and paths are not accepted as HTTP execution inputs.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import hashlib
 import json
 import platform
@@ -66,6 +66,16 @@ class EnvironmentProvisioner(Protocol):
     ) -> Literal["completed", "cancelled", "unknown", "failed"]: ...
 
 
+@dataclass(eq=False)
+class ProbeReceipt:
+    # Per invocation, never global across concurrent jobs. Retain the actual
+    # owner after unknown cleanup; a prior command's receipt is not this proof.
+    cancel: threading.Event = field(default_factory=threading.Event)
+    quiescent: bool = False
+    owner: object | None = None
+    prefix: Path | None = None
+
+
 @dataclass
 class _Plan:
     value: InstallPlan
@@ -91,6 +101,8 @@ class InstallService:
         self._runtime = runtime
         self._workers: dict[str, threading.Thread] = {}
         self._executing: set[threading.Thread] = set()
+        self._probe_gate = threading.Lock()
+        self._probes: set[ProbeReceipt] = set()
         self._closing = False
         self._close_requested = threading.Event()
         self._inspector = inspector
@@ -269,17 +281,56 @@ class InstallService:
             require_ready(self.app_root, environment_id, path)
         return path
 
-    def _inspect(self, environment_id: str, *, allow_partial: bool = False) -> InstallInspection:
-        path = self._owned(environment_id, allow_partial=allow_partial)
+    def _probe(self, path: Path, nonce: str, receipt: ProbeReceipt) -> InstallInspection:
         if self._inspector is None:
+            receipt.quiescent = True  # No operation was dispatched.
             raise ValueError("INSTALL_INSPECTION_NOT_ENABLED")
+        with self._probe_gate:
+            if self._close_requested.is_set():
+                receipt.quiescent = True
+                raise ValueError("INSTALL_SESSION_CLOSED")
+            if any(probe.prefix == path for probe in self._probes):
+                receipt.quiescent = True  # This invocation has dispatched nothing.
+                raise ValueError("INSTALL_STOP_UNCONFIRMED")
+            receipt.prefix = path
+            receipt.quiescent = False
+            self._probes.add(receipt)
+        try:
+            owned = getattr(self._inspector, "inspect_owned", None)
+            if owned is not None:
+                report: InstallInspection = owned(path, nonce, receipt)
+            else:
+                report = self._inspector(path, nonce)
+                # Legacy internal synchronous inspectors return only after their
+                # work is complete. Exceptions never imply such a receipt.
+                receipt.quiescent = True
+            if not receipt.quiescent:
+                raise ValueError("INSTALL_STOP_UNCONFIRMED")
+            return report
+        finally:
+            with self._probe_gate:
+                if receipt.quiescent:
+                    self._probes.discard(receipt)
+
+    def _inspect(
+        self,
+        environment_id: str,
+        *,
+        allow_partial: bool = False,
+        receipt: ProbeReceipt | None = None,
+    ) -> InstallInspection:
+        receipt = receipt or ProbeReceipt()
+        receipt.quiescent = True  # Local path validation has dispatched no new probe.
+        path = self._owned(environment_id, allow_partial=allow_partial)
         nonce = str(uuid4())
-        report = self._inspector(path, nonce)
+        report = self._probe(path, nonce, receipt)
         if report.nonce != nonce or report.prefix != str(path):
             raise ValueError("INSTALL_INSPECTION_INVALID")
         return report
 
-    def _baseline(self, environment_id: str, new: bool) -> tuple[str, dict[str, str]]:
+    def _baseline(
+        self, environment_id: str, new: bool, receipt: ProbeReceipt | None = None
+    ) -> tuple[str, dict[str, str]]:
         path = self._prefix(environment_id)
         if new:
             if path.exists():
@@ -293,7 +344,7 @@ class InstallService:
                     "appInode": info.st_ino,
                 }
             ), {}
-        report = self._inspect(environment_id)
+        report = self._inspect(environment_id, receipt=receipt)
         if not report.python_version.startswith("3.11."):
             raise ValueError("INSTALL_PYTHON_UNSUPPORTED")
         info = path.stat()
@@ -390,14 +441,14 @@ class InstallService:
             self._plans[value.plan_id] = _Plan(value.model_copy(deep=True), self._clock() + 600)
             return value
 
-    def _fresh(self, plan: InstallPlan) -> None:
+    def _fresh(self, plan: InstallPlan, receipt: ProbeReceipt | None = None) -> None:
         if self._runtime is not None:
             capability = self._runtime.snapshot()
             if capability.fingerprint != plan.runtime_fingerprint or (
                 plan.execution_enabled and not capability.enabled
             ):
                 raise ValueError("INSTALL_PLAN_STALE")
-        fingerprint, _ = self._baseline(plan.environment_id, plan.new_environment)
+        fingerprint, _ = self._baseline(plan.environment_id, plan.new_environment, receipt)
         self._verify_root()
         if (
             fingerprint != plan.baseline_fingerprint
@@ -555,14 +606,13 @@ class InstallService:
             try:
                 lease.verify()
                 self._exclude_uncertain_writer(job)
-                self._fresh(plan)  # Revalidate after acquiring the kernel environment lease.
-                if saved.deadline <= self._clock():
-                    raise ValueError("INSTALL_PLAN_STALE")
             except BaseException:
                 lease.close()
                 raise
             self._leases[job_id] = lease
             self._executing.add(threading.current_thread())
+            previous_status = job.status_code
+            previous_changes = job.changes_possible
             job.state, job.status_code, job.changes_possible = "INSTALLING", "INSTALL_STARTED", True
             token = self._cancel[job_id]
             try:
@@ -586,12 +636,26 @@ class InstallService:
                 if len(job.logs) < 128:
                     job.logs.append("INSTALL_PROGRESS")
 
-        quiescent = False
+        quiescent = True  # The durable intent has dispatched no process yet.
+        baseline_phase = False
+        restore_awaiting = False
         failure_code = "INSTALL_REPROBE_FAILED"
         try:
             if saved.deadline <= self._clock():
+                failure_code = "INSTALL_PLAN_STALE"
+                raise ValueError(failure_code)
+            baseline_phase = True
+            baseline_probe = ProbeReceipt(cancel=token, quiescent=True)
+            try:
+                # The write-ahead record and kernel lease already cover this
+                # baseline probe too; it can fail with an unknown child owner.
+                self._fresh(plan, baseline_probe)
+            finally:
+                quiescent = baseline_probe.quiescent
+            if saved.deadline <= self._clock():
                 quiescent, failure_code = True, "INSTALL_PLAN_STALE"
                 raise ValueError(failure_code)
+            baseline_phase = False
             if creation is not None:
                 quiescent, failure_code = True, "INSTALL_PROVISION_FAILED"
                 creation.allocate()
@@ -617,7 +681,12 @@ class InstallService:
                 creation.verify()
                 assert self._inspector is not None
                 nonce = str(uuid4())
-                bootstrap = self._inspector(prefix, nonce)
+                probe = ProbeReceipt(cancel=token)
+                quiescent = False
+                try:
+                    bootstrap = self._probe(prefix, nonce, probe)
+                finally:
+                    quiescent = probe.quiescent
                 if (
                     bootstrap.nonce != nonce
                     or bootstrap.prefix != str(prefix)
@@ -657,7 +726,14 @@ class InstallService:
                     if len(job.logs) < 128:
                         job.logs.append("INSTALL_REPROBE_STARTED")
                     self._record(job)
-                report = self._inspect(plan.environment_id, allow_partial=creation is not None)
+                probe = ProbeReceipt(cancel=token)
+                quiescent = False
+                try:
+                    report = self._inspect(
+                        plan.environment_id, allow_partial=creation is not None, receipt=probe
+                    )
+                finally:
+                    quiescent = probe.quiescent
                 if creation is not None:
                     creation.verify()
                 expected = {item.package_id: item.target_version for item in plan.package_changes}
@@ -695,10 +771,20 @@ class InstallService:
             with self._mutex:
                 job.state = "FAILED" if quiescent else "CANCEL_REQUESTED"
                 job.status_code = failure_code if quiescent else "INSTALL_STOP_UNCONFIRMED"
+            if baseline_phase and quiescent:
+                with self._mutex:
+                    if token.is_set() or self._close_requested.is_set():
+                        job.state, job.status_code = "CANCELLED", "INSTALL_CANCELLED_NO_EXECUTION"
+                    else:
+                        job.state, job.status_code = "AWAITING_EXECUTION", previous_status
+                        restore_awaiting = True
+                    job.changes_possible = previous_changes
+                raise  # Preserve known-quiet pre-install stale/invalid baseline failures.
         finally:
             with self._mutex:
                 if quiescent:
-                    self._active.pop(job.environment_id, None)
+                    if not restore_awaiting:
+                        self._active.pop(job.environment_id, None)
                     self._leases.pop(job_id).close()
                 if len(job.logs) < 128:
                     job.logs.append(job.status_code)
@@ -714,6 +800,9 @@ class InstallService:
     def close(self) -> None:
         deadline = time.monotonic() + 3
         self._close_requested.set()  # Reject new operations even while a probe holds the mutex.
+        with self._probe_gate:
+            for probe in self._probes:
+                probe.cancel.set()
         if self._runtime is not None:
             self._runtime.request_cancel()  # Inspector owners also observe this outside the mutex.
         if not self._mutex.acquire(timeout=max(0, deadline - time.monotonic())):
@@ -743,7 +832,14 @@ class InstallService:
         if not self._mutex.acquire(timeout=max(0, deadline - time.monotonic())):
             raise ValueError("INSTALL_STOP_UNCONFIRMED")
         try:
-            if any(t.is_alive() for t in threads) or self._executing or self._leases:
+            with self._probe_gate:
+                probes_pending = bool(self._probes)
+            if (
+                any(t.is_alive() for t in threads)
+                or self._executing
+                or self._leases
+                or probes_pending
+            ):
                 raise ValueError("INSTALL_STOP_UNCONFIRMED")
             for journal in self._journals.values():
                 journal.close()

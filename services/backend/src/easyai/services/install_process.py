@@ -18,7 +18,7 @@ from easyai.domain.contracts import Event
 from easyai.domain.install import InstallInspection, InstallPlan
 from easyai.runtime.supervisor import ManagedSupervisor
 from easyai.security.files import read_regular
-from easyai.services.install_service import PROFILE_ROOT
+from easyai.services.install_service import PROFILE_ROOT, ProbeReceipt
 
 LOG_LIMIT = 1024 * 1024
 
@@ -73,7 +73,10 @@ class ManagedInstallCommand:
         progress: Callable[[], None],
         *,
         environment: dict[str, str] | None = None,
+        receipt: ProbeReceipt | None = None,
     ) -> tuple[Literal["completed", "cancelled", "unknown", "failed"], list[Event]]:
+        if receipt is not None:
+            receipt.quiescent = True  # No process owner has been created yet.
         if os.name != "posix":
             raise ValueError("INSTALL_PROCESS_PLATFORM_UNVERIFIED")
         if cancel.is_set() or self._shutdown.is_set():
@@ -102,6 +105,8 @@ class ManagedInstallCommand:
             cancel_grace=0.05,
             max_log_bytes=LOG_LIMIT,
         )
+        if receipt is not None:
+            receipt.owner, receipt.quiescent = supervisor, False
         deadline = time.monotonic() + self.seconds
         try:
             progress()  # Revalidate ownership immediately before the process consumes intent.
@@ -125,7 +130,11 @@ class ManagedInstallCommand:
         finally:
             # Existing supervisor owns group escalation and both pipe drainers.
             # A cleanup error propagates; InstallService retains its environment lease.
-            supervisor.close()
+            try:
+                supervisor.close()
+            finally:
+                if receipt is not None:
+                    receipt.quiescent = supervisor.quiescent
 
 
 def owned_python(prefix: Path) -> Path:
@@ -224,6 +233,10 @@ class ManagedInstallInspector:
         self.cancel = cancel or threading.Event
 
     def __call__(self, prefix: Path, nonce: str) -> InstallInspection:
+        return self.inspect_owned(prefix, nonce, ProbeReceipt(cancel=self.cancel()))
+
+    def inspect_owned(self, prefix: Path, nonce: str, receipt: ProbeReceipt) -> InstallInspection:
+        receipt.quiescent = True  # Fixed input validation has not spawned an owner.
         packages = json.loads(read_regular(PROFILE_ROOT / "easyai-cpu-sources.json", 100_000))
         names = [item["name"] for item in packages["packages"]]
         source = (
@@ -253,8 +266,9 @@ class ManagedInstallInspector:
         outcome, events = self.commands.run(
             [str(owned_python(prefix)), "-I", "-B", "-c", source],
             prefix,
-            self.cancel(),
+            receipt.cancel,
             lambda: None,
+            receipt=receipt,
         )
         reports = [event.payload for event in events if event.type == "progress"]
         if outcome != "completed" or len(reports) != 1:

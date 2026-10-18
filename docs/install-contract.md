@@ -18,9 +18,9 @@ easyai-cpu 复用已有 Linux x86_64 / CPython 3.11 CPU 来源及 hash lock。�
 
 ## 任务状态与所有权
 
-生产路径只到 AWAITING_EXECUTION，明确 INSTALL_EXECUTION_NOT_ENABLED；取消后为 CANCELLED / INSTALL_CANCELLED_NO_EXECUTION，verified 仍为 false。会话最多64计划，持久目录最多64任务，当前没有自动清理历史或分页入口。任务状态复用 EventJournal 的单写入、fsync、序号及严格完整记录校验；执行意图先落盘再启动子进程。落盘失败关闭该服务的后续写入，不冒称执行成功。此处验证进程重启，不保证断电后的目录项持久性。
+默认未配置的生产路径只到 AWAITING_EXECUTION，明确 INSTALL_EXECUTION_NOT_ENABLED；取消后为 CANCELLED / INSTALL_CANCELLED_NO_EXECUTION，verified 仍为 false。具体可信配置及计划授权齐备时才调度唯一worker。会话最多64计划，持久目录最多64任务，当前没有自动清理历史或分页入口。任务状态复用 EventJournal 的单写入、fsync、序号及严格完整记录校验；执行意图先落盘再启动子进程。落盘失败关闭该服务的后续写入，不冒称执行成功。此处验证进程重启，不保证断电后的目录项持久性。
 
-内部 executor/inspector 接缝用于合同测试，没有生产调用者。已有 owned 环境执行前先取得内核环境 lease，再核 TTL、基线、来源及计划 hash；独立服务实例也不能并发写同一环境。日志最多 128 条固定生命周期记录，尚不是实际安装器原始日志采集器。
+executor/inspector已有生产接线，内部受控替身仅用于合同测试。已有 owned 环境执行前先取得内核环境 lease、持久执行意图，再核 TTL、基线、来源及计划 hash；执行前基线probe也受同job lease/WAL覆盖。独立服务实例不能并发写同一环境。任务最多128条固定生命周期记录，受管命令另存有界原始日志。
 
 内部状态依次为 INSTALLING、VERIFYING、SUCCEEDED，异常可为 FAILED；取消发出后为 CANCEL_REQUESTED，只有适配器证明已停止才可成为 CANCELLED。未知停止结果或执行异常保留环境 reservation 与内核 lease，不宣称已停止或可以再次安装。关闭会话发取消信号，不释放未证实停止的 lease。
 
@@ -43,3 +43,5 @@ pip的isolated不等于禁用global/site配置，no-index也不移除配置追�
 生产接线审计与最小实施顺序见 [install-production-wiring.md](install-production-wiring.md)：审计基线的四项缺口已有本轮实现；配置格式及精确官方行为依据见install-runtime-configuration.md。默认授权门继续关闭，真实安装验收仍缺。
 
 关闭先设置取消（包括planning inspector），总等待预算从mutex获取前开始；超时保留journal/lease，不将取消请求当静止证明。worker和pipe owner已确认退出且无未知lease后才关闭journal。plan在source散列返回后的最终保存边界再核close请求，迟到结果拒绝。
+
+每次baseline/bootstrap/final probe持有独立receipt和本job取消token，保留其实际supervisor；静止须同时证明leader退出、reader/monitor/cancel线程结束及owner关闭。探测异常不能沿用上一条安装命令的静止结论；未知时保留lease、receipt和journal，不写ready。同prefix存在未确认静止的receipt时拒绝新probe，其他prefix独立；close显式取消所有receipt，单job取消不传播到其他job。规划/确认尚无job的未知probe也阻止关闭与同prefix重入；不自动退休或推断可安全重跑。

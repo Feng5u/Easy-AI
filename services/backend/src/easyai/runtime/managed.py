@@ -475,6 +475,17 @@ class ManagedProcess(Generic[E]):
                 return [event.model_copy(deep=True) for event in self._closed_events]
             return self._journal.after(0) if self._journal is not None else []
 
+    @property
+    def quiescent(self) -> bool:
+        with self._mutex:
+            return (
+                self._closed
+                and (self._process is None or self._process.poll() is not None)
+                and all(not thread.is_alive() for thread in self._threads)
+                and (self._monitor is None or not self._monitor.is_alive())
+                and (self._cancel_thread is None or not self._cancel_thread.is_alive())
+            )
+
     def close(self) -> None:
         if self._closed:
             return
@@ -492,6 +503,14 @@ class ManagedProcess(Generic[E]):
                 raise RuntimeError("Managed process cleanup is still pending")
         if self._cancel_thread is not None:
             self._cancel_thread.join(max(1.0, 2 * self.cancel_grace))
+        if self._monitor is not None and self._monitor is not threading.current_thread():
+            self._monitor.join(max(1.0, 2 * self.cancel_grace))
+        if (
+            any(thread.is_alive() for thread in self._threads)
+            or (self._monitor is not None and self._monitor.is_alive())
+            or (self._cancel_thread is not None and self._cancel_thread.is_alive())
+        ):
+            raise RuntimeError("Managed process cleanup is still pending")
         with self._mutex:
             if self._journal is not None:
                 try:
