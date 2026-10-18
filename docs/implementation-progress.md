@@ -1082,3 +1082,17 @@ UI对象检查使用旧快照ID+workspace成员门，显示中性类别/角色/�
 CI精确绑定：本轮只调用既有`github_get_commit_combined_status`读取**407da99effa8a46b492b79cc362f77025b5c7210**，调用成功但`statuses: []`，没有可判定的check/desktop结果；不等于无workflow或绿。未访问/重试被拒Actions日志接口，未绕行或重跑job。上述空列表仅为状态接口当时的返回。随后父级通过已核认证通知邮件提供精确新结果：**407da99effa8a46b492b79cc362f77025b5c7210 / run39149608836于17:28:37 UTC结束，check SUCCESS（1m51s），desktop FAILURE（1m25s，2 annotations）**，来源 https://github.com/T1doo/Easy-AI/actions/runs/39149608836 。因此407整体CI已知未通过，不再状态未知；check成功也不替代desktop失败。缺剩余desktop首错步骤正文，根因未知，不能套用旧四根因或把d651旧失败当新结果。父级对273e752/407da99四项已独审有限接受；本执行器现有status接口未暴露失败步骤，不另走被拒Actions端点/日志或重复跑同SHA。Windows native/冻结的具体分项仍不能推断通过，不重跑同型本地矩阵冒充新平台结果。
 
 NOT RUN：真实Electron/SVG/Monaco/原生picker和SaveDialog/课堂E2E、Windows/NTFS/冻结ABI、真实训练/MNIST/SSH/SFTP/上传/数据下载、环境安装/SDK协议、个人PC。Windows远程生产gate继续关闭。没有新拒绝或未知外部写入；407状态现已由父级认证通知明确为check绿/desktop红；剩余desktop失败正文缺失，既有Actions拒绝边界保持。正常dev分支源码+证据与状态更正提交一次推送，最终完整证据/远端SHA见交付；不改main、不强推、无PR/Release/部署/费用/新凭据/安全权限。后续新功能SHA的CI待验，407剩余desktop首错正文待证据，同时推进原M7.3本地教程/数值卷积或按父级安排独立冻结模块，完整B剩余见remaining-critical-path.md。
+
+## 2026-10-18 — 父级P2：安全报告完整排他发布
+
+源码SHA：`1eabc62ec6b1200614116d9d0ea894c77cccc576`，基线`4077a2d071f9c83ee9fa23372f84bcee51c4c70a`。父级在workflow.mts原L471–475指出直接writeFile最终路径wx只排他创建、不保证完整发布。M7.3当时仅只读核对、无待写内容，先完成此最小修复。
+
+修前新增真实临时文件注入部分ENOSPC，**1 FAIL/1 PASS**，213ms，`/tmp/easyai-report-atomic-red.log`；最终目标真实遗留`{"reportVersion":`，不是凭假设改写。现在复用现有LocalWorkspace._create_file的“先完整落盘、再排他发布”约束：同目标父目录创建私有mkdtemp、wx0600打开report.partial、完整writeFile→sync→close，核暂存目录/普通文件BigInt dev/ino且inode非零，再checkCurrent(epoch)，最后fs.link至不存在的最终目标。link不支持则拒绝，没有rename/copy覆盖fallback；**任何路径都不unlink最终目标**。清理仅匹配本次目录/文件身份的暂存项，不recursive rm、不清除无法核实或已替换项；清理异常不吞原写入/发布错误，也不撤销已成功发布。最后stat→link仍存在同UID并发窗口，本地导出不是恶意同UID进程安全沙箱；未借此扩大Windows支持或权限。
+
+独审中发现并关闭暂存替换P2：首版仅cleanup核身份，sync后替换staged会把replacement bytes发布。补发布前同一身份/类型门及成功写后替换回归；独审原sync后替换夹具复验为拒绝、目标不存在、替换文件保留。没有通过无条件unlink清理未知内容。
+
+实际命令（cwd `/workspace/Easy-AI`）：`pnpm exec vitest run apps/desktop/electron/atomic-report.test.mts apps/desktop/electron/diagnostic-report.test.mts apps/desktop/electron/workflow.test.mts`最终 **38 PASS**，377ms，`/tmp/easyai-report-atomic-final.log`（新8+原23+workflow7，不与前片92累加）；含部分写失败/原目标无半份并可同路径重试、其他写入者目标保留、完成暂存后发布冲突、sync失败、替换暂存+原error保留、scope写后失效、完成暂存替换拒绝、unsupported link不降级。独审新两项各1PASS/7skipped，原sync替换夹具另验，无剩余本P2。`pnpm --filter @easyai/desktop check`、`pnpm exec tsc -p tsconfig.tests.json`、`pnpm --filter @easyai/desktop build`、`git diff --check`均 **PASS**；日志`/tmp/easyai-report-atomic-check.log`及`/tmp/easyai-report-atomic-build.log`。只Main文件实现变化，未重跑后端/冻结/训练矩阵。
+
+合同数目经Python `DiagnosticReport.model_json_schema(by_alias=True)`、schema properties、safeReport keys和独审独立枚举确认仍为**12字段**（前段12记载正确，不改成13）：reportVersion、scope、code、runId、eventSeq、codeHash、projectRevision、precision、nameState、referenceCheck、objectsTotal、registeredTotal。schema生成有**8 required + 4 defaults**（reportVersion=1、scope=local_safe_summary、两counts=null）；TS对应四项optional表示Pydantic可补默认的输入形态，认证GET使用完整model_dump(by_alias=True)响应始终包含全部12项，safeReport有意只接受完整响应、不补缺字段。未改变权威合同/生成器或降低白名单。
+
+NOT RUN：Windows实际hard-link/NTFS/原生SaveDialog/Electron、断电后目录持久性、真实训练/MNIST/SSH/下载。407da99/run39149608836仍check SUCCESS/desktop FAILURE，2 annotations，剩余步骤正文未知，未盲猜或重试被拒接口；后续SHA CI分别待新证据。原件/README保持，无main/强推/PR/发布/部署/费用/凭据/权限变化。修复及本证据正常开发分支推送后续接M7.3，不因CI等候停独立功能。
