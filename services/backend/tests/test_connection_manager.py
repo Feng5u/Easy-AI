@@ -477,3 +477,24 @@ def test_authenticated_api_input_and_environment_validation_never_echo_secrets(t
         assert model.password.get_secret_value() == ""
     finally:
         workspace.close()
+
+
+def test_early_lease_timer_rearms_original_deadline_and_stale_callback_cannot_close_new(setup):
+    manager, identities, client, clock, current, timers = setup
+    info = manager.authenticate_password(grant(identities), SYNTHETIC_PASSWORD)
+    first = timers[-1]
+    clock[0] += 100
+    first.fire_late()
+    rearmed = timers[-1]
+    assert rearmed is not first and rearmed.seconds == 200
+    assert manager.current(control(info)).expires_in_seconds == 200
+    clock[0] += 200
+    rearmed.fire_late()
+    assert manager.current(control(info)) is None
+    manager.wait_idle()
+    next_info = manager.authenticate_password(grant(identities), SYNTHETIC_PASSWORD)
+    first.fire_late()
+    rearmed.fire_late()
+    assert manager.current(control(next_info)) is not None
+    manager.close(control(next_info))
+    manager.wait_idle()

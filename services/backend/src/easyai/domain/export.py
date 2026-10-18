@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 from easyai.domain import contracts, desktop, environment, connections
 from easyai.domain.program import ProgramIR
+from easyai.domain.remote_run import RemoteRunIdentity, RemoteRunObservation, RemoteRunCheckpoint
 from easyai.domain.ssh import (
     SshEndpoint,
     HostKeyObservation,
@@ -17,6 +18,9 @@ from easyai.domain.ssh import (
 )
 
 MODELS: list[type[BaseModel]] = [
+    RemoteRunIdentity,
+    RemoteRunObservation,
+    RemoteRunCheckpoint,
     connections.AuthenticationRequest,
     connections.AuthenticatedConnection,
     connections.SessionControl,

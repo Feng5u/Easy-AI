@@ -239,9 +239,15 @@ class ConnectionManager:
         with self._mutex:
             lease = self._lease
             if lease is not None and lease.scope.connection_id == connection_id:
-                # Timer can fire early on some systems; never extend the deadline.
-                if self._clock() >= lease.expires_at:
+                remaining = lease.expires_at - self._clock()
+                if remaining <= 0:
                     self._detach_lease()
+                else:
+                    # Preserve the original deadline; stale callbacks stay scoped to this ID.
+                    lease.timer = self._timer_factory(
+                        remaining, lambda: self._expire(connection_id)
+                    )
+                    lease.timer.start()
 
     def authenticate_password(
         self, request: AuthenticationRequest, password: str
