@@ -60,7 +60,11 @@ def unique(pairs):
 
 def encoded(value):
     return json.dumps(
-        value, sort_keys=True, ensure_ascii=False, allow_nan=False, separators=(",", ":")
+        value,
+        sort_keys=True,
+        ensure_ascii=False,
+        allow_nan=False,
+        separators=(",", ":"),
     ).encode()
 
 
@@ -93,7 +97,9 @@ class Root:
                 parent_info = os.fstat(descriptor)
                 self._directory(parent_info, False, anchor_uid)
                 child = os.open(
-                    part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=descriptor
+                    part,
+                    os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                    dir_fd=descriptor,
                 )
                 os.close(descriptor)
                 descriptor = child
@@ -135,7 +141,9 @@ class Root:
         try:
             for part in path.parts[:-1]:
                 child = os.open(
-                    part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=descriptor
+                    part,
+                    os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                    dir_fd=descriptor,
                 )
                 os.close(descriptor)
                 descriptor = child
@@ -209,7 +217,11 @@ class Root:
                     os.fsync(output.fileno())
                 if once:
                     os.link(
-                        temporary, leaf, src_dir_fd=parent, dst_dir_fd=parent, follow_symlinks=False
+                        temporary,
+                        leaf,
+                        src_dir_fd=parent,
+                        dst_dir_fd=parent,
+                        follow_symlinks=False,
                     )
                 else:
                     os.replace(temporary, leaf, src_dir_fd=parent, dst_dir_fd=parent)
@@ -222,7 +234,10 @@ class Root:
 
     def lock(self, name):
         descriptor = os.open(
-            name, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600, dir_fd=self.fd
+            name,
+            os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW | os.O_NONBLOCK,
+            0o600,
+            dir_fd=self.fd,
         )
         try:
             safe_file(os.fstat(descriptor))
@@ -302,7 +317,14 @@ def validate(root):
         raise ValueError("REMOTE_CONFIG_INVALID")
     if any(
         config[key] != identity[key]
-        for key in ("runId", "projectId", "targetId", "programHash", "codeHash", "bundleHash")
+        for key in (
+            "runId",
+            "projectId",
+            "targetId",
+            "programHash",
+            "codeHash",
+            "bundleHash",
+        )
     ):
         raise ValueError("REMOTE_CONFIG_IDENTITY_INVALID")
     if (
@@ -373,7 +395,10 @@ def start(root, identity):
             return identity  # All missing/stale owner cases remain inspect-only.
         root.write(
             "remote-launch.json",
-            {"identity": identity, "generations": {name: str(uuid4()) for name in STREAMS}},
+            {
+                "identity": identity,
+                "generations": {name: str(uuid4()) for name in STREAMS},
+            },
             once=True,
         )
         root.directory("logs")
@@ -523,8 +548,19 @@ def serve(root, identity, config):
                 }
             root.write(
                 "owner-heartbeat.json",
-                {"launchId": identity["launchId"], "seq": heartbeat, "monotonic": time.monotonic()},
+                {
+                    "launchId": identity["launchId"],
+                    "seq": heartbeat,
+                    "monotonic": time.monotonic(),
+                },
             )
+            # The receipt must be durable before publishing a sealed observation.
+            # Failure leaves an unsealed/stale owner, never a fictitious ready result.
+            if sealed:
+                root.write(
+                    "remote-artifacts.json",
+                    artifact_manifest(identity, supervisor.events(), streams),
+                )
             root.write("owner-status.json", status)
             if sealed:
                 return
@@ -532,6 +568,29 @@ def serve(root, identity, config):
         if supervisor is not None:
             supervisor.close()
         os.close(lock)
+
+
+def artifact_manifest(identity, events, streams):
+    """Receipt only: downstream verifies records against its committed event journal."""
+    records = [event.payload for event in events if event.type == "artifact_created"]
+    if len(records) > 256:
+        raise ValueError("REMOTE_ARTIFACT_LIMIT")
+    total = 0
+    for record in records:
+        size = record.get("sizeBytes")
+        if type(size) is not int or not 0 <= size <= 100 * 1024 * 1024:
+            raise ValueError("REMOTE_ARTIFACT_LIMIT")
+        total += size
+    if total > 256 * 1024 * 1024:
+        raise ValueError("REMOTE_ARTIFACT_LIMIT")
+    return {
+        "protocolVersion": 1,
+        "identity": identity,
+        "uid": os.geteuid(),
+        "sourceSeq": events[-1].value["sourceSeq"] if events else 0,
+        "eventsSha256": streams["events"]["sha256"],
+        "artifacts": records,
+    }
 
 
 def main():

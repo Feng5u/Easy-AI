@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from easyai.domain import contracts, desktop, environment, connections
 from easyai.domain.program import ProgramIR
 from easyai.domain.remote_run import RemoteRunIdentity, RemoteRunObservation, RemoteRunCheckpoint
+from easyai.domain.remote_run import ArtifactManifest
 from easyai.domain.ssh import (
     SshEndpoint,
     HostKeyObservation,
@@ -18,6 +19,7 @@ from easyai.domain.ssh import (
 )
 
 MODELS: list[type[BaseModel]] = [
+    ArtifactManifest,
     RemoteRunIdentity,
     RemoteRunObservation,
     RemoteRunCheckpoint,

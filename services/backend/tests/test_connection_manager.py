@@ -498,3 +498,38 @@ def test_early_lease_timer_rearms_original_deadline_and_stale_callback_cannot_cl
     assert manager.current(control(next_info)) is not None
     manager.close(control(next_info))
     manager.wait_idle()
+
+
+@pytest.mark.parametrize(
+    "mismatch", [None, "project_id", "username", "endpoint", "host_fingerprint"]
+)
+def test_artifact_service_is_bound_to_exact_live_lease(setup, mismatch):
+    from test_ssh_run_coordinator import identity as run_identity
+
+    manager, identities, client, clock, current, timers = setup
+    info = manager.authenticate_password(grant(identities), SYNTHETIC_PASSWORD)
+    identity = run_identity().model_copy(
+        update={
+            "project_id": info.project_id,
+            "username": info.username,
+            "endpoint": info.scope.endpoint,
+            "host_fingerprint": info.scope.host_fingerprint,
+        }
+    )
+    if mismatch:
+        other = {
+            "project_id": str(uuid4()),
+            "username": "other-user",
+            "endpoint": SshEndpoint(host="other.invalid"),
+            "host_fingerprint": "SHA256:" + "B" * 43,
+        }[mismatch]
+        with pytest.raises(SshFailure, match="SESSION_INVALID"):
+            manager.artifact_sync(control(info), identity.model_copy(update={mismatch: other}))
+    else:
+        service = manager.artifact_sync(control(info), identity)
+        with service.mutex:
+            service.guard()
+        clock[0] += 301
+        with service.mutex, pytest.raises(SshFailure, match="SESSION_INVALID"):
+            service.guard()
+    assert client.sessions[0].channel_calls == 0  # Accessor and guards never start SFTP.

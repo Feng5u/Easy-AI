@@ -13,7 +13,7 @@ from pathlib import Path
 import stat
 import threading
 import time
-from typing import Any, BinaryIO, Literal, Protocol
+from typing import TYPE_CHECKING, Any, BinaryIO, Literal, Protocol
 from uuid import uuid4
 
 from easyai.domain.connections import AuthenticatedConnection
@@ -27,6 +27,9 @@ from easyai.domain.remote_run import (
 from easyai.security.remote_cache import check_file, open_directory, verify_directory
 from easyai.security.project_lock import ProjectLock
 from easyai.services.event_journal import EventJournal, MAX_LINE_BYTES
+
+if TYPE_CHECKING:
+    from easyai.services.remote_artifacts import ArtifactSnapshot
 
 STREAMS = {
     "events": "remote-events.jsonl",
@@ -657,6 +660,21 @@ class SshRunCoordinator:
             self._verify_store()
             assert self._journal is not None
             return self._journal.after(0)
+
+    def artifact_snapshot(self, bundle_manifest: bytes, source_map: bytes) -> "ArtifactSnapshot":
+        """Bind downloads to this coordinator's committed sealed evidence and frozen bundle."""
+        from easyai.services.remote_artifacts import ArtifactSnapshot
+
+        with self._mutex:
+            self._verify_store()
+            self._verify_committed_cache()
+            assert self._journal is not None
+            return ArtifactSnapshot.verified(
+                self._checkpoint.model_copy(deep=True),
+                self._journal.after(0),
+                bundle_manifest,
+                source_map,
+            )
 
     def log_bytes(
         self, stream: Literal["stdout", "stderr"], offset: int, limit: int = CHUNK

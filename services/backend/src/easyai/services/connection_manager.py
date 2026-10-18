@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 import math
 import threading
 import time
-from typing import Callable, Protocol
+from typing import TYPE_CHECKING, Callable, Protocol
 from uuid import uuid4
 
 from easyai.domain.connections import AuthenticationRequest, AuthenticatedConnection, SessionControl
@@ -14,6 +14,10 @@ from easyai.services.environment_service import EnvironmentService
 from easyai.services.environment_transport import SshProbeTransport
 from easyai.services.ssh_client import SshClient, VerifiedSshSession
 from easyai.services.ssh_identity import IdentityGrant, SshIdentityService
+
+if TYPE_CHECKING:
+    from easyai.domain.remote_run import RemoteRunIdentity
+    from easyai.services.remote_artifacts import SftpArtifactSync
 
 
 class Timer(Protocol):
@@ -402,6 +406,31 @@ class ConnectionManager:
             if lease is None:
                 raise SshFailure("SSH_AUTHENTICATION_REQUIRED")
             return lease.environments
+
+    def artifact_sync(
+        self, request: SessionControl, identity: "RemoteRunIdentity"
+    ) -> "SftpArtifactSync":
+        """Internal sealed-run service; no renderer credentials/path or network action here."""
+        from easyai.services.remote_artifacts import SftpArtifactSync
+
+        with self._mutex:
+            lease = self._valid_lease(request.project_id, request.connection_id)
+            if lease is None:
+                raise SshFailure("SSH_AUTHENTICATION_REQUIRED")
+
+            def guard() -> None:
+                current = self._valid_lease(request.project_id, request.connection_id)
+                if (
+                    current is not lease
+                    or identity.project_id != lease.scope.project_id
+                    or identity.endpoint != lease.scope.endpoint
+                    or identity.host_fingerprint != lease.scope.host_fingerprint
+                    or identity.username != lease.operation.request.username
+                ):
+                    raise SshFailure("SSH_SESSION_INVALID")
+
+            guard()
+            return SftpArtifactSync(lease.session, identity, self._mutex, guard)
 
     def cancel_environment(self, request: EnvironmentRequest) -> None:
         with self._mutex:

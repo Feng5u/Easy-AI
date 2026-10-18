@@ -1,0 +1,259 @@
+{
+  "$defs": {
+    "ArtifactRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "artifactId": {
+          "title": "Artifactid",
+          "type": "string"
+        },
+        "runId": {
+          "title": "Runid",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "figure",
+            "model",
+            "log",
+            "metrics"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "relativePath": {
+          "title": "Relativepath",
+          "type": "string"
+        },
+        "mimeType": {
+          "title": "Mimetype",
+          "type": "string"
+        },
+        "sizeBytes": {
+          "minimum": 0,
+          "title": "Sizebytes",
+          "type": "integer"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "producerBlockId": {
+          "title": "Producerblockid",
+          "type": "string"
+        },
+        "contributorBlockIds": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Contributorblockids",
+          "type": "array"
+        },
+        "phase": {
+          "anyOf": [
+            {
+              "enum": [
+                "before",
+                "epoch_end",
+                "after"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Phase"
+        },
+        "epoch": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Epoch"
+        },
+        "syncState": {
+          "enum": [
+            "pending",
+            "syncing",
+            "ready",
+            "error"
+          ],
+          "title": "Syncstate",
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifactId",
+        "runId",
+        "kind",
+        "relativePath",
+        "mimeType",
+        "sizeBytes",
+        "sha256",
+        "producerBlockId",
+        "contributorBlockIds",
+        "syncState"
+      ],
+      "title": "ArtifactRecord",
+      "type": "object"
+    },
+    "RemoteRunIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "projectId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Projectid",
+          "type": "string"
+        },
+        "targetId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Targetid",
+          "type": "string"
+        },
+        "runId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Runid",
+          "type": "string"
+        },
+        "launchId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Launchid",
+          "type": "string"
+        },
+        "username": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[^\\x00-\\x20\\x7f]+$",
+          "title": "Username",
+          "type": "string"
+        },
+        "endpoint": {
+          "$ref": "#/$defs/SshEndpoint"
+        },
+        "hostFingerprint": {
+          "pattern": "^SHA256:[A-Za-z0-9+/]{43}$",
+          "title": "Hostfingerprint",
+          "type": "string"
+        },
+        "runRoot": {
+          "maxLength": 1024,
+          "minLength": 2,
+          "pattern": "^/[^\\\\\\x00-\\x1f\\x7f]*$",
+          "title": "Runroot",
+          "type": "string"
+        },
+        "programHash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Programhash",
+          "type": "string"
+        },
+        "codeHash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Codehash",
+          "type": "string"
+        },
+        "bundleHash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Bundlehash",
+          "type": "string"
+        },
+        "configHash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Confighash",
+          "type": "string"
+        }
+      },
+      "required": [
+        "projectId",
+        "targetId",
+        "runId",
+        "launchId",
+        "username",
+        "endpoint",
+        "hostFingerprint",
+        "runRoot",
+        "programHash",
+        "codeHash",
+        "bundleHash",
+        "configHash"
+      ],
+      "title": "RemoteRunIdentity",
+      "type": "object"
+    },
+    "SshEndpoint": {
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "title": "Host",
+          "type": "string"
+        },
+        "port": {
+          "default": 22,
+          "maximum": 65535,
+          "minimum": 1,
+          "title": "Port",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "host"
+      ],
+      "title": "SshEndpoint",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "protocolVersion": {
+      "const": 1,
+      "default": 1,
+      "title": "Protocolversion",
+      "type": "integer"
+    },
+    "identity": {
+      "$ref": "#/$defs/RemoteRunIdentity"
+    },
+    "uid": {
+      "maximum": 4294967294,
+      "minimum": 0,
+      "title": "Uid",
+      "type": "integer"
+    },
+    "sourceSeq": {
+      "minimum": 1,
+      "title": "Sourceseq",
+      "type": "integer"
+    },
+    "eventsSha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Eventssha256",
+      "type": "string"
+    },
+    "artifacts": {
+      "items": {
+        "$ref": "#/$defs/ArtifactRecord"
+      },
+      "maxItems": 256,
+      "title": "Artifacts",
+      "type": "array"
+    }
+  },
+  "required": [
+    "identity",
+    "uid",
+    "sourceSeq",
+    "eventsSha256",
+    "artifacts"
+  ],
+  "title": "ArtifactManifest",
+  "type": "object"
+}

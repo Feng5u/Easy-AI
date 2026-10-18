@@ -6,7 +6,7 @@ from typing import Annotated, Literal, Self
 
 from pydantic import ConfigDict, Field, model_validator
 
-from easyai.domain.contracts import Contract, RunConfig
+from easyai.domain.contracts import ArtifactRecord, Contract, RunConfig
 from easyai.domain.connections import AuthenticatedConnection
 from easyai.domain.environment import Fingerprint, Identifier, RemotePath
 from easyai.domain.ssh import SshEndpoint
@@ -31,6 +31,15 @@ class RemoteRunIdentity(Contract):
     code_hash: Digest
     bundle_hash: Digest
     config_hash: Digest
+
+
+class ArtifactManifest(Contract):
+    protocol_version: Literal[1] = 1
+    identity: RemoteRunIdentity
+    uid: int = Field(ge=0, le=4294967294)
+    source_seq: int = Field(ge=1)
+    events_sha256: Digest
+    artifacts: list[ArtifactRecord] = Field(max_length=256)
 
 
 class RemoteStream(Contract):

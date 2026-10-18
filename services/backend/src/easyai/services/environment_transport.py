@@ -91,7 +91,7 @@ class SshProbeTransport:
         self.scope = scope
         self._session = session
         self._clock = clock
-        self._busy = threading.Lock()
+        self._busy = getattr(session, "io_lock", threading.Lock())
         self._closed = threading.Event()
 
     @property

@@ -88,6 +88,8 @@ class VerifiedSshSession:
         self._close_failed = False
         self._auth_started = False
         self._guard = threading.Lock()
+        # One physical SDK operation across environment probes and artifact reads.
+        self.io_lock = threading.Lock()
 
     @property
     def endpoint(self) -> SshEndpoint:
@@ -115,7 +117,7 @@ class VerifiedSshSession:
 
     @property
     def closed_quiescent(self) -> bool:
-        return self._close_done.is_set() and not self._close_failed
+        return self._close_done.is_set() and not self._close_failed and not self.io_lock.locked()
 
     def _forget_auth_material(self) -> bool:
         # Locked Paramiko 4.0 AuthHandler retains these after its completion
