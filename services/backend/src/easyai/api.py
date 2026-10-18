@@ -465,11 +465,13 @@ def create_app(
         service, scope = await asyncio.to_thread(run_store, run_id)
 
         def batch(cursor: int) -> tuple[list[Event], bool]:
-            events = service.events(run_id, cursor)
+            events = RunViews(service).events(run_id, cursor)
             current = service.get(run_id)
             settled = service.remote.settled(current)
             if settled:
-                events = service.events(run_id, cursor)  # Include the final immutable suffix.
+                events = RunViews(service).events(
+                    run_id, cursor
+                )  # Include the final immutable suffix.
             return events, settled
 
         async def stream() -> AsyncIterator[str]:

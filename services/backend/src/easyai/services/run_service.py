@@ -462,6 +462,8 @@ class RunService:
         ):
             raise ValueError("RUN_SNAPSHOT_CHANGED")
         manifest = json.loads(read_regular(self._safe_path(run_id, "bundle.json"), 1024 * 1024))
+        if not isinstance(manifest, dict) or not isinstance(manifest.get("files"), dict):
+            raise ValueError("BUNDLE_MANIFEST_INVALID")
         files = manifest["files"]
         if (
             digest(json.dumps(files, sort_keys=True, separators=(",", ":")).encode())

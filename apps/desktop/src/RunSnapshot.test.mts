@@ -479,10 +479,11 @@ it("switching run rejects late source/image/events and does not reopen a closed 
       source: "application",
       timestamp: "2026-10-18T00:00:00Z",
       type: "runtime_error",
-      payload: { message: "late old failure" },
+      payload: { exceptionType: "NameError", message: "late old failure" },
     });
   });
-  expect(container.textContent).not.toContain("late old failure");
+  expect(container.textContent).not.toContain("RUNTIME_NAME_ERROR");
+  expect(container.querySelectorAll('[role="alert"]')).toHaveLength(0);
   expect(container.querySelector(".image-preview img")).toBeNull();
   await click("来源：" + id(freshSource, "training"));
   expect(container.textContent).toContain("另一次运行");
@@ -800,3 +801,94 @@ it("foreign private runtime block IDs cannot be forwarded to the old snapshot vi
   expect(container.textContent).not.toContain("token=private-block");
   expect(captured.managers).toHaveLength(0);
 });
+
+it.each([
+  "semantic",
+  "scaffold",
+  "none",
+  "wrong-hash",
+  "wrong-sequence",
+  "foreign-origin",
+  "wrong-workspace",
+] as const)(
+  "backend %s location controls precise old navigation without guessing coarse event source",
+  async (variant) => {
+    const saved = source(),
+      h = dashboard(saved, "located-old");
+    const mapping = {
+      version: 1,
+      runId: h.run.runId,
+      eventSeq: 1,
+      codeHash: saved.codeHash,
+      precision: variant === "scaffold" ? "scaffold" : "semantic",
+      reason: "VERIFIED_GENERATED_FRAME",
+      origin: { blockId: id(saved, "model"), workspace: "model" },
+      line: 2,
+    };
+    if (variant === "none")
+      Object.assign(mapping, {
+        precision: "none",
+        reason: "NO_GENERATED_FRAME",
+        origin: null,
+        line: null,
+      });
+    if (variant === "wrong-hash") mapping.codeHash = "f".repeat(64);
+    if (variant === "wrong-sequence") mapping.eventSeq = 2;
+    if (variant === "foreign-origin")
+      mapping.origin.blockId = "private-foreign-block";
+    if (variant === "wrong-workspace") mapping.origin.workspace = "data";
+    await render(
+      createElement(RunDashboard, {
+        api: h.api,
+        initialRun: h.run,
+        onRunUpdate: vi.fn(),
+      }),
+    );
+    await act(async () =>
+      h.emit({
+        runId: h.run.runId,
+        seq: 1,
+        source: "runtime",
+        sourceSeq: 1,
+        timestamp: "2026-10-18T00:00:00Z",
+        type: "runtime_error",
+        blockId: id(saved, "training"),
+        payload: {
+          exceptionType: "NameError",
+          variableName: "token=private",
+          message: "private raw",
+          file: "train.py",
+          line: 999,
+          applicationLocation: mapping,
+        },
+      }),
+    );
+    if (variant === "semantic" || variant === "scaffold") {
+      expect(container.textContent).toContain(
+        variant === "semantic" ? "最窄语义映射" : "脚手架映射",
+      );
+      expect(container.textContent).toContain("第 2 行");
+      await click("定位旧运行积木");
+      expect(
+        container.querySelector("[role=tab][aria-selected=true]")?.textContent,
+      ).toBe("模型结构");
+      expect(container.querySelector(".code-selected")?.textContent).toContain(
+        "old model code",
+      );
+    } else {
+      const locate = [...container.querySelectorAll("button")].find(
+        (node) => node.textContent === "定位旧运行积木",
+      );
+      expect(!locate || locate.disabled).toBe(true);
+      expect(container.textContent).toContain("无法精确定位");
+      expect(captured.managers).toHaveLength(0);
+    }
+    for (const secret of [
+      "private raw",
+      "token=private",
+      "private-foreign-block",
+      "第 999 行",
+    ])
+      expect(container.textContent).not.toContain(secret);
+  },
+);

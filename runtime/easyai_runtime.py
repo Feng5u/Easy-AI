@@ -42,6 +42,41 @@ def emit_event(event_type, block_id, payload):
     return event
 
 
+def failure_payload(error):
+    """Bounded raw evidence; only the fixed generated file is read, never frame paths."""
+    generated = Path(__file__).resolve().with_name("train.py")
+    try:
+        with generated.open("rb") as stream:
+            code = stream.read(8 * 1024 * 1024 + 1)
+        code_hash = hashlib.sha256(code).hexdigest() if len(code) <= 8 * 1024 * 1024 else None
+    except OSError:
+        code_hash = None
+    frames = traceback.StackSummary.extract(
+        traceback.walk_tb(error.__traceback__), lookup_lines=False
+    )
+    records = [
+        {
+            "filename": frame.filename if len(frame.filename.encode("utf-8")) <= 2048 else None,
+            "lineno": frame.lineno,
+            "function": frame.name[:128],
+        }
+        for frame in frames[-16:]
+    ]
+    own = [frame for frame in frames if frame.filename == str(generated)]
+    frame = own[-1] if own else None
+    return {
+        "exceptionType": type(error).__name__,
+        "message": str(error)[:4096],
+        "variableName": getattr(error, "name", None) if isinstance(error, NameError) else None,
+        "file": "train.py" if frame else None,
+        "line": frame.lineno if frame else None,
+        "generatedFile": str(generated),
+        "generatedCodeHash": code_hash,
+        "frames": records,
+        "framesTruncated": len(frames) > 16,
+    }
+
+
 def _relative(value):
     if not isinstance(value, str) or not value or "\\" in value or "\x00" in value:
         raise ValueError("Invalid artifact path")
@@ -340,22 +375,7 @@ class RunContext:
         if isinstance(error, PipelineCancelled):
             self.emit("pipeline_cancelled", block_id, {"message": str(error)[:4096]})
         else:
-            frames = traceback.extract_tb(error.__traceback__)
-            training_frames = [frame for frame in frames if Path(frame.filename).name == "train.py"]
-            frame = training_frames[-1] if training_frames else None
-            self.emit(
-                "runtime_error",
-                block_id,
-                {
-                    "exceptionType": type(error).__name__,
-                    "message": str(error)[:4096],
-                    "variableName": getattr(error, "name", None)
-                    if isinstance(error, NameError)
-                    else None,
-                    "file": "train.py" if frame else None,
-                    "line": frame.lineno if frame else None,
-                },
-            )
+            self.emit("runtime_error", block_id, failure_payload(error))
         error._easyai_event_reported = True
 
     def close(self):

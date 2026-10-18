@@ -7,6 +7,75 @@ export interface EpochPoint {
   trainSamples: number;
   testSamples: number;
 }
+export interface RuntimeLocation {
+  codeHash: string;
+  precision: "semantic" | "scaffold" | "none";
+  reason: string;
+  blockId: string | null;
+  workspace: "data" | "model" | "training" | null;
+  line: number | null;
+}
+function runtimeLocation(event: RuntimeEvent): RuntimeLocation | null {
+  const raw = event.payload.applicationLocation;
+  if (raw === undefined) return null; // Legacy record: retain the existing coarse event source.
+  const invalid: RuntimeLocation = {
+    codeHash: "",
+    precision: "none",
+    reason: "INVALID_LOCATION",
+    blockId: null,
+    workspace: null,
+    line: null,
+  };
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return invalid;
+  const value = raw as Record<string, unknown>;
+  if (
+    value.version !== 1 ||
+    value.runId !== event.runId ||
+    value.eventSeq !== event.seq ||
+    typeof value.codeHash !== "string" ||
+    !/^[a-f0-9]{64}$/.test(value.codeHash)
+  )
+    return invalid;
+  const reasons = [
+    "FRAMES_MISSING",
+    "RUNTIME_CODE_UNVERIFIED",
+    "FILE_IDENTITY_MISMATCH",
+    "FRAMES_INVALID",
+    "NO_GENERATED_FRAME",
+    "LINE_OUT_OF_RANGE",
+    "SOURCE_MAP_INVALID",
+    "NO_SOURCE_SPAN",
+    "VERIFIED_GENERATED_FRAME",
+    "SOURCE_UNVERIFIED",
+  ];
+  if (typeof value.reason !== "string" || !reasons.includes(value.reason))
+    return invalid;
+  if (value.precision === "none")
+    return { ...invalid, codeHash: value.codeHash, reason: value.reason };
+  const origin = value.origin as Record<string, unknown> | null;
+  if (
+    (value.precision !== "semantic" && value.precision !== "scaffold") ||
+    value.reason !== "VERIFIED_GENERATED_FRAME" ||
+    !origin ||
+    typeof origin.blockId !== "string" ||
+    !origin.blockId ||
+    origin.blockId.length > 256 ||
+    typeof origin.workspace !== "string" ||
+    !["data", "model", "training"].includes(origin.workspace) ||
+    typeof value.line !== "number" ||
+    !Number.isSafeInteger(value.line) ||
+    value.line < 1
+  )
+    return invalid;
+  return {
+    codeHash: value.codeHash,
+    precision: value.precision,
+    reason: value.reason,
+    blockId: origin.blockId,
+    workspace: origin.workspace as "data" | "model" | "training",
+    line: value.line,
+  };
+}
 export interface RuntimeDiagnostic {
   seq: number;
   blockId: string | null;
@@ -17,6 +86,7 @@ export interface RuntimeDiagnostic {
   line: number | null;
   // Keep the original structured record for local diagnosis; never render it as a summary.
   original: RuntimeEvent;
+  location: RuntimeLocation | null;
 }
 export interface RunEventState {
   runId: string;
@@ -107,11 +177,13 @@ export function applyRunEvent(
       typeof event.payload.message === "string"
         ? event.payload.message
         : "运行过程报告了错误，请查看 stderr。";
+    const location = runtimeLocation(event);
     next.errors = [
       ...state.errors,
       {
         seq: event.seq,
-        blockId: event.blockId ?? null,
+        blockId: location ? location.blockId : (event.blockId ?? null),
+        location,
         message,
         exceptionType:
           typeof event.payload.exceptionType === "string"

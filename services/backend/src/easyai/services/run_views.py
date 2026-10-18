@@ -10,7 +10,7 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 
 from pydantic import TypeAdapter
 
-from easyai.domain.contracts import ArtifactRecord, ProjectDocument, SourceSpan
+from easyai.domain.contracts import ArtifactRecord, Event, ProjectDocument, SourceSpan
 from easyai.domain.desktop import RunLogs, RunSource
 from easyai.security.files import read_regular
 from easyai.services.run_service import RunService, TERMINAL
@@ -83,6 +83,53 @@ def read_log(path: Path, after: int, done: bool) -> tuple[str, int]:
 class RunViews:
     def __init__(self, runs: RunService):
         self.runs = runs
+
+    def events(self, run_id: str, after: int = 0) -> list[Event]:
+        from easyai.services.runtime_diagnostics import locate_failure, missing_location
+
+        events = self.runs.events(run_id, after)
+        failures = [event for event in events if event.type == "runtime_error"]
+        if not failures:
+            return events
+        run = self.runs.get(run_id)
+        source = None
+        try:
+            source = self.source(run_id)
+        except (OSError, ValueError):
+            pass  # No path or exception text enters the derived failure reason.
+        expected = str(
+            (
+                PurePosixPath(run.config.run_root)
+                if run.config.runner == "ssh"
+                else Path(run.config.run_root)
+            )
+            / "code"
+            / "train.py"
+        )
+        result = []
+        for event in events:
+            if event.type != "runtime_error":
+                result.append(event)
+                continue
+            location = missing_location(event, run.config.code_hash, "SOURCE_UNVERIFIED")
+            if source is not None:
+                try:
+                    location = locate_failure(event, source, expected)
+                except (ValueError, RecursionError):
+                    location = missing_location(event, run.config.code_hash, "SOURCE_MAP_INVALID")
+            # Derived transport metadata only; never mutate or rewrite the raw journal.
+            result.append(
+                event.model_copy(
+                    update={
+                        "payload": {
+                            **event.payload,
+                            "applicationLocation": location,
+                        }
+                    },
+                    deep=True,
+                )
+            )
+        return result
 
     def source(self, run_id: str) -> RunSource:
         run = self.runs.get(run_id)

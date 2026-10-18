@@ -17,7 +17,11 @@ import {
   isRunSettled,
   statusLabel,
 } from "./runEvents.js";
-import type { EpochPoint, RunEventState } from "./runEvents.js";
+import type {
+  EpochPoint,
+  RunEventState,
+  RuntimeDiagnostic,
+} from "./runEvents.js";
 import { SnapshotCode } from "./RunSnapshot.js";
 import { captureRunSnapshot, locateRunBlock } from "./runSnapshot.js";
 import type { SnapshotRequest } from "./RunSnapshot.js";
@@ -236,6 +240,17 @@ function RunDashboardForRun({
     setSnapshotRequest(
       id === null ? null : { blockId: id, version: ++snapshotVersion.current },
     );
+  }
+  function diagnosticBlock(item: RuntimeDiagnostic) {
+    if (!sourceView) return null;
+    const location = locateRunBlock(sourceView, item.blockId);
+    if (
+      item.location &&
+      (item.location.codeHash !== initial.config.codeHash ||
+        item.location.workspace !== location.workspace)
+    )
+      return null;
+    return location.blockId;
   }
   const [stopping, setStopping] = useState(false);
   const [resuming, setResuming] = useState(false);
@@ -519,14 +534,10 @@ function RunDashboardForRun({
         <RuntimeErrorCard
           key={item.seq}
           diagnostic={item}
-          sourceReady={Boolean(
-            sourceView && locateRunBlock(sourceView, item.blockId).blockId,
-          )}
+          sourceReady={Boolean(diagnosticBlock(item))}
           onLocate={() => {
-            if (sourceView) {
-              const location = locateRunBlock(sourceView, item.blockId);
-              if (location.blockId) setSelectedBlock(location.blockId);
-            }
+            const blockId = diagnosticBlock(item);
+            if (blockId) setSelectedBlock(blockId);
           }}
         />
       ))}
