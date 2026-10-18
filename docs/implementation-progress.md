@@ -1323,3 +1323,33 @@ Bundle含train.py、5个辅助模块、source-map、program.ir、README/ENVIRONM
 NOT RUN/仍缺：TST34在已有训练第三方库环境脱离应用实际执行导出代码；真实MNIST/CIFAR/学习效果、nativepicker/Electron窗口、Windows/干净机/课堂、环境安装/数据下载、真实SSH/数据上传/运行中远端同步；旧便携产物固定7b91c46不含私钥/CIFAR结构/新Bundle入口，未重新打包上传发布，distributionReady/legalReviewComplete仍false。本片完成代码导出入口及受控文件链，不等于M6.4或B整体验收。
 
 CIFAR状态不变：父级已向用户请求仅冻结官方adapter自带完整性检查的窄化例外，答复未到前不解除SAFE_PROBE_REQUIRED/unsafe_format_blocked。原§9.1L664只限制预检全数据散列，不被扩成禁止独立完整性校验；文件来源信任不能靠目录名/2字节/选目录或MD5单独建立，普通子进程/-I不是恶意pickle沙箱。本轮不继续无限解析器研究或执行任何真实构造。下一独立原功能是M5显式数据上传的受控任务/协议与合成测试、运行中远端产物同步；真实网络另需明确范围。最新精确CI仍父级认证736b984b57861499f66f40a9b490080eb1f6bbb5/run39154349633（check SUCCESS、desktop FAIL，各2annotations），新SHA无可判定证据，失败正文/根因未知；既有Actions/sandbox拒绝不重试或绕过。无main/强推/PR/Release/部署/费用/新凭据/权限变化。
+
+
+## 2026-10-18 — M5 显式数据上传最小闭环（合成 SFTP）
+
+源码完整SHA：`13625edc01d70d35923871f794256bdbb87461b5`；基线 `18255a555ecbfc9982dbf9147f44a0ce872a12b8`。按父级明确范围沿原D14/§13.3/M5补上传，不与运行中远端产物同步混合；root单一写入者，既有worker独立只读审查。先核原计划、README、原规格、现有SFTP/session/目标及路径规则，未覆盖用户工作；功能说明见 `docs/data-upload.md`。
+
+已实现 Main原生目录选择→绑定当前已保存project/revision、认证lease/profile/host及预算的只读计划→明确布尔true确认→受控后台任务/字节进度/取消→远端两轮回读SHA256及最后完成manifest。Renderer只传selectionId，不能提供本地/远端任意路径或命令；目标固定应用管理目录的新UUID slot。预览仅元数据，不做数据全散列或Dataset构造；256文件/256MiB源数据/100MiB单文件/120秒硬上限，枚举及manifest也有界。拒绝链接/特殊文件、不安全权限、隐藏项/常见key文件；这是文件边界保护，不是内容脱敏器。标准SFTP非覆盖rename，不覆盖教师目录，不隐式上传、不自动Run或绑定Dataset，dataReady始终false。
+
+取消响应不是完成证明：只关闭本任务channel；未知清理保留I/O门及CLEANUP_PENDING，不释放给新任务。已完成终态不因worker退休/项目失效降级。Main在confirm异步请求前保留owned意图，失去ACK仍可读取/取消；停止先到后端则写内存tombstone，迟到confirm不会spawn。失效计划不能借owned记录恢复新写授权。SDK异常只映射自有固定错误类型，伪装合法前缀也不回显；取消watcher的close异常同样捕获，无原始异常stderr。
+
+独审曾指出并复现P2：整数1被当确认、未知channel关闭误报CANCELLED并早放门、终态线程竞争降级、SDK合法前缀异常泄漏；均修复并由针对测试覆盖。最终只读复核确认ACK/提前取消边界，无剩余明确新增P1/P2；其backend1 PASS/20 deselected及Main/UI2 PASS/5 skipped与作者窗口重合，不累加。独审不代表真实SDK/服务器验收。
+
+实际命令（cwd `/workspace/Easy-AI`）：
+
+| 命令 | PASS / FAIL / NOT RUN及证据 |
+| --- | --- |
+| `services/backend/.venv/bin/python -m pytest services/backend/tests/test_data_transfers.py services/backend/tests/test_remote_artifacts.py services/backend/tests/test_owner_transport.py services/backend/tests/test_connection_manager.py services/backend/tests/test_local_ssh_storage.py services/backend/tests/test_local_api.py services/backend/tests/test_cifar_preflight.py -q` | 最终 **159 PASS**，10.67s，1第三方弃用warning；`/tmp/easyai-transfer-backend-final.log`。临时本地源+API兼容合成SFTP，禁socket外连；含真实鉴权HTTP→workspace→上传worker链、完整回读/marker、拒绝/损坏/取消/未知清理/终态竞争/提前取消tombstone/异常脱敏，以及旧artifact/owner/lease/CIFAR门回归 |
+| `pnpm exec vitest run apps/desktop/electron/data-transfers.test.mts apps/desktop/src/DataUpload.test.mts apps/desktop/src/App.test.mts apps/desktop/electron/workflow.test.mts apps/desktop/electron/session-workflow.test.mts` | 最终 **53 PASS**，4.23s；`/tmp/easyai-transfer-main-ui-final.log`。固定IPC/严格scope与预算/原生选择注入/预览确认/真实字节DTO/终态校验/失ACK取消与迟到完成丢弃；不是实际窗口picker |
+| `UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache node scripts/check-contracts.mjs`；同环境变量 `pnpm check` | **PASS**；最终`/tmp/easyai-transfer-check-final.log`。新增5DTO各3生成物，TS/Main/测试TS、strict mypy58、103Python格式/ruff、合同/真实Blocklyfixture漂移、Prettier；复用锁定缓存，无新依赖安装或联网解析 |
+| `UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache node scripts/python-task.mjs build`；`pnpm --filter @easyai/desktop build` | 均 **PASS**；`/tmp/easyai-transfer-frozen-build.log`、`/tmp/easyai-transfer-desktop-build.log`。实际重冻后端并编译桌面，既有大chunk提示保留；不等于便携重打包或窗口启动 |
+| `node scripts/test-frozen-ssh.mjs` | **PASS**；`/tmp/easyai-transfer-frozen-ssh.log`。冻结路由/鉴权/strict DTO/固定错误/scoped cancel/lease与环境拒绝/lazy Paramiko，EOF exit0；合成请求，无outbound SSH；不冒称冻结上传正向验收 |
+| `git diff --check`；`wc -c 'docs/v0.0.0 plan.md'`；`sha256sum 'docs/v0.0.0 plan.md' docs/v0.0.0.md README.md`；`git ls-remote origin refs/heads/main refs/heads/codex/demo-v0.0.0` | **PASS**。plan116185字节/SHA256 `dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43`、旧规格 `5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190`、README `befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852`不变。推前dev=18255a5，main=`5323f86232529efcfb52131168ad049f01b219f3`；正常dev push后再核 |
+
+中途FAIL如实保留：初新backend4 PASS/6 FAIL为合成Channel缺recv_stderr接口，补齐fixture后通过；早期ruff压缩语句/未用import与后续变量导入、mypy未注解/变量复用、生成DTO可选字段TS收窄及测试literal类型由check检出修正。UI请求计数guard一度放错catch被TS发现，移回poll。Main/UI曾52 PASS/1 FAIL：invalidate后的owned记录错误地也可用于新confirm，生产改为仅fresh plans可确认，owned只读/取消；测试未知ID使用全新UUID。独审发现的生产P2按上述修复，未降门或删测。旧156/157/158 backend、52/53及独审窗口均不与最终159/53累加。
+
+NOT RUN/剩余：真实SSH/上传/服务器SFTP兼容性、真实用户目录/个人PC、实际native picker/Electron窗口、Windows/NTFS/干净机、真实数据/训练/环境安装/数据下载均未执行。当前计划/任务仅会话内存最多各16，无重启历史恢复、按manifest补缺文件、未知清理解除；部分专用目录保留，不自动删除/覆盖。SFTP v3无O_NOFOLLOW/openat/可靠fsync，不能保证抵御恶意同UID并发或崩溃耐久。源码及合成闭环不等于完整M5/B。下一独立项是运行中远端产物同步；持久历史/补传仍保留缺口。
+
+CIFAR窄化完整性例外仍待用户答复，SAFE_PROBE_REQUIRED/unsafe_format_blocked未解除；上传SHA256不提供pickle来源信任。旧M8便携产物固定7b91c46，不含本轮及此前私钥/CIFAR/Bundle新入口，未重打包、上传或发布，distributionReady/legalReviewComplete仍false。Bundle文档澄清snapshot原样保留用户字段、导出器不主动收集数据/密钥，但不是秘密清洗器。
+
+最新精确CI为父级认证 `d2ac2bf2ba5562a85276a2a856f894a8a1cda492` / [run39158015941](https://github.com/T1doo/Easy-AI/actions/runs/39158015941)，19:18:44 UTC，check SUCCESS、desktop FAIL，各2 annotations；无失败步骤正文，根因未知。本轮新SHA无可判定CI证据。既有Actions端点与Electron sandbox拒绝均不重试、不绕过，无本轮新增拒绝/未决外部写入。无main/强推/PR/Release/部署/费用/新凭据或权限变化。
