@@ -2023,7 +2023,7 @@ NOT RUN：真实Electron原生窗口/沙盒运行、无Node/开发Python干净�
 
 已把[release-checklist.md](release-checklist.md)补成M8.2/TST33最小目标条件表：需要保留原Electron sandbox的干净图形目标、明确OS/架构/可写测试目录和操作/采证渠道，客户端无开发Node/Python/本机torch；以及明确授权的隔离SSH目标/账号/可信指纹、已准备训练Python与真实数据、运行/取消/断连/恢复预算及窗口。当前云机Linux x86_64、UID1000，无DISPLAY/WAYLAND_DISPLAY/XDG_SESSION_TYPE且有开发Node/Python，不能充当该干净桌面。没有本片可用的独立图形目标/转移交互渠道或授权SSH条件，实际启动/编辑/Blockly/Monaco/原生picker/已备环境远端运行仍NOT RUN。原生sandbox已有拒绝没有重试、no-sandbox或其它绕过。
 
-尚缺代码也明确列出，**不称只差环境**：17卡中8未支持pytorch-lightning/opencv-python/nltk/spacy/sentencepiece/transformers/gensim/hanlp的兼容依赖/许可/锁与复检闭包（OpenCV native未核不换headless，语料/模型不自动下载）；InstallPlanRequest.targetId仍literal local，无远端安装计划/owned边界、来源预算传输、远端锁/受管执行WAL/取消重连与未知停止隔离/复检回读闭环。已有远端训练与同步不等于远端安装。Windows host storage生产门、历史保留管理/未知停止显式安全解除等旧缺口仍存在。本轮不创建这些未授权的新工作，不继续扩包装外围。
+尚缺代码也明确列出，**不称只差环境**：17卡中8未支持pytorch-lightning/opencv-python/nltk/spacy/sentencepiece/transformers/gensim/hanlp的兼容依赖/许可/锁与复检闭包（OpenCV native未核不换headless，语料/模型不自动下载）；InstallPlanRequest.targetId仍literal local，无远端安装计划/owned边界、来源预算传输、远端锁/受管执行WAL/取消重连与未知停止隔离/复检回读闭环。已有远端训练与同步不等于远端安装。Windows host storage生产门、历史保留管理/未知停止显式安全解除等旧缺口仍存在。本轮仅盘点这些范围，遵循父侧本次指令停止包装外围开发；既有常规代码开发授权不受此盘点改变。
 
 NOT RUN：真实桌面/干净目标机/TST33远端运行、Windows/macOS/系统安装签名/升级卸载、真实训练环境安装/probe/训练/数据模型下载/真实SSH、新CI端点读取、发布或部署。无新许可接受/费用/安全权限/凭据变更。没有不确定外部安装/写入；uv实际操作限新构建应用venv，训练环境和老师环境未操作。此轮pnpm目录拒绝及其安全替代已准确记录；不是自动审批reviewer拒绝，未禁用保护。既有桌面与Actions拒绝不绕过。
 
