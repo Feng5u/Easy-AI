@@ -1389,3 +1389,35 @@ CIFAR窄化完整性例外仍待用户答复，SAFE_PROBE_REQUIRED/unsafe_format
 NOT RUN/剩余：真实SSH/SFTP SDK兼容、用户远端产物/数据下载、torch/训练/真实MNIST与学习效果、安装/下载、个人PC、native picker/Electron窗口、Windows/NTFS/干净机/课堂、跨进程断电与持久恢复均未执行。本轮新代码仍需真实目标机与长运行验收，不以一次合成回归消除此前未完整定位失败的全部不确定性。实时进度/暂停意图不构成重启恢复协议；上传持久历史/manifest补传/未知清理解除继续另列缺口。SFTP v3无nofollow/openat/fsync，恶意同UID替换和崩溃耐久不作保证。完整M5/M8/B未验收。
 
 CIFAR完整性窄化例外仍待用户答复，SAFE_PROBE_REQUIRED/unsafe_format_blocked保持。旧M8便携包仍7b91c46，不含后续私钥/CIFAR/Bundle/上传/本片，未重打包上传发布，distributionReady/legalReviewComplete=false。最新已核CI仍父级认证d2ac2bf2ba5562a85276a2a856f894a8a1cda492/[run39158015941](https://github.com/T1doo/Easy-AI/actions/runs/39158015941)（19:18:44UTC，check SUCCESS/desktop FAIL，各2annotations），步骤正文缺失、根因未知；新SHA无可判定CI证据。既有Actions端点/Electron sandbox拒绝不重试不绕过，无新增拒绝或未知外部写入。下一项先由父级复核本片及CI精确首错，继续原剩余受控安装/恢复与真实验收依赖；无main/强推/PR/Release/部署/费用/新凭据或权限变化。
+
+
+## 2026-10-18 — M5 同步固定诊断与重启取消定向故障注入（旧根因仍 UNKNOWN）
+
+源码完整SHA **`00d969e2310d36fcc08b5f1039e4f17c5f0fac82`**，基线 **`cfddfb8dfee6938bf630fc07771c871f2415f5c5`**。按父级明确授权最小补诊断与定向验证，不扩安装/上传恢复，不执行真实SSH/下载/安装，不重跑大矩阵。root单写、既有worker独立只读审查；`docs/data-upload.md`原“运行中同步仍缺”滞后说明同步修正。
+
+**旧失败准确状态：UNKNOWN，未关闭。** 原窗口226 PASS/1 FAIL，测试 `test_restart_is_inspect_only_fresh_auth_and_cancel_waits_actual_owner` 在test_remote_run_api.py原391行等待syncState=complete，wait_for原276行8秒后AssertionError；会话保留的末态为CANCELLING/disconnected/syncerror，remote.executionState=RUNNING、cancelState=acknowledged、artifactsVerified=false，字节0/0/0。没有底层失败阶段/异常栈；原始失败日志被后续同名命令覆盖，**证据已丢失，不能事后补造原件或恢复不存在的栈**。后续229绿、新注入或新诊断均不能完整归因该次旧失败，更不能以其他测试通过全验放行。此前确定的pause/resume旧调用返回竞争单独修复，不能冒充旧226P1F唯一原因。新协议移除mutable heartbeat重读、watcher join分别有独立边界测试，也不回溯当作该次已证根因。
+
+交付：Pydantic权威新增ArtifactSyncFailure固定stage/code，Run.artifactSync分failure与cleanupFailure。snapshot/event_prefix、receipt_read/digest/records、cache_open、artifact_read/verify/commit、completion、channel/cache/watcher cleanup及真实core.poll有自有阶段；不能判断者SYNC_UNKNOWN/unknown，不解析合法字符串前缀。SDK只按异常类型归类IO/UNKNOWN，未读取或保存其str、secret、path、外部payload或栈。首失败与清理失败分别保留。规范应用日志新增artifact_sync_failed固定DTO事件，限定application、无sourceSeq/block、严格payload/枚举，runtime伪造拒绝。仅失败变化写入既有单写journal并持久化；实时字节不刷日志；显式新同步清当前诊断但历史事件保留。执行终态、auth/gate/manifest/hash/required artifacts门不放宽。
+
+新增两个重启取消注入（receipt_read、cache_commit）可各自得到与旧会话同类CANCELLING/disconnected/syncerror，但固定stage不同；只证明**相同表象可由不同已知故障产生**，不证明旧根因。规范事件无合成secret/path；移除注入、重新认证显式接续后CANCELLED+synccomplete，未再发start，历史失败保留。原无注入重启测试仍原断言通过。其余定向覆盖digest/records拒绝、原始事件前缀、watcher阻塞退场、vendor合法前缀不泄漏、application-only事件。
+
+**独审P2及修复**：本片初把sftp/channel/cache任意close异常都标channel_cleanup，独审只注入本地_Cache.close在实际释放后抛错，索引已发布却误标SSH通道失败。修后按资源新增cache_cleanup；failure/cleanup分开、不混淆已发布索引事实。新增参数化回归明确cache close失败可index存在，而channel close失败无index；未改变已有清理/物理门和训练状态策略。独审针对 **1 PASS/60 deselected**（`/tmp/easyai-cache-cleanup-review-bvQsHw.log`），确认该P2关闭、未发现新增明确P1/P2；此前独立12 PASS/66 deselected/3.52s与作者窗口重合不累计。此P2也是本片问题，非旧226P1F的追认解释。
+
+实际命令（cwd `/workspace/Easy-AI`；验证命令均唯一日志名，shell `set -o noclobber` 防覆盖）：
+
+| 命令 | 结果与保留原件 |
+| --- | --- |
+| `services/backend/.venv/bin/python -m pytest services/backend/tests/test_remote_artifacts.py services/backend/tests/test_remote_run_api.py -k 'fixed_sync_failure or receipt_event_prefix_failure or cancel_interrupt_worker or restart_is_inspect_only or restart_cancel_sync_fault or sync_diagnostic_event' -q` | 最终 **14 PASS/65 deselected**，5.42s、1第三方warning；`/tmp/easyai-diag-target-1792355628978-370186.log`，SHA256 `c57c2ccf90dce0a40ed1117141af7bd761717fef8cc6e9b0166fc2d18dd20f8f`。仅合成SFTP/自有stdlib child，禁止socket外连，不是训练/真实服务器证据 |
+| `UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache node scripts/check-contracts.mjs` | **PASS**；最终生成`/tmp/easyai-diag-contracts-1792355628978-370186.log`；Failure/Progress/Run/Event各3生成物，不手工维护双份合同 |
+| `UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache pnpm check` | **PASS**；`/tmp/easyai-diag-check-1792355660653-28e6f8.log`，SHA256 `af0ee9f3ffba3f13a2def63e89e3009e959fd5a24ae4ec6a855800fb2a4c996f`。TS/Main/测试TS、strict mypy58、103Python格式/ruff、合同/真实Blocklyfixture/Prettier；既有锁定缓存，未安装新依赖 |
+| 独立复核命令 | `pytest tests/test_remote_artifacts.py -k 'fixed_sync_failure_stages and cache_cleanup' -q`，1 PASS/60 deselected，日志SHA256 `65d4ed981f668c036754cfb9de7b7b3bf2c8767866221232ab410d981d18b59d`。此前独立12项日志`/tmp/easyai-diag-independent-Cc0QnH.log` SHA256 `98d73a54aa1739c2f771fa9d51421314f081aa07471d633ce263543ec5637041`。不叠加为独立总量 |
+| `git diff --check`、原件hash、`git ls-remote origin refs/heads/main refs/heads/codex/demo-v0.0.0` | **PASS**。plan116185字节/hash dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43、旧规格5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190、README befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852未改。推前dev=cfddfb8，main=5323f86232529efcfb52131168ad049f01b219f3；普通dev push后另核 |
+
+本片FAIL原件全部保全（均为合成内容，未把原始日志放公开仓库）：
+
+- `/tmp/easyai-diag-target-1792355354176-86467b.log`：8 PASS/1 FAIL/50 deselected，cache commit注入错误地patch Protocol而非实际Posix实现；修测试注入目标，无生产门放宽。SHA256 `f2fdd551e7d9ef68b1b95c5c61fd70b39c89d73b2006453b1edf522cefd0f4db`。
+- `/tmp/easyai-diag-target-1792355392353-754e86.log`：10 PASS/2 FAIL/65 deselected，新重启fixture漏接reopened._ssh_client，被No network socket stub拦截，未发生外连；补合成client。SHA256 `9222bc07bfb27cee40db91ded7ae5b529ac457380cce1c3496b20d4ddd4ee0ab`。
+- `/tmp/easyai-diag-target-1792355419975-19fbff.log`：10 PASS/2 FAIL/65 deselected，**本片实现遗漏Event.type新枚举**，journal.append ValidationError使诊断错误转owner_poll/INVALID且syncState卡syncing；补枚举及application-only严格payload校验，并让仅core.poll标owner_poll，其他未定异常unknown。该根因有本片源码/定向证据，不回溯套旧226P1F。SHA256 `201a1bf2bb9e7f29375a874e5e8d761e70b6e46ca92692aade2ea8198e1c48af`。
+- 修后12 PASS日志`/tmp/easyai-diag-target-1792355477805-421b53.log`、13 PASS日志`/tmp/easyai-diag-target-1792355524688-9597e0.log`均保留，被最终14覆盖范围、不累加；对应SHA256 `27d4d6929dcb5145a5e6b78e3d4851733a7ade7115ea99a569f8a208e94c6d88`、`472a9d14ac7fe348fb89fed3bd26cdc94347eb9b46bf16ce2a90089e148cc1e7`。
+
+NOT RUN：全套/大矩阵、构建/冻结smoke（本片无打包验收）、真实SSH/SFTP/用户文件下载、桌面/Windows/干净机、环境安装/数据下载/训练/个人PC。CIFAR裁决仍待答、保护门不变；旧便携包仍未含本片，未重打包或发布。上传重启恢复/manifest补传、安装真实接线和真实验收依赖不混入；完整M5/B未验。旧UNKNOWN需后续精确证据，不由绿灯关闭。最新精确CI仍父级认证d2ac2bf/run39158015941，check SUCCESS/desktop FAIL、首错未知；本片无新CI判定，既有Actions与sandbox拒绝未重试/绕过。无本轮新工具拒绝、未知外部写入、main/强推/PR/Release/部署/费用/凭据/权限变化。
