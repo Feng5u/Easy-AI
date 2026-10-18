@@ -209,6 +209,14 @@ export function ProjectEditor(props: ProjectEditorProps) {
                 <strong>{selected.type}</strong>
               </p>
               <small>{selected.id}</small>
+              {props.onHelp && (
+                <button
+                  type="button"
+                  onClick={() => props.onHelp?.(selected.type)}
+                >
+                  查看此积木教程
+                </button>
+              )}
               {entry && (
                 <>
                   <label>

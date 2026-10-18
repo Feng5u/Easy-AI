@@ -1091,3 +1091,26 @@ it("late report and opened raw panel do not transfer into a different selected r
   expect(container.querySelector('[aria-label="原始结构化错误"]')).toBeNull();
   expect(container.textContent).not.toContain("synthetic-secret");
 });
+
+it("selected real Blockly object exposes its local tutorial help type without changing the document", async () => {
+  const saved = source(),
+    changed = vi.fn(),
+    help = vi.fn(),
+    before = JSON.stringify(saved.snapshot);
+  await render(
+    createElement(ProjectEditor, {
+      project: saved.snapshot,
+      readOnly: false,
+      selectedBlock: id(saved, "model"),
+      activeTab: "model",
+      onTabChange: vi.fn(),
+      onChange: changed,
+      onSelect: vi.fn(),
+      onHelp: help,
+    }),
+  );
+  await click("查看此积木教程");
+  expect(help).toHaveBeenCalledExactlyOnceWith("model.define");
+  expect(changed).not.toHaveBeenCalled();
+  expect(JSON.stringify(saved.snapshot)).toBe(before);
+});

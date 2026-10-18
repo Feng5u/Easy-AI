@@ -1,3 +1,6 @@
+import { TutorialPanel } from "./TutorialPanel.js";
+import { tutorialForBlock, tutorialTargets, tutorials } from "./tutorials.js";
+import type { TutorialId, TutorialTarget } from "./tutorials.js";
 import { FailureCard, operationFailure } from "./FailureCard.js";
 import type { OperationFailure, FailureStage } from "./FailureCard.js";
 import { GettingStarted } from "./GettingStarted.js";
@@ -44,6 +47,7 @@ export function App({ api }: { api?: DesktopAPI }) {
     api ?? (typeof window === "undefined" ? undefined : window.easyai);
   const [status, setStatus] = useState("正在连接本地服务…");
   const [ready, setReady] = useState(false);
+  const [restoringProject, setRestoringProject] = useState(true);
   const [session, setSession] = useState<ProjectSession | null>(null);
   const [project, setProject] = useState<ProjectDocument | null>(null);
   const [dirty, setDirty] = useState(false);
@@ -71,6 +75,11 @@ export function App({ api }: { api?: DesktopAPI }) {
     null,
   );
   const [viewTab, setViewTab] = useState<WorkspaceTab>("data");
+  const [tutorialVisible, setTutorialVisible] = useState(false);
+  const [tutorialTopic, setTutorialTopic] = useState<TutorialId>("convolution");
+  useEffect(() => {
+    if (tutorialVisible) document.getElementById("tutorial-heading")?.focus();
+  }, [tutorialVisible, tutorialTopic]);
   const [identityVisible, setIdentityVisible] = useState(false);
   const [viewCode, setViewCode] = useState(false);
   const serverFocusProject = useRef<string | null>(null);
@@ -167,6 +176,7 @@ export function App({ api }: { api?: DesktopAPI }) {
       setStatus("桌面桥接不可用，请从 Easy-AI 桌面应用启动。");
       return;
     }
+    setRestoringProject(true);
     const unsubscribeStatus = bridge.status.subscribe((value) => {
       if (mounted) {
         setReady(value.ready);
@@ -196,6 +206,9 @@ export function App({ api }: { api?: DesktopAPI }) {
       })
       .catch((reason) => {
         if (mounted) setError(operationFailure("restore", reason));
+      })
+      .finally(() => {
+        if (mounted) setRestoringProject(false);
       });
     return () => {
       mounted = false;
@@ -249,11 +262,30 @@ export function App({ api }: { api?: DesktopAPI }) {
   async function openProject(
     create: boolean,
     template: "mnist-cnn" | "blank" = "mnist-cnn",
+    protectDraft = false,
   ) {
     if (!bridge) return;
+    if (
+      protectDraft &&
+      (restoringProject || draft.current?.dirty || saving || busy || activeRun)
+    ) {
+      setNotice("请先保存或导出当前草稿，再创建教学副本；当前工程已保留。");
+      return;
+    }
+    const priorDraft = draft.current,
+      priorValue = draft.current?.value;
     await perform("project", create ? "新建工程" : "打开工程", async () => {
       const choice = await bridge.selections.pick("project");
       if (!choice || !active.current) return;
+      if (
+        protectDraft &&
+        (draft.current !== priorDraft ||
+          draft.current?.value !== priorValue ||
+          draft.current?.dirty)
+      ) {
+        setNotice("工程在选择目录期间变化，已停止创建教学副本并保留草稿。");
+        return;
+      }
       const opened = create
         ? await bridge.projects.create(
             choice.selectionId,
@@ -484,6 +516,22 @@ export function App({ api }: { api?: DesktopAPI }) {
       }
     });
   }
+  function tutorialLocate(target: TutorialTarget) {
+    if (!project) return;
+    const topic = tutorials.find((item) => item.id === tutorialTopic)!;
+    const hit = tutorialTargets(project, topic.relevantBlockTypes).find(
+      (item) => item.id === target.id && item.workspace === target.workspace,
+    );
+    if (!hit) return;
+    setViewTab(hit.workspace);
+    setSelectedBlock(hit.id);
+  }
+  function tutorialHelp(blockType: string) {
+    const topic = tutorialForBlock(blockType);
+    if (!topic) return;
+    setTutorialTopic(topic.id);
+    setTutorialVisible(true);
+  }
   function navigate(destination: GuideDestination) {
     const ids: Record<GuideDestination, string> = {
       project: "project-heading",
@@ -569,6 +617,13 @@ export function App({ api }: { api?: DesktopAPI }) {
       <div className="button-row">
         <button
           type="button"
+          aria-expanded={tutorialVisible}
+          onClick={() => setTutorialVisible((previous) => !previous)}
+        >
+          {tutorialVisible ? "收起离线教程" : "打开离线教程"}
+        </button>
+        <button
+          type="button"
           disabled={!ready || !project}
           onClick={() => {
             if (identityVisible) setIdentityVisible(false);
@@ -578,6 +633,28 @@ export function App({ api }: { api?: DesktopAPI }) {
           SSH 主机身份设置
         </button>
       </div>
+      {tutorialVisible && (
+        <TutorialPanel
+          topicId={tutorialTopic}
+          onTopic={setTutorialTopic}
+          project={project}
+          compilation={compilation}
+          dirty={dirty}
+          canCreateExample={Boolean(
+            ready &&
+            bridge &&
+            !restoringProject &&
+            !dirty &&
+            !busy &&
+            !saving &&
+            !activeRun,
+          )}
+          onExample={() => {
+            void openProject(true, "mnist-cnn", true);
+          }}
+          onLocate={tutorialLocate}
+        />
+      )}
       {identityVisible && ready && bridge && project && (
         <div
           id="server-configuration"
@@ -870,6 +947,7 @@ export function App({ api }: { api?: DesktopAPI }) {
               selectedBlock={selectedBlock}
               onChange={changeWorkspaces}
               onSelect={setSelectedBlock}
+              onHelp={tutorialHelp}
               activeTab={viewTab}
               onTabChange={changeTab}
             />

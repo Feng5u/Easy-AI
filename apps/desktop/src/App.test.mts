@@ -26,6 +26,11 @@ vi.mock("./ProjectEditor.js", async () => {
       return element(
         "section",
         { "aria-label": "unit-test canvas" },
+        element(
+          "output",
+          { "data-testid": "visible-selected" },
+          props.selectedBlock,
+        ),
         element("output", { "data-testid": "visible-tab" }, props.activeTab),
         element(
           "output",
@@ -871,3 +876,204 @@ it.each(["start", "save", "export"] as const)(
     }
   },
 );
+
+it("tutorial arithmetic preserves an unsaved draft and blocks native example creation", async () => {
+  const h = bridge(),
+    pick = vi.fn().mockResolvedValue(null),
+    create = vi.fn();
+  h.api.selections.pick = pick;
+  h.api.projects.create = create;
+  h.api.runs.start = vi.fn();
+  h.api.projects.compile = vi.fn();
+  await mount(h.api);
+  await click("画布新增层");
+  expect(container.textContent).toContain("有未保存配置");
+  await click("打开离线教程");
+  expect(document.activeElement?.id).toBe("tutorial-heading");
+  await click("下一个窗口");
+  expect(container.querySelector("output[aria-live]")?.textContent).toBe(
+    "窗口求和：72",
+  );
+  expect(button("在新目录创建 MNIST 教学副本").disabled).toBe(true);
+  await click("在新目录创建 MNIST 教学副本");
+  expect(pick).not.toHaveBeenCalled();
+  expect(create).not.toHaveBeenCalled();
+  expect(h.api.runs.start).not.toHaveBeenCalled();
+  expect(h.api.projects.compile).not.toHaveBeenCalled();
+  expect(
+    container.querySelector('[data-testid="visible-blocks"]')?.textContent,
+  ).toBe("1");
+  expect(h.save).not.toHaveBeenCalled();
+  await advance(800);
+  expect(h.save).toHaveBeenCalledTimes(1);
+  expect(h.save.mock.calls[0][0].workspaces.model.blocks.blocks).toHaveLength(
+    1,
+  );
+});
+it("tutorial example selection cancellation keeps the current project and invokes no create", async () => {
+  const h = bridge(),
+    pick = vi.fn().mockResolvedValue(null),
+    create = vi.fn();
+  h.api.selections.pick = pick;
+  h.api.projects.create = create;
+  await mount(h.api);
+  await click("打开离线教程");
+  await click("在新目录创建 MNIST 教学副本");
+  expect(pick).toHaveBeenCalledExactlyOnceWith("project");
+  expect(create).not.toHaveBeenCalled();
+  expect(container.textContent).toContain("真实组件测试工程");
+  expect(h.save).not.toHaveBeenCalled();
+});
+it("offline tutorial entry to arithmetic to real Python block/code mapping and new example leaves original bytes untouched", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "easyai-tutorial-vertical-")),
+    originalRoot = join(directory, "original"),
+    copyRoot = join(directory, "copy");
+  await mkdir(originalRoot);
+  await mkdir(copyRoot);
+  const original = await readFile(
+    new URL("../../../packages/contracts/fixtures/mnist.json", import.meta.url),
+  );
+  await writeFile(join(originalRoot, "project.easyai.json"), original);
+  const cwd = fileURLToPath(
+    new URL("../../../services/backend/", import.meta.url),
+  );
+  const backend = await startBackend(
+    join(
+      cwd,
+      process.platform === "win32"
+        ? ".venv/Scripts/python.exe"
+        : ".venv/bin/python",
+    ),
+    cwd,
+    10000,
+    join(directory, "state"),
+  );
+  let nativeDirectory = originalRoot;
+  const workflow = new MainWorkflow(
+    () => backend,
+    async () => nativeDirectory,
+    () => {},
+  );
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
+  try {
+    const selection = (await workflow.invoke("easyai:selections:pick", [
+      "project",
+    ])) as SelectionResult;
+    await workflow.invoke("easyai:projects:open", [selection.selectionId]);
+    const h = bridge();
+    h.api.projects.current = async () =>
+      (await workflow.invoke("easyai:projects:current", [])) as ProjectSession;
+    h.api.projects.compile = vi.fn(
+      async (project, requestId) =>
+        (await workflow.invoke("easyai:projects:compile", [
+          project,
+          requestId,
+        ])) as Awaited<ReturnType<DesktopAPI["projects"]["compile"]>>,
+    );
+    h.api.selections.pick = vi.fn(
+      async (kind) =>
+        (await workflow.invoke("easyai:selections:pick", [
+          kind,
+        ])) as SelectionResult,
+    );
+    h.api.projects.create = vi.fn(
+      async (...args) =>
+        (await workflow.invoke(
+          "easyai:projects:create",
+          args,
+        )) as ProjectSession,
+    );
+    h.api.runs.start = vi.fn();
+    await mount(h.api);
+    await click("打开离线教程");
+    await click("下一个窗口");
+    expect(container.querySelector("output[aria-live]")?.textContent).toBe(
+      "窗口求和：72",
+    );
+    expect(button("显示对应代码").disabled).toBe(true);
+    await click("检查与编译");
+    await act(async () => {
+      const result = await vi.mocked(h.api.projects.compile).mock.results[0]
+        .value;
+      expect(result.runnable).toBe(true);
+    });
+    expect(button("显示对应代码").disabled).toBe(false);
+    await click("定位关联积木");
+    expect(
+      container.querySelector('[data-testid="visible-tab"]')?.textContent,
+    ).toBe("model");
+    const selected = container.querySelector(
+      '[data-testid="visible-selected"]',
+    )?.textContent;
+    expect(selected).toBeTruthy();
+    await click("显示对应代码");
+    expect(
+      container.querySelector(
+        '[aria-label="教程关联的只读生成代码"] .code-selected',
+      )?.textContent,
+    ).toContain("nn.Conv2d");
+    expect(h.api.projects.compile).toHaveBeenCalledTimes(1);
+    await advance(2400);
+    expect(h.save).not.toHaveBeenCalled();
+    expect(h.dirty.mock.calls.every(([value]) => value === false)).toBe(true);
+    expect(await readFile(join(originalRoot, "project.easyai.json"))).toEqual(
+      original,
+    );
+    nativeDirectory = copyRoot;
+    await click("在新目录创建 MNIST 教学副本");
+    await act(async () => {
+      await vi.mocked(h.api.selections.pick).mock.results[0].value;
+      await vi.mocked(h.api.projects.create).mock.results[0].value;
+    });
+    const copied = JSON.parse(
+      await readFile(join(copyRoot, "project.easyai.json"), "utf8"),
+    );
+    expect(copied.projectId).not.toBe(
+      JSON.parse(original.toString()).projectId,
+    );
+    expect(copied.workspaces.model.blocks.blocks.length).toBeGreaterThan(0);
+    expect(await readFile(join(originalRoot, "project.easyai.json"))).toEqual(
+      original,
+    );
+    expect(h.api.runs.start).not.toHaveBeenCalled();
+    expect(
+      container.querySelector('[aria-label="教程关联的只读生成代码"]'),
+    ).toBeNull();
+  } finally {
+    if (root) {
+      await act(async () => root!.unmount());
+      root = undefined;
+    }
+    workflow.dispose();
+    await backend.stop();
+    await rm(directory, { recursive: true, force: true });
+  }
+}, 20000);
+
+it("tutorial example creation waits for startup project restoration to settle", async () => {
+  const h = bridge();
+  let restore!: (value: ProjectSession) => void;
+  h.api.projects.current = () =>
+    new Promise((done) => {
+      restore = done;
+    });
+  const pick = vi.fn().mockResolvedValue(null);
+  h.api.selections.pick = pick;
+  const { createRoot } = await import("react-dom/client");
+  root = createRoot(container);
+  await act(async () => {
+    root!.render(createElement(App, { api: h.api }));
+  });
+  await click("打开离线教程");
+  expect(button("在新目录创建 MNIST 教学副本").disabled).toBe(true);
+  await click("在新目录创建 MNIST 教学副本");
+  expect(pick).not.toHaveBeenCalled();
+  await act(async () => restore({ project: project(), readOnly: false }));
+  expect(button("在新目录创建 MNIST 教学副本").disabled).toBe(false);
+});

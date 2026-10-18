@@ -9,4 +9,5 @@ export interface ProjectEditorProps {
   onSelect(blockId: string | null): void;
   activeTab: WorkspaceTab;
   onTabChange(tab: WorkspaceTab): void;
+  onHelp?(blockType: string): void;
 }
