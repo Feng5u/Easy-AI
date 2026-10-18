@@ -26,6 +26,7 @@ from easyai.domain.connections import (
 )
 from easyai.domain.ssh import SshEndpoint
 from easyai.services.connection_profiles import ConnectionProfiles
+from easyai.services.install_service import InstallService
 from easyai.domain.remote_execution import (
     RemoteBinding,
     RemoteBindingRequest,
@@ -251,6 +252,7 @@ class LocalWorkspace:
         self._current: str | None = None
         self._project_generation = 0
         self._closed = False
+        self._install_service: InstallService | None = None
         self._closing = False
         self._remote_bindings: dict[
             str, tuple[RemoteBinding, str, str | None, float, dict[str, Any]]
@@ -954,6 +956,13 @@ class LocalWorkspace:
                 return self.runs.start(run.run_id)
             return run
 
+    def installs(self) -> InstallService:
+        with self._mutex:
+            self._verify()
+            if self._install_service is None:
+                self._install_service = InstallService(self.root)
+            return self._install_service
+
     def activity(self) -> dict[str, list[str]]:
         with self._mutex:
             self._verify()
@@ -971,6 +980,8 @@ class LocalWorkspace:
             if self._closed:
                 return
             self._closing = True
+            if self._install_service is not None:
+                self._install_service.close()
             self._project_generation += 1
             self._invalidate_identity()
         # SDK workers may need the workspace guard to unwind. Never wait under it.

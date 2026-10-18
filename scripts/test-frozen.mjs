@@ -1,6 +1,6 @@
 // Real packaged sidecar, launched outside the checkout. No training or Electron window.
 import { spawn } from "node:child_process";
-import { randomBytes } from "node:crypto";
+import { randomBytes, createHash } from "node:crypto";
 import { mkdtemp, mkdir, readFile, rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
@@ -94,6 +94,77 @@ try {
     (await request("POST", "/local/preflight", { pythonPath: "/arbitrary" }))
       .response.status,
     422,
+  );
+  const packages = await request("GET", "/catalog/packages");
+  assert.equal(packages.response.status, 200);
+  assert.equal(packages.value.executionEnabled, false);
+  assert.equal(packages.value.packages.length, 17);
+  const expectedSources = await readFile(
+    join(repository, "packages/training-profiles/easyai-cpu-sources.json"),
+  );
+  const expectedLock = await readFile(
+    join(repository, "packages/training-profiles/easyai-cpu-linux-cp311.lock"),
+  );
+  assert.deepEqual(
+    await readFile(join(resources, "package-groups/catalog.json")),
+    await readFile(join(repository, "packages/package-groups/catalog.json")),
+  );
+  assert.deepEqual(
+    await readFile(
+      join(resources, "training-profiles/easyai-cpu-sources.json"),
+    ),
+    expectedSources,
+  );
+  assert.deepEqual(
+    await readFile(
+      join(resources, "training-profiles/easyai-cpu-linux-cp311.lock"),
+    ),
+    expectedLock,
+  );
+  const planned = await request("POST", "/environments/install-plan", {
+    targetId: "local",
+    profileId: "easyai-cpu",
+    packageIds: ["torch"],
+    newEnvironmentSpec: { name: "frozen_classroom" },
+  });
+  assert.equal(planned.response.status, 200);
+  assert.equal(
+    planned.value.constraintsHash,
+    createHash("sha256")
+      .update(expectedSources)
+      .update(expectedLock)
+      .digest("hex"),
+  );
+  const acknowledged = {
+    planId: planned.value.planId,
+    planHash: planned.value.planHash,
+    confirmed: true,
+    networkAcknowledged: true,
+  };
+  if (process.platform === "linux" && process.arch === "x64") {
+    assert.deepEqual(planned.value.blockers, []);
+    const pending = await request("POST", "/install-jobs", acknowledged);
+    assert.equal(pending.response.status, 202);
+    assert.equal(pending.value.state, "AWAITING_EXECUTION");
+    assert.equal(pending.value.executionEnabled, false);
+    const cancelled = await request(
+      "POST",
+      `/install-jobs/${pending.value.jobId}/cancel`,
+    );
+    assert.equal(cancelled.response.status, 200);
+    assert.equal(cancelled.value.state, "CANCELLED");
+    assert.equal(cancelled.value.verified, false);
+  } else {
+    assert.deepEqual(planned.value.blockers, [
+      "INSTALL_PROFILE_PLATFORM_UNSUPPORTED",
+    ]);
+    assert.equal(
+      (await request("POST", "/install-jobs", acknowledged)).response.status,
+      409,
+    );
+  }
+  console.log(
+    "PASS frozen offline package plan + explicit registration/cancel; execution remains disabled",
   );
   const profileInput = {
     alias: "冻结概要",

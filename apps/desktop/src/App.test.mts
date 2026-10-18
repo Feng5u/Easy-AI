@@ -1077,3 +1077,40 @@ it("tutorial example creation waits for startup project restoration to settle", 
   await act(async () => restore({ project: project(), readOnly: false }));
   expect(button("在新目录创建 MNIST 教学副本").disabled).toBe(false);
 });
+
+it("package planning entry stays read-only and hiding it preserves the opened panel", async () => {
+  const h = bridge();
+  const raw = JSON.parse(
+    await readFile(
+      new URL("../../../packages/package-groups/catalog.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const catalog = vi.fn<NonNullable<DesktopAPI["packages"]>["catalog"]>(
+    async () => ({
+      catalogVersion: 1,
+      packages: raw.packages.map((item: object) => ({
+        ...item,
+        targetVersion: null,
+      })),
+      profiles: ["teacher-existing", "easyai-cpu"],
+      executionEnabled: false,
+    }),
+  );
+  const plan = vi.fn(),
+    confirm = vi.fn();
+  h.api.packages = { catalog, plan, confirm, job: vi.fn(), cancel: vi.fn() };
+  await mount(h.api);
+  expect(catalog).not.toHaveBeenCalled();
+  await click("打开包安装计划");
+  expect(document.activeElement?.id).toBe("packages-heading");
+  expect(catalog).toHaveBeenCalledTimes(1);
+  await click("收起包安装计划");
+  await click("打开包安装计划");
+  expect(catalog).toHaveBeenCalledTimes(1);
+  await advance(2400);
+  expect(h.save).not.toHaveBeenCalled();
+  expect(plan).not.toHaveBeenCalled();
+  expect(confirm).not.toHaveBeenCalled();
+  expect(h.dirty.mock.calls.every(([value]) => value === false)).toBe(true);
+});

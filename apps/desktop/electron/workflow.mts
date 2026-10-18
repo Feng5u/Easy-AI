@@ -13,6 +13,11 @@ import type {
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const WORKFLOW_CHANNELS = [
+  "easyai:packages:catalog",
+  "easyai:packages:plan",
+  "easyai:installJobs:confirm",
+  "easyai:installJobs:get",
+  "easyai:installJobs:cancel",
   "easyai:connections:listProfiles",
   "easyai:connections:createProfile",
   "easyai:connections:updateProfile",
@@ -125,6 +130,11 @@ export class MainWorkflow {
     const backend = this.backend();
     if (!backend) throw new Error("本地服务未就绪。");
     const counts: Record<string, number> = {
+      "easyai:packages:catalog": 0,
+      "easyai:packages:plan": 1,
+      "easyai:installJobs:confirm": 1,
+      "easyai:installJobs:get": 1,
+      "easyai:installJobs:cancel": 1,
       "easyai:connections:listProfiles": 0,
       "easyai:connections:createProfile": 1,
       "easyai:connections:updateProfile": 2,
@@ -438,6 +448,88 @@ export class MainWorkflow {
           `/api/v1/projects/${id(args[0])}/runs?offset=${offset}&limit=${limit}`,
         );
       }
+      case "easyai:packages:catalog":
+        return backend.request("GET", "/api/v1/catalog/packages");
+      case "easyai:packages:plan": {
+        const value = object(args[0]);
+        if (
+          Object.keys(value).some(
+            (key) =>
+              ![
+                "targetId",
+                "profileId",
+                "packageIds",
+                "ownedEnvironmentId",
+                "newEnvironmentSpec",
+              ].includes(key),
+          ) ||
+          value.targetId !== "local" ||
+          typeof value.profileId !== "string" ||
+          !["teacher-existing", "easyai-cpu"].includes(value.profileId) ||
+          !Array.isArray(value.packageIds) ||
+          value.packageIds.length < 1 ||
+          value.packageIds.length > 17 ||
+          value.packageIds.some(
+            (item) =>
+              typeof item !== "string" || !/^[a-z][a-z0-9-]{0,63}$/.test(item),
+          ) ||
+          new Set(value.packageIds).size !== value.packageIds.length
+        )
+          throw new Error("安装计划输入无效。");
+        const owned =
+          value.ownedEnvironmentId !== undefined &&
+          value.ownedEnvironmentId !== null;
+        const fresh =
+          value.newEnvironmentSpec !== undefined &&
+          value.newEnvironmentSpec !== null;
+        if (owned === fresh) throw new Error("请选择单一受控环境。");
+        let target: object;
+        if (owned)
+          target = { ownedEnvironmentId: id(value.ownedEnvironmentId) };
+        else {
+          const spec = object(value.newEnvironmentSpec, ["name"]);
+          if (
+            typeof spec.name !== "string" ||
+            !/^[A-Za-z][A-Za-z0-9_-]{0,31}$/.test(spec.name)
+          )
+            throw new Error("新环境名称无效。");
+          target = { newEnvironmentSpec: { name: spec.name } };
+        }
+        return backend.request("POST", "/api/v1/environments/install-plan", {
+          targetId: "local",
+          profileId: value.profileId,
+          packageIds: [...value.packageIds],
+          ...target,
+        });
+      }
+      case "easyai:installJobs:confirm": {
+        const value = object(args[0], [
+          "planId",
+          "planHash",
+          "confirmed",
+          "networkAcknowledged",
+        ]);
+        if (
+          typeof value.planHash !== "string" ||
+          !/^[a-f0-9]{64}$/.test(value.planHash) ||
+          value.confirmed !== true ||
+          value.networkAcknowledged !== true
+        )
+          throw new Error("请先明确核对安装计划。");
+        return backend.request("POST", "/api/v1/install-jobs", {
+          planId: id(value.planId),
+          planHash: value.planHash,
+          confirmed: true,
+          networkAcknowledged: true,
+        });
+      }
+      case "easyai:installJobs:get":
+        return backend.request("GET", `/api/v1/install-jobs/${id(args[0])}`);
+      case "easyai:installJobs:cancel":
+        return backend.request(
+          "POST",
+          `/api/v1/install-jobs/${id(args[0])}/cancel`,
+        );
       case "easyai:runs:cancel":
         return backend.request("POST", `/api/v1/runs/${id(args[0])}/cancel`);
       case "easyai:runs:report":

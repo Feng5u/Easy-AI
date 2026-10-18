@@ -1,6 +1,14 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
 import type { DesktopAPI, SubscriptionMessage } from "./bridge.js";
 const api: DesktopAPI = {
+  packages: {
+    catalog: () => ipcRenderer.invoke("easyai:packages:catalog"),
+    plan: (request) => ipcRenderer.invoke("easyai:packages:plan", request),
+    confirm: (request) =>
+      ipcRenderer.invoke("easyai:installJobs:confirm", request),
+    job: (id) => ipcRenderer.invoke("easyai:installJobs:get", id),
+    cancel: (id) => ipcRenderer.invoke("easyai:installJobs:cancel", id),
+  },
   local: {
     preflight: (request) =>
       ipcRenderer.invoke("easyai:local:preflight", request),

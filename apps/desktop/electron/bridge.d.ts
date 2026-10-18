@@ -1,3 +1,15 @@
+import type { PackageCatalog } from "../../../packages/contracts/types/PackageCatalog.js";
+import type { InstallPlanRequest } from "../../../packages/contracts/types/InstallPlanRequest.js";
+import type { InstallPlan } from "../../../packages/contracts/types/InstallPlan.js";
+import type { InstallConfirmation } from "../../../packages/contracts/types/InstallConfirmation.js";
+import type { InstallJob } from "../../../packages/contracts/types/InstallJob.js";
+export type {
+  PackageCatalog,
+  InstallPlanRequest,
+  InstallPlan,
+  InstallConfirmation,
+  InstallJob,
+};
 import type { DiagnosticReport } from "../../../packages/contracts/types/DiagnosticReport.js";
 export type { DiagnosticReport };
 import type { ConnectionProfile } from "../../../packages/contracts/types/ConnectionProfile.js";
@@ -80,6 +92,13 @@ export interface RemoteRunControls {
 }
 export type ConnectionState = "connected" | "reconnecting" | "closed" | "error";
 export interface DesktopAPI {
+  packages?: {
+    catalog(): Promise<PackageCatalog>;
+    plan(request: InstallPlanRequest): Promise<InstallPlan>;
+    confirm(request: InstallConfirmation): Promise<InstallJob>;
+    job(jobId: string): Promise<InstallJob>;
+    cancel(jobId: string): Promise<InstallJob>;
+  };
   connections: {
     listProfiles(): Promise<ConnectionProfile[]>;
     createProfile(request: ConnectionProfileInput): Promise<ConnectionProfile>;

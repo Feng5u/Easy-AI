@@ -1,3 +1,4 @@
+import { PackageManager } from "./PackageManager.js";
 import { TutorialPanel } from "./TutorialPanel.js";
 import { tutorialForBlock, tutorialTargets, tutorials } from "./tutorials.js";
 import type { TutorialId, TutorialTarget } from "./tutorials.js";
@@ -75,6 +76,11 @@ export function App({ api }: { api?: DesktopAPI }) {
     null,
   );
   const [viewTab, setViewTab] = useState<WorkspaceTab>("data");
+  const [packagesVisible, setPackagesVisible] = useState(false);
+  const [packagesOpened, setPackagesOpened] = useState(false);
+  useEffect(() => {
+    if (packagesVisible) document.getElementById("packages-heading")?.focus();
+  }, [packagesVisible]);
   const [tutorialVisible, setTutorialVisible] = useState(false);
   const [tutorialTopic, setTutorialTopic] = useState<TutorialId>("convolution");
   useEffect(() => {
@@ -615,6 +621,18 @@ export function App({ api }: { api?: DesktopAPI }) {
         onNavigate={navigate}
       />
       <div className="button-row">
+        {bridge?.packages && (
+          <button
+            type="button"
+            aria-expanded={packagesVisible}
+            onClick={() => {
+              setPackagesOpened(true);
+              setPackagesVisible((previous) => !previous);
+            }}
+          >
+            {packagesVisible ? "收起包安装计划" : "打开包安装计划"}
+          </button>
+        )}
         <button
           type="button"
           aria-expanded={tutorialVisible}
@@ -633,6 +651,11 @@ export function App({ api }: { api?: DesktopAPI }) {
           SSH 主机身份设置
         </button>
       </div>
+      {packagesOpened && bridge?.packages && (
+        <div hidden={!packagesVisible}>
+          <PackageManager api={bridge.packages} />
+        </div>
+      )}
       {tutorialVisible && (
         <TutorialPanel
           topicId={tutorialTopic}

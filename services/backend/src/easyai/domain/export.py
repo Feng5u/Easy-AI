@@ -23,7 +23,20 @@ from easyai.domain.ssh import (
     IdentityResult,
 )
 
+from easyai.domain.install import (
+    PackageCatalog,
+    InstallPlanRequest,
+    InstallPlan,
+    InstallConfirmation,
+    InstallJob,
+)
+
 MODELS: list[type[BaseModel]] = [
+    PackageCatalog,
+    InstallPlanRequest,
+    InstallPlan,
+    InstallConfirmation,
+    InstallJob,
     ArtifactManifest,
     RemoteBinding,
     RemoteBindingRequest,

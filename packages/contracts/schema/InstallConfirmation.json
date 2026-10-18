@@ -1,0 +1,33 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "planId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Planid",
+      "type": "string"
+    },
+    "planHash": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Planhash",
+      "type": "string"
+    },
+    "confirmed": {
+      "const": true,
+      "title": "Confirmed",
+      "type": "boolean"
+    },
+    "networkAcknowledged": {
+      "const": true,
+      "title": "Networkacknowledged",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "planId",
+    "planHash",
+    "confirmed",
+    "networkAcknowledged"
+  ],
+  "title": "InstallConfirmation",
+  "type": "object"
+}

@@ -65,6 +65,13 @@ from easyai.compiler.pipeline import compile_project
 from easyai.services.run_service import RunService
 from easyai.services.local_workspace import LocalWorkspace, RunScope
 from easyai.services.run_views import RunViews
+from easyai.domain.install import (
+    PackageCatalog,
+    InstallPlanRequest,
+    InstallPlan,
+    InstallConfirmation,
+    InstallJob,
+)
 
 
 class SelectionRequest(Contract):
@@ -116,6 +123,12 @@ def create_app(
 
     @app.exception_handler(RequestValidationError)
     async def invalid_request(request: Request, error: RequestValidationError) -> Response:
+        if request.url.path.startswith(
+            ("/api/v1/install-jobs", "/api/v1/environments/install-plan")
+        ):
+            return JSONResponse(
+                status_code=422, content={"error": {"code": "INSTALL_REQUEST_INVALID"}}
+            )
         if (
             request.url.path.startswith(
                 ("/api/v1/connections/", "/api/v1/environments/", "/api/v1/runs/")
@@ -138,11 +151,19 @@ def create_app(
             "PROJECT_REVISION_CONFLICT",
             "PROGRAM_HASH_CONFLICT",
             "CONNECTION_PROFILE_REVISION_CONFLICT",
+            "INSTALL_PLAN_STALE",
         }:
             status = 412
         elif any(
             term in code
-            for term in ("CONFLICT", "HELD", "READ_ONLY", "ALREADY_EXISTS", "IDENTITY_UNKNOWN")
+            for term in (
+                "CONFLICT",
+                "HELD",
+                "READ_ONLY",
+                "ALREADY_EXISTS",
+                "IDENTITY_UNKNOWN",
+                "INSTALL_PLAN_BLOCKED",
+            )
         ):
             status = 409
         return JSONResponse(
@@ -364,6 +385,26 @@ def create_app(
     @app.get("/api/v1/health")
     async def health() -> dict[str, str | int | bool]:
         return {"appVersion": "0.0.0", "protocolVersion": 1, "ready": True}
+
+    @app.get("/api/v1/catalog/packages", response_model=PackageCatalog)
+    async def package_catalog() -> PackageCatalog:
+        return await asyncio.to_thread(local().installs().catalog)
+
+    @app.post("/api/v1/environments/install-plan", response_model=InstallPlan)
+    async def install_plan(request: InstallPlanRequest) -> InstallPlan:
+        return await asyncio.to_thread(local().installs().plan, request)
+
+    @app.post("/api/v1/install-jobs", response_model=InstallJob, status_code=202)
+    async def confirm_install(request: InstallConfirmation) -> InstallJob:
+        return await asyncio.to_thread(local().installs().confirm, request)
+
+    @app.get("/api/v1/install-jobs/{job_id}", response_model=InstallJob)
+    async def install_job(job_id: str) -> InstallJob:
+        return await asyncio.to_thread(local().installs().get, job_id)
+
+    @app.post("/api/v1/install-jobs/{job_id}/cancel", response_model=InstallJob)
+    async def cancel_install(job_id: str) -> InstallJob:
+        return await asyncio.to_thread(local().installs().cancel, job_id)
 
     @app.get("/api/v1/catalog/blocks")
     async def catalog() -> dict[str, object]:
