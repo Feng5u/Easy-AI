@@ -493,3 +493,60 @@ def test_authenticated_http_routes_keep_paths_and_authority_out_of_renderer_inpu
     finally:
         workspace._connections = None
         workspace.close()
+
+
+@pytest.mark.parametrize(
+    "stage", ["mkdir", "owner_partial", "owner_readback", "before_publish", "after_publish"]
+)
+def test_interrupted_data_root_initialization_does_not_poison_new_intent(prepared, stage):
+    service, _, endpoint, _, _, _, _, _ = prepared
+    plan = plan_for(prepared)
+    managed = Path(plan.target_path).parent
+    staging = managed.parent / (".data-init-" + plan.plan_id)
+    scope = SessionControl(project_id=plan.project_id, connection_id=plan.connection_id)
+    triggered = []
+
+    def interrupt(action, path):
+        match = (
+            stage == "mkdir"
+            and action == "lstat"
+            and path == staging
+            or stage == "owner_partial"
+            and action == "write"
+            and path == staging / ".easyai-owner.json"
+            or stage == "owner_readback"
+            and action == "read"
+            and path == staging / ".easyai-owner.json"
+            or stage == "before_publish"
+            and action == "before_rename"
+            and path == managed
+            or stage == "after_publish"
+            and action == "after_rename"
+            and path == managed
+        )
+        if match and not triggered:
+            triggered.append(True)
+            if stage == "owner_partial":
+                path.write_bytes(b'{"protocolVersion":')
+            service.cancel(plan.plan_id, scope)
+            raise OSError("synthetic interrupted initialization")
+
+    endpoint.callback = interrupt
+    first = finish(service, service.confirm(confirm_for(plan)))
+    assert triggered and first.status == "CANCELLED"
+    assert not Path(plan.target_path).exists()
+    if stage == "after_publish":
+        assert (
+            json.loads((managed / ".easyai-owner.json").read_bytes())["projectId"]
+            == plan.project_id
+        )
+    else:
+        assert not managed.exists() and staging.exists()
+    retained = {str(p): p.read_bytes() for p in staging.rglob("*") if p.is_file()}
+    endpoint.callback = lambda action, path: None
+    second_plan = plan_for(prepared)
+    assert second_plan.plan_id != plan.plan_id
+    second = finish(service, service.confirm(confirm_for(second_plan)))
+    assert second.status == "COMPLETED", second
+    assert all(Path(path).read_bytes() == raw for path, raw in retained.items())
+    assert (Path(second_plan.target_path) / ".easyai-complete.json").is_file()

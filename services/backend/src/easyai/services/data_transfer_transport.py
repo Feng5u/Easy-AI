@@ -181,8 +181,7 @@ class DataUploadTransport:
             self.directory(sftp, home, uid, check)
             managed = home + "/.easyai/projects/" + project_id + "/data"
             current = home
-            created_data = False
-            for part in (".easyai", "projects", project_id, "data"):
+            for part in (".easyai", "projects", project_id):
                 current += "/" + part
                 check()
                 try:
@@ -191,8 +190,6 @@ class DataUploadTransport:
                     if error.errno != errno.ENOENT:
                         raise
                     sftp.mkdir(current, mode=0o700)
-                    if current == managed:
-                        created_data = True
                 self.directory(sftp, current, uid, check)
             owner = _encoded({"protocolVersion": 1, "projectId": project_id, "uid": uid})
 
@@ -206,9 +203,25 @@ class DataUploadTransport:
                     output.flush()
                 check()
 
+            try:
+                sftp.lstat(managed)
+            except OSError as error:
+                if error.errno != errno.ENOENT:
+                    raise
+                # Never expose an uninitialized shared data root. Interrupted
+                # initialization leaves only this intent's dedicated temporary;
+                # later intents use new UUIDs and never adopt or remove it.
+                staging = current + "/.data-init-" + transfer_id
+                check()
+                sftp.mkdir(staging, mode=0o700)
+                self.directory(sftp, staging, uid, check)
+                write(staging + "/.easyai-owner.json", owner)
+                if self.directory(sftp, staging, uid, check).record(".easyai-owner.json") != owner:
+                    raise TransferFailure("DATA_TRANSFER_TARGET_UNOWNED")
+                check()
+                self.directory(sftp, current, uid, check)
+                sftp.rename(staging, managed)  # Standard nonreplace directory publish.
             managed_reader = self.directory(sftp, managed, uid, check)
-            if created_data:
-                write(managed + "/.easyai-owner.json", owner)
             if managed_reader.record(".easyai-owner.json") != owner:
                 raise TransferFailure("DATA_TRANSFER_TARGET_UNOWNED")
             root = managed + "/" + transfer_id
