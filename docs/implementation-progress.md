@@ -1797,3 +1797,52 @@ NOT RUN：真实Electron原生来源对话框/实际主机来源登记或信任�
 计划116185字节SHA256 dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43、旧规格5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190、README befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852保持。core/ML/CV六份来源与锁全部未改（hash与上片相同）；卡数仍9/17，OpenCV系统库未核保持unsupported，不换headless。CIFAR待裁决；旧226PASS/1FAIL根因UNKNOWN且原始日志丢失不回溯关闭。旧portable source7b91c46未含本片，distributionReady/legalReviewComplete仍false；既有Actions读取/sandbox拒绝不重试或绕过，无本片新CI判断。无main/强推/PR/Release/部署/费用/凭据/安全权限变更、无新工具拒绝或未知外部写入。
 
 下一项：父侧复核原生来源选择/预览/明确登记与独立执行授权边界、跨实例WAL交接门；真实原生窗口与来源/安装验收仍需具体目标和独立授权，完整M5/M6.3/B未验。此片不再把“Main来源入口未实现”作为代码缺口；仍不支持自动发现/信任任意原始二进制或不经操作者清单的自由路径安装。
+
+
+## 2026-10-18 M6.3 普通面板安装历史与只读报告
+
+源码完整SHA `528b9b21aa8e8629a8938099ccc64f0d80fb5445`，基于已接收的 `91482b57e630be5aa1c38aa21799345c89e36e24`；普通开发分支 `codex/demo-v0.0.0`，origin=T1doo/Easy-AI。推前只读 `git ls-remote origin refs/heads/main refs/heads/codex/demo-v0.0.0` 确认dev仍91482b57、main仍5323f86232529efcfb52131168ad049f01b219f3。本地未配置origin远端跟踪ref，`git rev-parse HEAD origin/codex/demo-v0.0.0` 对第二参数失败；使用实际ls-remote确认，没有猜测远端状态或重设已有用户配置。源文件和已有工作保留，本片未重写原计划/规格/README。
+
+交付[安装历史合同](install-history.md)：沿用原持久账本64项上限，新增固定鉴权GET列表/报告、Main固定IPC及普通包管理面板自动发现/刷新/查看报告，不需预知jobId。报告区分最后持久记录和本次观察，当前实例实际登记存活worker、重启历史、外部实例记录及停止未确认；历史verified不冒充当前环境健康，currentEnvironmentVerified恒false。只读报告只展示原有生命周期摘要与变更/复检标记，无完整安装器原始输出归档声明。不向历史报告接回执行、取消、重连或自动清理按钮。
+
+恢复旧AWAITING_EXECUTION仍作废；旧执行未知保持STOP_UNCONFIRMED隔离。新读取不取得日志writer、不修复部分尾行、不按旧PID发信号、不接管foreign job、不改内存执行状态、不释放unknown owner/reservation/lease。每任务读取上限4MiB/512完整记录，身份/序号校验继续有效。目录在第65项拒绝；未新增保留策略/自动清理/无限分页/新安装worker。合同从Python生成TS/schema。
+
+独审发现并已修复P2：原_saved_jobs先list(Path.iterdir)再检查64，拒绝前可能枚举整个目录；合成2000项复现。改os.scandir上下文+islice65，历史读取与启动恢复新增测试均消费65项即拒绝并关闭迭代器。既有只读审查worker独立复核通过，无新增明确P1/P2，没有新建worker。
+
+| 实际命令 / 范围 | 结果 |
+| --- | --- |
+| `UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache pnpm contracts` | PASS；新增History/Report合同，原InstallJob DTO不变。 |
+| `UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache pnpm check` | 最终PASS；TS/Main/tests、ruff/format117Python、mypy63、合同/实际Blocklyfixtures/Prettier。 |
+| `cd services/backend; .venv/bin/pytest -q tests/test_install_history.py tests/test_install_service.py tests/test_install_runtime.py tests/test_install_source_selection.py tests/test_event_journal.py` | 77 PASS / 10.40s；新历史6项包含纯读文件hash/ino/size、过期等待/成功/失败/未知、活线程/foreign实例/heldlease、界面读取无副作用、上限和鉴权；其他为原执行/source/journal回归。 |
+| `pnpm exec vitest run apps/desktop/electron/install-history-workflow.test.mts apps/desktop/electron/install-workflow.test.mts apps/desktop/src/PackageManager.test.mts` | 27 PASS / 3files；固定GET、非法路径/自由参数拒绝、普通历史入口/过期确认只读及原安装/sourceUI。初次同范围也27PASS，不累计。 |
+| `UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache XDG_CACHE_HOME=/workspace/.cache pnpm build` | PASS；TS/Vite/PyInstaller，保留既有chunk提示，无新依赖安装。随后仅修正面板旧介绍文案，`pnpm --filter @easyai/desktop build` 最终PASS；后端与资源不变。 |
+| `node scripts/test-frozen-install-recovery.mjs` | PASS；实际冻结sidecar两次进程启动/关闭，GET列表发现任务、只读报告、重复读取不改视图、旧等待确认失效；无训练环境创建/安装/probe。 |
+| `node --test scripts/package.test.mjs` | 6 PASS；新增历史合同离线文档allowlist，拒覆盖/清单/漂移检查，未重打实际便携包。 |
+| 既有worker独立只读复查 | 历史5PASS、Main1PASS；P2修复新增1PASS/5deselected，不与上表重叠累计。最终无新增明确P1/P2。 |
+| `git diff --check` / 原件及core/ML/CV六份hash | PASS；字节/hash与上一片完全相同。 |
+
+保留中间FAIL：新历史首轮4PASS/1FAIL，因为测试调用优雅close把模拟INSTALLING写为CANCEL_REQUESTED，期望的崩溃原记录不成立；改为仅关闭合成journal fd模拟进程丢失（断言无worker/lease/executing）后5PASS，再补边界测试纳入77PASS。check首轮因App mock的limit字面量扩大number导致TS失败，改为64 as const，未放宽合同。一次format命令在backend目录误用重复相对路径，uv先因默认/home/agent/.cache只读退出，未格式化/下载；随后用已存在.venv/bin/ruff正确路径成功。所有重跑用新noclobber日志，未覆盖失败或降低测试门。
+
+日志原件在本执行器，SHA256如下：
+- `/tmp/easyai-install-history-build-20261018-unique1.log` SHA256 `ac648f5bb0f5d3aa6340a5d1198a81adc348e786413df22b99b8bebd62d9daa8`。
+- `/tmp/easyai-install-history-check-20261018-unique1.log` SHA256 `c50f83b83ec246bf8b380e45332327ce6556eab3f30bf41a61c6959f8a8fd3f7`。
+- `/tmp/easyai-install-history-check-20261018-unique2.log` SHA256 `5b9546205d04c670ac61ad7a8bff82dc39bae1a167cdd98bbbe8937bece75271`。
+- `/tmp/easyai-install-history-contracts-20261018-unique1.log` SHA256 `3afb0b9bfa755e4057fd0660122df77ea5ab794990f17751dc9da3d90ea5c978`。
+- `/tmp/easyai-install-history-contracts-20261018-unique2.log` SHA256 `3afb0b9bfa755e4057fd0660122df77ea5ab794990f17751dc9da3d90ea5c978`。
+- `/tmp/easyai-install-history-desktop-final-20261018-unique1.log` SHA256 `b8e2b86b2bf1927a8d3b07bb61130c69818cf38fc36a1e1af185a5e8dbde2ba8`。
+- `/tmp/easyai-install-history-frozen-20261018-unique1.log` SHA256 `f440c15b1e2f24b53b29c78fb20698b3b895e395785e070baa6738dc6549c172`。
+- `/tmp/easyai-install-history-main-review-QWLQ05.log` SHA256 `5eec8a8fe088810a3aeadd7442a15da7e5ed6cba781d8614c5a631922887fc9d`。
+- `/tmp/easyai-install-history-new-20261018-unique1.log` SHA256 `5fe456a7f80e3edc0c2dd152c84cce899c79468acea3d46c45f7c443e1f2ed85`。
+- `/tmp/easyai-install-history-new-20261018-unique2.log` SHA256 `09709a7254a6b75745892059f0e1cbc33ee00378cfff46809d5c01974e0d1a53`。
+- `/tmp/easyai-install-history-package-20261018-unique1.log` SHA256 `624c115c5502a9345c53f277b2133c8324cb624f4999954d80dbafce688d47df`。
+- `/tmp/easyai-install-history-regression-20261018-unique1.log` SHA256 `003008d08920731d48ffd90465f879846e9e06b59f2c3014c5135c0380428e55`。
+- `/tmp/easyai-install-history-review-1JvYZc.log` SHA256 `7507cd7e05f5ecd5c920e4a798876dab01ffe4a2e66541ed96ac7064785972f1`。
+- `/tmp/easyai-install-history-ui-20261018-final1.log` SHA256 `f784c5fc9a35ad1c6bb535ca58ab36d5542a53f88b8146a7a6e6a5a8179af0be`。
+- `/tmp/easyai-install-history-ui-20261018-unique1.log` SHA256 `aa53c2bed4196baec42c039567f56cb7498cb0719394c5f3bb0b88e06f5982f2`。
+- `/tmp/easyai-history-enumeration-fix-review-w2vMiu.log` SHA256 `3911bdbfb7a36d4b8af0c3652e36017568f51e9ea0bfdbbe2f318588f430fa52`。
+
+NOT RUN：真实安装/probe/bootstrap/pip/训练/下载/import/tensor验收、实际来源或执行授权更改、真实SSH、原生Electron窗口、Windows/干净机/大矩阵/发布。具体真实来源/许可/owned目标/预算/窗口的独立执行授权仍未提供，未授权且未执行；无不确定外部安装结果。既有原生窗口与Actions读取拒绝不重试、不绕过，无本片CI判断。普通面板历史代码缺口已补，真实原生课堂验收不等于定向UI测试。
+
+计划116185字节SHA256 dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43、旧规格5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190、README befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852保持。core/ML/CV六份来源与锁未改；9/17卡可解析，OpenCV仍因native要求未核unsupported，不换headless。CIFAR待裁决；旧226PASS/1FAIL根因UNKNOWN且原始日志丢失不回溯关闭。旧portable source7b91c46未含本片，distributionReady/legalReviewComplete仍false。无main/强推/PR/Release/部署/费用/凭据/安全权限变更，无新的工具安全拒绝或未知外部写入。
+
+下一项：父侧复核历史读取不接管/不解隔离及报告健康边界；仍缺保留管理、存活安装重连与停止未知的显式安全解除。真实M5/M6.3/B条件与既有阻塞不因本片消失。源码与本证据仅普通开发分支提交推送，推后再次核对远端及工作区。
