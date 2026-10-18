@@ -248,7 +248,9 @@ class EventJournal:
                 self._lock.close()
 
 
-def read_runtime_events(path: Path, run_id: str) -> list[Event]:
+def read_events(
+    path: Path, run_id: str, kind: Literal["runtime", "application"] = "runtime"
+) -> list[Event]:
     """Replay complete execution records without taking its writer or truncating a live tail."""
     descriptor = os.open(
         path,
@@ -278,10 +280,14 @@ def read_runtime_events(path: Path, run_id: str) -> list[Event]:
             _encoded(event)
             if (
                 event.run_id != run_id
-                or event.source != "runtime"
+                or event.source != kind
                 or event.seq != len(records) + 1
-                or event.source_seq != event.seq
+                or event.source_seq != (event.seq if kind == "runtime" else None)
             ):
                 raise ValueError("JOURNAL_SEQUENCE_OR_RUN_INVALID")
             records.append(event)
     return records
+
+
+def read_runtime_events(path: Path, run_id: str) -> list[Event]:
+    return read_events(path, run_id)

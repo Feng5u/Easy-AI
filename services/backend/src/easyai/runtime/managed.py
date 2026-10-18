@@ -72,6 +72,7 @@ class ManagedProcess(Generic[E]):
         cancel_grace: float = 0.5,
         *,
         journal_factory: Callable[[Path, str], Journal[E]],
+        max_log_bytes: int | None = None,
     ) -> None:
         if run_root.is_symlink() or not run_root.is_dir():
             raise ValueError("Supervisor requires an existing nonsymlink run root")
@@ -80,6 +81,10 @@ class ManagedProcess(Generic[E]):
         if not 0.01 <= cancel_grace <= 30:
             raise ValueError("Cancellation grace must be 0.01..30 seconds")
         self._journal_factory = journal_factory
+        if max_log_bytes is not None and not 1024 <= max_log_bytes <= 16 * 1024 * 1024:
+            raise ValueError("Managed log limit must be 1 KiB..16 MiB")
+        self._max_log_bytes = max_log_bytes
+        self._log_bytes: dict[int, int] = {}
         self.run_root = run_root.resolve(strict=True)
         self.run_id = run_id
         self.argv = list(argv)
@@ -247,9 +252,16 @@ class ManagedProcess(Generic[E]):
             self._done.set()
             raise
 
+    def _write_log(self, log: BinaryIO, content: bytes) -> None:
+        if self._max_log_bytes is not None:
+            used = self._log_bytes.get(id(log), 0)
+            content = content[: max(0, self._max_log_bytes - used)]
+            self._log_bytes[id(log)] = used + len(content)
+        log.write(content)
+
     def _line(self, raw: bytes, log: BinaryIO, complete: bool = True) -> None:
         if not raw.startswith(PREFIX):
-            log.write(raw)
+            self._write_log(log, raw)
             return
         try:
             if not complete:
@@ -286,7 +298,7 @@ class ManagedProcess(Generic[E]):
                 elif payload["type"] == "runtime_error":
                     self._fault = True
         except Exception as error:
-            log.write(raw)
+            self._write_log(log, raw)
             self._protocol_fault(str(error))
 
     def _drain_stdout(self, stream: BinaryIO, log: BinaryIO) -> None:
@@ -301,7 +313,7 @@ class ManagedProcess(Generic[E]):
                     # Only LF terminates a protocol record; splitlines also splits CR,
                     # therefore pending remains until an actual LF is observed.
                     if overflow:
-                        log.write(part)
+                        self._write_log(log, part)
                         if part.endswith(b"\n"):
                             overflow = False
                         continue
@@ -309,7 +321,7 @@ class ManagedProcess(Generic[E]):
                     if len(pending) > MAX_LINE_BYTES:
                         if pending.startswith(PREFIX):
                             self._protocol_fault("Runtime protocol line exceeds 64 KiB")
-                        log.write(pending)
+                        self._write_log(log, pending)
                         pending = b""
                         overflow = not part.endswith(b"\n")
                     elif pending.endswith(b"\n"):
@@ -325,7 +337,7 @@ class ManagedProcess(Generic[E]):
     def _drain_stderr(self, stream: BinaryIO, log: BinaryIO) -> None:
         try:
             while chunk := os.read(stream.fileno(), 16384):
-                log.write(chunk)
+                self._write_log(log, chunk)
         except Exception as error:
             self._protocol_fault(f"stderr drain failed: {error}")
         finally:

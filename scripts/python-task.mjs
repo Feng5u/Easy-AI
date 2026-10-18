@@ -28,6 +28,8 @@ const operations = {
       "--hidden-import",
       "easyai.services.environment_service",
       "--hidden-import",
+      "easyai.services.install_process",
+      "--hidden-import",
       "easyai.security.windows_store",
       "--paths",
       "src",

@@ -1,6 +1,6 @@
 # M6.3 离线安装计划与生命周期合同
 
-当前交付是受控安装的前半段：17 包/4 组目录、离线计划、明确确认、会话内任务查询/取消及结果复检合同。**生产安装通道没有接通，确认不创建环境、不安装包。** `executionEnabled` 固定为 false；没有 HTTP execute 路由。不能据此宣称 M6.3 或完整 B 已完成。
+当前交付包括17包/4组目录、离线计划、明确确认、持久任务查询/取消、内部受管进程与复检适配器。**生产安装通道没有接通，确认不创建环境、不安装包。** `executionEnabled` 固定为 false；没有 HTTP execute 路由。不能据此宣称 M6.3 或完整 B 已完成。
 
 ## 计划与确认
 
@@ -14,16 +14,22 @@ easyai-cpu 复用已有 Linux x86_64 / CPython 3.11 CPU 来源及 hash lock。�
 
 ## 任务状态与所有权
 
-生产路径只到 AWAITING_EXECUTION，明确 INSTALL_EXECUTION_NOT_ENABLED；取消后为 CANCELLED / INSTALL_CANCELLED_NO_EXECUTION，verified 仍为 false。会话最多保留 64 个计划；尚无跨重启持久任务账本，不能把重启视为恢复安装。
+生产路径只到 AWAITING_EXECUTION，明确 INSTALL_EXECUTION_NOT_ENABLED；取消后为 CANCELLED / INSTALL_CANCELLED_NO_EXECUTION，verified 仍为 false。会话最多64计划，持久目录最多64任务，当前没有自动清理历史或分页入口。任务状态复用 EventJournal 的单写入、fsync、序号及严格完整记录校验；执行意图先落盘再启动子进程。落盘失败关闭该服务的后续写入，不冒称执行成功。此处验证进程重启，不保证断电后的目录项持久性。
 
 内部 executor/inspector 接缝用于合同测试，没有生产调用者。已有 owned 环境执行前先取得内核环境 lease，再核 TTL、基线、来源及计划 hash；独立服务实例也不能并发写同一环境。日志最多 128 条固定生命周期记录，尚不是实际安装器原始日志采集器。
 
-内部状态依次为 INSTALLING、VERIFYING、SUCCEEDED，异常可为 FAILED；取消发出后为 CANCEL_REQUESTED，只有适配器证明已停止才可成为 CANCELLED。未知停止结果或执行异常保留环境 reservation 与内核 lease，不宣称已停止或可以再次安装。关闭会话仅发取消信号，不释放未证实停止的 lease；跨进程恢复方案尚缺。
+内部状态依次为 INSTALLING、VERIFYING、SUCCEEDED，异常可为 FAILED；取消发出后为 CANCEL_REQUESTED，只有适配器证明已停止才可成为 CANCELLED。未知停止结果或执行异常保留环境 reservation 与内核 lease，不宣称已停止或可以再次安装。关闭会话发取消信号，不释放未证实停止的 lease。
 
-只有新的 nonce/prefix 匹配的可信复检、精确锁定版本、Python 3.11、torch/torchvision/matplotlib 导入和 tensor 检查都成功，内部合同才允许 verified=true。取消/失败不承诺回滚，保留 changesPossible/needsReprobe。测试 inspector 读取合成 inventory JSON，executor 只改测试 fixture；**这些不是实际 Python 导入、tensor 运算或包安装证据**。
+重启后按已知 jobId 可查询持久记录，但不重放安装、不按旧 PID 发信号：未执行确认作废，未确认结束的 INSTALLING/VERIFYING/CANCEL_REQUESTED 保守恢复为 CANCEL_REQUESTED/STOP_UNCONFIRMED 并隔离环境。取得环境内核锁后还会重新读其他任务的持久意图，防止早已打开的第二实例把“锁已释放”误当子进程停止。未知任务没有自动解除隔离入口；重连存活安装子进程、人工核实停止后的恢复/重建仍缺。当前UI没有历史任务列表，不宣称重启自动找回任务卡。历史SUCCEEDED仅表示当时复检结果，新的安装计划仍须重新探测环境。
+
+只有新的 nonce/prefix 匹配的可信复检、精确锁定版本、Python 3.11、torch/torchvision/matplotlib 导入和 tensor 检查都成功，内部合同才允许 verified=true。取消/失败不承诺回滚，保留 changesPossible/needsReprobe。
+
+新增内部 ManagedInstallCommand 复用现有 ManagedSupervisor/ManagedProcess，而非第二套 Popen/进程管理器。POSIX独立进程组、取消升级、两管道排空、持久原始日志；每条stdout/stderr文件上限1MiB，超限继续排空。目标包原始输出重定向stderr，不能伪造stdout完成协议。已知非零退出判 FAILED，与未知停止区分。原训练进程默认日志行为不变，Windows安装进程入口仍拒绝。
+
+OfflineWheelInstaller 实现固定目标 Python 的 isolated pip、require-hashes、only-binary、no-index、已提供本地wheelhouse和锁文件副本；无默认升级、自由命令/requirements URL或自动下载入口。authorized默认false且无API调用者。本轮只截获并编译该固定命令，不运行pip；来源hash也在复制lock前重核。ManagedInstallInspector 实现独立选中Python的精确metadata、实际核心imports和小CPU卷积报告；本轮仅在既有应用venv子进程做缺torch的负向只读探测。成功闭环测试仍是标准库子进程写合成inventory，再走合同复检，**不是实际训练环境安装/import成功或tensor效果证据**。
 
 ## 尚缺与真实验证条件
 
-尚需受控 conda/环境 provisioner、实际安装 executor、可信只读 inventory 与安装后 probe、可选包解析来源、真实有界日志、持久账本/重启恢复、远端目标以及实际 owned 环境纵向验收。现有 CPU lock 没有被当作上述实现。
+尚需受控 conda/新owned环境provisioner、实际安装适配器与许可/来源/目标授权的生产接线、正向真实环境probe、可选包解析来源、任务历史/保留策略、存活安装子进程重连和未知停止安全解除、远端目标以及实际owned环境纵向验收。现有CPU lock没有被当作上述实现。实际安装器、probe及持久日志现在已有代码基础，但尚未完成真实依赖安装纵向验证。
 
 真实执行前需明确一次性 owned 环境范围、包源和下载预算，展示具体计划后再获得执行授权；SDK/许可另核。不使用教师共享环境、不在应用 Python 安装 torch、不下载训练数据。当前合同/组件/Main/冻结 sidecar 测试均不执行这些动作。

@@ -346,9 +346,9 @@ def test_kernel_environment_lease_excludes_an_independent_service_while_stop_unk
         def install(self, *args):
             return "unknown"
 
-    assert service.execute(job.job_id, Unknown()).state == "CANCEL_REQUESTED"
     other = InstallService(service.app_root, inspector=service._inspector)
     try:
+        assert service.execute(job.job_id, Unknown()).state == "CANCEL_REQUESTED"
         raw = request().model_dump()
         raw.update(new_environment_spec=None, owned_environment_id=plan.environment_id)
         second = other.plan(InstallPlanRequest(**raw))

@@ -1,4 +1,4 @@
-"""Offline plans and confirmation ledger. Production installation is not connected.
+"""Offline plans and durable job ledger. Production installation is not connected.
 
 The internal executor/inspector seams are tested contracts, not HTTP execution inputs.
 No installer, network resolver, subprocess or environment writer is invoked here.
@@ -28,6 +28,7 @@ from easyai.domain.install import (
 )
 from easyai.security.files import read_regular
 from easyai.security.project_lock import ProjectLock
+from easyai.services.event_journal import EventJournal, read_events
 
 RESOURCE_ROOT = Path(getattr(sys, "_MEIPASS", SOURCE_ROOT))
 PACKAGES_PATH = RESOURCE_ROOT / (
@@ -52,7 +53,7 @@ def digest(value: object) -> str:
 class InstallExecutor(Protocol):
     def install(
         self, prefix: Path, plan: InstallPlan, cancel: threading.Event, progress: Callable[[], None]
-    ) -> Literal["completed", "cancelled", "unknown"]: ...
+    ) -> Literal["completed", "cancelled", "unknown", "failed"]: ...
 
 
 @dataclass
@@ -62,7 +63,7 @@ class _Plan:
 
 
 class InstallService:
-    """Session-only ledger; new environment creation and real execution remain gated."""
+    """Session plans, durable jobs; new environments and execution remain gated."""
 
     def __init__(
         self,
@@ -82,10 +83,105 @@ class InstallService:
         self._cancel: dict[str, threading.Event] = {}
         self._leases: dict[str, ProjectLock] = {}
         self._closed = False
+        self._journals: dict[str, EventJournal] = {}
+        self._recovered: set[str] = set()
+        self._persistence_failed = False
+        self._recover()
+
+    def _recover(self) -> None:
+        """Replay existing journals only; never launch or signal a recorded PID."""
+        root = self.app_root / "install-jobs"
+        if not root.exists() and not root.is_symlink():
+            return
+        if root.is_symlink() or not root.is_dir():
+            raise ValueError("INSTALL_LEDGER_FORBIDDEN")
+        paths = list(root.iterdir())
+        if len(paths) > 64:
+            raise ValueError("INSTALL_JOB_LIMIT")
+        for path in paths:
+            if path.is_symlink() or not path.is_dir() or str(UUID(path.name)) != path.name:
+                raise ValueError("INSTALL_LEDGER_FORBIDDEN")
+            journal_path = path / "events.jsonl"
+            if not journal_path.exists():
+                # An interrupted exclusive mkdir before the first durable event is
+                # not an executable job. Never delete or reuse its directory.
+                continue
+            events = read_events(journal_path, path.name, "application")
+            if not events:
+                raise ValueError("INSTALL_LEDGER_INVALID")
+            for event in events:
+                if event.type != "status_changed":
+                    raise ValueError("INSTALL_LEDGER_INVALID")
+                job = InstallJob.model_validate(event.payload)
+                if job.job_id != path.name:
+                    raise ValueError("INSTALL_LEDGER_INVALID")
+            if job.state == "AWAITING_EXECUTION":
+                job.state, job.status_code = "CANCELLED", "INSTALL_RESTART_CONFIRMATION_EXPIRED"
+            elif job.state in {"INSTALLING", "VERIFYING", "CANCEL_REQUESTED"}:
+                job.state, job.status_code = "CANCEL_REQUESTED", "INSTALL_STOP_UNCONFIRMED"
+                job.verified, job.needs_reprobe = False, True
+                self._active[job.environment_id] = job.job_id
+            self._jobs[job.job_id] = job
+            self._recovered.add(job.job_id)
+
+    def _record(self, job: InstallJob) -> None:
+        try:
+            if self._closed:
+                raise ValueError("INSTALL_SESSION_CLOSED")
+            journal = self._journals.get(job.job_id)
+            if journal is None:
+                root = self.app_root / "install-jobs"
+                if root.is_symlink():
+                    raise ValueError("INSTALL_LEDGER_FORBIDDEN")
+                root.mkdir(mode=0o700, exist_ok=True)
+                path = root / job.job_id
+                path.mkdir(mode=0o700)  # Exclusive; never attach to a different writer.
+                journal = EventJournal(path / "events.jsonl", job.job_id, "application")
+                self._journals[job.job_id] = journal
+            journal.append("status_changed", None, job.model_dump(by_alias=True))
+        except Exception:
+            self._persistence_failed = True
+            raise ValueError("INSTALL_LEDGER_WRITE_FAILED") from None
+
+    def _exclude_uncertain_writer(self, job: InstallJob) -> None:
+        """Also protect instances opened before another writer's crash.
+
+        A kernel lease can disappear when the app dies while its child survives.
+        Check durable intent again under that lease; never infer quiescence from
+        an unlocked inode or from a stale in-memory recovery snapshot.
+        """
+        root = self.app_root / "install-jobs"
+        if root.is_symlink() or not root.is_dir():
+            raise ValueError("INSTALL_LEDGER_FORBIDDEN")
+        paths = list(root.iterdir())
+        if len(paths) > 64:
+            raise ValueError("INSTALL_JOB_LIMIT")
+        for path in paths:
+            if path.is_symlink() or not path.is_dir() or str(UUID(path.name)) != path.name:
+                raise ValueError("INSTALL_LEDGER_FORBIDDEN")
+            if path.name == job.job_id:
+                continue
+            source = path / "events.jsonl"
+            if not source.exists():
+                continue
+            events = read_events(source, path.name, "application")
+            if not events:
+                raise ValueError("INSTALL_LEDGER_INVALID")
+            previous = InstallJob.model_validate(events[-1].payload)
+            if previous.job_id != path.name:
+                raise ValueError("INSTALL_LEDGER_INVALID")
+            if previous.environment_id == job.environment_id and previous.state in {
+                "INSTALLING",
+                "VERIFYING",
+                "CANCEL_REQUESTED",
+            }:
+                raise ValueError("INSTALL_ENVIRONMENT_CONFLICT")
 
     def _verify_root(self) -> None:
         if self._closed:
             raise ValueError("INSTALL_SESSION_CLOSED")
+        if self._persistence_failed:
+            raise ValueError("INSTALL_LEDGER_WRITE_FAILED")
         if (
             not self.app_root.is_absolute()
             or self.app_root.is_symlink()
@@ -286,6 +382,9 @@ class InstallService:
                 status_code="INSTALL_EXECUTION_NOT_ENABLED",
                 logs=["PLAN_CONFIRMED", "INSTALL_EXECUTION_NOT_ENABLED"],
             )
+            if len(self._jobs) >= 64:
+                raise ValueError("INSTALL_JOB_LIMIT")
+            self._record(job)  # Confirmation is durable before becoming visible.
             self._jobs[job.job_id] = job
             self._by_plan[plan.plan_id] = job.job_id
             self._active[plan.environment_id] = job.job_id
@@ -301,6 +400,8 @@ class InstallService:
         with self._mutex:
             self._verify_root()
             job = self._jobs[job_id]
+            if job_id in self._recovered:
+                return job.model_copy(deep=True)  # No PID-based stop or automatic replay.
             previous = job.state
             if job.state == "AWAITING_EXECUTION":
                 job.state, job.status_code = "CANCELLED", "INSTALL_CANCELLED_NO_EXECUTION"
@@ -308,8 +409,10 @@ class InstallService:
             elif job.state in {"INSTALLING", "VERIFYING", "CANCEL_REQUESTED"}:
                 job.state, job.status_code = "CANCEL_REQUESTED", "INSTALL_STOP_UNCONFIRMED"
                 self._cancel[job_id].set()
-            if previous != job.state and len(job.logs) < 128:
-                job.logs.append(job.status_code)
+            if previous != job.state:
+                if len(job.logs) < 128:
+                    job.logs.append(job.status_code)
+                self._record(job)
             return job.model_copy(deep=True)
 
     def execute(self, job_id: str, executor: InstallExecutor) -> InstallJob:
@@ -332,13 +435,21 @@ class InstallService:
                 raise ValueError("INSTALL_ENVIRONMENT_CONFLICT")
             try:
                 lease.verify()
+                self._exclude_uncertain_writer(job)
                 self._fresh(plan)  # Revalidate after acquiring the kernel environment lease.
+                if saved.deadline <= self._clock():
+                    raise ValueError("INSTALL_PLAN_STALE")
             except BaseException:
                 lease.close()
                 raise
             self._leases[job_id] = lease
             job.state, job.status_code, job.changes_possible = "INSTALLING", "INSTALL_STARTED", True
             token = self._cancel[job_id]
+            try:
+                self._record(job)  # Write-ahead: never start an unrecorded writer.
+            except BaseException:
+                self._leases.pop(job_id).close()
+                raise
 
         def progress() -> None:
             with self._mutex:
@@ -346,11 +457,18 @@ class InstallService:
                     job.logs.append("INSTALL_PROGRESS")
 
         quiescent = False
+        failure_code = "INSTALL_REPROBE_FAILED"
         try:
+            if saved.deadline <= self._clock():
+                quiescent, failure_code = True, "INSTALL_PLAN_STALE"
+                raise ValueError(failure_code)
             outcome = executor.install(prefix, plan.model_copy(deep=True), token, progress)
-            quiescent = outcome in {"completed", "cancelled"}
+            quiescent = outcome in {"completed", "cancelled", "failed"}
             if not quiescent:
                 raise ValueError("INSTALL_STOP_UNCONFIRMED")
+            if outcome == "failed":
+                failure_code = "INSTALL_EXECUTION_FAILED"
+                raise ValueError(failure_code)
             if token.is_set() or outcome == "cancelled":
                 with self._mutex:
                     job.state, job.status_code = "CANCELLED", "INSTALL_CANCELLED_REPROBE_REQUIRED"
@@ -359,6 +477,7 @@ class InstallService:
                     job.state, job.status_code = "VERIFYING", "INSTALL_REPROBE_STARTED"
                     if len(job.logs) < 128:
                         job.logs.append("INSTALL_REPROBE_STARTED")
+                    self._record(job)
                 report = self._inspect(plan.environment_id)
                 expected = {item.package_id: item.target_version for item in plan.package_changes}
                 if (
@@ -389,9 +508,7 @@ class InstallService:
         except Exception:
             with self._mutex:
                 job.state = "FAILED" if quiescent else "CANCEL_REQUESTED"
-                job.status_code = (
-                    "INSTALL_REPROBE_FAILED" if quiescent else "INSTALL_STOP_UNCONFIRMED"
-                )
+                job.status_code = failure_code if quiescent else "INSTALL_STOP_UNCONFIRMED"
         finally:
             with self._mutex:
                 if quiescent:
@@ -399,10 +516,20 @@ class InstallService:
                     self._leases.pop(job_id).close()
                 if len(job.logs) < 128:
                     job.logs.append(job.status_code)
+                try:
+                    self._record(job)
+                except ValueError:
+                    job.state, job.status_code = "FAILED", "INSTALL_LEDGER_WRITE_FAILED"
+                    job.verified, job.needs_reprobe = False, True
         return job.model_copy(deep=True)
 
     def close(self) -> None:
         with self._mutex:
             for job_id in self._active.values():
-                self._cancel[job_id].set()
+                token = self._cancel.get(job_id)
+                if token is not None:
+                    token.set()
+            for journal in self._journals.values():
+                journal.close()
+            self._journals.clear()
             self._closed = True

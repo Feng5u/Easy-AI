@@ -30,6 +30,10 @@ const logLabels: Record<string, string> = {
   INSTALL_REPROBE_STARTED: "开始重新检查",
   INSTALL_VERIFIED: "复检合同通过",
   INSTALL_REPROBE_FAILED: "复检未通过",
+  INSTALL_EXECUTION_FAILED: "安装进程失败，需要重新检查",
+  INSTALL_LEDGER_WRITE_FAILED: "任务记录未能安全保存，不能继续执行",
+  INSTALL_RESTART_CONFIRMATION_EXPIRED:
+    "应用已重启，原确认失效；需要重新生成计划",
   INSTALL_STOP_UNCONFIRMED: "停止尚未确认",
   INSTALL_CANCELLED_NO_EXECUTION: "已取消登记，尚未执行安装",
   INSTALL_CANCELLED_REPROBE_REQUIRED: "已停止，需要重新检查",
@@ -169,7 +173,7 @@ export function PackageManager({ api }: { api: API }) {
         Python 或教师共享环境，也不会下载数据。
       </p>
       <p>
-        目标是本机应用管理的新环境，独立于当前工程。任务登记仅保留在本次应用会话；关闭应用不会恢复执行。
+        目标是本机应用管理的新环境，独立于当前工程。任务状态保存在本机，重启不自动恢复执行；此界面只显示本次打开的任务。
       </p>
       {error && <p role="alert">{error}</p>}
       {!catalog ? (
