@@ -4,11 +4,11 @@
 
 先在既有服务器概要完成独立指纹核对和密码/私钥认证，保存当前工程。在上传区域使用 Main 原生目录选择，设置最大文件数、源数据 MiB 与秒数，再点“预览上传计划（不写远端）”。预览显示源目录、应用管理目标、实际文件数量/总字节、预算与计划有效时间。只有勾选确认并点击上传才允许远端写入；确认字段必须是真正的布尔 true，整数1/字符串不等价。
 
-Renderer 只提交 Main 授权的 data selectionId、当前project/connection/revision和预算，不能提交本地路径、任意远端目录或命令。计划绑定真实本地目录/文件身份、大小/mtime/ctime、目标 profile revision、已认证会话/指纹及预算，60秒内确认；过期或来源/工程/身份变化拒绝。来源文件仍按确认的 manifest 逐文件复核，之后新增的文件不会被自动加入。元数据枚举有界；不在预览阶段读完整样本或做全数据散列，不进行 Dataset 构造。
+Renderer 只提交 Main 授权的 data selectionId、当前project/connection/revision和预算，不能提交本地路径、任意远端目录或命令。计划绑定真实本地目录/文件身份、大小/mtime/ctime、目标 profile revision、已认证会话/指纹及预算，60秒内确认；过期或来源/工程/身份变化拒绝。来源文件仍按确认的 manifest 逐文件复核，之后新增的文件不会被自动加入。元数据枚举有界；新上传预览不读完整样本或做全数据散列；恢复检查须由用户单独触发，先完整散列重新选取的来源以核原manifest。不进行 Dataset 构造。
 
 当前硬上限为256文件、256MiB源数据、单文件100MiB、256子目录、12层、相对路径512字节、完成manifest64KiB、传输120秒；UI默认64文件/256MiB/120秒。超出限制需分批整理专用目录，本版不会静默提高预算。源目录使用已有POSIX持有目录身份/排他与无链接文件接口；symlink、特殊文件、不安全所有权/权限、隐藏项及常见密钥文件名会拒绝。**这不是内容脱敏器或完整秘密检测**：用户放在普通数据文件里的敏感内容仍可能被上传，必须只选择获准传输的课程数据。没有读取真实用户目录来测试此能力。
 
-计划只通过固定的 Linux `uname -s`、`id -u` 与 SFTP normalize('.') 核目标平台、UID和远端home，不在本机展开~，不需要训练Python/torch，不安装远端脚本或包。写入目标固定为远端home下 `.easyai/projects/<projectId>/data/<transferId>/`，目标不可由Renderer改成教师共享数据目录。只按需创建缺失的受保护父目录，不chmod已有目录；首次初始化先在独占 `.data-init-<transferId>` 目录写完并回读owner记录，再标准非覆盖rename发布data根，避免中断留下未初始化共享根。中断暂存目录保留，不自动认领或删除；后续新UUID计划可独立继续。已有data目录必须有匹配project/UID的应用owner记录，否则拒绝，不接管未知文件。每次新slot必须不存在，标准SFTP非覆盖rename，不使用posix_rename、remove或递归清理回退。
+计划只通过固定的 Linux `uname -s`、`id -u` 与 SFTP normalize('.') 核目标平台、UID和远端home，不在本机展开~，不需要训练Python/torch，不安装远端脚本或包。写入目标固定为远端home下 `.easyai/projects/<projectId>/data/<transferId>/`，目标不可由Renderer改成教师共享数据目录。只按需创建缺失的受保护父目录，不chmod已有目录；首次初始化先在独占 `.data-init-<transferId>` 目录写完并回读owner记录，再标准非覆盖rename发布data根，避免中断留下未初始化共享根。中断暂存目录保留，不自动认领或删除；后续新UUID计划可独立继续。已有data目录必须有匹配project/UID的应用owner记录，否则拒绝，不接管未知文件。新slot在私有暂存目录写完并回读不可变transfer intent，再非覆盖发布；恢复只接受同一已记录slot。标准SFTP非覆盖rename，不使用posix_rename、remove或递归清理回退。
 
 明确确认后，后台任务流式读取源文件、以64KiB以内块写 `.part`；源fd与路径身份再次验证、SHA256远端回读校验后非覆盖改名。全部文件再次回读核验，通过后最后写并读回 `.easyai-complete.json`。单文件/总字节/完成计数必须匹配计划才能返回COMPLETED；字节进度每秒读取。源字节预算不含协议、元数据和两轮远端回读流量；完成只证明本次文件内容核验，不是数据来源信任、Dataset可读性或训练效果，也不是远端崩溃耐久保证。
 
@@ -18,6 +18,12 @@ Renderer 只提交 Main 授权的 data selectionId、当前project/connection/re
 
 完成后显示实际远端dataRoot，用户仍需在环境页重新做 Dataset probe、绑定运行；`dataReady`始终false，不自动改变RunConfig或本地数据绑定。CIFAR既有SAFE_PROBE_REQUIRED/unsafe_format_blocked门未解除；上传字节或SHA256不能证明pickle来源可信，不能据此构造或训练。
 
-当前任务/计划为**单次应用会话内存状态**：最多16计划/16任务；不把本机路径/会话/凭据写入工程、公开报告或仓库，远端marker不含本机路径/凭据。中断保留本次专用部分目录，无自动重试/新连接/覆盖；应用重启后的历史恢复、按manifest补传缺失文件、未知清理解除还未实现，不宣称完整M5。重试新计划使用新UUID目录，不能借未知清理直接开新任务。SFTP v3无法提供O_NOFOLLOW/openat或可靠fsync；受保护目录、lstat/handle/哈希与标准rename不能抵御恶意同UID并发替换，也未验证真实服务器兼容性/崩溃耐久。
+任务/60秒计划仍为会话内存状态；应用私有 `data-transfers/` 现保存最多16个slot、每slot最多16次attempt的有界intent记录，以持有目录、排他writer lock和原子发布保护。intent含远端目标概要/指纹/UID/home、相对文件名/目录、大小和SHA256，**这些元数据也可能私密**；不含本机源绝对路径、selectionId、认证会话或凭据，不写工程或公开报告。记录有损坏、未知项或写入不确定时拒绝恢复，不自动清理或淘汰未知记录；达到容量时需人工处理，当前没有删除入口。旧版本没有持久intent的上传不能据marker导入。
+
+重启仅加载本地记录，不连接服务器、不重试上传。用户点“读取本机上传记录”、选择原slot，在新认证会话中主动重新选择来源，再点只读检查。检查要求相同project/target profile revision/endpoint/username/host pin/远端home和UID；重新枚举和全SHA256须与原不可变manifest精确一致。只读遍历远端slot并回读全部已完成文件；完成marker不能代替文件核验。未知文件、目录、symlink、不同内容或不匹配owner/intent一律拒绝并保留。只识别已记录attempt的精确随机partial名；不读取认领、覆盖或删除partial内容。
+
+只读检查列出缺失数量和可复用字节；用户必须在新60秒计划内再次明确确认。写入前重核缺失集合和源身份，先持久登记新attempt，保存失败不得写远端；只发送缺失的完整文件，现有同内容文件不改写，不做任意字节断点续传。仍以本attempt独占partial、回读hash、非覆盖rename及全manifest验证完成；attemptId与稳定slotId分开，完成进度按“本次发送+复用=总量”核验。未知部分、冲突内容和SDK清理不确定不自动修复。关闭会取消planning/job，在workspace锁外有界等待；未确认planning、SDK或job静止时保留本地writer lock与物理gate，阻止新实例接管。
+
+SFTP v3无法提供O_NOFOLLOW/openat或可靠fsync；受保护目录、lstat/handle/哈希与标准rename不能抵御恶意同UID并发替换，也未验证真实服务器兼容性/崩溃耐久。此源码与合成链不宣称完整M5。
 
 本轮仅用临时合成目录、内存会话和API兼容的本地SFTP fixture验证流程、拒绝、取消、回执丢失、终态竞争、回读损坏和异常脱敏。没有真实SSH、真实上传、用户PC读取、Dataset/训练、环境安装、数据下载或原生picker验收；Windows本地生产安全门仍关闭。旧M8便携产物不含此功能，未重新打包/上传/发布。运行中远端产物同步已另有源码及合成验证，见live-artifact-sync.md；真实SSH/目标机与跨进程恢复仍未验。

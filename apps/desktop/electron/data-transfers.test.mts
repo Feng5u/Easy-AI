@@ -189,3 +189,72 @@ it("retains owned cancellation after a lost consuming ACK and a failed project-o
     { projectId, connectionId },
   );
 });
+
+it("local history cannot create a recovery grant; inspect binds the original slot and reused bytes", async () => {
+  const { workflow, call } = setup();
+  const slotId = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+  const recovered: TransferPlan = {
+    ...plan,
+    slotId,
+    targetPath: `/home/synthetic/.easyai/projects/${projectId}/data/${slotId}`,
+    reusedBytes: 5,
+    missingFiles: 0,
+  };
+  const completed: TransferJob = {
+    ...job,
+    targetPath: recovered.targetPath,
+    reusedBytes: 5,
+    sentBytes: 0,
+    verifiedBytes: 5,
+    completedFiles: 1,
+    status: "COMPLETED",
+  };
+  call.mockImplementation(async (_method, path) => {
+    if (path === "/api/v1/local/session")
+      return { project: { projectId, revision: 1 }, readOnly: false } as never;
+    if (path.startsWith("/api/v1/data-transfers/history"))
+      return [
+        {
+          transferId: slotId,
+          projectId,
+          targetId: plan.targetId,
+          targetRevision: 1,
+          targetPath: recovered.targetPath,
+          fileCount: 1,
+          totalBytes: 5,
+          lastCompleted: false,
+          inspectionRequired: true,
+        },
+      ] as never;
+    if (path.endsWith("/inspect")) return recovered;
+    return completed;
+  });
+  const history = await workflow.invoke("easyai:dataTransfers:history", [
+    projectId,
+  ]);
+  expect(history).toHaveLength(1);
+  await expect(
+    workflow.invoke("easyai:dataTransfers:confirm", [confirmation]),
+  ).rejects.toThrow();
+  await expect(
+    workflow.invoke("easyai:dataTransfers:inspect", [
+      slotId,
+      { ...request, path: "/arbitrary" },
+    ]),
+  ).rejects.toThrow();
+  expect(
+    await workflow.invoke("easyai:dataTransfers:inspect", [slotId, request]),
+  ).toEqual(recovered);
+  expect(call).toHaveBeenCalledWith(
+    "POST",
+    `/api/v1/data-transfers/${slotId}/inspect`,
+    request,
+  );
+  expect(
+    await workflow.invoke("easyai:dataTransfers:confirm", [confirmation]),
+  ).toEqual(completed);
+  workflow.invalidate();
+  await expect(
+    workflow.invoke("easyai:dataTransfers:confirm", [confirmation]),
+  ).rejects.toThrow();
+});

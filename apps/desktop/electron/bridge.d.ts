@@ -1,3 +1,4 @@
+import type { TransferHistory } from "../../../packages/contracts/types/TransferHistory.js";
 import type { PackageCatalog } from "../../../packages/contracts/types/PackageCatalog.js";
 import type { InstallPlanRequest } from "../../../packages/contracts/types/InstallPlanRequest.js";
 import type { InstallPlan } from "../../../packages/contracts/types/InstallPlan.js";
@@ -105,6 +106,11 @@ export interface RemoteRunControls {
 export type ConnectionState = "connected" | "reconnecting" | "closed" | "error";
 export interface DesktopAPI {
   dataTransfers?: {
+    history?(projectId: string): Promise<TransferHistory[]>;
+    inspect?(
+      slotId: string,
+      request: TransferPlanRequest,
+    ): Promise<TransferPlan>;
     plan(request: TransferPlanRequest): Promise<TransferPlan>;
     confirm(request: TransferConfirmation): Promise<TransferJob>;
     get(

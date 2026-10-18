@@ -17,6 +17,8 @@ TransferError = Literal[
     "DATA_TRANSFER_CONFIRMATION_INVALID",
     "DATA_TRANSFER_CONFIRMATION_REQUIRED",
     "DATA_TRANSFER_FAILED",
+    "DATA_TRANSFER_RECOVERY_INVALID",
+    "DATA_TRANSFER_PERSISTENCE_FAILED",
     "DATA_TRANSFER_HASH_MISMATCH",
     "DATA_TRANSFER_HOME_CHANGED",
     "DATA_TRANSFER_HOME_INVALID",
@@ -63,6 +65,9 @@ class TransferPlan(Contract):
     budget: TransferBudget
     expires_in_seconds: int = Field(ge=1, le=60)
     writes_started: Literal[False] = False
+    slot_id: Identifier | None = None
+    reused_bytes: int = Field(default=0, ge=0, le=256 * 1024 * 1024)
+    missing_files: int = Field(default=0, ge=0, le=256)
 
 
 class TransferConfirmation(SessionControl):
@@ -96,8 +101,21 @@ class TransferJob(Contract):
     ]
     file_count: int = Field(ge=1, le=256)
     total_bytes: int = Field(ge=0, le=256 * 1024 * 1024)
+    reused_bytes: int = Field(default=0, ge=0, le=256 * 1024 * 1024)
     sent_bytes: int = Field(default=0, ge=0, le=256 * 1024 * 1024)
     verified_bytes: int = Field(default=0, ge=0, le=256 * 1024 * 1024)
     completed_files: int = Field(default=0, ge=0, le=256)
     error_code: TransferError | None = None
     data_ready: Literal[False] = False
+
+
+class TransferHistory(Contract):
+    transfer_id: Identifier
+    project_id: Identifier
+    target_id: Identifier
+    target_revision: int = Field(ge=1)
+    target_path: RemotePath
+    file_count: int = Field(ge=1, le=256)
+    total_bytes: int = Field(ge=0, le=256 * 1024 * 1024)
+    last_completed: bool
+    inspection_required: Literal[True] = True

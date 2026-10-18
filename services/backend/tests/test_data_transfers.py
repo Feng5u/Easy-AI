@@ -106,6 +106,14 @@ class Endpoint:
 
 
 class DataSftp(Sftp):
+    def listdir_iter(self, path, read_aheads):
+        from types import SimpleNamespace
+
+        assert read_aheads == 1
+        with os.scandir(path) as entries:
+            for entry in entries:
+                yield SimpleNamespace(filename=entry.name)
+
     def normalize(self, path):
         assert path == "."
         return str(self.endpoint.home)
@@ -439,7 +447,7 @@ def test_authenticated_http_routes_keep_paths_and_authority_out_of_renderer_inpu
     from easyai.api import create_app
     from easyai.services.local_workspace import LocalWorkspace
 
-    _, source, _, auth, transport, request, _, _ = prepared
+    _, source, endpoint, auth, transport, request, _, _ = prepared
     workspace = LocalWorkspace(tmp_path / "http-state")
     project_root = tmp_path / "http-project"
     project_root.mkdir()
@@ -490,6 +498,38 @@ def test_authenticated_http_routes_keep_paths_and_authority_out_of_renderer_inpu
             response.text
         )
         assert not workspace.runs._ledger.entries
+        history_route = f"/api/v1/data-transfers/history?project_id={project.project_id}"
+        assert client.get(history_route).status_code == 401
+        history = client.get(history_route, headers=headers)
+        assert history.status_code == 200 and history.json()[0]["transferId"] == plan["planId"]
+        assert (
+            client.get(
+                f"/api/v1/data-transfers/history?project_id={uuid4()}", headers=headers
+            ).status_code
+            == 404
+        )
+        body["dataSelectionId"] = workspace.select("data", source).selection_id
+        before = len(endpoint.calls)
+        inspected = client.post(
+            f"/api/v1/data-transfers/{plan['planId']}/inspect", json=body, headers=headers
+        )
+        assert inspected.status_code == 200, inspected.text
+        recovery = inspected.json()
+        assert recovery["slotId"] == plan["planId"] and recovery["missingFiles"] == 0
+        assert recovery["reusedBytes"] == recovery["totalBytes"]
+        assert not any(
+            action in {"write", "mkdir", "before_rename"} for action, _ in endpoint.calls[before:]
+        )
+        confirm.update(planId=recovery["planId"], planHash=recovery["planHash"])
+        response = client.post("/api/v1/data-transfers", json=confirm, headers=headers)
+        assert response.status_code == 200, response.text
+        service.jobs[recovery["planId"]].thread.join(3)
+        result = service.get(
+            recovery["planId"],
+            SessionControl(project_id=project.project_id, connection_id=auth.scope.connection_id),
+        )
+        assert result.status == "COMPLETED" and result.sent_bytes == 0
+        assert result.reused_bytes == result.total_bytes and not result.data_ready
     finally:
         workspace._connections = None
         workspace.close()

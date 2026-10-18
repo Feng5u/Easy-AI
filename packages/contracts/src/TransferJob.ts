@@ -10,6 +10,7 @@ export type Status =
   "UPLOADING" | "VERIFYING" | "CANCELLING" | "CLEANUP_PENDING" | "COMPLETED" | "CANCELLED" | "FAILED";
 export type Filecount = number;
 export type Totalbytes = number;
+export type Reusedbytes = number;
 export type Sentbytes = number;
 export type Verifiedbytes = number;
 export type Completedfiles = number;
@@ -24,6 +25,8 @@ export type Errorcode =
       | "DATA_TRANSFER_CONFIRMATION_INVALID"
       | "DATA_TRANSFER_CONFIRMATION_REQUIRED"
       | "DATA_TRANSFER_FAILED"
+      | "DATA_TRANSFER_RECOVERY_INVALID"
+      | "DATA_TRANSFER_PERSISTENCE_FAILED"
       | "DATA_TRANSFER_HASH_MISMATCH"
       | "DATA_TRANSFER_HOME_CHANGED"
       | "DATA_TRANSFER_HOME_INVALID"
@@ -55,6 +58,7 @@ export interface TransferJob {
   status: Status;
   fileCount: Filecount;
   totalBytes: Totalbytes;
+  reusedBytes?: Reusedbytes;
   sentBytes?: Sentbytes;
   verifiedBytes?: Verifiedbytes;
   completedFiles?: Completedfiles;

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { TransferHistory } from "../../../packages/contracts/types/TransferHistory.js";
 import type {
   DesktopAPI,
   AuthenticatedConnection,
@@ -20,6 +21,8 @@ export function DataUpload({
   revision: number;
   disabled: boolean;
 }) {
+  const [history, setHistory] = useState<TransferHistory[]>([]);
+  const [slot, setSlot] = useState<string | null>(null);
   const [selection, setSelection] = useState<SelectionResult | null>(null);
   const [megabytes, setMegabytes] = useState(256);
   const [files, setFiles] = useState(64);
@@ -39,6 +42,9 @@ export function DataUpload({
   };
   useEffect(() => {
     epoch.current++;
+    setHistory([]);
+    setSlot(null);
+    setSelection(null);
     setPlan(null);
     setConfirmed(false);
     setJob(null);
@@ -84,6 +90,31 @@ export function DataUpload({
         setError("读取上传状态失败，不代表任务已停止；请重试读取或请求停止。");
     }
   }
+  async function loadHistory() {
+    if (!transfers.history) return;
+    const generation = epoch.current;
+    setBusy(true);
+    setError("");
+    try {
+      const rows = await transfers.history(scope.projectId);
+      if (generation === epoch.current) setHistory(rows);
+    } catch {
+      if (generation === epoch.current)
+        setError("本机上传记录读取失败；未连接服务器。");
+    } finally {
+      if (generation === epoch.current) setBusy(false);
+    }
+  }
+  function selectSlot(value: string | null) {
+    epoch.current++;
+    setSlot(value);
+    setSelection(null);
+    setPlan(null);
+    setConfirmed(false);
+    setJob(null);
+    setUncertain(false);
+    setError("");
+  }
   async function choose() {
     const generation = ++epoch.current;
     setBusy(true);
@@ -108,12 +139,16 @@ export function DataUpload({
     setConfirmed(false);
     setJob(null);
     try {
-      const value = await transfers.plan({
+      const request = {
         ...scope,
         expectedRevision: revision,
         dataSelectionId: selection.selectionId,
         budget: { maxBytes: megabytes * 1024 * 1024, maxFiles: files, seconds },
-      });
+      };
+      const value = slot
+        ? await transfers.inspect?.(slot, request)
+        : await transfers.plan(request);
+      if (!value) throw new Error("unsupported-recovery");
       if (generation !== epoch.current) return;
       if (
         value.projectId !== scope.projectId ||
@@ -186,6 +221,55 @@ export function DataUpload({
       <p>
         目标账号：{session.username}；指纹：{session.scope.hostFingerprint}
       </p>
+      {transfers.history && transfers.inspect && (
+        <div>
+          <button
+            type="button"
+            disabled={busy || active}
+            onClick={() => void loadHistory()}
+          >
+            查看本机上传记录（不连接服务器）
+          </button>
+          <p>
+            历史不证明远端任务已停止或数据完整。重新选源后，检查将读取本机和远端文件的完整SHA256；不同内容、身份或未知文件会阻断，不删除未知partial。
+          </p>
+          {history.map((item) => (
+            <div key={item.transferId}>
+              <span>
+                {item.targetPath} · {item.fileCount} 文件 · {item.totalBytes}{" "}
+                字节 · 上次{item.lastCompleted ? "已核验完成" : "未确认完成"}
+              </span>
+              <button
+                type="button"
+                disabled={
+                  disabled ||
+                  busy ||
+                  active ||
+                  item.targetId !== session.targetId ||
+                  item.targetRevision !== session.targetRevision
+                }
+                onClick={() => selectSlot(item.transferId)}
+              >
+                选择此上传重新检查
+              </button>
+            </div>
+          ))}
+          {slot && (
+            <>
+              <p>
+                补传目标任务：{slot}。须重新选择相同内容的源目录并明确确认。
+              </p>
+              <button
+                type="button"
+                disabled={busy || active}
+                onClick={() => selectSlot(null)}
+              >
+                改为新建上传
+              </button>
+            </>
+          )}
+        </div>
+      )}
       <button
         type="button"
         disabled={disabled || busy || active}
@@ -241,12 +325,19 @@ export function DataUpload({
         disabled={disabled || busy || active || !selection}
         onClick={() => void preview()}
       >
-        预览上传计划（不写远端）
+        {slot ? "核对源并检查原上传（只读SHA256）" : "预览上传计划（不写远端）"}
       </button>
       {plan && (
         <div>
           <p>源目录：{plan.sourceLabel}</p>
           <p>应用管理目标：{plan.targetPath}</p>
+          {plan.slotId && (
+            <p>
+              保留原目录；缺少 {plan.missingFiles} 文件，已校验可复用{" "}
+              {plan.reusedBytes}{" "}
+              字节。只补缺文件，不覆盖不同内容；确认前不写远端。
+            </p>
+          )}
           <p>
             {plan.fileCount} 文件，共 {plan.totalBytes} 字节；预算{" "}
             {plan.budget.maxBytes} 字节／{plan.budget.maxFiles} 文件／
@@ -298,7 +389,8 @@ export function DataUpload({
         <div role="status">
           <p>
             上传状态：{job.status}；已发送 {job.sentBytes}/{job.totalBytes}{" "}
-            字节；终检 {job.verifiedBytes}/{job.totalBytes} 字节、
+            字节；已复用 {job.reusedBytes ?? 0} 字节；终检 {job.verifiedBytes}/
+            {job.totalBytes} 字节、
             {job.completedFiles}/{job.fileCount} 文件。
           </p>
           {job.errorCode && (

@@ -205,3 +205,58 @@ it("can cancel an unacknowledged start and ignores its late completion reply", a
   });
   expect(container.textContent).not.toContain("上传状态：COMPLETED");
 });
+
+it("loads local history without inspecting; requires native reselect and confirmation before missing-only retry", async () => {
+  const { api, calls, pick } = fixture();
+  const slotId = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+  session.targetId = plan.targetId;
+  session.targetRevision = 1;
+  const recovered: TransferPlan = {
+    ...plan,
+    slotId,
+    reusedBytes: 5,
+    missingFiles: 0,
+    targetPath: `/home/synthetic/.easyai/projects/${projectId}/data/${slotId}`,
+  };
+  const history = vi.fn(async () => [
+    {
+      transferId: slotId,
+      projectId,
+      targetId: plan.targetId,
+      targetRevision: 1,
+      targetPath: recovered.targetPath,
+      fileCount: 1,
+      totalBytes: 5,
+      lastCompleted: false,
+      inspectionRequired: true as const,
+    },
+  ]);
+  const inspect = vi.fn(async () => recovered);
+  api.dataTransfers!.history = history;
+  api.dataTransfers!.inspect = inspect;
+  await mount(api);
+  expect(history).not.toHaveBeenCalled();
+  await click("查看本机上传记录（不连接服务器）");
+  expect(inspect).not.toHaveBeenCalled();
+  await click("选择此上传重新检查");
+  expect(pick).not.toHaveBeenCalled();
+  await click("选择上传数据目录");
+  await click("核对源并检查原上传（只读SHA256）");
+  expect(inspect).toHaveBeenCalledWith(
+    slotId,
+    expect.objectContaining({ dataSelectionId: expect.any(String) }),
+  );
+  expect(calls.plan).not.toHaveBeenCalled();
+  expect(calls.confirm).not.toHaveBeenCalled();
+  expect(container.textContent).toContain("已校验可复用 5 字节");
+  await act(async () => {
+    const input = container.querySelector<HTMLInputElement>(
+      'input[type="checkbox"]',
+    )!;
+    input.click();
+  });
+  await click("确认并上传数据");
+  expect(calls.confirm).toHaveBeenCalledWith(
+    expect.objectContaining({ planId, confirmed: true }),
+  );
+});

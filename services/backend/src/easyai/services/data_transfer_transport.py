@@ -42,6 +42,11 @@ class DataUploadTransport:
         self.scope, self.session, self.mutex, self.guard = scope, session, mutex, guard
         self.factory = factory or paramiko.SFTPClient
         self.cleanup_pending = False
+        self._probe: SshProbeTransport | None = None
+
+    @property
+    def quiescent(self) -> bool:
+        return not self.cleanup_pending and (self._probe is None or self._probe.quiescent)
 
     def check(self) -> None:
         with self.mutex:
@@ -139,6 +144,7 @@ class DataUploadTransport:
     def inspect(self, cancel: threading.Event) -> tuple[str, int]:
         self.check()
         probe = SshProbeTransport(self.scope, self.session)
+        self._probe = probe
         platform = probe.execute(ReadOnlyCommand(("/usr/bin/uname", "-s"), seconds=3), cancel)
         if platform.exit_code != 0 or platform.stderr or platform.stdout != b"Linux\n":
             raise TransferFailure("DATA_TRANSFER_HOME_INVALID")
@@ -157,6 +163,73 @@ class DataUploadTransport:
                 raise TransferFailure("DATA_TRANSFER_HOME_INVALID")
             self.directory(sftp, home, uid, check)
             return home, uid
+
+    @staticmethod
+    def write_record(sftp: Any, path: str, raw: bytes, check: Callable[[], None]) -> None:
+        check()
+        with sftp.open(path, "wx", bufsize=0) as output:
+            output.chmod(0o600)
+            for offset in range(0, len(raw), CHUNK):
+                check()
+                output.write(raw[offset : offset + CHUNK])
+            output.flush()
+        check()
+
+    def managed(
+        self,
+        sftp: Any,
+        project_id: str,
+        transfer_id: str,
+        home: str,
+        uid: int,
+        check: Callable[[], None],
+    ) -> str:
+        managed = home + "/.easyai/projects/" + project_id + "/data"
+        current = home
+        for part in (".easyai", "projects", project_id):
+            current += "/" + part
+            check()
+            try:
+                sftp.lstat(current)
+            except OSError as error:
+                if error.errno != errno.ENOENT:
+                    raise
+                sftp.mkdir(current, mode=0o700)
+            self.directory(sftp, current, uid, check)
+        owner = _encoded({"protocolVersion": 1, "projectId": project_id, "uid": uid})
+
+        def write(path: str, raw: bytes) -> None:
+            check()
+            with sftp.open(path, "wx", bufsize=0) as output:
+                output.chmod(0o600)
+                for offset in range(0, len(raw), CHUNK):
+                    check()
+                    output.write(raw[offset : offset + CHUNK])
+                output.flush()
+            check()
+
+        try:
+            sftp.lstat(managed)
+        except OSError as error:
+            if error.errno != errno.ENOENT:
+                raise
+            # Never expose an uninitialized shared data root. Interrupted
+            # initialization leaves only this intent's dedicated temporary;
+            # later intents use new UUIDs and never adopt or remove it.
+            staging = current + "/.data-init-" + transfer_id
+            check()
+            sftp.mkdir(staging, mode=0o700)
+            self.directory(sftp, staging, uid, check)
+            write(staging + "/.easyai-owner.json", owner)
+            if self.directory(sftp, staging, uid, check).record(".easyai-owner.json") != owner:
+                raise TransferFailure("DATA_TRANSFER_TARGET_UNOWNED")
+            check()
+            self.directory(sftp, current, uid, check)
+            sftp.rename(staging, managed)  # Standard nonreplace directory publish.
+        managed_reader = self.directory(sftp, managed, uid, check)
+        if managed_reader.record(".easyai-owner.json") != owner:
+            raise TransferFailure("DATA_TRANSFER_TARGET_UNOWNED")
+        return managed
 
     def upload(
         self,
@@ -179,51 +252,11 @@ class DataUploadTransport:
             if sftp.normalize(".") != home:
                 raise TransferFailure("DATA_TRANSFER_HOME_CHANGED")
             self.directory(sftp, home, uid, check)
-            managed = home + "/.easyai/projects/" + project_id + "/data"
-            current = home
-            for part in (".easyai", "projects", project_id):
-                current += "/" + part
-                check()
-                try:
-                    sftp.lstat(current)
-                except OSError as error:
-                    if error.errno != errno.ENOENT:
-                        raise
-                    sftp.mkdir(current, mode=0o700)
-                self.directory(sftp, current, uid, check)
-            owner = _encoded({"protocolVersion": 1, "projectId": project_id, "uid": uid})
+            managed = self.managed(sftp, project_id, transfer_id, home, uid, check)
 
             def write(path: str, raw: bytes) -> None:
-                check()
-                with sftp.open(path, "wx", bufsize=0) as output:
-                    output.chmod(0o600)
-                    for offset in range(0, len(raw), CHUNK):
-                        check()
-                        output.write(raw[offset : offset + CHUNK])
-                    output.flush()
-                check()
+                self.write_record(sftp, path, raw, check)
 
-            try:
-                sftp.lstat(managed)
-            except OSError as error:
-                if error.errno != errno.ENOENT:
-                    raise
-                # Never expose an uninitialized shared data root. Interrupted
-                # initialization leaves only this intent's dedicated temporary;
-                # later intents use new UUIDs and never adopt or remove it.
-                staging = current + "/.data-init-" + transfer_id
-                check()
-                sftp.mkdir(staging, mode=0o700)
-                self.directory(sftp, staging, uid, check)
-                write(staging + "/.easyai-owner.json", owner)
-                if self.directory(sftp, staging, uid, check).record(".easyai-owner.json") != owner:
-                    raise TransferFailure("DATA_TRANSFER_TARGET_UNOWNED")
-                check()
-                self.directory(sftp, current, uid, check)
-                sftp.rename(staging, managed)  # Standard nonreplace directory publish.
-            managed_reader = self.directory(sftp, managed, uid, check)
-            if managed_reader.record(".easyai-owner.json") != owner:
-                raise TransferFailure("DATA_TRANSFER_TARGET_UNOWNED")
             root = managed + "/" + transfer_id
             check()
             sftp.mkdir(root, mode=0o700)  # Exclusive; no existing slot adoption/overwrite.

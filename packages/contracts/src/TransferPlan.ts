@@ -15,6 +15,9 @@ export type Maxbytes = number;
 export type Seconds = number;
 export type Expiresinseconds = number;
 export type Writesstarted = false;
+export type Slotid = string | null;
+export type Reusedbytes = number;
+export type Missingfiles = number;
 
 export interface TransferPlan {
   planId: Planid;
@@ -30,6 +33,9 @@ export interface TransferPlan {
   budget: TransferBudget;
   expiresInSeconds: Expiresinseconds;
   writesStarted?: Writesstarted;
+  slotId?: Slotid;
+  reusedBytes?: Reusedbytes;
+  missingFiles?: Missingfiles;
 }
 export interface TransferBudget {
   maxFiles?: Maxfiles;

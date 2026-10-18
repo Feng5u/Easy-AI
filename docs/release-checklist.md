@@ -16,7 +16,7 @@
 | 受控安装 | NOT RUN（生产关闭） | 真实conda bootstrap、授权计划、只写owned环境、实际退出与真实复检；失败/取消隔离 |
 | 私钥正常入口 | PASS（合成/受控代码链），真实NOT RUN | 明确选择、秘密不持久、pin/取消；真实私钥/SSH/native picker仍需授权目标机验证 |
 | 完整代码Bundle桌面导出 | PASS（定向Main/HTTP/文件链）／TST34 NOT RUN | 已保存编译快照、新目录/辅助文件/hash；真实独立训练运行/原生picker/Windows仍缺，见code-bundle-export.md |
-| 显式本地数据上传 | PASS（合成SFTP/协议/组件）／真实NOT RUN | source/target/预算确认、owned任务、取消和回读已接；持久历史/补传/真实服务器仍缺，见data-upload.md |
+| 显式本地数据上传 | PASS（合成SFTP/协议/组件）／真实NOT RUN | source/target/预算确认、owned任务、取消和回读已接；新增私有持久历史、重选源/认证、只读核验与同slot缺失补传合成链；真实服务器仍未验，见data-upload.md |
 | 运行中远端产物同步 | PASS（合成协议/组件）／真实NOT RUN | 不可变收据/raw事件前缀、增量hash缓存、字节进度、暂停恢复；真实SFTP/跨进程故障未验，见live-artifact-sync.md |
 | 离线教程、教师准备与已知限制随包 | 待本轮记录 | 本地文件/hash、七主题教程与无网络加载，不含私密材料 |
 | 许可证与分发授权 | NOT RUN（未完成） | 保留Electron/Chromium及前端/Python许可文本，补精确冻结native/system库审核，项目自身许可证由所有者决定；不得自选新增授权 |

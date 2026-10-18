@@ -2,6 +2,10 @@ import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
 import type { DesktopAPI, SubscriptionMessage } from "./bridge.js";
 const api: DesktopAPI = {
   dataTransfers: {
+    history: (projectId) =>
+      ipcRenderer.invoke("easyai:dataTransfers:history", projectId),
+    inspect: (slotId, request) =>
+      ipcRenderer.invoke("easyai:dataTransfers:inspect", slotId, request),
     plan: (request) => ipcRenderer.invoke("easyai:dataTransfers:plan", request),
     confirm: (request) =>
       ipcRenderer.invoke("easyai:dataTransfers:confirm", request),

@@ -99,6 +99,33 @@
       "default": false,
       "title": "Writesstarted",
       "type": "boolean"
+    },
+    "slotId": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Slotid"
+    },
+    "reusedBytes": {
+      "default": 0,
+      "maximum": 268435456,
+      "minimum": 0,
+      "title": "Reusedbytes",
+      "type": "integer"
+    },
+    "missingFiles": {
+      "default": 0,
+      "maximum": 256,
+      "minimum": 0,
+      "title": "Missingfiles",
+      "type": "integer"
     }
   },
   "required": [

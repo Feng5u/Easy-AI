@@ -58,6 +58,13 @@
       "title": "Totalbytes",
       "type": "integer"
     },
+    "reusedBytes": {
+      "default": 0,
+      "maximum": 268435456,
+      "minimum": 0,
+      "title": "Reusedbytes",
+      "type": "integer"
+    },
     "sentBytes": {
       "default": 0,
       "maximum": 268435456,
@@ -92,6 +99,8 @@
             "DATA_TRANSFER_CONFIRMATION_INVALID",
             "DATA_TRANSFER_CONFIRMATION_REQUIRED",
             "DATA_TRANSFER_FAILED",
+            "DATA_TRANSFER_RECOVERY_INVALID",
+            "DATA_TRANSFER_PERSISTENCE_FAILED",
             "DATA_TRANSFER_HASH_MISMATCH",
             "DATA_TRANSFER_HOME_CHANGED",
             "DATA_TRANSFER_HOME_INVALID",

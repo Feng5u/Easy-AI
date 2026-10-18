@@ -18,6 +18,8 @@ import type {
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const WORKFLOW_CHANNELS = [
   "easyai:dataTransfers:plan",
+  "easyai:dataTransfers:history",
+  "easyai:dataTransfers:inspect",
   "easyai:dataTransfers:confirm",
   "easyai:dataTransfers:get",
   "easyai:dataTransfers:cancel",

@@ -1040,10 +1040,12 @@ class LocalWorkspace:
             if self._data_transfers is None:
                 from easyai.services.data_transfers import DataTransfers
 
-                self._data_transfers = DataTransfers(self._mutex)
+                self._data_transfers = DataTransfers(self._mutex, self.root)
             return self._data_transfers
 
-    def plan_transfer(self, request: "TransferPlanRequest") -> "TransferPlan":
+    def plan_transfer(
+        self, request: "TransferPlanRequest", slot_id: str | None = None
+    ) -> "TransferPlan":
         with self._mutex:
             generation = self.project_generation(request.project_id)
             self._projects[request.project_id].snapshot(request.expected_revision)
@@ -1057,6 +1059,8 @@ class LocalWorkspace:
                     transport.check()
 
             service = self.transfers()
+        if slot_id is not None:
+            return service.prepare_recovery(slot_id, request, root, auth, transport, guard)
         return service.prepare(request, root, auth, transport, guard)
 
     def activity(self) -> dict[str, list[str]]:
@@ -1083,6 +1087,8 @@ class LocalWorkspace:
             self._project_generation += 1
             self._invalidate_identity()
         # SDK workers may need the workspace guard to unwind. Never wait under it.
+        if self._data_transfers is not None:
+            self._data_transfers.wait_idle()
         self.runs.close()
         if self._connections is not None:
             self._connections.wait_idle()

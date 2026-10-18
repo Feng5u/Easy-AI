@@ -4,6 +4,7 @@ import type { TransferPlanRequest } from "../../../packages/contracts/types/Tran
 import type { TransferPlan } from "../../../packages/contracts/types/TransferPlan.js";
 import type { TransferConfirmation } from "../../../packages/contracts/types/TransferConfirmation.js";
 import type { TransferJob } from "../../../packages/contracts/types/TransferJob.js";
+import type { TransferHistory } from "../../../packages/contracts/types/TransferHistory.js";
 import type { SessionControl } from "../../../packages/contracts/types/SessionControl.js";
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -17,6 +18,8 @@ const errors = new Set<NonNullable<TransferJob["errorCode"]>>([
   "DATA_TRANSFER_CONFIRMATION_INVALID",
   "DATA_TRANSFER_CONFIRMATION_REQUIRED",
   "DATA_TRANSFER_FAILED",
+  "DATA_TRANSFER_RECOVERY_INVALID",
+  "DATA_TRANSFER_PERSISTENCE_FAILED",
   "DATA_TRANSFER_HASH_MISMATCH",
   "DATA_TRANSFER_HOME_CHANGED",
   "DATA_TRANSFER_HOME_INVALID",
@@ -122,9 +125,55 @@ export class DataTransferWorkflow {
         throw new Error("上传工程或服务已变化。");
       return lease;
     };
-    if (channel === "easyai:dataTransfers:plan") {
+    if (channel === "easyai:dataTransfers:history") {
       if (args.length !== 1) throw new Error("数据上传参数无效。");
-      const value = object(args[0], [
+      const projectId = id(args[0]);
+      const scope = {
+        projectId,
+        connectionId: "00000000-0000-0000-0000-000000000000",
+      };
+      await verify(scope);
+      const items = await backend.request<TransferHistory[]>(
+        "GET",
+        `/api/v1/data-transfers/history?project_id=${projectId}`,
+      );
+      await verify(scope);
+      if (!Array.isArray(items) || items.length > 16)
+        throw new Error("上传历史无效。");
+      return items.map((item) => {
+        if (
+          item.projectId !== projectId ||
+          item.inspectionRequired !== true ||
+          typeof item.lastCompleted !== "boolean" ||
+          typeof item.targetPath !== "string" ||
+          !item.targetPath.endsWith(
+            `/.easyai/projects/${projectId}/data/${id(item.transferId)}`,
+          ) ||
+          item.totalBytes < 0 ||
+          item.totalBytes > 256 * 1024 * 1024 ||
+          !Number.isSafeInteger(item.totalBytes)
+        )
+          throw new Error("上传历史无效。");
+        return {
+          transferId: id(item.transferId),
+          projectId,
+          targetId: id(item.targetId),
+          targetRevision: integer(item.targetRevision, Number.MAX_SAFE_INTEGER),
+          targetPath: item.targetPath,
+          fileCount: integer(item.fileCount, 256),
+          totalBytes: item.totalBytes,
+          lastCompleted: item.lastCompleted,
+          inspectionRequired: true,
+        };
+      });
+    }
+    if (
+      channel === "easyai:dataTransfers:plan" ||
+      channel === "easyai:dataTransfers:inspect"
+    ) {
+      const slot = channel.endsWith(":inspect") ? id(args[0]) : null;
+      if (args.length !== (slot ? 2 : 1)) throw new Error("数据上传参数无效。");
+      const value = object(slot ? args[1] : args[0], [
         "projectId",
         "connectionId",
         "expectedRevision",
@@ -151,7 +200,9 @@ export class DataTransferWorkflow {
       const authority = await verify(request, request.expectedRevision, true);
       const plan = await backend.request<TransferPlan>(
         "POST",
-        "/api/v1/data-transfers/plan",
+        slot
+          ? `/api/v1/data-transfers/${slot}/inspect`
+          : "/api/v1/data-transfers/plan",
         request,
       );
       await verify(request, request.expectedRevision, true);
@@ -167,9 +218,16 @@ export class DataTransferWorkflow {
         !uuid.test(plan.planId) ||
         !/^[0-9a-f]{64}$/.test(plan.planHash) ||
         plan.writesStarted !== false ||
+        (plan.slotId ?? null) !== slot ||
         !plan.targetPath.endsWith(
-          `/.easyai/projects/${request.projectId}/data/${plan.planId}`,
+          `/.easyai/projects/${request.projectId}/data/${slot ?? plan.planId}`,
         ) ||
+        !Number.isSafeInteger(plan.reusedBytes ?? 0) ||
+        (plan.reusedBytes ?? 0) < 0 ||
+        (plan.reusedBytes ?? 0) > plan.totalBytes ||
+        !Number.isSafeInteger(plan.missingFiles ?? 0) ||
+        (plan.missingFiles ?? 0) < 0 ||
+        (plan.missingFiles ?? 0) > plan.fileCount ||
         !Number.isSafeInteger(plan.totalBytes) ||
         plan.totalBytes > request.budget.maxBytes ||
         plan.totalBytes < 0 ||
@@ -285,9 +343,13 @@ export class DataTransferWorkflow {
         "CANCELLED",
         "FAILED",
       ].includes(job.status) ||
-      ![job.sentBytes, job.verifiedBytes, job.completedFiles].every(
-        Number.isSafeInteger,
-      ) ||
+      (job.reusedBytes ?? 0) !== (plan.reusedBytes ?? 0) ||
+      ![
+        job.sentBytes,
+        job.verifiedBytes,
+        job.completedFiles,
+        job.reusedBytes ?? 0,
+      ].every(Number.isSafeInteger) ||
       job.sentBytes < 0 ||
       job.sentBytes > plan.totalBytes ||
       job.verifiedBytes < 0 ||
@@ -295,7 +357,7 @@ export class DataTransferWorkflow {
       job.completedFiles < 0 ||
       job.completedFiles > plan.fileCount ||
       (job.status === "COMPLETED" &&
-        (job.sentBytes !== plan.totalBytes ||
+        (job.sentBytes + (job.reusedBytes ?? 0) !== plan.totalBytes ||
           job.verifiedBytes !== plan.totalBytes ||
           job.completedFiles !== plan.fileCount))
     )

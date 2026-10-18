@@ -42,6 +42,7 @@ from easyai.domain.data_transfer import (
     TransferPlan,
     TransferConfirmation,
     TransferJob,
+    TransferHistory,
 )
 from easyai.domain.catalog import load_catalog
 from easyai.domain.contracts import (
@@ -389,6 +390,22 @@ def create_app(
         workspace = local()
         generation = workspace.project_generation(request.project_id)
         result = await transfer_action(workspace.transfers().confirm, request)
+        workspace.verify_project_generation(request.project_id, generation)
+        return result
+
+    @app.get("/api/v1/data-transfers/history", response_model=list[TransferHistory])
+    async def transfer_history(project_id: UUID) -> list[TransferHistory]:
+        workspace = local()
+        generation = workspace.project_generation(str(project_id))
+        result = await transfer_action(workspace.transfers().history, str(project_id))
+        workspace.verify_project_generation(str(project_id), generation)
+        return result
+
+    @app.post("/api/v1/data-transfers/{transfer_id}/inspect", response_model=TransferPlan)
+    async def inspect_transfer(transfer_id: UUID, request: TransferPlanRequest) -> TransferPlan:
+        workspace = local()
+        generation = workspace.project_generation(request.project_id)
+        result = await transfer_action(workspace.plan_transfer, request, str(transfer_id))
         workspace.verify_project_generation(request.project_id, generation)
         return result
 

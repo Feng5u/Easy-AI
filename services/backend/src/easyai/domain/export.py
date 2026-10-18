@@ -9,6 +9,7 @@ from easyai.domain.data_transfer import (
     TransferPlan,
     TransferConfirmation,
     TransferJob,
+    TransferHistory,
 )
 
 from easyai.domain import contracts, desktop, environment, connections
@@ -44,6 +45,7 @@ MODELS: list[type[BaseModel]] = [
     TransferPlan,
     TransferConfirmation,
     TransferJob,
+    TransferHistory,
     PackageCatalog,
     InstallPlanRequest,
     InstallPlan,
