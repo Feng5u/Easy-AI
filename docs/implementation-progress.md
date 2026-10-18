@@ -1297,3 +1297,29 @@ NOT RUN/范围限制：真实用户密钥、真实SSH/远端训练/数据上传/
 中途FAIL/修正：首次未设UV_CACHE_DIR的合同生成因默认`/home/agent/.cache/uv/CACHEDIR.TAG`只读失败，没有依赖安装或合同产出；改用已存在本执行器workspace缓存并强制offline后成功，不是绕过审批拒绝。首UI **9 PASS/1 FAIL** 是原错误文案断言仍要求“IDX”，而固定missing错误现在同时用于CIFAR，改为准确通用文案断言，新增CIFAR未就绪说明由最终11覆盖。后端首117、后118及独审42/2与最终120均不叠加；P2修前复现不隐去。pnpm check最终通过，无降低门或删测。
 
 NOT RUN：官方CIFAR安全构造/完整性及样本摘要正向验收、真实CIFAR/MNIST训练/指标、数据下载/环境安装、真实SSH/上传/重连、原生picker/桌面/Windows/干净机/个人PC；M6或B未验收。旧M8本地产物固定7b91c46，不含私钥及本片新功能，未重打包上传发布；distributionReady/legalReviewComplete仍false。最新精确CI仍父级认证736b984b57861499f66f40a9b490080eb1f6bbb5/run39154349633（check SUCCESS、desktop FAIL各2annotations），新SHA暂无可判定证据，首错缺失/根因未知，Actions与sandbox既有拒绝不重试、不绕过。无本轮新增拒绝/未决外部写入，无main/强推/PR/Release/部署/费用/凭据/权限变化。
+
+## 2026-10-18 — 完整代码 Bundle 的桌面导出入口
+
+源码完整SHA：`90dd6a905452011b33d73fa0642e85b3dc2b9ad7`；基线 `d2ac2bf2ba5562a85276a2a856f894a8a1cda492`。父级明确保持CIFAR门并继续独立原功能；先核D12/§8代码导出/§12.3.1/M2.4/M6.4/TST34及现有export_bundle，确认后端生成器存在但桌面仅工程JSON。复用原导出器，不重写编译器、训练入口或环境writer；单写入者root，既有worker只读独审。
+
+新增“导出已保存代码 Bundle”：只允许当前已保存、可编译且revision匹配的工程，单独保留原JSON草稿导出。固定Main channel只接projectId/revision/programHash；路径仅由Main原生选择已有父目录，Renderer不能提交路径。picker前后和回执前核session、epoch、backend；取消picker不写，revision/ABA/backend变化不发送导出。后端从saved snapshot重新实际编译、核hash，再复用持有目录身份的local_directory、新UUID独占子目录及排他文件写入；不合并/覆盖已有目录。沿用原POSIX能力门，不新增Windows不安全路径回退。
+
+Bundle含train.py、5个辅助模块、source-map、program.ir、README/ENVIRONMENT及本次可移植project.easyai.json保存快照；snapshot也入hash清单。共用导出器在内容同步后才用临时manifest排他发布bundle.json；返回仅7个公开字段、目录basename和三hash，无本机路径。清单不是数字签名。磁盘/身份/同步错误不返回成功，不自动递归删除；开始写入后没有强制取消，服务中断或返回身份失效可能留下完整/部分目录，UI明确提示保留检查、重试创建新目录。不是事务性目录回滚，不用目录存在当作完成。见 `docs/code-bundle-export.md`，teacher/developer/release/remaining同步。
+
+实际命令（cwd `/workspace/Easy-AI`）：
+
+| 命令 | PASS / FAIL / NOT RUN与证据 |
+| --- | --- |
+| `services/backend/.venv/bin/python -m pytest services/backend/tests/test_bundle_export.py services/backend/tests/test_compilation.py services/backend/tests/test_local_workspace.py services/backend/tests/test_local_api.py services/backend/tests/test_local_ssh_storage.py services/backend/tests/test_run_service.py services/backend/tests/test_ssh_run_coordinator.py -q` | 最终 **119 PASS**，7.27s、1第三方warning；`/tmp/easyai-bundle-backend-final.log`。覆盖鉴权/严格DTO、保存快照与全部文件hash、原件/sentinel不变、stale revision/hash/current无输出、父链接/目标冲突拒绝、写入失败保留部分目录且无manifest/Run；共用bundle改动额外核本地RunService及SSH协调合成回归。初67被119覆盖不累计；无训练/真实SSH |
+| `pnpm exec vitest run apps/desktop/src/App.test.mts apps/desktop/electron/bundle-export.test.mts apps/desktop/electron/workflow.test.mts` | 最终 **36 PASS**，4.59s；`/tmp/easyai-bundle-ui-final.log`。UI savedcompiled/cancel/dirty/不启动Run，Main fixedargs/nativepath、revision/backend/ABA和foreignreceipt拒绝，以及真实Main→鉴权sidecar→Python编译→独占目录文件的导出链。没有Python/data选择、生成代码执行或Electron窗口 |
+| `UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache node scripts/check-contracts.mjs`；同环境变量 `pnpm check` | **PASS**；`/tmp/easyai-bundle-contracts.log`、`/tmp/easyai-bundle-check-final.log`，新BundleExportResult三生成物；TS/Main/测试TS、strict mypy53、97Python格式/ruff、合同/真实Blocklyfixture漂移、Prettier。复用锁定缓存，未安装或联网解析 |
+| `UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache node scripts/python-task.mjs build`；`pnpm --filter @easyai/desktop build` | 均 **PASS**；`/tmp/easyai-bundle-frozen-build.log`、`/tmp/easyai-bundle-desktop-build.log`；冻结后端和桌面实际编译，原bundle体积提示保留。不是重新打便携包或真实窗口 |
+| `node scripts/test-frozen-ssh.mjs` | **PASS**；`/tmp/easyai-bundle-frozen-ssh.log`，冻结路由/鉴权/strictDTO/固定错误/cancel与scope/环境拒绝/lazyParamiko，EOF exit0；无outboundSSH。新增exportHTTP正向链在源码sidecar中实际验证，不把该SSH smoke称作冻结export正向证据 |
+| 独立只读复核 | 无新增明确P1/P2；实际临时目录smoke核11个文件hash/snapshot/receipt/原文件不变、无Run。最终另跑写失败 **1 PASS/5 deselected/0.26s**，部分目录保留且manifest不存在；与作者窗口重合不累计。未编辑或执行生成代码 |
+| `git diff --check`；原件bytes/hash；`git ls-remote origin refs/heads/main refs/heads/codex/demo-v0.0.0` | **PASS**；原plan116185字节/hash `dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43`、旧规格 `5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190`、README `befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852`未改。推前dev=d2ac2bf、main=`5323f86232529efcfb52131168ad049f01b219f3`；普通dev push后另核 |
+
+中途FAIL：首UI组合 **35 PASS/1 FAIL**，`/tmp/easyai-bundle-ui.log`，新增测试对fixture原plain unsupported函数使用spy断言；改为显式vi.fn包装后最终36通过，没有修改生产保护/删测。早期Main11与独审smoke不叠加。新增Python测试2个未用import由ruff check --fix在执行前清除，随后完整check通过。无本轮新增审批/工具拒绝或未决外部写入。
+
+NOT RUN/仍缺：TST34在已有训练第三方库环境脱离应用实际执行导出代码；真实MNIST/CIFAR/学习效果、nativepicker/Electron窗口、Windows/干净机/课堂、环境安装/数据下载、真实SSH/数据上传/运行中远端同步；旧便携产物固定7b91c46不含私钥/CIFAR结构/新Bundle入口，未重新打包上传发布，distributionReady/legalReviewComplete仍false。本片完成代码导出入口及受控文件链，不等于M6.4或B整体验收。
+
+CIFAR状态不变：父级已向用户请求仅冻结官方adapter自带完整性检查的窄化例外，答复未到前不解除SAFE_PROBE_REQUIRED/unsafe_format_blocked。原§9.1L664只限制预检全数据散列，不被扩成禁止独立完整性校验；文件来源信任不能靠目录名/2字节/选目录或MD5单独建立，普通子进程/-I不是恶意pickle沙箱。本轮不继续无限解析器研究或执行任何真实构造。下一独立原功能是M5显式数据上传的受控任务/协议与合成测试、运行中远端产物同步；真实网络另需明确范围。最新精确CI仍父级认证736b984b57861499f66f40a9b490080eb1f6bbb5/run39154349633（check SUCCESS、desktop FAIL，各2annotations），新SHA无可判定证据，失败正文/根因未知；既有Actions/sandbox拒绝不重试或绕过。无main/强推/PR/Release/部署/费用/新凭据/权限变化。
