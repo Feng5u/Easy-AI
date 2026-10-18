@@ -988,3 +988,37 @@ NOT RUN：此前31全窗、后端整套/训练/SSH/SFTP/上传/数据下载、�
 CI仍按已核证据保留：f1ecaf7866167b404d43ea359ec8ae631f1744d7/run39144759022（16:24:52 UTC）check/desktop双FAIL；更早两次双FAIL不覆盖，本片及近期修复CI未知。未访问被拒Actions端点、未触发重试、没有新根因证据；仍需首个失败step/exit、日志及annotation原文。本地47/TS/build不能覆盖远端失败。
 
 NOT RUN：原App31/归属6整窗、后端整套/训练/真实MNIST/SSH/SFTP/上传/数据下载、真实Electron/SVG/Monaco/原生picker/E2E、环境安装/SDK协议、个人PC、Windows/NTFS/冻结ABI。Windows远程生产gate仍关闭，A/B、M5/M6/M7整体未验收；无main写入/强推/PR/发布/新费用/凭据/安全权限变化。没有新拒绝或未决外部写入。正常开发分支推送主源码/守门/本证据三提交，最终完整远端SHA见交付。下一项先父级复核本最小M7.2片，再接续完整运行时规则/报告或M7.3；真实验收和CI日志阻塞仍在。
+
+## 2026-10-18 — §16.3 结构化traceback与旧运行精确定位
+
+源码完整SHA：`b2384572da7d39d864951d95775284f5afbe777a`，父提交`7267b2b5a6b00b2ff6f6c4bda8a0f5a98eb956c4`。父级有限接受上片后，明确授权固定runtime→后端实际旧代码/frame校验→精确旧快照导航；同时要求修正旧迟到事件测试已失效的message断言。本片没有重新实现卡片、增加任意Python入口或启动真实训练。§16.3变量/注册对象解释、独立原始错误入口与脱敏报告尚未完成，不能称完整M7.2验收。
+
+固定runtime：entry与RunContext.report_failure共用failure_payload，保留NameError.name、message及最多末16个frame的filename/lineno/function，附framesTruncated。StackSummary使用lookup_lines=False，不为此读取frame指向的源码；原始stderr traceback照旧保留。只读取固定runtime模块相邻train.py，最多8MiB+1计算hash，附generatedFile/generatedCodeHash，不打开事件或frame提供的路径；过长frame路径记缺失、函数与message限制长度。生成文件身份不再按basename认定。新资源只进入后续新bundle；旧事件仍保存在原journal中。
+
+后端新增只读派生RunViews.events：先取原事件，对runtime_error调用既有source校验旧snapshot、bundle中文件digest、实际生成codeHash与真实source-map；预期生成文件由不可变RunConfig.runRoot/code/train.py计算（SSH为PurePosixPath，仅字符串比较，不连接目标）。要求runtime生成文件/hash相符，再从最内层filename精确等于本次文件的frame取合法行号；不接受外部同名train.py或仅库frame，不使用未经验证的事件blockId猜位置。Python既有locate_line按最窄semantic优先，其次明确标示scaffold；映射行须在旧代码内、origin须属于decode旧snapshot。无span、坏frame、hash/文件身份/来源未核实均precision=none且origin/line为空。不会读取当前编辑工程替代旧来源，也不把scaffold宣传为语义精确命中。
+
+SSE在既有scoped_read/deliver及逐次scope门内使用派生视图，附payload.applicationLocation(version/runId/eventSeq/codeHash/precision/reason/origin/line)。不改Event顶层schema、事件类型或游标；应用派生字段覆盖子进程同名声称，原journal一字不改，包含同名原字段的回归亦核对原记录不变。正常无异常批次不新增来源文件读取；SSH路径仍仅注册本地缓存读取，不新增远端I/O。前端解析固定metadata，明确none/无效metadata不回退coarse事件ID；旧无metadata客户端记录保留兼容来源。Dashboard核run/hash/workspace/实际旧快照成员后才启定位，按钮与回调共用diagnosticBlock。摘要区分最窄语义、脚手架和无法精确定位，不直接显示任意reason、变量、路径或原异常。原始终端日志仍未脱敏，本片不是全界面隐私净化。
+
+父级测试补强已完成：旧run迟到事件改注入NameError并断言无RUNTIME_NAME_ERROR和无新增alert，保留旧source/image未显示及新快照来源断言，不再以已隐藏的message作为隔离证明。
+
+独审发现并关闭P2：坏bundle.json结构使既有_verify_snapshot对{}抛KeyError、对[]抛TypeError，令新事件视图无法按约定降级。先新增真实owned store回归，修前manifest组 **2 FAIL/1 PASS/12 deselected**，0.28秒，`/tmp/easyai-traceback-manifest-red.log`，原journal仍在。最小修复在manifest/files索引前核两者均dict，否则固定ValueError BUNDLE_MANIFEST_INVALID，使视图返回none/SOURCE_UNVERIFIED。没有catch所有Exception或绕过源校验。另前端独审建议补workspace矛盾防御；首次只补回调时新回归 **7 PASS/1 FAIL/26 skipped**，指出按钮仍启用，随后共享helper统一按钮/回调后通过。
+
+实际命令（cwd `/workspace/Easy-AI`；UV/XDG沿用workspace缓存：`UV_CACHE_DIR=/workspace/.uv-cache UV_PYTHON_INSTALL_DIR=/workspace/.python XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/.cache`）：
+
+| 命令 | 结果及边界 |
+| --- | --- |
+| 同缓存 `uv run --frozen --project services/backend pytest services/backend/tests/test_runtime_diagnostics.py services/backend/tests/test_emission.py services/backend/tests/test_run_views.py services/backend/tests/test_run_service.py services/backend/tests/test_run_scope_race.py -q` | 最终相关矩阵 **72 PASS**，5.32秒，1项既有Starlette/AnyIO弃用警告。含新增15诊断、旧emission/views/service/scope；不是旧后端全套。专用stdlib fixture真实运行固定entry、真实NameError/非零退出/帧函数/NameError.name，未导入torch或执行训练。覆盖最内层自身frame、最窄semantic、外部同basename不能替代自身帧/仅外部或library不可猜、runtimehash错、生成文件身份错、缺frame/坏line/boolline、坏origin/无span、scaffold精度，原事件不变 |
+| 新15最终防御补断言 | 同缓存 `uv run --frozen --project services/backend pytest services/backend/tests/test_runtime_diagnostics.py -q` **15 PASS**，1.63秒，与72重合不加。真实ProjectService→RunService.prepare→手工专用异常事件→cancel CREATED使SSE有界结束→认证FastAPI SSE，核derived origin/eventSeq及原journal不变；未启动子训练进程。实际旧code/source-map/{}、[]、files非dict损坏后均none/SOURCE_UNVERIFIED。此末次还保留子进程伪造同名metadata原字段、确认传输派生来源覆盖而journal原字段不变 |
+| `pnpm exec vitest run apps/desktop/src/RunSnapshot.test.mts -t 'backend .* location\|switching run rejects late\|artifact and runtime-error\|structured NameError'` | 最终 **10 PASS/24 skipped**，1.58秒。新7种semantic/scaffold/none/错hash/seq/外origin/workspace+加强的late隔离、正常旧runtime来源/NameError导航。没有重跑上片47或App31 |
+| `pnpm exec vitest run apps/desktop/src/runEvents.test.mts` | **9 PASS**，215ms，实际修改reducer字段后覆盖事件序号/run过滤、状态/指标、原结构化记录与安全摘要。与Snapshot10为不同文件；不累计独审重跑 |
+| 两位独立只读审查 | 后端初跑新11 PASS并发现上述manifest P2，修复后独跑real_old_run组 **5 PASS/10 deselected**，0.65秒，确认P2关闭、认证SSE/原记录不变。前端最终独跑metadata/late **8 PASS/26 skipped**，确认workspace/hash/ID共同守门，无明确未关闭新P1/P2；未编辑或执行真实训练/SSH |
+| 同缓存 `pnpm check` | **PASS**；TS、strict mypy47源码、ruff/格式、合同/真实Blockly fixture漂移、Prettier，日志`/tmp/easyai-traceback-check.log`。没有因自由payload metadata新增或改写顶层协议/导出schema |
+| `pnpm --filter @easyai/desktop build`；同缓存 `node scripts/python-task.mjs build` | 均 **PASS**；桌面静态assets保留既有chunk提示，后端PyInstaller onedir构建成功。日志`/tmp/easyai-traceback-desktop-build.log`、`/tmp/easyai-traceback-backend-build.log`。没有启动Electron或安装新依赖 |
+| `node scripts/test-frozen.mjs` | **PASS**；实际冻结sidecar从临时cwd启动，runtime资源字节一致、鉴权/原生选择API/工程创建/黄金编译、EOF exit0。日志`/tmp/easyai-traceback-frozen-smoke.log`。不是实际原生picker/Electron/训练/Windows ABI或冻结diagnostic全链验证 |
+| `git diff --check`、原件SHA/字节、远端基线 | **PASS**；计划116185字节/hash `dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43`，原规格`5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190`、README`befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852`保留。起点工作区干净，origin dev=7267b2b，main仍`5323f86232529efcfb52131168ad049f01b219f3` |
+
+其他中途失败如实保留：一次忘带任务缓存变量的`node scripts/python-task.mjs check`因默认/home/agent/.cache/uv只读FAIL；改用既有workspace缓存后另一次check指出刚改runtime需按仓库100列格式化，格式修正后strict检查与最终pnpm check通过。未申请额外文件权限或绕过拒绝。初窗口新11+旧emission12为23PASS，后扩受影响view/service/scope矩阵为72PASS，不累加；前端wrong-workspace单项FAIL已如上保留，没有降低禁定位断言。
+
+CI边界不变：已核f1ecaf7866167b404d43ea359ec8ae631f1744d7/run39144759022（16:24:52 UTC）check/desktop双FAIL，更早两次双FAIL保留；本片CI未知。未访问被拒Actions端点、未触发重试，仍缺首失败step/exit、日志及annotation原文。当前本地检查不能覆盖远端失败。
+
+NOT RUN：真实Electron/SVG/Monaco/原生picker/E2E、训练/真实MNIST/SSH/SFTP/上传/数据下载、新环境安装/SDK协议、个人PC、Windows/NTFS/冻结ABI、上片47/原App31/后端全套。Windows远程生产gate保持关闭，A/B、M5/M6/M7整体未验收。无main写入/强推/PR/发布/部署/Release/新费用/凭据/安全权限。源与本证据按正常开发分支推送，最终完整证据/远端SHA见交付。下一项先父级独审本精确定位切片，再按原§16.3接冻结符号解释/注册对象与脱敏报告，或父级明确安排M7.3；不提前扩v0.0.1，真实验收与CI日志阻塞仍在。
