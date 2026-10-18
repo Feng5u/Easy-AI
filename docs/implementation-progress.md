@@ -1648,3 +1648,49 @@ NOT RUN：真实CondaBootstrap/pip/环境创建/安装/实际正向imports与ten
 plan116185字节SHA256 dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43，旧规格5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190，README befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852保持。CIFAR待裁决；旧226PASS/1FAIL保持UNKNOWN；既有Actions读取/sandbox拒绝未重试或绕过。无本片新CI结论；无main/强推/PR/Release/部署/费用/凭据/安全权限变化、无新工具拒绝。
 
 下一项：父侧复核本P2和独审证据；可继续安装历史/保留策略及未知停止的显式安全恢复代码。真实安装/SSH需独立具体授权；完整M5/M6.3/B仍未验收。
+
+
+## 2026-10-18 — M6.3 ML白名单可选闭包与来源接线（无真实安装）
+
+源码完整SHA **`4ed030db5770fcd559120c1c3f24d7cf5a8d635c`**；基线 `d2735b8fc2e3f6f33aca1be8b4efcb5bc1a931de`。按父级原14.3/14.5新授权优先补完整ML组，不转去安装历史，不增加writer；沿用单一集成者/既有独审worker。原始README/旧规格/计划及核心CPU sources/lock保留。完整合同与来源主记录见 `docs/install-ml-sources.md`、`packages/training-profiles/easyai-ml-sources.json`。
+
+来源只读核验：精确PyPI发行scipy1.17.1、pandas3.0.1、scikit-learn1.8.0、joblib1.5.3、threadpoolctl3.6.0，选择Linux x86_64 CPython3.11/py3-any wheel记录。实际读取JSON与PEP658 `.metadata`，与发行/索引声明的metadataSHA256核真实元数据字节，再核Name/Version/Requires-Python/Requires-Dist。未请求wheel或sdist。记录真实URL/filename、发行SHA/size、metadataSHA和原始发行JSON captureSHA，不编造hash或体积。新增闭包声明下载56036031字节；wheel本体未下载/核实际字节，未来仍由原archive对operator本地文件核SHA/bytes/身份。元数据中当前yanked=false及vulnerabilities=[]仅为捕获结果，非持续安全或许可审查。
+
+- 固定图匹配无extras的PEP508目标markers：scipy要求NumPy>=1.26.4,<2.7；pandas Python3.11要求NumPy>=1.26及dateutil>=2.8.2；sklearn要求NumPy>=1.24.1/scipy>=1.10/joblib>=1.3/threadpoolctl>=3.2。复用核心NumPy2.4.2/dateutil2.9.0.post0及其已锁six，不升降核心。Windows/emscripten tzdata marker不属于本Linux合同；doc/test/build/excel等extras不选。
+- 新补充sources/lock与固定选择函数按用户请求根取闭包：scipy不带pandas；pandas不带sklearn；sklearn带scipy/joblib/threadpoolctl；ML全选走同一计划器。固定补充锁与manifest须完全相符；constraintsHash绑定两对来源/锁，planHash包括具体闭包/来源预算。17卡现在8卡可解析、其余9卡继续INSTALL_DEPENDENCIES_UNRESOLVED；不按展示卡片宣称支持。新增unpackedBytes=null，ML计划installedBytes=null，拒绝虚构解包占用。
+- runtime核心快照仅核核心本地来源；具体ML计划额外核选中closure真实本地wheel/hash/字节，纳入runtimeFingerprint与原bootstrap/磁盘/时间预算。默认缺配置仍false；来源漂移/不足或预算不符拒绝，不因catalog core capability启用ML。既有fixed OfflineWheelInstaller只把选中补充pin加入原核心lock副本，原no-index/require-hashes/only-binary、私有源/owner/WAL/lease/cancel/probe门不变。
+- 独审指出未选ML import也可能拖垮核心probe，已收窄：metadata版本inventory列已知distribution但不import；baseline/规划仅原核心3模块，final receipt从本计划闭包显式映射所需import，sklearn不是猜名；未选pandas不导入，未知module拒绝。完整版本/import与原tensor门均通过才可verified/ready，未降低未知probe隔离。
+- PyInstaller/离线package资源allowlist加入两份ML数据，冻结后端校验四文件和含ML的默认禁用计划。这里只重建本地冻结后端，没有重打旧portable目录。Main原生source picker仍缺，目前只有operator私有manifest，已在产品状态文档保留。真实ABI/import/tensor与安装未验。
+
+| 实际命令/动作 | PASS/FAIL/NOT RUN及边界 |
+| --- | --- |
+| `services/backend/.venv/bin/python -m pytest services/backend/tests/test_install_ml.py services/backend/tests/test_install_probe_ownership.py services/backend/tests/test_install_process.py services/backend/tests/test_install_service.py services/backend/tests/test_owned_creation.py services/backend/tests/test_supervisor.py services/backend/tests/test_install_runtime.py -q` | **106 PASS/12.62s**，`/tmp/easyai-ml-regression-20261018-final1.log`。7新增metadata/closure、单选与全组选中/预算/漂移/固定命令/选中import失败拒绝门；其余为原安装/probe/创建/supervisor/runtime回归。新ML用命令捕获/合成inventory，不执行实际ML import或安装；既有stdlib子进程不冒充训练。 |
+| `UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache pnpm check` | **PASS**，`/tmp/easyai-ml-check-20261018-final1.log`；TS/Main/tests、ruff/format113Python、strict mypy62、合同/真实Blocklyfixture/Prettier。无公开合同DTO/schema变化。 |
+| `UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache XDG_CACHE_HOME=/workspace/.cache pnpm build` | **PASS**，`/tmp/easyai-ml-build-20261018-unique1.log`；Vite/TS/PyInstaller，已有chunk提示保留，无依赖安装/下载；最终源码与来源资源已包含。之后仅文档补充，无行为/资源变化。 |
+| `node scripts/test-frozen.mjs` | **PASS**，`/tmp/easyai-ml-frozen-20261018-unique1.log`；临时cwd启动真实冻结后端，四份来源/锁比对、core与完整ML计划（仍禁用）、选择API、工程/黄金编译/EOF exit0；未确认实际执行安装。 |
+| `node --test scripts/package.test.mjs` | **6 PASS**，`/tmp/easyai-ml-package-resources-20261018-unique1.log`；合成离线复制fixture覆盖新增资源/拒覆盖/完整清单/漂移，不生成真实便携包。 |
+| 独审 `pytest services/backend/tests/test_install_ml.py -q` | **7 PASS/0.30s**，`/tmp/easyai-ml-import-review-HcWSJn.log`；早一轮6PASS范围重合，不累加。最终未发现明确新增P1/P2。 |
+| 独审限定HTTPS JSON/.metadata再核 | **5发行全部PASS**，`/tmp/easyai-ml-metadata-review-z02tgjlr.json`；无redirect、两域/2MiB/15s界限，10个元数据请求，wheel SHA/字节/URL与METADATA SHA/依赖/版本均一致，5个发行captureJSON SHA未变。无wheel请求/安装/真实probe。 |
+| `git diff --check` / `git ls-remote origin refs/heads/main refs/heads/codex/demo-v0.0.0` / 原件hash | **PASS**；推前dev=d2735b8fc2e3f6f33aca1be8b4efcb5bc1a931de；main=5323f86232529efcfb52131168ad049f01b219f3；后续正常dev提交推送及远端核对。 |
+
+初稿记录如实保留：新6专项首次即6PASS；ruff终端初查发现unused Path和两项单行格式，移除unused并格式化，无产品/测试门放宽。初版回归105PASS/checkPASS；独审建议后加receipt选中import合同，第7专项及最终106PASS，不能把早/晚窗口累加。所有文件日志唯一noclobber，无覆盖失败；主捕获命令逐项终端输出与来源文件及独立联网复核相互支持，不伪造未保存的原始请求日志。
+
+- `/tmp/easyai-ml-new-20261018-unique1.log` SHA256 `1749ffae266aad4292b5e5dafdd61881dc9ea0c13ae040ae1afd2c90c44504b2`。
+- `/tmp/easyai-ml-new-20261018-unique2.log` SHA256 `c83b7dc3b345d26077afae1610805229398ba3a4a9402906460838c0f056f594`。
+- `/tmp/easyai-ml-regression-20261018-unique1.log` SHA256 `2a4a12d2de37674addb256df3b22f3dfa6e67ba4cad22febadff8dfc2303dca6`。
+- `/tmp/easyai-ml-regression-20261018-final1.log` SHA256 `f73cf2cb4c59ec24a54dd085637a52ae0a61bdd0be5895530c04abadaab5dd53`。
+- `/tmp/easyai-ml-check-20261018-unique1.log` SHA256 `d85a01ed609e6b3275957460a595e1632515dfe4bba3f214695c7470c847789c`。
+- `/tmp/easyai-ml-check-20261018-final1.log` SHA256 `d85a01ed609e6b3275957460a595e1632515dfe4bba3f214695c7470c847789c`。
+- `/tmp/easyai-ml-build-20261018-unique1.log` SHA256 `f117a562eb025e1ec30d0deefd3ccbf6c2d3980df9ebfc2dde2a5ff604c268eb`。
+- `/tmp/easyai-ml-frozen-20261018-unique1.log` SHA256 `598e651d8bfd55009c56cd315d848d8185d98d8ae4eb67c6d0dd2d14af4ed0c3`。
+- `/tmp/easyai-ml-package-resources-20261018-unique1.log` SHA256 `e9664dfdbe3902a94545a9581194acc8927a09f9b6d0ac580eb2faa4da549610`。
+- `/tmp/easyai-install-ml-review-q3Z6L2.log` SHA256 `2f0f8bcb5a0ec38f5ba3702a4491e165c19cdf8f271153bb0fb582c1f6593e39`。
+- `/tmp/easyai-ml-import-review-HcWSJn.log` SHA256 `86bbfb0c34fc84fb07816d3bbc6992a59067bb59898d8dcccd3a895fd96e0cd1`。
+- `/tmp/easyai-ml-metadata-review-z02tgjlr.json` SHA256 `757487ed67964ec47c666893059fc0e8fa699c2d8d0fb8b99ec4f894eb85a8ff`。
+
+
+NOT RUN：wheel/sdist/模型/数据下载、真实conda/pip/环境创建/安装/ML实际imports/ABI/tensor正向/训练、真实SSH、新许可接受/凭据、Electron原生picker/桌面/Windows/干净机/全套大矩阵、真实portable重打包/发布。上述安装执行仍缺可信本地来源及许可、具体一次性owned目标/预算/窗口独立授权，**未授权且未执行**，不存在不确定外部安装结果。代码元数据可解析不等于M6.3或B验收。Main原生source picker仍缺；余9卡精确unsupported，后续逐组核发行/闭包，不能猜锁。
+
+核心sources SHA256 `2628fc7071ca97301e1069dd8bcf20de72eefdeed5e065969c497cf4f89641c5`、核心lock `f30a1d2eb86b13a7ae8a708e3356fade92e8dd942f746616a66376f281d8641b`均未改。计划116185字节SHA256 dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43，旧规格5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190，README befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852不变。旧portable source7b91c46不含本片；distributionReady/legalReviewComplete仍false。CIFAR待裁决、旧226PASS/1FAIL根因UNKNOWN且原始日志丢失不回溯关闭。既有Actions读取/sandbox拒绝未重试/绕过；无本片新CI判断；无main/强推/PR/Release/部署/费用/凭据/安全权限变更，无新拒绝/未知外部写入。
+
+下一项：父侧复核ML来源合同/实际元数据/选择闭包与默认执行门；其余可选组仍需逐项可信元数据/核心兼容裁决，无法核实继续unsupported。Main来源选择入口与真实安装/SSH的独立实测门仍待完成，不把本片可解析性当真实安装完成。
