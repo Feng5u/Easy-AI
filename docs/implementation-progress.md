@@ -1519,3 +1519,35 @@ NOT RUN：全套/大矩阵、构建/冻结smoke（本片无打包验收）、真
 NOT RUN：配置后的真实 `pnpm test:ssh --execute`（准确目标未提供且未获真实执行窗口）、真实SSH/上传/启动/断线恢复/取消/产物核验、训练/安装/下载/新凭据、Electron/Windows/干净机/构建重打包/全套大矩阵。原plan116185字节SHA dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43、旧规格5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190、README befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852未改。CIFAR待用户裁决；旧226 PASS/1 FAIL根因UNKNOWN且原始日志丢失，不借本轮关闭。既有Actions读取/sandbox拒绝未重试/绕过，CI最新精确认证仍d2ac2bf/run39158015941 check SUCCESS/desktop FAIL，首错未知。本片无新拒绝/未知外部写入/main/强推/PR/Release/部署/费用/凭据/权限变化。
 
 下一项/真实阻塞：M5至少一次真实全链目前 **未授权且未执行**，不是失败后重试。需隔离Linux目标与账号范围、可信独立指纹、既有训练Python/课程MNIST、受保护runBase父目录、明确上述操作起止窗口、可信stdin凭据注入和私有新localRoot；不要求在公开仓库填写。文档与本地门可独立推进已完成，后续未经新实质授权不连接。源码不等于M5/B通过。
+
+
+## 2026-10-18 — 父侧SSH入口静态竞争P2修复；M6.3生产接线审计
+
+修复源码完整SHA **`2d2850e8f75ae39b224be15cde09e3d09aeb1f0b`**，基线 `7433d1761a8678e0af68213a54c171fa6b7b93ca`。父侧暂不签收旧入口，指出ConnectionManager.wait_idle只等session/environment，不等RemoteRuns旧worker；旧worker可在0.5秒轮询或finally中，快速新认证后resume触发REMOTE_RUN_BUSY。先提取原入口相同控制序列，加现有产品/本机stdlib合成owner的确定性disconnect-finally屏障，旧逻辑实际进入RemoteRuns.begin而 **1 FAIL/18 deselected**，固定首错REMOTE_RUN_BUSY；原件保留，不是推测。
+
+最小修复：RemoteRuns.wait_worker_exit只快照同run先前worker，gate外最多join3秒，重入gate核同owner未被替换/线程确实退出/同步清理已静止。超时BUSY、owner替换或未知清理拒绝；不stop/retire/unlock、不重start或重认证，不改变begin/core.attach的所有权门。入口仅一次新认证，尚未发resume前等待，再复核窗口，最后一次resume。屏障回归先做0.01秒超时，确认旧thread/owner保留且start计数1，再释放实际旧worker，恢复后认证仍1、start仍1。
+
+| 实际命令 | 结果 |
+| --- | --- |
+| `services/backend/.venv/bin/pytest services/backend/tests/test_remote_run_api.py -k acceptance_resume_waits -q` 修前/后 | 原始 **1 FAIL** `/tmp/easyai-ssh-worker-red-20261018-unique1.log`；修后 **1 PASS/18 deselected/1.81s** `/tmp/easyai-ssh-worker-green-20261018-unique1.log`，不累计到最终窗口 |
+| `services/backend/.venv/bin/pytest services/backend/tests/test_remote_run_api.py services/backend/tests/test_ssh_acceptance_entry.py -k 'acceptance_resume_waits or entry or configured or attestation or window_reaches' -q` | **8 PASS/18 deselected/2.44s**，`/tmp/easyai-ssh-worker-target-1792358046734-85016e.log`；仅1个屏障及既有7入口门，不扩大合成矩阵 |
+| `MYPYPATH=services/backend/src services/backend/.venv/bin/mypy --strict services/backend/integration/ssh_acceptance.py` | **PASS**；`/tmp/easyai-ssh-worker-types-1792358046734-85016e.log` |
+| `UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache pnpm check` | **PASS**；`/tmp/easyai-ssh-worker-check-1792358046734-85016e.log`。TS/Main/tests、108Python格式/ruff、strict mypy60、合同/Blockly fixtures/Prettier |
+| 既有worker独立只读barrier | **1 PASS/18 deselected/1.24s**，`/tmp/easyai-ssh-worker-review-Lq25cg.log`；关闭此P2，无新增明确P1/P2；重合不累计 |
+| `git diff --check` / `git push origin HEAD:refs/heads/codex/demo-v0.0.0` / `git ls-remote origin refs/heads/main refs/heads/codex/demo-v0.0.0` | **PASS**，修复已普通push并核dev=2d2850e8f75ae39b224be15cde09e3d09aeb1f0b，main=5323f86232529efcfb52131168ad049f01b219f3不变；审计/本条进度随后独立文档提交 |
+
+- `/tmp/easyai-ssh-worker-red-20261018-unique1.log` SHA256 `a05f7851ef624c49567e28707a2d38f97f448a1f95b56e79d89abd189f55b989`。
+- `/tmp/easyai-ssh-worker-green-20261018-unique1.log` SHA256 `65675d5bb2bce9409f955cf0a3c6d2b75a4f655c2d54350d241f50186f9c5eeb`。
+- `/tmp/easyai-ssh-worker-target-1792358046734-85016e.log` SHA256 `fbbe534875b2932f157a4c1e56980b697ffa631f54031de049248da2b4b74585`。
+- `/tmp/easyai-ssh-worker-types-1792358046734-85016e.log` SHA256 `5d4b6d285b77932e3d08212c3b4974d0a803f98ec60408ac6ccf6a063fa6c19e`。
+- `/tmp/easyai-ssh-worker-check-1792358046734-85016e.log` SHA256 `79ef6c192c3f60411c73a59c727796deed1c08f85079ab69ad7ed25d3fd4cffa`。
+- `/tmp/easyai-ssh-worker-review-Lq25cg.log` SHA256 `cd7b21d37005571e98f070a70e1b94dfa55f86f1999e1763aadc0aabc224fb41`。
+
+
+随后按原M6.3完成只读接线审计，交付 `docs/install-production-wiring.md`：缺真实CondaBootstrap、LocalWorkspace未注入ManagedInstallInspector、confirm仅AWAITING_EXECUTION未调度execute、现有close先关journal不足以承接并发worker。这些是代码缺口，不以缺真实环境宣称代码完工。最小顺序为可信现有conda/离线bootstrap来源合同→固定argv/既有owner下CondaBootstrap→inspector与唯一worker接线/静止关闭→能力及计划合同/Main/UI。记录bootstrap来源/hash/体积缺口、执行能力false/网络字段语义、锁覆盖包与未解析包、教师环境只读、应用venv无torch、未知保留lease及禁止自动恢复。此处仅方案，没有启用安装代码。
+
+NOT RUN：真实SSH/新入口execute/下载/安装/conda创建/训练/新凭据/许可接受/全套大矩阵/构建重打包/桌面/Windows/干净机。准确真实执行目标与窗口未提供，**未授权且未执行**；未来安装另需一次性owned目标、具体可信launcher/bootstrap及wheel来源/许可/预算确认，不把已有开发授权当执行许可。CIFAR待裁决、旧226 PASS/1 FAIL根因UNKNOWN且原始日志丢失，不由此P2回溯关闭。plan116185字节hash dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43、旧规格5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190、README befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852未改。既有Actions读取/sandbox拒绝未重试/绕过，无新拒绝/未知外部写入/main/强推/PR/Release/部署/费用/凭据/权限变更；无本片新CI判定。完整M5/M6.3/B仍未验。
+
+下一项为按最小方案冻结可信conda bootstrap/来源合同，再做受控本地adapter和唯一worker生产接线；真实执行门保持关闭。方案不替代尚未实现的adapter或真实纵向验收。
+
+本片M6.3接线方案亦经既有worker独立只读核对，四项代码缺口与现状一致，无重大事实误述；没有启用安装或把内部接口当真实安装完成。

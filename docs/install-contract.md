@@ -39,3 +39,5 @@ pip的isolated不等于禁用global/site配置，no-index也不移除配置追�
 尚需真实conda bootstrap adapter（已存在独占FS创建与阶段接线）、实际安装适配器与许可/来源/目标授权的生产接线、正向真实环境probe、可选包解析来源、任务历史/保留策略、存活安装子进程重连和未知停止安全解除、远端目标以及实际owned环境纵向验收。现有CPU lock没有被当作上述实现。实际安装器、probe及持久日志现在已有代码基础，但尚未完成真实依赖安装纵向验证。目录fsync仅用于本地origin先于owned marker的顺序，未据此签完整跨目录断电恢复保证。
 
 真实执行前需明确一次性 owned 环境范围、包源和下载预算，展示具体计划后再获得执行授权；SDK/许可另核。不使用教师共享环境、不在应用 Python 安装 torch、不下载训练数据。当前合同/组件/Main/冻结 sidecar 测试均不执行这些动作。
+
+生产接线审计与最小实施顺序见 [install-production-wiring.md](install-production-wiring.md)：真实conda bootstrap、LocalWorkspace inspector和confirm→唯一execute worker仍是代码缺口；不是只缺真实环境验收。本轮仅审计，安装门继续关闭。
