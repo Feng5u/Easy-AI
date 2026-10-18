@@ -17,7 +17,8 @@ export type Type =
   | "pipeline_completed"
   | "process_exited"
   | "process_spawn_failed"
-  | "status_changed";
+  | "status_changed"
+  | "artifact_sync_failed";
 export type Blockid = string | null;
 
 export interface Event {

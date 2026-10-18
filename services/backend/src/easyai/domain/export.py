@@ -85,6 +85,7 @@ MODELS: list[type[BaseModel]] = [
     contracts.Event,
     contracts.EpochMetrics,
     contracts.ArtifactRecord,
+    contracts.ArtifactSyncFailure,
     contracts.ArtifactSyncProgress,
     contracts.RunConfig,
     contracts.Run,

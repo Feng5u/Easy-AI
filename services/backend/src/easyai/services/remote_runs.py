@@ -17,6 +17,8 @@ from uuid import uuid4
 from easyai.domain.contracts import (
     ArtifactRecord,
     ArtifactSyncProgress,
+    ArtifactSyncFailure,
+    ArtifactSyncStage,
     RemoteExecution,
     Run,
     RunConfig,
@@ -369,6 +371,7 @@ class RemoteRuns:
             self._sync_progress(run_id, owner, state="idle", counts=(0, 0, 0))
 
             def work() -> None:
+                operation_phase: ArtifactSyncStage = "scope"
                 try:
                     if initial:
                         core.start()
@@ -377,7 +380,9 @@ class RemoteRuns:
                             self._sync_progress(run_id, owner, state="cleanup_pending")
                             owner.stop.wait(0.1)
                             continue
+                        operation_phase = "owner_poll"
                         checkpoint = core.poll()
+                        operation_phase = "unknown"
                         self._publish(run_id, checkpoint)
                         observed = checkpoint.last_observation
                         receipt = observed.artifact_receipt if observed else None
@@ -400,9 +405,17 @@ class RemoteRuns:
                                 return
                             owner.last_receipt = receipt.sha256 if receipt else None
                         owner.stop.wait(0.5)
-                except Exception:
+                except Exception as error:
                     # A failed I/O operation says nothing about whether the owner ran.
                     try:
+                        from easyai.services.remote_artifacts import sync_failure
+
+                        self._sync_progress(
+                            run_id,
+                            owner,
+                            state="error",
+                            failure=sync_failure(error, operation_phase),
+                        )
                         core.disconnect()
                         self._publish(run_id, core.checkpoint())
                     except Exception:
@@ -426,9 +439,10 @@ class RemoteRuns:
         owner: _Worker,
         checkpoint: Any,
     ) -> bool:
-        from easyai.services.remote_artifacts import SftpArtifactSync
+        from easyai.services.remote_artifacts import SftpArtifactSync, ArtifactFailure, sync_failure
         from easyai.services.run_completion import artifacts_complete
 
+        phase: ArtifactSyncStage = "snapshot"
         core = self.core(run_id)
         directory = self.runs._directory(run_id)
         self._publish(run_id, checkpoint, sync="syncing")
@@ -442,7 +456,9 @@ class RemoteRuns:
                     return False
                 owner.sync_cancel = threading.Event()
                 owner.sync_transport = manager.artifact_sync(control, core.identity)
-            self._sync_progress(run_id, owner, state="syncing", counts=(0, 0, 0))
+            self._sync_progress(
+                run_id, owner, state="syncing", counts=(0, 0, 0), clear_failure=True
+            )
             ready = owner.sync_transport.sync(
                 snapshot,
                 directory / "cache/artifacts",
@@ -457,6 +473,7 @@ class RemoteRuns:
                 self._sync_progress(run_id, owner, state="paused" if owner.paused else "idle")
                 self._publish(run_id, checkpoint, verified=False, sync="pending")
                 return True
+            phase = "completion"
             self.runs._verify_snapshot(run_id)
             program = ProgramIR.model_validate_json(
                 read_regular(directory / "program.ir.json", 5 * 1024 * 1024)
@@ -480,20 +497,36 @@ class RemoteRuns:
                 if complete or checkpoint.execution_state != "COMPLETED"
                 else "error",
             )
-            self._sync_progress(run_id, owner, state="paused" if owner.paused else "idle")
+            missing = checkpoint.execution_state == "COMPLETED" and not complete
+            self._sync_progress(
+                run_id,
+                owner,
+                state="error" if missing else "paused" if owner.paused else "idle",
+                failure=ArtifactSyncFailure(
+                    stage="completion", code="SYNC_REQUIRED_ARTIFACTS_MISSING"
+                )
+                if missing
+                else None,
+            )
             return True
-        except Exception:
+        except Exception as error:
+            detail = sync_failure(error, phase)
+            cleanup = error.cleanup_failure if isinstance(error, ArtifactFailure) else None
             if owner.paused or owner.stop.is_set() or owner.sync_cancel.is_set():
                 quiet = owner.sync_transport is None or owner.sync_transport.quiescent
                 self._sync_progress(
                     run_id,
                     owner,
                     state=("paused" if owner.paused else "idle") if quiet else "cleanup_pending",
+                    failure=detail,
+                    cleanup_failure=cleanup,
                 )
                 self._publish(run_id, core.checkpoint(), sync="pending")
             else:
                 core.disconnect()
-                self._sync_progress(run_id, owner, state="error")
+                self._sync_progress(
+                    run_id, owner, state="error", failure=detail, cleanup_failure=cleanup
+                )
                 self._publish(run_id, core.checkpoint(), sync="error")
             return False
 
@@ -504,6 +537,9 @@ class RemoteRuns:
         *,
         state: Literal["idle", "syncing", "paused", "cleanup_pending", "error"],
         counts: tuple[int, int, int] | None = None,
+        failure: ArtifactSyncFailure | None = None,
+        cleanup_failure: ArtifactSyncFailure | None = None,
+        clear_failure: bool = False,
     ) -> None:
         with self._gate:
             if self._workers.get(run_id) is not owner or self._closing:
@@ -522,7 +558,31 @@ class RemoteRuns:
                     received_bytes=counts[0] if counts else current.received_bytes,
                     verified_bytes=counts[1] if counts else current.verified_bytes,
                     total_bytes=counts[2] if counts else current.total_bytes,
+                    failure=failure
+                    if failure is not None
+                    else None
+                    if clear_failure
+                    else current.failure,
+                    cleanup_failure=cleanup_failure
+                    if cleanup_failure is not None
+                    else None
+                    if clear_failure
+                    else current.cleanup_failure,
                 )  # Live byte counters are polled; never append per-chunk journal events.
+                if failure is not None and (
+                    failure != current.failure or cleanup_failure != current.cleanup_failure
+                ):
+                    self.runs._journal(run_id).append(
+                        "artifact_sync_failed",
+                        None,
+                        {
+                            "failure": failure.model_dump(mode="json", by_alias=True),
+                            "cleanupFailure": cleanup_failure.model_dump(mode="json", by_alias=True)
+                            if cleanup_failure
+                            else None,
+                        },
+                    )
+                    self.runs._persist()
 
     def sync_control(
         self, run_id: str, paused: bool, commit_scope: Callable[[], ContextManager[None]]

@@ -17,9 +17,15 @@ from typing import Any, Callable
 from uuid import uuid4
 
 import paramiko  # type: ignore[import-untyped]
-from pydantic import TypeAdapter
+from pydantic import TypeAdapter, ValidationError
 
-from easyai.domain.contracts import ArtifactRecord, Event, SourceSpan
+from easyai.domain.contracts import (
+    ArtifactRecord,
+    ArtifactSyncFailure,
+    ArtifactSyncStage,
+    Event,
+    SourceSpan,
+)
 from easyai.domain.remote_run import (
     ArtifactManifest,
     RemoteRunCheckpoint,
@@ -37,11 +43,39 @@ MAX_TOTAL = 256 * 1024 * 1024
 
 
 class ArtifactFailure(ValueError):
+    def __init__(
+        self,
+        message: str,
+        *,
+        failure: ArtifactSyncFailure | None = None,
+        cleanup_failure: ArtifactSyncFailure | None = None,
+    ):
+        super().__init__(message)
+        self.failure, self.cleanup_failure = failure, cleanup_failure
+
+
+class ArtifactEvidenceFailure(ArtifactFailure):
     pass
 
 
-def _reject() -> None:
-    raise ArtifactFailure("REMOTE_ARTIFACT_INVALID")
+def sync_failure(error: Exception, stage: ArtifactSyncStage) -> ArtifactSyncFailure:
+    """Only owned typed details survive. Never inspect/serialize SDK exception text."""
+    if isinstance(error, ArtifactFailure) and error.failure is not None:
+        return error.failure.model_copy(deep=True)
+    if isinstance(
+        error, (ArtifactEvidenceFailure, ValidationError, UnicodeError, json.JSONDecodeError)
+    ):
+        return ArtifactSyncFailure(stage=stage, code="SYNC_INVALID_EVIDENCE")
+    if isinstance(error, OSError):
+        return ArtifactSyncFailure(stage=stage, code="SYNC_IO_FAILED")
+    return ArtifactSyncFailure(stage=stage, code="SYNC_UNKNOWN")
+
+
+def _reject(stage: ArtifactSyncStage | None = None) -> None:
+    raise ArtifactEvidenceFailure(
+        "REMOTE_ARTIFACT_INVALID",
+        failure=ArtifactSyncFailure(stage=stage, code="SYNC_INVALID_EVIDENCE") if stage else None,
+    )
 
 
 def _unique(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -116,7 +150,7 @@ class ArtifactSnapshot:
         assert observation is not None
         receipt = observation.artifact_receipt
         if receipt is not None and receipt.events_sha256 != receipt_prefix_sha256:
-            _reject()
+            _reject("event_prefix")
         assert observation is not None
         identity = checkpoint.identity
         bundle = _decode(bundle_manifest)
@@ -173,7 +207,7 @@ class ArtifactSnapshot:
         value = ArtifactManifest.model_validate(_decode(raw))
         receipt = self.observation.artifact_receipt
         if receipt is not None and hashlib.sha256(raw).hexdigest() != receipt.sha256:
-            _reject()
+            _reject("receipt_digest")
         if (
             value.identity != self.observation.identity
             or value.source_seq != (receipt.source_seq if receipt else self.source_seq)
@@ -181,7 +215,7 @@ class ArtifactSnapshot:
             != (receipt.events_sha256 if receipt else self.observation.streams.events.sha256)
             or value.artifacts != list(self.records)
         ):
-            _reject()
+            _reject("receipt_records")
         return value
 
 
@@ -383,7 +417,9 @@ class SftpArtifactSync:
         if snapshot.observation.identity != self.identity or not 0 < seconds <= 20:
             _reject()
         if not self.session.io_lock.acquire(blocking=False):
-            raise ArtifactFailure("REMOTE_ARTIFACT_BUSY")
+            raise ArtifactFailure(
+                "REMOTE_ARTIFACT_BUSY", failure=ArtifactSyncFailure(stage="scope", code="SYNC_BUSY")
+            )
         done, abandoned = threading.Event(), threading.Event()
         values: list[list[ArtifactRecord]] = []
         failed = threading.Event()
@@ -396,6 +432,9 @@ class SftpArtifactSync:
         )
         total_bytes = sum(record.size_bytes for record in selected)
         received_bytes = verified_bytes = 0
+        phase: ArtifactSyncStage = "scope"
+        failures: list[ArtifactSyncFailure] = []
+        cleanup_failures: list[ArtifactSyncFailure] = []
 
         def report() -> None:
             check()
@@ -405,7 +444,15 @@ class SftpArtifactSync:
         def check() -> None:
             with self.mutex:
                 if abandoned.is_set() or cancel.is_set() or time.monotonic() >= deadline:
-                    raise ArtifactFailure("REMOTE_ARTIFACT_CANCELLED")
+                    raise ArtifactFailure(
+                        "REMOTE_ARTIFACT_CANCELLED",
+                        failure=ArtifactSyncFailure(
+                            stage=phase,
+                            code="SYNC_DEADLINE"
+                            if time.monotonic() >= deadline and not cancel.is_set()
+                            else "SYNC_CANCELLED",
+                        ),
+                    )
                 if (
                     self.session.endpoint != self.identity.endpoint
                     or self.session.host_fingerprint != self.identity.host_fingerprint
@@ -414,7 +461,10 @@ class SftpArtifactSync:
                 try:
                     self.guard()
                 except Exception:
-                    raise ArtifactFailure("REMOTE_ARTIFACT_AUTH_STALE") from None
+                    raise ArtifactFailure(
+                        "REMOTE_ARTIFACT_AUTH_STALE",
+                        failure=ArtifactSyncFailure(stage="scope", code="SYNC_AUTH_STALE"),
+                    ) from None
 
         interrupted, finished = threading.Event(), threading.Event()
 
@@ -431,7 +481,7 @@ class SftpArtifactSync:
         watcher = threading.Thread(target=interrupt, name="easyai-artifact-interrupt", daemon=True)
 
         def worker() -> None:
-            nonlocal received_bytes, verified_bytes
+            nonlocal received_bytes, verified_bytes, phase
             channel, sftp, cache = None, None, None
             try:
                 check()
@@ -442,6 +492,7 @@ class SftpArtifactSync:
                 channel.invoke_subsystem("sftp")
                 sftp = self.factory(channel)
                 check()
+                phase = "receipt_read"
                 reader = _Reader(sftp, self.identity, check)
                 receipt = snapshot.observation.artifact_receipt
                 if receipt is None:
@@ -459,12 +510,15 @@ class SftpArtifactSync:
                     if receipt
                     else "remote-artifacts.json"
                 )
-                manifest = snapshot.manifest(reader.record(manifest_name))
+                manifest_raw = reader.record(manifest_name)
+                phase = "receipt_records"
+                manifest = snapshot.manifest(manifest_raw)
                 reader.uid = manifest.uid
                 # Recheck bootstrap records now that UID is bound to the owner receipt.
                 if receipt is None:
                     reader._parents("owner-status.json")
                 reader._parents(manifest_name)
+                phase = "cache_open"
                 cache = _Cache(cache_path)
                 cache.bind(self.identity)
                 # A stale snapshot must never replace a newer committed index.
@@ -500,6 +554,7 @@ class SftpArtifactSync:
                 report()
                 ready = []
                 for record in selected:
+                    phase = "artifact_verify"
                     check()
                     try:
                         _content(record, cache.blob(record.sha256, record.size_bytes))
@@ -520,7 +575,9 @@ class SftpArtifactSync:
                                 received_bytes += len(raw)
                                 report()
 
+                            phase = "artifact_read"
                             reader.read(record.relative_path, record.size_bytes, consume)
+                            phase = "artifact_verify"
                             target.flush()
                             target.seek(0)
                             _content(record, target.read(record.size_bytes + 1))
@@ -541,10 +598,12 @@ class SftpArtifactSync:
                         cache.directory.remove(name)
                 # Cleanup the dedicated remote channel before publishing readiness.
                 # A failed SDK close leaves only verified unindexed blobs behind.
+                phase = "channel_cleanup"
                 sftp.close()
                 sftp = None
                 channel.close()
                 channel = None
+                phase = "cache_commit"
                 with self.mutex:
                     check()
                     cache.verify()
@@ -572,20 +631,34 @@ class SftpArtifactSync:
                         values.append(ready)
                     finally:
                         cache.directory.remove(name, missing_ok=True)
-            except Exception:
+            except Exception as error:
+                failures.append(sync_failure(error, phase))
                 failed.set()
             finally:
                 cleanup_failed = False
-                for resource in (sftp, channel, cache):
+                for resource, cleanup_stage in (
+                    (sftp, "channel_cleanup"),
+                    (channel, "channel_cleanup"),
+                    (cache, "cache_cleanup"),
+                ):
                     if resource is not None:
                         try:
                             resource.close()
                         except Exception:
                             failed.set()
                             cleanup_failed = True
+                            cleanup_failures.append(
+                                ArtifactSyncFailure.model_validate(
+                                    {"stage": cleanup_stage, "code": "SYNC_IO_FAILED"}
+                                )
+                            )
                 finished.set()
                 watcher.join()  # Keep the physical gate until the interrupt owner also exits.
                 cleanup_failed = cleanup_failed or interrupted.is_set()
+                if interrupted.is_set():
+                    cleanup_failures.append(
+                        ArtifactSyncFailure(stage="watcher_cleanup", code="SYNC_IO_FAILED")
+                    )
                 quiet = all(getattr(item, "closed", False) is True for item in channels)
                 if cleanup_failed or not quiet:
                     failed.set()
@@ -596,6 +669,12 @@ class SftpArtifactSync:
                     if not quiet:
                         quiet = bool(getattr(self.session, "closed_quiescent", False))
                 self._retained = not quiet
+                if not quiet and not cleanup_failures:
+                    cleanup_failures.append(
+                        ArtifactSyncFailure(
+                            stage="channel_cleanup", code="SYNC_CLEANUP_UNCONFIRMED"
+                        )
+                    )
                 if quiet:
                     self.session.io_lock.release()
                 done.set()
@@ -621,10 +700,31 @@ class SftpArtifactSync:
             if abandoned.is_set():
                 # The SDK close may itself block. Retain the physical gate/cache lock
                 # in the worker until it has actually quiesced; never kill the owner.
-                raise ArtifactFailure("REMOTE_ARTIFACT_CLEANUP_UNCONFIRMED")
+                raise ArtifactFailure(
+                    "REMOTE_ARTIFACT_CLEANUP_UNCONFIRMED",
+                    failure=ArtifactSyncFailure(
+                        stage=phase,
+                        code="SYNC_DEADLINE"
+                        if time.monotonic() >= deadline and not cancel.is_set()
+                        else "SYNC_CANCELLED",
+                    ),
+                    cleanup_failure=ArtifactSyncFailure(
+                        stage="watcher_cleanup", code="SYNC_CLEANUP_UNCONFIRMED"
+                    ),
+                )
         with self.mutex:
             if failed.is_set() or not values:
-                raise ArtifactFailure("REMOTE_ARTIFACT_FAILED")
+                raise ArtifactFailure(
+                    "REMOTE_ARTIFACT_FAILED",
+                    failure=failures[0]
+                    if failures
+                    else (
+                        cleanup_failures[0]
+                        if cleanup_failures
+                        else ArtifactSyncFailure(stage=phase, code="SYNC_UNKNOWN")
+                    ),
+                    cleanup_failure=cleanup_failures[0] if cleanup_failures else None,
+                )
             return values[0]
 
     @staticmethod

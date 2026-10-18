@@ -53,7 +53,8 @@
         "pipeline_completed",
         "process_exited",
         "process_spawn_failed",
-        "status_changed"
+        "status_changed",
+        "artifact_sync_failed"
       ],
       "title": "Type",
       "type": "string"

@@ -752,8 +752,13 @@ def test_cancel_interrupt_worker_must_retire_before_gate_release(case):
             assert entered.wait(1)
             cancel.set()
             assert close_entered.wait(1)
-            with pytest.raises(ArtifactFailure, match="CLEANUP_UNCONFIRMED"):
+            with pytest.raises(ArtifactFailure, match="CLEANUP_UNCONFIRMED") as caught:
                 operation.result(1)
+            assert caught.value.failure.code == "SYNC_CANCELLED"
+            assert caught.value.cleanup_failure.model_dump() == {
+                "stage": "watcher_cleanup",
+                "code": "SYNC_CLEANUP_UNCONFIRMED",
+            }
             read_release.set()
             # The data worker can close its channel, but its interrupt owner is still blocked.
             assert not case.service.quiescent and case.session.io_lock.locked()
@@ -763,3 +768,118 @@ def test_cancel_interrupt_worker_must_retire_before_gate_release(case):
             close_release.set()
     case.service._worker.join(2)
     assert case.service.quiescent and not case.session.io_lock.locked()
+
+
+@pytest.mark.parametrize(
+    "fault,stage,code",
+    [
+        ("receipt_read", "receipt_read", "SYNC_IO_FAILED"),
+        ("receipt_digest", "receipt_digest", "SYNC_INVALID_EVIDENCE"),
+        ("receipt_records", "receipt_records", "SYNC_INVALID_EVIDENCE"),
+        ("artifact_read", "artifact_read", "SYNC_IO_FAILED"),
+        ("cache_commit", "cache_commit", "SYNC_IO_FAILED"),
+        ("channel_cleanup", "channel_cleanup", "SYNC_IO_FAILED"),
+        ("cache_cleanup", "cache_cleanup", "SYNC_IO_FAILED"),
+        ("vendor_prefix", "receipt_read", "SYNC_UNKNOWN"),
+    ],
+)
+def test_fixed_sync_failure_stages_never_include_external_exception_text(
+    case, monkeypatch, fault, stage, code
+):
+    from easyai.security.remote_cache import _PosixDirectory as LocalDirectory
+    from easyai.domain.remote_run import ArtifactReceipt
+
+    snapshot = running_receipt(case)
+    secret = "SYNC_IO_FAILED PASSWORD_SENTINEL /private/server/file"
+    if fault == "receipt_digest":
+        path = case.root / (
+            "remote-artifacts-" + case.observation.artifact_receipt.sha256 + ".json"
+        )
+        path.write_bytes(path.read_bytes() + b" ")
+    elif fault == "receipt_records":
+        manifest = dict(case.manifest, artifacts=[dict(case.record, phase="after")])
+        raw = json.dumps(manifest).encode()
+        receipt = case.observation.artifact_receipt.model_copy(update={"sha256": digest(raw)})
+        case.observation.artifact_receipt = ArtifactReceipt.model_validate(receipt.model_dump())
+        (case.root / ("remote-artifacts-" + receipt.sha256 + ".json")).write_bytes(raw)
+        snapshot = case.snapshot()
+    elif fault == "cache_commit":
+        original = LocalDirectory.publish
+
+        def publish(self, name, destination, **kwargs):
+            if destination == "artifact-index.json":
+                raise OSError(secret)
+            return original(self, name, destination, **kwargs)
+
+        monkeypatch.setattr(LocalDirectory, "publish", publish)
+    elif fault == "channel_cleanup":
+        case.sftp.close_error = True
+    elif fault == "cache_cleanup":
+        from easyai.services.remote_artifacts import _Cache
+
+        original_close = _Cache.close
+
+        def fail_cache_close(self):
+            original_close(self)
+            raise OSError(secret)
+
+        monkeypatch.setattr(_Cache, "close", fail_cache_close)
+    else:
+
+        def fail(path):
+            if (
+                fault in ("receipt_read", "vendor_prefix")
+                and Path(path).name.startswith("remote-artifacts-")
+            ) or (fault == "artifact_read" and str(path).endswith(".png")):
+                raise RuntimeError(secret) if fault == "vendor_prefix" else OSError(secret)
+
+        case.sftp.before_read = fail
+    with pytest.raises(ArtifactFailure) as caught:
+        case.service.sync(snapshot, case.cache, threading.Event())
+    detail = caught.value.failure
+    assert detail.model_dump() == {"stage": stage, "code": code}
+    assert "PASSWORD_SENTINEL" not in str(caught.value) + detail.model_dump_json()
+    if fault in ("channel_cleanup", "cache_cleanup"):
+        assert caught.value.cleanup_failure.stage == fault
+    assert (case.cache / "artifact-index.json").exists() is (fault == "cache_cleanup")
+
+
+def test_receipt_event_prefix_failure_has_owned_fixed_stage(case):
+    running_receipt(case)
+    with pytest.raises(ArtifactFailure) as caught:
+        ArtifactSnapshot.verified(
+            case.checkpoint, case.events, case.bundle_manifest, case.source_map, "0" * 64
+        )
+    assert caught.value.failure.model_dump() == {
+        "stage": "event_prefix",
+        "code": "SYNC_INVALID_EVIDENCE",
+    }
+
+
+def test_sync_diagnostic_event_is_application_only_and_strictly_fixed(case):
+    value = dict(
+        run_id=case.identity.run_id,
+        seq=1,
+        source="application",
+        timestamp="fixture",
+        type="artifact_sync_failed",
+        payload={
+            "failure": {"stage": "receipt_read", "code": "SYNC_IO_FAILED"},
+            "cleanupFailure": None,
+        },
+    )
+    assert Event.model_validate(value).payload == value["payload"]
+    for invalid in (
+        dict(value, source="runtime", source_seq=1),
+        dict(value, block_id="arbitrary"),
+        dict(value, payload={**value["payload"], "path": "/private"}),
+        dict(
+            value,
+            payload={
+                "failure": {"stage": "SDK_SECRET", "code": "SYNC_IO_FAILED"},
+                "cleanupFailure": None,
+            },
+        ),
+    ):
+        with pytest.raises(ValueError):
+            Event.model_validate(invalid)

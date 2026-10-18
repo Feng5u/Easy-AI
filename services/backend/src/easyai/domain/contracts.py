@@ -162,6 +162,7 @@ class Event(Contract):
         "process_exited",
         "process_spawn_failed",
         "status_changed",
+        "artifact_sync_failed",
     ]
     block_id: str | None = None
     payload: dict[str, Any]
@@ -170,6 +171,17 @@ class Event(Contract):
     def validate_event(self) -> "Event":
         if self.source == "runtime" and self.source_seq is None:
             raise ValueError("Runtime events require sourceSeq")
+        if self.type == "artifact_sync_failed":
+            if (
+                self.source != "application"
+                or self.source_seq is not None
+                or self.block_id is not None
+                or set(self.payload) != {"failure", "cleanupFailure"}
+            ):
+                raise ValueError("ARTIFACT_SYNC_DIAGNOSTIC_INVALID")
+            ArtifactSyncFailure.model_validate(self.payload["failure"])
+            if self.payload["cleanupFailure"] is not None:
+                ArtifactSyncFailure.model_validate(self.payload["cleanupFailure"])
         if self.type == "epoch_completed":
             EpochMetrics.model_validate(self.payload)
         return self
@@ -240,11 +252,48 @@ class RemoteExecution(Contract):
     artifacts_verified: bool = False
 
 
+ArtifactSyncStage = Literal[
+    "scope",
+    "owner_poll",
+    "snapshot",
+    "event_prefix",
+    "receipt_read",
+    "receipt_digest",
+    "receipt_records",
+    "cache_open",
+    "artifact_read",
+    "artifact_verify",
+    "cache_commit",
+    "channel_cleanup",
+    "cache_cleanup",
+    "watcher_cleanup",
+    "completion",
+    "unknown",
+]
+
+
+class ArtifactSyncFailure(Contract):
+    stage: ArtifactSyncStage
+    code: Literal[
+        "SYNC_INVALID_EVIDENCE",
+        "SYNC_IO_FAILED",
+        "SYNC_CANCELLED",
+        "SYNC_DEADLINE",
+        "SYNC_AUTH_STALE",
+        "SYNC_BUSY",
+        "SYNC_CLEANUP_UNCONFIRMED",
+        "SYNC_REQUIRED_ARTIFACTS_MISSING",
+        "SYNC_UNKNOWN",
+    ]
+
+
 class ArtifactSyncProgress(Contract):
     state: Literal["idle", "syncing", "paused", "cleanup_pending", "error"] = "idle"
     received_bytes: int = Field(default=0, ge=0, le=256 * 1024 * 1024)
     verified_bytes: int = Field(default=0, ge=0, le=256 * 1024 * 1024)
     total_bytes: int = Field(default=0, ge=0, le=256 * 1024 * 1024)
+    failure: ArtifactSyncFailure | None = None
+    cleanup_failure: ArtifactSyncFailure | None = None
 
 
 class Run(Contract):

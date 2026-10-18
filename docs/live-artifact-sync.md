@@ -15,3 +15,5 @@
 断线/失效会停止同步，显示最后已知执行状态，不能凭I/O错误伪造训练FAILED或退出码。需要原主机核对、重新认证和显式接续；不自动申请新session或重跑。HTTP操作使用当前project的RunScope及generation提交门，Main固定runId/两条路由；UI卸载/切换丢弃迟到控制回执。已提交缓存可保留，撤销在提交前生效，不能回滚已经持久发布的真实文件。
 
 本轮仅API兼容本地SFTP、临时合成PNG和本机stdlib子进程验证。该PNG是结构fixture，不是科学图表/训练效果；没有SSH连接、用户远端数据下载、torch、数据下载/环境安装或个人PC操作。真实SFTP/SDK兼容性、同UID恶意替换、跨进程断电/重启持久恢复和目标桌面仍未验；SFTP v3没有O_NOFOLLOW/openat/可靠fsync保证。暂停意图和实时计数不作为重启恢复协议；上传任务持久历史/缺失文件补传另列依赖。旧M8便携产物不含新功能，未重打包/发布。CIFAR保护门不变，完整M5/B尚未验收。
+
+同步失败诊断（后续源码）：Run.artifactSync附加failure与cleanupFailure，仅包含固定stage/code；首次传输失败和清理异常分开记录；本地cache_cleanup、远端channel_cleanup与watcher_cleanup分资源标记，不读取或保存SDK异常文本、凭据、文件路径、外部payload或堆栈。规范应用日志的artifact_sync_failed事件只允许application来源、固定DTO和空block/sourceSeq；执行侧不能伪造此事件。当前诊断在显式新同步时清除，历史失败事件保留。无法定位的异常保留SYNC_UNKNOWN/unknown，不从合法前缀猜原因。旧226 PASS/1 FAIL窗口缺少底层异常栈，原日志被后续命令覆盖，证据已丢失；新增故障注入和后续绿灯不还原或关闭该特定旧根因，仍为UNKNOWN。已确定的pause/resume退场竞争单独记录。后续验证日志采用唯一文件名与noclobber保全，不能复用覆盖失败原件。

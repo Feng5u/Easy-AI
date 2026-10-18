@@ -677,7 +677,8 @@ class SshRunCoordinator:
 
     def artifact_snapshot(self, bundle_manifest: bytes, source_map: bytes) -> "ArtifactSnapshot":
         """Bind downloads to this coordinator's committed sealed evidence and frozen bundle."""
-        from easyai.services.remote_artifacts import ArtifactSnapshot
+        from easyai.services.remote_artifacts import ArtifactSnapshot, ArtifactFailure
+        from easyai.domain.contracts import ArtifactSyncFailure
 
         with self._mutex:
             self._verify_store()
@@ -691,7 +692,12 @@ class SshRunCoordinator:
                     for _ in range(observed.artifact_receipt.source_seq):
                         raw = source.readline(MAX_LINE_BYTES + 1)
                         if not raw.endswith(b"\n") or len(raw) > MAX_LINE_BYTES:
-                            raise RemoteProtocolError("REMOTE_ARTIFACT_PREFIX_INVALID")
+                            raise ArtifactFailure(
+                                "REMOTE_ARTIFACT_PREFIX_INVALID",
+                                failure=ArtifactSyncFailure(
+                                    stage="event_prefix", code="SYNC_INVALID_EVIDENCE"
+                                ),
+                            )
                         digest.update(raw)
                 receipt_hash = digest.hexdigest()
             return ArtifactSnapshot.verified(

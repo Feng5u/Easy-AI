@@ -926,3 +926,87 @@ def test_running_png_sync_pause_resume_keeps_training_owner_and_rejects_retired_
     other.mkdir()
     workspace.create(workspace.select("project", other).selection_id, "other", "mnist-cnn")
     assert api.post(base + "/artifacts/sync/pause").status_code == 404
+
+
+@pytest.mark.parametrize("fault", ["receipt_read", "cache_commit"])
+def test_restart_cancel_sync_fault_records_only_fixed_diagnostic_and_can_reconnect(
+    harness, monkeypatch, fault
+):
+    from easyai.security.remote_cache import _PosixDirectory
+
+    workspace, endpoint, api, project = harness
+    _, _, request = binding(harness)
+    route = f"/api/v1/projects/{project.project_id}/runs"
+    started = api.post(route, json=request, headers={"Idempotency-Key": "restart-diagnostic"})
+    assert started.status_code == 202
+    run_id = started.json()["runId"]
+    base = f"/api/v1/runs/{run_id}"
+    wait_for(lambda: api.get(base).json(), lambda r: r["status"] == "RUNNING")
+    workspace.close()
+    reopened = LocalWorkspace(workspace.root)
+    armed = [True]
+    secret = "REMOTE_ARTIFACT_FAILED SECRET_SENTINEL /private/server/path"
+    original_open, original_publish = Sftp.open, _PosixDirectory.publish
+
+    def fail_read(self, path, mode, **kwargs):
+        if armed[0] and fault == "receipt_read" and Path(path).name.startswith("remote-artifacts-"):
+            raise OSError(secret)
+        return original_open(self, path, mode, **kwargs)
+
+    def fail_commit(self, source, target, **kwargs):
+        if armed[0] and fault == "cache_commit" and target == "artifact-index.json":
+            raise OSError(secret)
+        return original_publish(self, source, target, **kwargs)
+
+    monkeypatch.setattr(Sftp, "open", fail_read)
+    monkeypatch.setattr(_PosixDirectory, "publish", fail_commit)
+    try:
+        reopened.open(reopened.select("project", endpoint.run_base.parent / "project").selection_id)
+        second_endpoint = EndpointClient(endpoint.store.root, reopened._mutex, endpoint.run_base)
+        reopened._ssh_client = second_endpoint
+        reopened._connections = ConnectionManager(
+            second_endpoint,
+            reopened.identity(),
+            reopened._mutex,
+            reopened._identity_project,
+            timer_factory=FakeTimer,
+            sftp_factory=lambda channel: Sftp(channel.session),
+            verify_target=reopened.verify_connection_target,
+        )
+        second = TestClient(create_app("offline-token", workspace=reopened))
+        second.headers.update({"Authorization": "Bearer offline-token"})
+        assert second.post(base + "/cancel").json()["remote"]["cancelState"] == "pending"
+        control = authorize(reopened, second, project)
+        assert second.post(base + "/resume", json=control).status_code == 202
+        failed = wait_for(lambda: second.get(base).json(), lambda r: r["syncState"] == "error")
+        assert failed["status"] == "CANCELLING" and failed["connectionState"] == "disconnected"
+        assert failed["remote"]["executionState"] == "RUNNING"
+        assert failed["remote"]["cancelState"] == "acknowledged"
+        assert failed["artifactSync"]["failure"] == {"stage": fault, "code": "SYNC_IO_FAILED"}
+        events = reopened.runs.events(run_id, 0)
+        failures = [event for event in events if event.type == "artifact_sync_failed"]
+        assert failures[-1].payload == {
+            "failure": {"stage": fault, "code": "SYNC_IO_FAILED"},
+            "cleanupFailure": None,
+        }
+        assert all(
+            "SECRET_SENTINEL" not in event.model_dump_json()
+            and "/private/server/path" not in event.model_dump_json()
+            for event in events
+        )
+        assert "SECRET_SENTINEL" not in json.dumps(failed)
+        assert "--start" not in second_endpoint.commands
+        reopened.runs.remote._workers[run_id].thread.join(2)
+        armed[0] = False
+        fresh = authorize(reopened, second, project)
+        assert second.post(base + "/resume", json=fresh).status_code == 202
+        final = wait_for(lambda: second.get(base).json(), lambda r: r["syncState"] == "complete")
+        assert final["status"] == "CANCELLED" and final["artifactSync"]["failure"] is None
+        assert endpoint.commands.count("--start") == 1 and "--start" not in second_endpoint.commands
+        # Retain the earlier fixed failure event even after an explicit successful retry.
+        assert any(
+            event.type == "artifact_sync_failed" for event in reopened.runs.events(run_id, 0)
+        )
+    finally:
+        armed[0] = False
+        reopened.close()
