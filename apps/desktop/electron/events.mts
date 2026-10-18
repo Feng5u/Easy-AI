@@ -10,6 +10,7 @@ const types = new Set<Event["type"]>([
   "pipeline_cancelled",
   "pipeline_completed",
   "process_exited",
+  "process_spawn_failed",
   "status_changed",
 ]);
 export class EventProtocolError extends Error {}

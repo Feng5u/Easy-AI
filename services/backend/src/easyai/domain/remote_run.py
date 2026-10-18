@@ -51,13 +51,17 @@ class RemoteRunObservation(Contract):
     heartbeat: int = Field(ge=1)
     state: RemoteState
     sealed: bool
+    spawn_failed: bool = False
     exit_code: int | None = None
     streams: RemoteStreams
 
     @model_validator(mode="after")
     def terminal_is_sealed(self) -> Self:
         terminal = self.state in ("COMPLETED", "FAILED", "CANCELLED")
-        if terminal != self.sealed or terminal != (self.exit_code is not None):
+        if self.spawn_failed:
+            if self.state != "FAILED" or not self.sealed or self.exit_code is not None:
+                raise ValueError("REMOTE_SPAWN_EVIDENCE_INVALID")
+        elif terminal != self.sealed or terminal != (self.exit_code is not None):
             raise ValueError("REMOTE_EXIT_EVIDENCE_INVALID")
         return self
 

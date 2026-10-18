@@ -124,6 +124,9 @@ def test_bundle_complete_deterministic_and_refuses_existing_targets(tmp_path):
         "code/source-map.json",
         "code/entry.py",
         "code/easyai_runtime.py",
+        "code/supervisor.py",
+        "code/portable_journal.py",
+        "code/managed.py",
         "program.ir.json",
         "ENVIRONMENT.md",
         "README.md",
@@ -284,3 +287,19 @@ def test_axis_explicit_toggle_has_its_own_effectful_semantic_lines(show):
         assert any(
             "tick_params(" in text if show else "set_xticks([])" in text for text in selected
         )
+
+
+def test_bundle_can_export_managed_core_from_frozen_resource_layout(tmp_path, monkeypatch):
+    import shutil
+    import easyai.compiler.bundle as bundle
+
+    resources = tmp_path / "resources"
+    resources.mkdir()
+    for name in ("entry.py", "easyai_runtime.py", "supervisor.py", "portable_journal.py"):
+        shutil.copyfile(SOURCE_ROOT / "runtime" / name, resources / name)
+    expected = (SOURCE_ROOT / "services/backend/src/easyai/runtime/managed.py").read_bytes()
+    (resources / "managed.py").write_bytes(expected)
+    monkeypatch.setattr(bundle, "__file__", str(tmp_path / "frozen/easyai/compiler/bundle.py"))
+    monkeypatch.setattr(bundle, "RUNTIME_ROOT", resources)
+    bundle.export_bundle(compile_project(project()), tmp_path / "exported")
+    assert (tmp_path / "exported/code/managed.py").read_bytes() == expected

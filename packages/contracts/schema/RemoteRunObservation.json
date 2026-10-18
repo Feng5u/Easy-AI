@@ -181,6 +181,11 @@
       "title": "Sealed",
       "type": "boolean"
     },
+    "spawnFailed": {
+      "default": false,
+      "title": "Spawnfailed",
+      "type": "boolean"
+    },
     "exitCode": {
       "anyOf": [
         {

@@ -109,3 +109,25 @@ def test_execution_evidence_never_grants_restart_even_with_created_cache(owned):
         assert not (Path(original.config.run_root) / "logs/train.log").exists()
     finally:
         recovered.close()
+
+
+def test_restart_replays_confirmed_spawn_failure_without_fake_exit_code(owned):
+    _, service, _, _, _ = owned
+    run = prepare(owned)
+    root = service.root
+    service.close()
+    journal = EventJournal(
+        Path(run.config.run_root) / "logs/runtime-events.jsonl", run.run_id, "runtime"
+    )
+    journal.append(
+        "process_spawn_failed", None, {"code": "PROCESS_SPAWN_FAILED", "spawnFailed": True}
+    )
+    journal.close()
+    restored = RunService(root)
+    try:
+        assert restored.get(run.run_id).status == "FAILED"
+        events = restored.events(run.run_id)
+        assert any(event.type == "process_spawn_failed" for event in events)
+        assert not any(event.type == "process_exited" for event in events)
+    finally:
+        restored.close()

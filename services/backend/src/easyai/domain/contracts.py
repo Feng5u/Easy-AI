@@ -160,6 +160,7 @@ class Event(Contract):
         "pipeline_cancelled",
         "pipeline_completed",
         "process_exited",
+        "process_spawn_failed",
         "status_changed",
     ]
     block_id: str | None = None

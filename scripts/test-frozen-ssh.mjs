@@ -9,10 +9,17 @@ import assert from "node:assert/strict";
 
 const repository = resolve(import.meta.dirname, "..");
 const build = join(repository, "services/backend/dist/easyai-sidecar");
-assert.deepEqual(
-  await readFile(join(build, "_internal/easyai/resources/runtime/probe.py")),
-  await readFile(join(repository, "runtime/probe.py")),
-);
+for (const [source, resource] of [
+  ["runtime/probe.py", "probe.py"],
+  ["runtime/supervisor.py", "supervisor.py"],
+  ["runtime/portable_journal.py", "portable_journal.py"],
+  ["services/backend/src/easyai/runtime/managed.py", "managed.py"],
+]) {
+  assert.deepEqual(
+    await readFile(join(build, "_internal/easyai/resources/runtime", resource)),
+    await readFile(join(repository, source)),
+  );
+}
 const root = await mkdtemp(join(tmpdir(), "easyai-frozen-ssh-"));
 const token = randomBytes(32).toString("hex");
 const child = spawn(

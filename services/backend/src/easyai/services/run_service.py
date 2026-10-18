@@ -478,6 +478,11 @@ class RunService:
                         {"status": "RUNNING", "reason": "EXECUTION_RESULT_UNKNOWN"},
                     )
                     self._persist()
+                spawn_failed = [event for event in events if event.type == "process_spawn_failed"]
+                if spawn_failed:
+                    if len(spawn_failed) != 1 or events[-1] != spawn_failed[0] or exited:
+                        raise ValueError("RUN_SPAWN_EVIDENCE_INVALID")
+                    outcome = "FAILED"
                 if exited:
                     if (
                         len(exited) != 1

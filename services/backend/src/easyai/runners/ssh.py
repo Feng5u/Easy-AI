@@ -613,6 +613,18 @@ class SshRunCoordinator:
 
     def _validate_exit(self, observed: RemoteRunObservation, events: list[Event]) -> None:
         exited = [event for event in events if event.type == "process_exited"]
+        spawn_failed = [event for event in events if event.type == "process_spawn_failed"]
+        if observed.spawn_failed:
+            if (
+                len(events) != 1
+                or len(spawn_failed) != 1
+                or exited
+                or spawn_failed[0].payload != {"code": "PROCESS_SPAWN_FAILED", "spawnFailed": True}
+            ):
+                raise RemoteProtocolError("REMOTE_SPAWN_EVIDENCE_INVALID")
+            return
+        if spawn_failed:
+            raise RemoteProtocolError("REMOTE_SPAWN_EVIDENCE_INVALID")
         if not observed.sealed:
             if exited:
                 raise RemoteProtocolError("REMOTE_EXIT_NOT_SEALED")

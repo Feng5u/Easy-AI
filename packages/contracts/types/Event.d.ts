@@ -16,6 +16,7 @@ export type Type =
   | "pipeline_cancelled"
   | "pipeline_completed"
   | "process_exited"
+  | "process_spawn_failed"
   | "status_changed";
 export type Blockid = string | null;
 

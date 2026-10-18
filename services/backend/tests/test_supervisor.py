@@ -232,6 +232,9 @@ def test_close_active_process_cleans_it_and_spawn_failure_is_recorded(tmp_path):
             broken.start()
         assert broken.status == "FAILED"
         assert broken.events()[-1].payload["spawnFailed"] is True
+        assert broken.events()[-1].type == "process_spawn_failed"
+        assert "exitCode" not in broken.events()[-1].payload
+        assert not any(event.type == "process_exited" for event in broken.events())
     finally:
         broken.close()
 
@@ -330,3 +333,66 @@ def test_foreign_cancel_file_preserved_and_close_still_cleans_process(tmp_path):
     supervisor.close()
     assert request.read_bytes() == original
     assert supervisor.status == "CANCELLED"
+
+
+def test_log_fsync_failure_is_a_management_fault_not_completion(tmp_path, monkeypatch):
+    original = os.fsync
+
+    def fail_log(fd):
+        path = os.readlink(f"/proc/self/fd/{fd}")
+        if path.endswith(("train.log", "stderr.log")):
+            raise OSError("synthetic log fsync failure")
+        return original(fd)
+
+    monkeypatch.setattr(os, "fsync", fail_log)
+    supervisor = make(tmp_path, "event('pipeline_completed')\n")
+    try:
+        supervisor.start()
+        events = finish(supervisor)
+        assert supervisor.status == "FAILED" and supervisor.exit_code == 0
+        assert any(
+            event.type == "runtime_error"
+            and event.payload.get("message") == "Managed log persistence failed"
+            for event in events
+        )
+    finally:
+        supervisor.close()
+
+
+def test_snapshot_cannot_observe_exit_append_before_terminal_done(tmp_path):
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError
+    import threading
+
+    supervisor = make(
+        tmp_path,
+        "from pathlib import Path\nevent('runtime_started')\nwhile not Path('finish-fixture').exists(): time.sleep(.01)\nevent('pipeline_completed')\n",
+    )
+    appended, release = threading.Event(), threading.Event()
+    try:
+        supervisor.start()
+        append = supervisor._journal.append
+
+        def gated(kind, block, payload):
+            result = append(kind, block, payload)
+            if kind == "process_exited":
+                appended.set()
+                assert release.wait(3)
+            return result
+
+        supervisor._journal.append = gated
+        (tmp_path / "finish-fixture").touch()
+        assert appended.wait(2)
+
+        def take_snapshot():
+            with supervisor.snapshot() as state:
+                return state
+
+        with ThreadPoolExecutor(1) as pool:
+            task = pool.submit(take_snapshot)
+            with pytest.raises(TimeoutError):
+                task.result(0.05)
+            release.set()
+            assert task.result(2) == ("COMPLETED", True, 0)
+    finally:
+        release.set()
+        supervisor.close()

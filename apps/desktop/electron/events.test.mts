@@ -127,3 +127,25 @@ it("handles simultaneous stream failure and cancellation without an orphan rejec
   // Vitest also fails this test if reader.cancel produces an unhandled rejection.
   await new Promise<void>((resolve) => setImmediate(resolve));
 });
+
+it("preserves supervisor spawn failure without inventing a process exit", async () => {
+  const failed: Event = {
+    ...event,
+    source: "runtime",
+    sourceSeq: 1,
+    type: "process_spawn_failed",
+    payload: { code: "PROCESS_SPAWN_FAILED", spawnFailed: true },
+  };
+  const seen: Event[] = [];
+  await consumeEvents(
+    bytes(frame(failed)),
+    runId,
+    0,
+    (value) => seen.push(value),
+    new AbortController().signal,
+  ).catch((error) => {
+    if (!(error instanceof EventStreamInterrupted)) throw error;
+  });
+  expect(seen).toEqual([failed]);
+  expect(seen[0].payload).not.toHaveProperty("exitCode");
+});

@@ -16,6 +16,7 @@ export type Confighash = string;
 export type Heartbeat = number;
 export type State = "STARTING" | "RUNNING" | "CANCELLING" | "CLEANUP_PENDING" | "COMPLETED" | "FAILED" | "CANCELLED";
 export type Sealed = boolean;
+export type Spawnfailed = boolean;
 export type Exitcode = number | null;
 export type Generation = string;
 export type Sizebytes = number;
@@ -26,6 +27,7 @@ export interface RemoteRunObservation {
   heartbeat: Heartbeat;
   state: State;
   sealed: Sealed;
+  spawnFailed?: Spawnfailed;
   exitCode?: Exitcode;
   streams: RemoteStreams;
 }

@@ -199,6 +199,7 @@ export function RunDashboard({
             setEvents((previous) => applyRunEvent(previous, event));
             if (
               event.type === "process_exited" ||
+              event.type === "process_spawn_failed" ||
               (event.type === "status_changed" &&
                 ["SUCCEEDED", "FAILED", "CANCELLED", "INTERRUPTED"].includes(
                   String(event.payload.status),
