@@ -884,3 +884,33 @@ WorkspaceManager先沿panels输入与next链读取全部物理panel，不依赖g
 CI状态不扩大：已知5a34286/run39137171929及9abdfebb90a5ab961cd12c21fbeae8b479e3d66b/run39140446024的check与desktop均FAIL；当前提交CI未知。未重试/换路被拒Actions或触发重跑，仍缺首个失败step/exit、错误日志及annotation原文。本地47/构建/静态PASS不覆盖远端失败。上片51前端、47后端PASS/1FAIL后该项单独PASS的原口径保持，没有重跑或包装为原窗全绿。
 
 NOT RUN：真实训练/SSH/SFTP/上传/数据下载/新环境或桌面安装/SDK协议、个人电脑、实际Electron/原生picker/SVG/Monaco/E2E、原生Windows/NTFS/冻结ABI、前片整套矩阵。没有修改main、强推、PR、发布/部署/Release、新费用/凭据/安全权限。Windows远程生产gate仍关闭，真实MNIST与安全桌面条件仍缺，A/B、M5整体及M6整体均未验收。下一项：父级独审本片与继续取得精确CI日志和外部验收条件；后续M6样式/数据源等剩余用户功能另片处理，不以布局编辑冒充全图表验收。
+
+## 2026-10-18 — 原 M6 字段覆盖核实后接 M7.1 最小用户向导
+
+源码完整SHA：`2b7d4891d1b4af4ecb015b96453c497184791c26`，父提交`b991cafb190a2c60469947dd4274bbfe0be7071e`。父级有限接受前片，并条件授权：现有Blockly字段若已覆盖子图类型/数据源/样式，应给证据转原M7向导，避免重复实现。本片没有改FigureInspector/WorkspaceManager/编译器/后端/manifest/合同或新增图表配置源；未重跑前片47。
+
+条件核实：manifest的viz.panel/data_source/title/legend/axis字段已由registerBlocks生成真实dropdown/text/checkbox和statement连接，Python lower_figure/emit已消费这些字段。先实际执行只读Node heredoc审计（`node --input-type=module`，真实Blockly workspace与应用Python子进程），修改scatter、来源、标题/颜色、坐标轴，保留图例，单组Undo恢复，正式ProjectService保存/重开后的code/hash/map一致，PASS。为使证据持久可审，新增单项`packages/block-library/viz-fields.test.mts`，另逐一断言Python IR chart/source/title/color/axis/legend以及完整workspaces不变。这里证明现有字段能力，不等于真实SVG鼠标操作或PNG渲染验收，也不表示全部M6安装/数据集能力已完成。
+
+转入原M7.1（计划项目/服务器/环境/data向导），新增GettingStarted：工程、运行位置、环境/数据、代码检查、训练/历史五个导航入口，仅从当前App状态派生展示，不缓存另一份工程/预检状态，不执行任何选择/检查/保存/训练。欢迎提示保留已有工程/数据、只读工程不可训练；“已选择”明确不代表预检通过，代码检查通过也不代表环境检查通过。服务器绑定提示只有当前project/revision/programHash/connection且无dirty时才成立，启动仍须原正式复检。远端步骤明确先显式身份/认证/环境数据检查，保存并通过代码检查后再绑定。真实数值教程、完整错误报告与M7其他任务尚未实现，不把此片称M7整体完成。
+
+实际修复的M7.1界面差距：原SSH模式仍显示本机Python/data选择器，易让学生以为服务器数据也需本地副本。现在这两项与LocalPreflight只在本机模式挂载；服务器模式显示已有服务器Python/数据绑定（若有）及显式配置入口，说明使用服务器现有环境/数据、不要求本地副本、不自动上传，不安装/升级老师环境。本机说明解释已有训练Python与MNIST/raw相对目录。切换运行位置只是既有会话UI选择，不保存工程或自动连接。
+
+导航使用固定栏目ID和可聚焦标题，focus/scroll不改变草稿。独审建议的键盘可用性补强也已完成：显式打开服务器配置后聚焦其region，避免用户从环境区点按钮却错过上方新面板；按工程ID标记焦点请求，跨工程不采纳旧请求。打开配置会复用已有非敏感概要list，可能使用已有本地锁文件，不能称文件系统零写；本片向导本身无持久化/新增网络操作。没有改服务器身份/认证安全逻辑。
+
+实际命令（cwd `/workspace/Easy-AI`；UV/XDG沿用workspace缓存，无新依赖）：
+
+| 命令 | 结果及边界 |
+| --- | --- |
+| `pnpm exec vitest run apps/desktop/src/GettingStarted.test.mts apps/desktop/src/App.test.mts packages/block-library/viz-fields.test.mts` | **16 PASS**，2.65秒，含Guide4、App11、已有viz字段证据1。不是前片47/22或M5.1 51的重跑/累计。覆盖欢迎/只读/服务未就绪、已选择不冒充通过、dirty不能显示旧编译成功、服务器无本地副本要求、忙碌时禁开配置、实际App导航focus及SSH分支 |
+| 新App真实DOM定向断言 | environment/compile/server三个目标获得焦点；SSH不显示本机选择按钮；配置入口仅listProfiles1次。pick/preflight/start/probe/auth/discover/save均0调用；没有自动选择替代环境、编译或执行训练。本机/服务器原有运行门没有改动 |
+| 新viz字段证据边界 | 真实headless Blockly修改5个字段、保留legend，正式ProjectService save/close/open，权威Python编译/IR/code/codeHash/programHash/sourceMap/workspaces一致，单组Undo原序列化恢复。只解析/生成代码，不导入torch或执行生成训练程序；字体/图像/渲染/网络不是该项证明范围 |
+| 独立只读复核 | `pnpm exec vitest run packages/block-library/viz-fields.test.mts` **1 PASS**，1.06秒；`pnpm exec vitest run apps/desktop/src/GettingStarted.test.mts` **4 PASS**，927ms；`pnpm exec vitest run apps/desktop/src/App.test.mts -t 'beginner guide'` **1 PASS/10 skipped**，1.04秒。均与16重合，不相加。源审未发现本窗口新明确P1/P2，焦点建议关闭 |
+| 同缓存 `pnpm check` | **PASS**；TS、strict mypy46既有后端源码、ruff/格式、合同/真实Blockly fixture漂移、Prettier。后端没有修改，未跑旧后端矩阵 |
+| `pnpm --filter @easyai/desktop build` | **PASS**，Main TS/Vite静态assets；保留既有chunk大小提示，日志`/tmp/easyai-getting-started-build.log`。向导CSS静态，不放宽CSP，未启动Electron或重建未改后端 |
+| `git diff --check`、原件字节/hash | **PASS**；计划116185字节、SHA256 `dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43`；原规格`5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190`、README`befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852`均原样保留 |
+
+中途失败：首轮TS拒绝新测试末行把void matcher结果与false比较；同轮实际15PASS/1FAIL还指出测试误找“未通过预检”，但该操作根本未执行预检。将错误断言改为实际服务器设置提示，保留所有0执行调用断言，并增服务器region焦点断言后最终16PASS；没有修改生产预检结果或降低训练门。随后只明确服务器绑定须先保存/编译的说明文本，静态检查/构建通过。原始失败不归因生产环境或旧CI。
+
+CI继续保留失败边界：已知5a34286/run39137171929、9abdfebb90a5ab961cd12c21fbeae8b479e3d66b/run39140446024的check和desktop均FAIL；本片及近期提交CI未知。未访问/换路此前被拒Actions端点、未触发重跑；仍缺两job首个失败step/exit、错误日志及annotation原文。不能用本机16/check/build或先前47覆盖远端失败。
+
+NOT RUN：真实Electron/SVG/Monaco/原生picker/E2E、训练/SSH/SFTP/上传/下载MNIST或其他数据、新环境/桌面安装/SDK协议、个人电脑、Windows/NTFS/冻结ABI、前片47/51及旧后端整套矩阵。无main写入、强推、PR、发布/部署/Release、新费用/凭据/安全权限。Windows远程生产gate关闭，真实MNIST/安全桌面条件仍缺；A/B、M5/M6/M7整体均未验收。下一项：父级独审此最小向导，再按原M7.2友好错误或M7.3本地七主题与真实数值卷积交互独立接续，不提前扩v0.0.1。
