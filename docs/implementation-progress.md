@@ -1606,3 +1606,45 @@ NOT RUN：真实CondaBootstrap/pip、依赖/缓存/数据下载、环境创建/�
 plan原件116185字节hash dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43、旧规格5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190、README befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852均未改。CIFAR仍待用户裁决，旧226PASS/1FAIL根因UNKNOWN且原始日志丢失，不回溯套新P2；既有Actions读取/sandbox拒绝未重试/绕过。旧source7b91c46便携目录未含本片、未重打包/上传，distributionReady/legalReviewComplete仍false；无本片新CI判定。无新工具拒绝/未知外部写入/main/强推/PR/Release/部署/费用/凭据/权限变化。
 
 下一项是父侧复核四项源码接线与精确支持合同；随后真实验收只有在上述具体来源/目标/许可/预算授权齐备后可进行。可选包解析、安装历史/保留策略、未知停止安全解除、活安装重连、远端安装仍是独立剩余代码范围；M5真实SSH、完整M6.3/B仍未验。
+
+
+## 2026-10-18 — M6.3 probe owner 静止证明 P2 修复
+
+源码完整SHA **`a26873148e1a77dd0a1d67b7684afc5bf14c1785`**；基线 `c6049a668cec141c73d74b0260b2aad0df51817a`。按父级明确指出的bootstrap/final probe异常错误沿用上一条安装命令quiescent=True问题修复，单一集成者、既有worker独立只读审查，没有真实bootstrap/pip/安装/probe/训练或新增来源配置。
+
+- 每次探测独立ProbeReceipt，绑定实际supervisor、精确prefix与本job取消token；命令完成不代表下一次探测完成。ManagedProcess的静止证明同时要求关闭、leader已退出以及reader/monitor/cancel线程均已结束；close不因logical done就关闭journal。未知cleanup保留真实owner引用、lease、receipt和journal，不写ready，不自动退休/解除隔离。
+- 执行前baseline probe也纳入同job：先持kernel lease并写持久执行意图，再探测；未知失败不释放lease。已知静止的过期/漂移仍保持原AWAITING_EXECUTION及异常合同；WAL后TTL过期仍按既有FAILED合同。没有放宽原测试断言。
+- 独审另实证同prefix可连续未知probe产生多个live owner，现于独立probe gate下登记并拒同prefix新dispatch；没有dispatch的拒绝只证明本次静止，不移除旧receipt。其他prefix及取消token独立；close明确取消全部receipt。无job的planning/confirmation未知probe也阻止close和同prefix重入。未知停止安全恢复仍未实现，保守保持隔离。
+- 文档同步probe生命周期，并修正install-contract中已过时的“没有生产调用者”表述；本片没有增加执行能力或授权。
+
+| 实际命令 | 结果与证据 |
+| --- | --- |
+| `services/backend/.venv/bin/python -m pytest services/backend/tests/test_install_probe_ownership.py services/backend/tests/test_install_process.py services/backend/tests/test_install_service.py services/backend/tests/test_owned_creation.py services/backend/tests/test_supervisor.py services/backend/tests/test_install_runtime.py -q` | **99 PASS/12.10s**，`/tmp/easyai-install-probe-final-20261018-unique2.log`。覆盖baseline/bootstrap/final未知probe真实stdlib线程屏障、同prefix拒重入/其他prefix独立、真实ManagedSupervisor对象reader门，以及既有安装/创建/runtime/supervisor回归。新探测屏障禁止Popen，未执行真实probe/安装；既有supervisor测试仅运行受控stdlib子进程。 |
+| `UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache pnpm check` | **PASS**，`/tmp/easyai-install-probe-check-20261018-final1.log`；TS/Main、ruff/format111Python文件、strict mypy61、合同/真实Blocklyfixtures/Prettier。 |
+| 既有worker独立只读专项 `pytest services/backend/tests/test_install_probe_ownership.py -q` | **5 PASS/0.36s**，`/tmp/easyai-reader-close-fixed-review-F9kUZg.log`。分阶段2PASS、4PASS审查范围重合，不累计；无新增明确P1/P2。未编辑/未启动Popen或真实probe。 |
+| `git diff --check` / 原件hash / `git ls-remote origin refs/heads/main refs/heads/codex/demo-v0.0.0` | **PASS**。推前dev=c6049a668cec141c73d74b0260b2aad0df51817a；main=5323f86232529efcfb52131168ad049f01b219f3；计划116185字节及三份原件hash不变。源码与本证据分别普通开发分支提交后push。 |
+
+保留失败原始记录：最初bootstrap/final屏障在旧行为下**2 FAIL**，初修**2 PASS**；首轮旧回归**84 PASS/3 FAIL**是移动baseline WAL后stale/TTL旧合同变化，改产品状态处理后**87 PASS**；新增baseline/重入/runtime后**98 PASS**。check第一轮unused Path导入FAIL，第二轮mypy状态窄化FAIL，移除无用导入并显式restore_awaiting变量后PASS。追加reader门首轮**98 PASS/1 FAIL**为测试argv=[]被构造器拒绝，改非空never-executed占位并禁Popen后最终99PASS。独审同reader夹具失败也保留，不覆盖、不计最终通过。所有本片日志唯一noclobber。旧226PASS/1FAIL的根因仍UNKNOWN且原始日志丢失，不能用本片P2回溯关闭。
+
+- `/tmp/easyai-install-probe-red-20261018-unique1.log` SHA256 `0d6e1d604d09bf32ce93b88cbe29df7195d0a56aa60dac8091ed16d0174ee476`。
+- `/tmp/easyai-install-probe-green-20261018-unique1.log` SHA256 `681442d18fe79aa9977e74c72ecfd3ea874c886cbbbfd09b3f3397ebbc1bcb15`。
+- `/tmp/easyai-install-probe-regression-20261018-unique1.log` SHA256 `c03e79394e69d93ad6de879b4029051a9617453adfc4ba0e6fd5f6648e9f6d62`。
+- `/tmp/easyai-install-probe-regression-20261018-unique2.log` SHA256 `5bd84046e22825bb8d2ffbfef5f7bb48cde1923e8f6f2d1a285f01b3aab31d8f`。
+- `/tmp/easyai-install-probe-regression-20261018-unique3.log` SHA256 `5573c34d94624cabdfa2cc994499afdf08cf5845d4312ce436b893beadc3bc19`。
+- `/tmp/easyai-install-probe-final-20261018-unique1.log` SHA256 `2dfa0eb7f7b7a9ae4eaecb937e19f2eb59c44ba000ec942a933b84e3f0a3db42`。
+- `/tmp/easyai-install-probe-final-20261018-unique2.log` SHA256 `af4a7f8a21910d2d64e623aa8ef51bbd183f08be1d19db5b2819d429196eae1a`。
+- `/tmp/easyai-install-probe-check-20261018-unique1.log` SHA256 `1c50ecac91fa6925a79d92c1510103de1d9fa746f2cb33204dbb29bc965fad0d`。
+- `/tmp/easyai-install-probe-check-20261018-unique2.log` SHA256 `a4cfa684bd59bcf678e615052da637b4741a731cdb6f97bd7dd3e7e4ff66622a`。
+- `/tmp/easyai-install-probe-check-20261018-unique3.log` SHA256 `05c07384dda101ad0c17860188e09d3c8445565b3c797ed2010e7541d5a17580`。
+- `/tmp/easyai-install-probe-check-20261018-final1.log` SHA256 `05c07384dda101ad0c17860188e09d3c8445565b3c797ed2010e7541d5a17580`。
+- `/tmp/easyai-install-probe-review-PnDLT3.log` SHA256 `cdafb4497d6e45a437ba3d7241f79c167ef117065ae2165e4955a12246a5e19f`。
+- `/tmp/easyai-probe-prefix-review-iCSWeT.log` SHA256 `192d4360198de472118c06b36693efa7b9549d6a22d809713dcac70bc60b16e0`。
+- `/tmp/easyai-reader-close-review-FHRvK2.log` SHA256 `0f9fd5627449bc140db60548c12eb415ad85b6d3679e69fe6df6a734dc3f3d6f`。
+- `/tmp/easyai-reader-close-fixed-review-F9kUZg.log` SHA256 `48bc2bf7aee35b3cf04baf9cad1c249913112b1265affa04e2074b3da5da5372`。
+
+
+NOT RUN：真实CondaBootstrap/pip/环境创建/安装/实际正向imports与tensor、下载/训练、真实SSH/新凭据/许可接受、全套大矩阵、重建冻结后端/重打便携包、Electron桌面/Windows/干净机/发布。本片仅后端生命周期修复，已做相关回归与check；现有冻结后端及旧source7b91c46便携目录不包含本片，不能当本片验收产物。默认能力仍关闭。真实来源/许可与具体一次性owned目标、预算及执行窗口尚未提供，**未授权且未执行**；没有外部安装结果不确定的动作。
+
+plan116185字节SHA256 dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43，旧规格5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190，README befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852保持。CIFAR待裁决；旧226PASS/1FAIL保持UNKNOWN；既有Actions读取/sandbox拒绝未重试或绕过。无本片新CI结论；无main/强推/PR/Release/部署/费用/凭据/安全权限变化、无新工具拒绝。
+
+下一项：父侧复核本P2和独审证据；可继续安装历史/保留策略及未知停止的显式安全恢复代码。真实安装/SSH需独立具体授权；完整M5/M6.3/B仍未验收。
