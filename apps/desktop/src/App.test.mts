@@ -113,6 +113,9 @@ function bridge(readOnly = false) {
       cancel: unsupported,
     },
     connections: {
+      listProfiles: async () => [],
+      createProfile: unsupported,
+      updateProfile: unsupported,
       authenticate: unsupported,
       cancelAuth: async () => {},
       close: async () => {},
@@ -398,6 +401,7 @@ describe("real App DOM persistence lifecycle", () => {
 
 it("opens the normal SSH identity panel and closes without authenticating", async () => {
   const { api } = bridge();
+  api.connections.authenticate = vi.fn(api.connections.authenticate);
   const probe = vi.fn<DesktopAPI["connections"]["probe"]>(
     async (projectId, requestId, endpoint) => ({
       projectId,
@@ -414,19 +418,25 @@ it("opens the normal SSH identity panel and closes without authenticating", asyn
   const cancel = vi.fn<DesktopAPI["connections"]["cancel"]>(async () => {});
   api.connections.probe = probe;
   api.connections.cancel = cancel;
+  api.connections.listProfiles = async () => [
+    {
+      targetId: "55555555-5555-4555-8555-555555555555",
+      revision: 1,
+      alias: "离线目标",
+      endpoint: { host: "offline.invalid", port: 22 },
+      username: "student",
+    },
+  ];
   await mount(api);
   await click("SSH 主机身份设置");
+  await click("使用此服务器：离线目标");
   expect(container.textContent).toContain("不登录、不上传或运行任务");
-  await act(async () => {
-    const input = container.querySelector(
+  expect(
+    container.querySelector<HTMLInputElement>(
       'section[aria-labelledby="ssh-identity-heading"] input',
-    )!;
-    Object.getOwnPropertyDescriptor(
-      dom.window.HTMLInputElement.prototype,
-      "value",
-    )!.set!.call(input, "offline.invalid");
-    input.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
-  });
+    )!.value,
+  ).toBe("offline.invalid");
+  expect(api.connections.authenticate).not.toHaveBeenCalled();
   await click("检查主机指纹");
   expect(probe).toHaveBeenCalledTimes(1);
   expect(button("确认信任此指纹").disabled).toBe(true);
@@ -496,7 +506,17 @@ it("opens normal SSH authentication and explicit environment discovery through A
     }),
   );
   await mount(api);
+  api.connections.listProfiles = async () => [
+    {
+      targetId: "55555555-5555-4555-8555-555555555555",
+      revision: 1,
+      alias: "课堂",
+      endpoint: scope.endpoint,
+      username: "synthetic",
+    },
+  ];
   await click("SSH 主机身份设置");
+  await click("使用此服务器：课堂");
   async function enter(label: string, value: string) {
     await act(async () => {
       const input = [...container.querySelectorAll("label")]

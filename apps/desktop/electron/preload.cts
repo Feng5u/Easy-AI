@@ -6,12 +6,19 @@ const api: DesktopAPI = {
       ipcRenderer.invoke("easyai:local:preflight", request),
   },
   connections: {
+    listProfiles: () => ipcRenderer.invoke("easyai:connections:listProfiles"),
+    createProfile: (request) =>
+      ipcRenderer.invoke("easyai:connections:createProfile", request),
+    updateProfile: (targetId, request) =>
+      ipcRenderer.invoke("easyai:connections:updateProfile", targetId, request),
+
     authenticate: (
       projectId,
       requestId,
       identityRequestId,
       username,
       password,
+      target,
     ) =>
       ipcRenderer.invoke(
         "easyai:connections:authenticate",
@@ -20,6 +27,7 @@ const api: DesktopAPI = {
         identityRequestId,
         username,
         password,
+        ...(target ? [target] : []),
       ),
     cancelAuth: (projectId, requestId) =>
       ipcRenderer.invoke("easyai:connections:cancelAuth", projectId, requestId),

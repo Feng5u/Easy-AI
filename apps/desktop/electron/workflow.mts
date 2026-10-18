@@ -1,5 +1,5 @@
 import { SessionWorkflow } from "./session-workflow.mjs";
-import { IdentityWorkflow } from "./identity-workflow.mjs";
+import { IdentityWorkflow, endpoint } from "./identity-workflow.mjs";
 import type { Backend } from "./backend.mjs";
 import type {
   ProjectDocument,
@@ -10,6 +10,9 @@ import type {
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const WORKFLOW_CHANNELS = [
+  "easyai:connections:listProfiles",
+  "easyai:connections:createProfile",
+  "easyai:connections:updateProfile",
   "easyai:local:preflight",
   "easyai:connections:authenticate",
   "easyai:connections:cancelAuth",
@@ -115,6 +118,9 @@ export class MainWorkflow {
     const backend = this.backend();
     if (!backend) throw new Error("本地服务未就绪。");
     const counts: Record<string, number> = {
+      "easyai:connections:listProfiles": 0,
+      "easyai:connections:createProfile": 1,
+      "easyai:connections:updateProfile": 2,
       "easyai:local:preflight": 1,
       "easyai:selections:pick": 1,
       "easyai:projects:current": 0,
@@ -153,6 +159,44 @@ export class MainWorkflow {
       this.identity.invalidate();
     }
     switch (channel) {
+      case "easyai:connections:listProfiles":
+        return backend.request("GET", "/api/v1/connections");
+      case "easyai:connections:createProfile":
+      case "easyai:connections:updateProfile": {
+        const update = channel === "easyai:connections:updateProfile";
+        const value = object(
+          args[update ? 1 : 0],
+          update
+            ? ["alias", "endpoint", "username", "expectedRevision"]
+            : ["alias", "endpoint", "username"],
+        );
+        if (
+          typeof value.alias !== "string" ||
+          !value.alias ||
+          value.alias.length > 80 ||
+          /[\x00-\x1f\x7f]/.test(value.alias) ||
+          typeof value.username !== "string" ||
+          !value.username ||
+          value.username.length > 128 ||
+          /[\x00-\x20\x7f]/.test(value.username)
+        )
+          throw new Error("CONNECTION_PROFILE_INVALID");
+        const input = {
+          alias: value.alias,
+          endpoint: endpoint(value.endpoint),
+          username: value.username,
+        };
+        if (!update)
+          return backend.request("POST", "/api/v1/connections", input);
+        const targetId = id(args[0]);
+        const expectedRevision = integer(value.expectedRevision, 1);
+        this.sessions.invalidateTarget(targetId);
+        return backend.request("PATCH", `/api/v1/connections/${targetId}`, {
+          ...input,
+          expectedRevision,
+        });
+      }
+
       case "easyai:local:preflight": {
         const value = object(args[0], [
           "projectId",

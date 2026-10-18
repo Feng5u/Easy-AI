@@ -6,6 +6,7 @@ import type {
   EnvironmentProbeResult,
   EnvironmentRequest,
   RemoteRunControls,
+  ConnectionProfile,
 } from "../electron/bridge.js";
 
 interface Pending {
@@ -19,6 +20,7 @@ export function AuthenticatedPanel({
   identityRequestId,
   onInvalidated,
   remote,
+  target,
 }: {
   api: DesktopAPI["connections"];
   environments: DesktopAPI["environments"];
@@ -26,9 +28,10 @@ export function AuthenticatedPanel({
   identityRequestId: string;
   onInvalidated(): void;
   remote?: RemoteRunControls;
+  target?: ConnectionProfile;
 }) {
   const passwordInput = useRef<HTMLInputElement>(null);
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useState(target?.username ?? "");
   const [session, setSession] = useState<AuthenticatedConnection | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -110,6 +113,9 @@ export function AuthenticatedPanel({
         identityRequestId,
         username,
         password,
+        ...(target
+          ? [{ targetId: target.targetId, expectedRevision: target.revision }]
+          : []),
       );
       if (auth.current !== operation) return;
       clearTimeout(operation.timer);
@@ -148,7 +154,7 @@ export function AuthenticatedPanel({
               value={username}
               autoComplete="off"
               maxLength={128}
-              disabled={busy || !!auth.current}
+              disabled={!!target || busy || !!auth.current}
               onChange={(event) => setUsername(event.target.value)}
             />
           </label>

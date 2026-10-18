@@ -174,6 +174,7 @@ emit_event("artifact_created", {producer!r}, {{
         workspace._identity_project,
         timer_factory=FakeTimer,
         sftp_factory=lambda channel: Sftp(channel.session),
+        verify_target=workspace.verify_connection_target,
     )
     api = TestClient(create_app("offline-token", workspace=workspace))
     api.headers.update({"Authorization": "Bearer offline-token"})
@@ -188,6 +189,23 @@ emit_event("artifact_created", {producer!r}, {{
 
 def authorize(workspace, api, project):
     req = grant(workspace.identity(), project.project_id)
+    profiles = api.get("/api/v1/connections").json()
+    if not profiles:
+        response = api.post(
+            "/api/v1/connections",
+            json={
+                "alias": "offline",
+                "endpoint": {"host": "synthetic.invalid", "port": 22},
+                "username": req.username,
+            },
+        )
+        assert response.status_code == 201, response.text
+        profile = response.json()
+    else:
+        profile = profiles[0]
+    req = req.model_copy(
+        update={"target_id": profile["targetId"], "target_revision": profile["revision"]}
+    )
     response = api.post(
         "/api/v1/connections/auth/password",
         json={
@@ -354,6 +372,7 @@ def test_restart_is_inspect_only_fresh_auth_and_cancel_waits_actual_owner(harnes
             reopened._identity_project,
             timer_factory=FakeTimer,
             sftp_factory=lambda channel: Sftp(channel.session),
+            verify_target=reopened.verify_connection_target,
         )
         second = TestClient(create_app("offline-token", workspace=reopened))
         second.headers.update({"Authorization": "Bearer offline-token"})
@@ -678,3 +697,135 @@ def test_unverified_cache_platform_refuses_binding_and_prepare_without_staging(
     assert set(workspace._remote_bindings) == bindings
     assert sum(session.channel_calls for session in endpoint.sessions) == calls
     assert not endpoint.commands and list(endpoint.run_base.iterdir()) == []
+
+
+def test_saved_profile_stable_binding_active_identity_guard_and_frozen_run(harness, monkeypatch):
+    workspace, _, api, project = harness
+    _, body, request = binding(harness)
+    first = workspace._remote_bindings[request["bindingId"]][0]
+    again = api.post(
+        f"/api/v1/projects/{project.project_id}/run-bindings",
+        json={**body, "requestId": str(uuid4())},
+    )
+    assert again.status_code == 200, again.text
+    profile = api.get("/api/v1/connections").json()[0]
+    assert first.target_id == again.json()["targetId"] == profile["targetId"]
+    # Prepare a real immutable run but do not stage/start any remote process.
+    monkeypatch.setattr(
+        workspace.runs.remote, "begin", lambda run_id, *args, **kwargs: workspace.runs.get(run_id)
+    )
+    started = api.post(
+        f"/api/v1/projects/{project.project_id}/runs",
+        json=request,
+        headers={"Idempotency-Key": "profile-freeze-test"},
+    )
+    assert started.status_code == 202, started.text
+    run_id = started.json()["runId"]
+    config = workspace.runs.get(run_id).config.model_dump_json()
+    identity = workspace.runs._ledger.entries[run_id].remote_identity.model_dump_json()
+    before = workspace.profiles.path.read_bytes()
+    changed = {
+        "alias": "renamed",
+        "endpoint": {"host": "other.invalid", "port": 22},
+        "username": profile["username"],
+        "expectedRevision": 1,
+    }
+    response = api.patch(f"/api/v1/connections/{first.target_id}", json=changed)
+    assert response.status_code == 409 and workspace.profiles.path.read_bytes() == before
+    changed["endpoint"] = profile["endpoint"]
+    response = api.patch(f"/api/v1/connections/{first.target_id}", json=changed)
+    assert response.status_code == 200 and response.json()["revision"] == 2
+    assert workspace.runs.get(run_id).config.model_dump_json() == config
+    assert workspace.runs._ledger.entries[run_id].remote_identity.model_dump_json() == identity
+
+
+@pytest.mark.parametrize("failure", ["publish_then_error", "external_change"])
+def test_changed_profile_cannot_start_old_binding(harness, monkeypatch, failure):
+    from easyai.domain.connections import ConnectionProfileUpdate, SessionControl
+    from easyai.domain.remote_execution import RemoteRunStartRequest
+    from easyai.domain.ssh import SshFailure
+    from easyai.services.project_service import ProjectService
+
+    workspace, _, api, project = harness
+    control, _, request = binding(harness)
+    profile = workspace.list_connection_profiles()[0]
+    update = ConnectionProfileUpdate(
+        alias="changed",
+        endpoint={"host": "other.invalid", "port": 22},
+        username=profile.username,
+        expected_revision=1,
+    )
+    if failure == "publish_then_error":
+        original = ProjectService.atomic_write
+
+        def fail_after_publish(path, payload):
+            original(path, payload)
+            if path == workspace.profiles.path:
+                raise OSError("synthetic directory fsync failed after replace")
+
+        monkeypatch.setattr(ProjectService, "atomic_write", staticmethod(fail_after_publish))
+        with pytest.raises(OSError, match="synthetic directory fsync"):
+            workspace.update_connection_profile(profile.target_id, update)
+        assert not workspace._remote_bindings
+        assert workspace.connections().current(SessionControl.model_validate(control)) is None
+    else:
+        # Even out-of-band catalog changes cannot revive a cached authority.
+        workspace.profiles.update(profile.target_id, update, lambda _: None)
+    assert workspace.list_connection_profiles()[0].endpoint.host == "other.invalid"
+    with pytest.raises(
+        (ValueError, SshFailure),
+        match="REMOTE_BINDING_EXPIRED|SSH_SESSION_INVALID|SSH_TARGET_REFERENCE_STALE",
+    ):
+        workspace.start(
+            project.project_id, RemoteRunStartRequest.model_validate(request), "must-not-prepare"
+        )
+    assert not workspace.runs._ledger.entries
+
+
+def test_updating_profile_a_does_not_retire_unrelated_b_lease(harness):
+    workspace, _, api, project = harness
+    from easyai.domain.connections import SessionControl
+
+    first = api.post(
+        "/api/v1/connections",
+        json={
+            "alias": "A",
+            "endpoint": {"host": "synthetic.invalid", "port": 22},
+            "username": "synthetic-user",
+        },
+    ).json()
+    second = api.post(
+        "/api/v1/connections",
+        json={
+            "alias": "B",
+            "endpoint": {"host": "synthetic.invalid", "port": 22},
+            "username": "synthetic-user",
+        },
+    ).json()
+    req = grant(workspace.identity(), project.project_id).model_copy(
+        update={
+            "target_id": second["targetId"],
+            "target_revision": 1,
+            "username": second["username"],
+        }
+    )
+    response = api.post(
+        "/api/v1/connections/auth/password",
+        json={"request": req.model_dump(by_alias=True), "password": SYNTHETIC_PASSWORD},
+    )
+    assert response.status_code == 200, response.text
+    auth = response.json()
+    changed = api.patch(
+        f"/api/v1/connections/{first['targetId']}",
+        json={
+            "alias": "new A",
+            "endpoint": {"host": "other.invalid", "port": 22},
+            "username": "synthetic-user",
+            "expectedRevision": 1,
+        },
+    )
+    assert changed.status_code == 200, changed.text
+    current = workspace.connections().current(
+        SessionControl(project_id=project.project_id, connection_id=auth["scope"]["connectionId"])
+    )
+    assert current is not None and current.target_id == second["targetId"]

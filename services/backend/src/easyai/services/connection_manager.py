@@ -9,6 +9,7 @@ from uuid import uuid4
 
 from easyai.domain.connections import AuthenticationRequest, AuthenticatedConnection, SessionControl
 from easyai.domain.environment import EnvironmentRequest, EnvironmentScope
+from easyai.domain.ssh import SshEndpoint
 from easyai.domain.ssh import IdentityRequest, SshFailure
 from easyai.services.environment_service import EnvironmentService
 from easyai.services.environment_transport import SshProbeTransport
@@ -36,6 +37,7 @@ def _timer(seconds: float, callback: Callable[[], None]) -> Timer:
 def _failure_code(error: Exception) -> str:
     allowed = {
         "SSH_AUTH_REQUEST_INVALID",
+        "SSH_TARGET_REFERENCE_STALE",
         "SSH_SESSION_BUSY",
         "SSH_AUTH_REQUEST_RETIRED",
         "SSH_AUTH_REQUEST_LIMIT",
@@ -108,11 +110,13 @@ class ConnectionManager:
         clock: Callable[[], float] = time.monotonic,
         timer_factory: Callable[[float, Callable[[], None]], Timer] = _timer,
         sftp_factory: Callable[[Any], Any] | None = None,
+        verify_target: Callable[[AuthenticationRequest, SshEndpoint], None] | None = None,
     ):
         self._client, self._identities = client, identities
         self._mutex, self._verify_project = mutex, verify_project
         self._clock, self._timer_factory = clock, timer_factory
         self._sftp_factory = sftp_factory
+        self._verify_target = verify_target or (lambda request, endpoint: None)
         self._generation = 0
         self._auth: _Authentication | None = None
         self._lease: _Lease | None = None
@@ -179,6 +183,15 @@ class ConnectionManager:
                     self._queue_close(self._auth.session)
             self._detach_lease()
 
+    def invalidate_target(self, target_id: str) -> None:
+        with self._mutex:
+            if (
+                self._auth is not None
+                and self._auth.running
+                and self._auth.request.target_id == target_id
+            ) or (self._lease is not None and self._lease.operation.request.target_id == target_id):
+                self.invalidate()
+
     def cancel_identity(self, request: IdentityRequest) -> None:
         with self._mutex:
             auth = self._auth
@@ -229,6 +242,7 @@ class ConnectionManager:
         ):
             raise SshFailure("SSH_AUTH_CANCELLED")
         self._verify_project(operation.request.project_id)
+        self._verify_target(operation.request, operation.grant.endpoint)
 
     def _timeout_auth(self, operation: _Authentication) -> None:
         with self._mutex:
@@ -285,6 +299,7 @@ class ConnectionManager:
                 grant = self._identities.consume_auth_grant(
                     request.project_id, request.identity_request_id, request.expected_fingerprint
                 )
+                self._verify_target(request, grant.endpoint)
                 operation = _Authentication(request, grant, self._generation, now + 25)
                 self._auth = operation
                 timer = self._timer_factory(25, lambda: self._timeout_auth(operation))
@@ -367,6 +382,8 @@ class ConnectionManager:
             project_id=request.project_id,
             request_id=request.request_id,
             identity_request_id=request.identity_request_id,
+            target_id=request.target_id,
+            target_revision=request.target_revision,
             scope=lease.scope,
             username=request.username,
             expires_in_seconds=max(1, min(300, math.ceil(lease.expires_at - self._clock()))),
@@ -386,6 +403,7 @@ class ConnectionManager:
         code = None
         try:
             self._verify_project(project_id)
+            self._verify_target(lease.operation.request, lease.scope.endpoint)
             lease.session.validate_probe_session()  # In-memory protocol state + bounded local pin read.
         except Exception:
             code = "SSH_SESSION_INVALID"

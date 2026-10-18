@@ -4,6 +4,7 @@ import type {
   DesktopAPI,
   IdentityResult,
   RemoteRunControls,
+  ConnectionProfile,
 } from "../electron/bridge.js";
 
 const messages: Record<string, string> = {
@@ -29,15 +30,17 @@ export function ConnectionPanel({
   projectId,
   onClose,
   remote,
+  target,
 }: {
   api: DesktopAPI["connections"];
   environments?: DesktopAPI["environments"];
   projectId: string;
   onClose(): void;
   remote?: RemoteRunControls;
+  target?: ConnectionProfile;
 }) {
-  const [host, setHost] = useState("");
-  const [port, setPort] = useState("22");
+  const [host, setHost] = useState(target?.endpoint.host ?? "");
+  const [port, setPort] = useState(String(target?.endpoint.port ?? 22));
   const [result, setResult] = useState<IdentityResult | null>(null);
   const [verified, setVerified] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -146,12 +149,16 @@ export function ConnectionPanel({
     <section className="panel" aria-labelledby="ssh-identity-heading">
       <h2 id="ssh-identity-heading">SSH 主机身份</h2>
       <p>
-        目标仅保存在当前工程会话。此步骤只检查服务器身份，不登录、不上传或运行任务。
+        {target
+          ? `已选服务器：${target.alias} · revision ${target.revision}。`
+          : "临时目标仅保存在当前工程会话。"}
+        此步骤只检查服务器身份，不登录、不上传或运行任务。
       </p>
       <label className="field">
         主机名或 IP
         <input
           value={host}
+          disabled={!!target}
           maxLength={253}
           autoComplete="off"
           spellCheck={false}
@@ -168,6 +175,7 @@ export function ConnectionPanel({
           min={1}
           max={65535}
           value={port}
+          disabled={!!target}
           onChange={(event) => {
             reset();
             setPort(event.target.value);
@@ -247,6 +255,7 @@ export function ConnectionPanel({
             <AuthenticatedPanel
               key={result.requestId}
               api={api}
+              target={target}
               environments={environments}
               projectId={projectId}
               identityRequestId={result.requestId}

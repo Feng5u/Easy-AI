@@ -17,7 +17,7 @@ import type {
   RemoteBinding,
   AuthenticatedConnection,
 } from "../electron/bridge.js";
-import { ConnectionPanel } from "./ConnectionPanel.js";
+import { ServerProfiles } from "./ServerProfiles.js";
 import { CodeView } from "./CodeView.js";
 import { RunDashboard } from "./RunDashboard.js";
 import { isRunSettled } from "./runEvents.js";
@@ -497,7 +497,7 @@ export function App({ api }: { api?: DesktopAPI }) {
         </button>
       </div>
       {identityVisible && ready && bridge && project && (
-        <ConnectionPanel
+        <ServerProfiles
           key={project.projectId}
           api={bridge.connections}
           environments={bridge.environments}

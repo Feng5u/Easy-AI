@@ -14,7 +14,7 @@ function identifier(value: unknown): string {
     throw new Error("SSH_IDENTITY_REQUEST_INVALID");
   return value;
 }
-function endpoint(value: unknown): SshEndpoint {
+export function endpoint(value: unknown): SshEndpoint {
   if (!value || typeof value !== "object" || Array.isArray(value))
     throw new Error("SSH_IDENTITY_REQUEST_INVALID");
   const record = value as Record<string, unknown>;

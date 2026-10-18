@@ -1,5 +1,7 @@
 /* Generated from Pydantic. Do not edit. */
 
+export type Targetid = string | null;
+export type Targetrevision = number | null;
 export type Projectid = string;
 export type Requestid = string;
 export type Identityrequestid = string;
@@ -14,6 +16,8 @@ export type Method = "password";
 export type Expiresinseconds = number;
 
 export interface AuthenticatedConnection {
+  targetId?: Targetid;
+  targetRevision?: Targetrevision;
   projectId: Projectid;
   requestId: Requestid;
   identityRequestId: Identityrequestid;

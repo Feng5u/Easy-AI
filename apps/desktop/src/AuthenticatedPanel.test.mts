@@ -46,6 +46,13 @@ function setup() {
     expiresInSeconds: 300,
   };
   const api: DesktopAPI["connections"] = {
+    listProfiles: async () => [],
+    createProfile: async () => {
+      throw new Error("not configured");
+    },
+    updateProfile: async () => {
+      throw new Error("not configured");
+    },
     probe: vi.fn(),
     confirm: vi.fn(),
     cancel: vi.fn(async () => {}),

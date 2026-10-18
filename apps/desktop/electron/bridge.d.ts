@@ -1,3 +1,13 @@
+import type { ConnectionProfile } from "../../../packages/contracts/types/ConnectionProfile.js";
+import type { ConnectionProfileInput } from "../../../packages/contracts/types/ConnectionProfileInput.js";
+import type { ConnectionProfileUpdate } from "../../../packages/contracts/types/ConnectionProfileUpdate.js";
+import type { ConnectionTargetReference } from "../../../packages/contracts/types/ConnectionTargetReference.js";
+export type {
+  ConnectionProfile,
+  ConnectionProfileInput,
+  ConnectionProfileUpdate,
+  ConnectionTargetReference,
+};
 import type { LocalPreflightRequest } from "../../../packages/contracts/types/LocalPreflightRequest.js";
 import type { LocalPreflightResult } from "../../../packages/contracts/types/LocalPreflightResult.js";
 export type { LocalPreflightRequest, LocalPreflightResult };
@@ -69,12 +79,20 @@ export interface RemoteRunControls {
 export type ConnectionState = "connected" | "reconnecting" | "closed" | "error";
 export interface DesktopAPI {
   connections: {
+    listProfiles(): Promise<ConnectionProfile[]>;
+    createProfile(request: ConnectionProfileInput): Promise<ConnectionProfile>;
+    updateProfile(
+      targetId: string,
+      request: ConnectionProfileUpdate,
+    ): Promise<ConnectionProfile>;
+
     authenticate(
       projectId: string,
       requestId: string,
       identityRequestId: string,
       username: string,
       password: string,
+      target?: ConnectionTargetReference,
     ): Promise<AuthenticatedConnection>;
     cancelAuth(projectId: string, requestId: string): Promise<void>;
     close(projectId: string, connectionId: string): Promise<void>;

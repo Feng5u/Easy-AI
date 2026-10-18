@@ -34,6 +34,7 @@ function remotePath(value: unknown): string {
 }
 interface Operation {
   projectId: string;
+  targetId?: string;
   requestId: string;
   identityRequestId: string;
   backend: Backend;
@@ -83,6 +84,9 @@ export class SessionWorkflow {
     this.active = undefined;
     if (operation) void this.cancelOperation(operation).catch(() => undefined);
   }
+  invalidateTarget(targetId: string): void {
+    if (this.active?.targetId === targetId) this.invalidate();
+  }
   cancelIdentity(projectId: unknown, requestId: unknown): void {
     const operation = this.active;
     if (
@@ -122,6 +126,8 @@ export class SessionWorkflow {
         !value ||
         JSON.stringify(value.scope) !== JSON.stringify(info.scope) ||
         value.requestId !== operation.requestId ||
+        value.targetId !== info.targetId ||
+        value.targetRevision !== info.targetRevision ||
         value.authenticated !== true ||
         value.method !== "password"
       )
@@ -187,7 +193,7 @@ export class SessionWorkflow {
       { request: Record<string, unknown>; password: string } | undefined;
     let operation: Operation | undefined;
     try {
-      if (args.length !== 5 || !password || password.length > 1024)
+      if (![5, 6].includes(args.length) || !password || password.length > 1024)
         throw new Error("SSH_REQUEST_INVALID");
       const projectId = id(args[0]),
         requestId = id(args[1]),
@@ -200,6 +206,22 @@ export class SessionWorkflow {
         /[\x00-\x1f\x7f]/.test(username)
       )
         throw new Error("SSH_REQUEST_INVALID");
+      let profile: { targetId: string; targetRevision: number } | undefined;
+      if (args.length === 6) {
+        const target = object(args[5]);
+        if (
+          Object.keys(target).length !== 2 ||
+          !Object.hasOwn(target, "targetId") ||
+          !Object.hasOwn(target, "expectedRevision") ||
+          !Number.isSafeInteger(target.expectedRevision) ||
+          Number(target.expectedRevision) < 1
+        )
+          throw new Error("SSH_REQUEST_INVALID");
+        profile = {
+          targetId: id(target.targetId),
+          targetRevision: Number(target.expectedRevision),
+        };
+      }
       if (this.active) throw new Error("SSH_AUTH_BUSY");
       const target = this.identity.trustedTarget(projectId, identityRequestId);
       operation = {
@@ -207,6 +229,7 @@ export class SessionWorkflow {
         requestId,
         identityRequestId,
         backend: target.backend,
+        targetId: profile?.targetId,
         ...cancellation(),
       };
       this.active = operation;
@@ -218,6 +241,7 @@ export class SessionWorkflow {
           identityRequestId,
           username,
           expectedFingerprint: target.fingerprint,
+          ...profile,
         },
         password,
       };
@@ -240,6 +264,9 @@ export class SessionWorkflow {
         value.requestId !== requestId ||
         value.identityRequestId !== identityRequestId ||
         value.username !== username ||
+        (profile &&
+          (value.targetId !== profile.targetId ||
+            value.targetRevision !== profile.targetRevision)) ||
         value.scope?.projectId !== projectId ||
         !uuid.test(value.scope?.connectionId ?? "") ||
         value.scope.hostFingerprint !== target.fingerprint ||

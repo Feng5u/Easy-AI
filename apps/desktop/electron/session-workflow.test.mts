@@ -373,3 +373,59 @@ it("old connection close and old auth cancel leave the current lease intact", as
   ).toEqual(s.info);
   s.workflow.dispose();
 });
+
+it("late profile A update never cancels a subsequently authenticated target B", async () => {
+  const h = setup(),
+    save = deferred<unknown>();
+  const original = h.request.getMockImplementation()!;
+  const targetA = "77777777-7777-4777-8777-777777777777",
+    targetB = "88888888-8888-4888-8888-888888888888";
+  h.request.mockImplementation(async (method, path, body) =>
+    method === "PATCH" ? save.promise : original(method, path, body),
+  );
+  const update = h.workflow.invoke("easyai:connections:updateProfile", [
+    targetA,
+    { alias: "A", endpoint, username: "synthetic", expectedRevision: 1 },
+  ]);
+  h.setAuth({ ...h.info, targetId: targetB, targetRevision: 1 });
+  await h.identity();
+  await h.workflow.invoke("easyai:connections:authenticate", [
+    projectId,
+    authId,
+    identityId,
+    "synthetic",
+    "synthetic-memory-only",
+    { targetId: targetB, expectedRevision: 1 },
+  ]);
+  expect(
+    h.calls.find((call) => call.path.endsWith("/auth/password"))?.body,
+  ).toEqual(expect.objectContaining({ targetId: targetB, targetRevision: 1 }));
+  save.resolve({ targetId: targetA, revision: 2 });
+  await update;
+  const current = await h.workflow.invoke("easyai:connections:current", [
+    projectId,
+    connectionId,
+  ]);
+  expect(current).toEqual(expect.objectContaining({ targetId: targetB }));
+  expect(h.calls.some((call) => call.path.endsWith("/auth/cancel"))).toBe(
+    false,
+  );
+  h.workflow.dispose();
+});
+
+it("saved profile authentication rejects a returned foreign target", async () => {
+  const h = setup();
+  await h.identity();
+  h.setAuth({ ...h.info, targetId: envId, targetRevision: 1 });
+  await expect(
+    h.workflow.invoke("easyai:connections:authenticate", [
+      projectId,
+      authId,
+      identityId,
+      "synthetic",
+      "synthetic-memory-only",
+      { targetId: requestId, expectedRevision: 1 },
+    ]),
+  ).rejects.toThrow("SSH_AUTH_FAILED");
+  h.workflow.dispose();
+});

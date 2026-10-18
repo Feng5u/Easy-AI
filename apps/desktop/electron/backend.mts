@@ -9,7 +9,7 @@ export interface Backend {
   process: ChildProcessWithoutNullStreams;
   stop(): Promise<void>;
   request<T>(
-    method: "GET" | "POST" | "PUT",
+    method: "GET" | "POST" | "PUT" | "PATCH",
     path: string,
     body?: unknown,
     idempotencyKey?: string,
@@ -159,7 +159,7 @@ export async function startBackend(
       return Buffer.concat(chunks);
     };
     const request = async <T,>(
-      method: "GET" | "POST" | "PUT",
+      method: "GET" | "POST" | "PUT" | "PATCH",
       path: string,
       body?: unknown,
       idempotencyKey?: string,

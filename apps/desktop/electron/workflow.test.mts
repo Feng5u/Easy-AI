@@ -144,3 +144,60 @@ it("local preflight forwards only project revision and native selection IDs", as
   );
   expect(choose).not.toHaveBeenCalled();
 });
+
+it("profile IPC accepts only non-secret fields and routes explicit CRUD without connecting", async () => {
+  const { bridge, request, choose } = setup();
+  const input = {
+    alias: "课堂",
+    endpoint: { host: "SYNTHETIC.invalid.", port: 22 },
+    username: "student",
+  };
+  for (const key of [
+    "password",
+    "privateKey",
+    "privateKeyPath",
+    "token",
+    "passphrase",
+  ]) {
+    await expect(
+      bridge.invoke("easyai:connections:createProfile", [
+        { ...input, [key]: "synthetic-sensitive" },
+      ]),
+    ).rejects.toThrow();
+    await expect(
+      bridge.invoke("easyai:connections:updateProfile", [
+        identity,
+        { ...input, expectedRevision: 1, [key]: "synthetic-sensitive" },
+      ]),
+    ).rejects.toThrow();
+  }
+  expect(request).not.toHaveBeenCalled();
+  await bridge.invoke("easyai:connections:createProfile", [input]);
+  expect(request).toHaveBeenLastCalledWith("POST", "/api/v1/connections", {
+    ...input,
+    endpoint: { host: "synthetic.invalid", port: 22 },
+  });
+  await bridge.invoke("easyai:connections:updateProfile", [
+    identity,
+    { ...input, expectedRevision: 1 },
+  ]);
+  expect(request).toHaveBeenLastCalledWith(
+    "PATCH",
+    `/api/v1/connections/${identity}`,
+    {
+      ...input,
+      endpoint: { host: "synthetic.invalid", port: 22 },
+      expectedRevision: 1,
+    },
+  );
+  await bridge.invoke("easyai:connections:listProfiles", []);
+  expect(request).toHaveBeenLastCalledWith("GET", "/api/v1/connections");
+  expect(choose).not.toHaveBeenCalled();
+  expect(
+    request.mock.calls.some(
+      (call) =>
+        String(call[1]).includes("/auth/") ||
+        String(call[1]).includes("/probe"),
+    ),
+  ).toBe(false);
+});

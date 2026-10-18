@@ -4,7 +4,7 @@ import time
 import re
 from pathlib import Path
 from typing import Literal, TypeVar, Callable, Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 from collections.abc import AsyncIterator
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
@@ -14,6 +14,9 @@ from fastapi.responses import StreamingResponse, JSONResponse, Response
 from pydantic import Field
 
 from easyai.domain.connections import (
+    ConnectionProfile,
+    ConnectionProfileInput,
+    ConnectionProfileUpdate,
     AuthenticationRequest,
     AuthenticatedConnection,
     PasswordAuthenticationInput,
@@ -113,9 +116,13 @@ def create_app(
 
     @app.exception_handler(RequestValidationError)
     async def invalid_request(request: Request, error: RequestValidationError) -> Response:
-        if request.url.path.startswith(
-            ("/api/v1/connections/", "/api/v1/environments/", "/api/v1/runs/")
-        ) or request.url.path.endswith(("/runs", "/run-bindings")):
+        if (
+            request.url.path.startswith(
+                ("/api/v1/connections/", "/api/v1/environments/", "/api/v1/runs/")
+            )
+            or request.url.path == "/api/v1/connections"
+            or request.url.path.endswith(("/runs", "/run-bindings"))
+        ):
             # Validation errors normally echo input, including rejected secret fields.
             return JSONResponse(status_code=422, content={"error": {"code": "SSH_REQUEST_INVALID"}})
         return await request_validation_exception_handler(request, error)
@@ -127,7 +134,11 @@ def create_app(
         status = 422
         if "FORBIDDEN" in code or code == "FILE_NOT_REGULAR":
             status = 403
-        elif code in {"PROJECT_REVISION_CONFLICT", "PROGRAM_HASH_CONFLICT"}:
+        elif code in {
+            "PROJECT_REVISION_CONFLICT",
+            "PROGRAM_HASH_CONFLICT",
+            "CONNECTION_PROFILE_REVISION_CONFLICT",
+        }:
             status = 412
         elif any(
             term in code
@@ -169,6 +180,20 @@ def create_app(
         if workspace is None:
             raise HTTPException(status_code=404, detail="Local workspace is not configured")
         return workspace
+
+    @app.get("/api/v1/connections", response_model=list[ConnectionProfile])
+    async def list_connection_profiles() -> list[ConnectionProfile]:
+        return await asyncio.to_thread(local().list_connection_profiles)
+
+    @app.post("/api/v1/connections", response_model=ConnectionProfile, status_code=201)
+    async def create_connection_profile(request: ConnectionProfileInput) -> ConnectionProfile:
+        return await asyncio.to_thread(local().create_connection_profile, request)
+
+    @app.patch("/api/v1/connections/{target_id:uuid}", response_model=ConnectionProfile)
+    async def update_connection_profile(
+        target_id: UUID, request: ConnectionProfileUpdate
+    ) -> ConnectionProfile:
+        return await asyncio.to_thread(local().update_connection_profile, str(target_id), request)
 
     @app.post("/api/v1/connections/identity/probe", response_model=IdentityResult)
     async def probe_identity(request: IdentityProbeRequest) -> IdentityResult:

@@ -95,6 +95,49 @@ try {
       .response.status,
     422,
   );
+  const profileInput = {
+    alias: "冻结概要",
+    endpoint: { host: "SYNTHETIC.invalid.", port: 22 },
+    username: "student",
+  };
+  const rejectedProfile = await request("POST", "/connections", {
+    ...profileInput,
+    password: "synthetic-must-not-echo",
+  });
+  assert.equal(rejectedProfile.response.status, 422);
+  assert.equal(
+    JSON.stringify(rejectedProfile.value).includes("synthetic-must-not-echo"),
+    false,
+  );
+  const savedProfile = await request("POST", "/connections", profileInput);
+  assert.equal(savedProfile.response.status, 201);
+  assert.equal(savedProfile.value.endpoint.host, "synthetic.invalid");
+  const profileUpdate = {
+    ...profileInput,
+    alias: "新名称",
+    expectedRevision: 1,
+  };
+  const updatedProfile = await request(
+    "PATCH",
+    `/connections/${savedProfile.value.targetId}`,
+    profileUpdate,
+  );
+  assert.equal(updatedProfile.response.status, 200);
+  assert.equal(updatedProfile.value.targetId, savedProfile.value.targetId);
+  assert.equal(updatedProfile.value.revision, 2);
+  assert.equal(
+    (
+      await request(
+        "PATCH",
+        `/connections/${savedProfile.value.targetId}`,
+        profileUpdate,
+      )
+    ).response.status,
+    412,
+  );
+  assert.deepEqual((await request("GET", "/connections")).value, [
+    updatedProfile.value,
+  ]);
   const selected = await request("POST", "/local/selections", {
     kind: "project",
     path: project,

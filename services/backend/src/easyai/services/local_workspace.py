@@ -17,7 +17,15 @@ from uuid import uuid4
 from easyai.compiler.pipeline import compile_project
 from easyai.domain.catalog import TEMPLATE_PATH, BLANK_TEMPLATE_PATH
 from easyai.domain.contracts import ProjectDocument, Run
-from easyai.domain.connections import SessionControl
+from easyai.domain.connections import (
+    SessionControl,
+    AuthenticationRequest,
+    ConnectionProfile,
+    ConnectionProfileInput,
+    ConnectionProfileUpdate,
+)
+from easyai.domain.ssh import SshEndpoint
+from easyai.services.connection_profiles import ConnectionProfiles
 from easyai.domain.remote_execution import (
     RemoteBinding,
     RemoteBindingRequest,
@@ -237,6 +245,7 @@ class LocalWorkspace:
         self.runs = RunService(run_root)
         self._mutex = threading.RLock()
         self._local_probe_lock = threading.Lock()
+        self.profiles = ConnectionProfiles(self.root)
         self._selections: dict[str, tuple[SelectionKind, Path]] = {}
         self._projects: dict[str, ProjectService] = {}
         self._current: str | None = None
@@ -299,9 +308,71 @@ class LocalWorkspace:
                 from easyai.services.connection_manager import ConnectionManager
 
                 self._connections = ConnectionManager(
-                    self.ssh(), self.identity(), self._mutex, self._identity_project
+                    self.ssh(),
+                    self.identity(),
+                    self._mutex,
+                    self._identity_project,
+                    verify_target=self.verify_connection_target,
                 )
             return self._connections
+
+    def list_connection_profiles(self) -> list[ConnectionProfile]:
+        with self._mutex:
+            self._verify()
+            return self.profiles.list()
+
+    def create_connection_profile(self, request: ConnectionProfileInput) -> ConnectionProfile:
+        with self._mutex:
+            self._verify()
+            return self.profiles.create(request)
+
+    def update_connection_profile(
+        self, target_id: str, request: ConnectionProfileUpdate
+    ) -> ConnectionProfile:
+        with self._mutex:
+            self._verify()
+
+            def guard(old: ConnectionProfile) -> None:
+                if any(
+                    entry.run.config.target_id == old.target_id
+                    and not self.runs.remote.settled(entry.run)
+                    for entry in self.runs._ledger.entries.values()
+                ):
+                    raise ValueError("CONNECTION_PROFILE_ACTIVE_CONFLICT")
+
+            # Revoke before possible publication: fsync failure can follow replace.
+            return self.profiles.update(
+                target_id, request, guard, lambda: self._invalidate_connection_target(target_id)
+            )
+
+    def _invalidate_connection_target(self, target_id: str) -> None:
+        # Profile updates retire only capabilities for that target, never a new
+        # unrelated session that became active while a client awaited the save.
+        self._remote_bindings = {
+            key: value
+            for key, value in self._remote_bindings.items()
+            if value[0].target_id != target_id
+        }
+        if self._connections is not None:
+            self._connections.invalidate_target(target_id)
+
+    def verify_connection_target(
+        self, request: AuthenticationRequest, endpoint: SshEndpoint
+    ) -> None:
+        with self._mutex:
+            self._verify()
+            if request.target_id is None:
+                return  # Legacy short-lived sessions can read old runs, never create new bindings.
+            profile = next(
+                (item for item in self.profiles.list() if item.target_id == request.target_id), None
+            )
+            if (
+                profile is None
+                or profile.revision != request.target_revision
+                or profile.endpoint != endpoint
+                or profile.username != request.username
+            ):
+                raise ValueError("SSH_TARGET_REFERENCE_STALE")
 
     def begin_identity_probe(self) -> None:
         with self._mutex:
@@ -698,6 +769,20 @@ class LocalWorkspace:
             auth = manager.current(control)
             if auth is None:
                 raise ValueError("REMOTE_AUTHENTICATION_REQUIRED")
+            if auth.target_id is None:
+                raise ValueError("SSH_TARGET_PROFILE_REQUIRED")
+            self.verify_connection_target(
+                AuthenticationRequest(
+                    project_id=project_id,
+                    request_id=auth.request_id,
+                    identity_request_id=auth.identity_request_id,
+                    expected_fingerprint=auth.scope.host_fingerprint,
+                    username=auth.username,
+                    target_id=auth.target_id,
+                    target_revision=auth.target_revision,
+                ),
+                auth.scope.endpoint,
+            )
             report, conda, remaining = manager.environments(request).authority(
                 request, request.probe_request_id
             )
@@ -734,7 +819,7 @@ class LocalWorkspace:
                 binding_id=str(uuid4()),
                 project_id=project_id,
                 connection_id=auth.scope.connection_id,
-                target_id=str(uuid4()),
+                target_id=auth.target_id,
                 environment_id=report.environment_id,
                 data_binding_id=str(uuid4()),
                 project_revision=opened.document.revision,
@@ -782,6 +867,20 @@ class LocalWorkspace:
             auth = manager.current(control)
             if auth is None:
                 raise ValueError("REMOTE_AUTHENTICATION_REQUIRED")
+            if auth.target_id is None or auth.target_id != binding.target_id:
+                raise ValueError("SSH_TARGET_PROFILE_REQUIRED")
+            self.verify_connection_target(
+                AuthenticationRequest(
+                    project_id=project_id,
+                    request_id=auth.request_id,
+                    identity_request_id=auth.identity_request_id,
+                    expected_fingerprint=auth.scope.host_fingerprint,
+                    username=auth.username,
+                    target_id=auth.target_id,
+                    target_revision=auth.target_revision,
+                ),
+                auth.scope.endpoint,
+            )
             from easyai.domain.environment import EnvironmentRequest
 
             scope_request = EnvironmentRequest(

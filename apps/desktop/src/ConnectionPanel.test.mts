@@ -36,6 +36,13 @@ function result(
 }
 function setup() {
   const api = {
+    listProfiles: async () => [],
+    createProfile: async () => {
+      throw new Error("not configured");
+    },
+    updateProfile: async () => {
+      throw new Error("not configured");
+    },
     authenticate: vi.fn<DesktopAPI["connections"]["authenticate"]>(),
     cancelAuth: vi.fn<DesktopAPI["connections"]["cancelAuth"]>(async () => {}),
     close: vi.fn<DesktopAPI["connections"]["close"]>(async () => {}),
