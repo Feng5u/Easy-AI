@@ -1846,3 +1846,37 @@ NOT RUN：真实安装/probe/bootstrap/pip/训练/下载/import/tensor验收、�
 计划116185字节SHA256 dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43、旧规格5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190、README befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852保持。core/ML/CV六份来源与锁未改；9/17卡可解析，OpenCV仍因native要求未核unsupported，不换headless。CIFAR待裁决；旧226PASS/1FAIL根因UNKNOWN且原始日志丢失不回溯关闭。旧portable source7b91c46未含本片，distributionReady/legalReviewComplete仍false。无main/强推/PR/Release/部署/费用/凭据/安全权限变更，无新的工具安全拒绝或未知外部写入。
 
 下一项：父侧复核历史读取不接管/不解隔离及报告健康边界；仍缺保留管理、存活安装重连与停止未知的显式安全解除。真实M5/M6.3/B条件与既有阻塞不因本片消失。源码与本证据仅普通开发分支提交推送，推后再次核对远端及工作区。
+
+
+## 2026-10-18 父独审P2补修：持久空目录占槽与原子登记
+
+父侧未签收上一片，准确指出：_saved_jobs跳过合法空UUID目录，但confirm只检查内存_jobs；63有效目录+1首事件前崩溃空目录恢复为63内存任务，新确认可创建第65目录，后续history/report/启动统一拒绝。此前“无新增P1/P2”仅是当时专项结果，不能视为完整配额证明。本补修源码完整SHA `b238e58bb01bc6a2f10f8454e1bebea82f2660bf`，基于 `2cdd7d5ad60da842e52bddae9107c90214592063`。
+
+改前先用单实例确定性复现：63个合成FAILED记录，第64个确认在独占mkdir后、EventJournal首事件前注入OSError；保留合法空目录，关闭合成journal fd模拟进程丢失，再启动恢复。新增测试期望confirm拒INSTALL_JOB_LIMIT，改前实际未抛错，**1 FAIL/6 deselected**，原始失败日志保留。无真实安装、probe、网络、worker或环境创建。
+
+修复抽出_ledger_slots，共用bounded scandir65及合法目录校验，空目录计占槽。confirm在既有 `.install-source.lock` 共享短提交锁内重新核持久总槽数>=64即拒；额度检查、独占mkdir及首条持久事件位于同锁区间，完成后释放再走原有内存登记/唯一worker流程。未新增锁框架、保留策略、自动清理或未知目录删除。额度与锁忙拒绝不置persistence_failed，原幂等确认仍先返回原任务，不消耗新槽。历史纯读仍不取得提交锁、不修尾或释放未知lease。
+
+新增竞争测试：63持久空目录，两个服务竞争最后一项；首服务在既有锁内暂停首记录，第二服务确认拒INSTALL_SOURCE_BUSY且未登记/未毒化；首提交完成后共64目录，第二再确认拒INSTALL_JOB_LIMIT，历史与重启继续可读，未知空目录全部保全。独审只读复查锁序、占槽/预留原子区间、空目录保全和quota拒绝状态；新两项 **2 PASS/6 deselected/0.48s**，未发现新增明确P1/P2，交父侧再次核验。
+
+| 实际命令 | 结果 |
+| --- | --- |
+| `cd services/backend; .venv/bin/pytest -q tests/test_install_history.py -k crashed_empty` | 改前1 FAIL，expected INSTALL_JOB_LIMIT DID NOT RAISE；不回改失败日志。首次新增测试写入命令因cwd误用重复路径失败，随后pytest未选中测试exit5/6deselected，另留unique1日志；改正路径后unique2才是有效复现。 |
+| `cd services/backend; .venv/bin/pytest -q tests/test_install_history.py tests/test_install_service.py tests/test_install_runtime.py tests/test_install_source_selection.py tests/test_event_journal.py` | 改后 **79 PASS/10.76s**；含新增两项与原有注册/来源/执行/只读账本回归，禁止Popen/连接的历史fixture继续有效。 |
+| `UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache pnpm check` | PASS；TS/Main/tests、ruff/format117Python、mypy63、合同/实际Blocklyfixtures/Prettier。 |
+| `UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache XDG_CACHE_HOME=/workspace/.cache pnpm build` | PASS；包含修复的PyInstaller sidecar及桌面；无下载/依赖安装，既有chunk提示。 |
+| `node scripts/test-frozen-install-recovery.mjs` | PASS；冻结sidecar实际重启、普通历史发现/报告与旧确认过期回归；此命令不声称冻结产物覆盖63+1故障注入，该边界由新增确定性pytest证明。 |
+| 既有worker独审新两项 | 2 PASS/6deselected，与79项重叠不累计。 |
+| `git diff --check` / `git ls-remote origin refs/heads/main refs/heads/codex/demo-v0.0.0` / 原件hash | PASS；推前dev=2cdd7d5ad60da842e52bddae9107c90214592063、main=5323f86232529efcfb52131168ad049f01b219f3。 |
+
+唯一noclobber日志及SHA256：
+- `/tmp/easyai-install-slot-build-20261018-unique1.log` SHA256 `dc904e08010c55e78febbc5b8adedab7000de88a5646c6fc7742ea1bc4e5fbb0`。
+- `/tmp/easyai-install-slot-check-20261018-unique1.log` SHA256 `5b9546205d04c670ac61ad7a8bff82dc39bae1a167cdd98bbbe8937bece75271`。
+- `/tmp/easyai-install-slot-frozen-20261018-unique1.log` SHA256 `f440c15b1e2f24b53b29c78fb20698b3b895e395785e070baa6738dc6549c172`。
+- `/tmp/easyai-install-slot-regression-20261018-unique1.log` SHA256 `51a1f5a188fe55ca4140224e094a7126bb00c26c3c6e5c169aa7e26b05164ebc`。
+- `/tmp/easyai-install-slot-repro-20261018-unique1.log` SHA256 `058f36dceefc76919263c786f6ca168e7702f03f04b8ead0dfe5917cd3df3f26`。
+- `/tmp/easyai-install-slot-repro-20261018-unique2.log` SHA256 `61ec846657e365269d966f55fd615c155d6339889f63bfc7496141def447d80c`。
+- `/tmp/easyai-install-slot-review-TDF6l4.log` SHA256 `cae2423a8c1aa91b2ddd147e5aafdb59583e7c60349212a5744f9f1195e1eb64`。
+
+NOT RUN：真实安装、probe、bootstrap/pip、训练、下载、SSH、原生Electron/干净机/Windows/真实安装验收、全套大矩阵/新CI查询/重打旧portable/发布；未授权且未执行。既有原生与Actions拒绝没有重试或绕过；无不确定外部执行。原计划116185字节及hash dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43、旧规格/README和core/ML/CV六份来源锁未改。CIFAR待裁决、OpenCV未核unsupported、旧226PASS/1FAIL根因UNKNOWN及旧portable source7b91c46均保留；完整M6.3/B未验。
+
+工作区只含本次修复与证据；普通开发分支提交推送，推后核对dev完整SHA/工作区/main。无main、强推、PR、Release、部署、费用、凭据或安全权限变更。下一项为父侧重核此配额P2；不把“暂不签收”视为执行授权扩大。
