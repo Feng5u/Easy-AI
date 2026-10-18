@@ -756,3 +756,34 @@ CI新事实由父级提供：前版 `a4609dc60060d13e34f751fd2dd4615d2e86678d` �
 可立即开发的本地原功能也有两项明确缺口：本机环境检查目前只在start中执行，界面“检查与编译”只做编译；完整Bundle在后端可导出，但桌面“导出当前工程”仅导出JSON。这些可在后续独立小片交付，不能据此跳过M3真实数据人工闭环或提前进入M6/M7发布。CIFAR10本机preflight仍明确不支持，属于D10/M6.1尚待补齐的真实运行缺口。
 
 验收条件分开：已有M3 CPU/真实参数更新及Main链证据使用明确批准的32/16合成IDX，只证明真实执行，不是真MNIST效果；门A仍需老师已准备真实MNIST的获准绝对路径及本机CPU人工小样本运行/产物/映射证据，不擅自下载或重跑训练。M5实际验收另需获准Linux目标、独立指纹、会话认证方式、现有解释器/数据及专用上传/执行/取消范围。Windows native/desktop是客户端平台与包的独立验证条件，不能用上述Linux/mock结果代替，也不能把它们全部混称为“等真实数据”。这些动作本轮未执行，未新获授权，不动个人电脑或教师共享环境。
+
+## 2026-10-18 — A 用户功能：运行产物/错误定位到旧运行的只读 Blockly 快照
+
+代码提交 `662647d1d908fcdfc9355259f8dff80563b7cc41`，父提交 `a4e48f4b925c332fe6ced02bd6ffb49277b63d3e`。父级先复核关闭前片精准sync P2（55包含2，未相加），随后优先要求可演示A。开始工作区干净、指定执行器命令可用；提交前远端开发分支仍等于父提交，main仍为 `5323f86232529efcfb52131168ad049f01b219f3`。本轮单写入者，独审只读，无后端/合同/依赖/CI变更，不扩展M5配置功能。
+
+先只读核实A条件：仅扫描已授权项目与独立训练根、排除venv/wheels/cache等、限制深度和目录数量；项目扫描173目录、训练根960目录，未触发1200目录上限。只找到integration-001～005的32训练/16测试合成IDX，读取header确认2051/2049与28×28；未发现可确认的真实MNIST原件，不把有限扫描说成全机器绝对不存在。既有训练Python和torch2.10.0+cpu/torchvision0.25.0+cpu/Matplotlib3.10.8元数据仍在，未导入这些包、未运行训练。integration-005/Main-integration-001/cancel回执仍可读，明确标记合成数据、原生picker注入、无Electron窗口。当前DISPLAY/Wayland未设置，X11 socket目录不存在，Xvfb/xvfb-run不存在；只核条件，不启动/安装桌面或重试原sandbox拒绝。
+
+发现并交付的是独立A代码缺口，对应计划2.1、10.3、M3.4和M4.3/4.4：旧实现产物“来源”与runtime_error按钮只设置ID并高亮旧代码，没有显示该运行快照里的积木。现在这些入口以及旧代码行点击均打开独立的只读Blockly快照，按快照和旧source-map定位数据/模型/训练标签页与积木，同步高亮旧代码；同一来源重复点击也会重新导航到正确页。提供“关闭快照，返回运行结果”，卸载自有workspace/监听器/observer，不修改或保存当前工程。
+
+新增RunSnapshot组件及纯capture/lookup：克隆旧snapshot、复制旧map，只遍历实际Blockly inputs.block/shadow与next结构建立旧ID→页索引，完全不接收当前App project。旧代码缺span或span超出旧代码范围时可以显示快照块但明确不猜代码行；ID不存在、重复ID、页映射冲突、旧schema/library不支持或revision不一致均明确提示，不用当前同ID替代。当前工程改名、删除、重建同ID块不会改变旧视图。未知/不支持版本保留旧代码，不强行加载Blockly。
+
+复用现有ProjectEditor/WorkspaceManager，只读时注册/改名/删除/Undo均拒绝；新视图忽略变更回调。两编辑器useId生成独立tabpanel/aria-controls，避免旧快照和当前工程DOM ID碰撞。只读定位执行workspace highlight/center，不调用BlockSvg.select，避免Blockly全局selected状态影响当前工程。ProjectEditor及Monaco继续按需加载，按React best-practices复核生命周期、依赖、可访问性和只读交互，没有为技能引入新UI框架。
+
+RunDashboard按runId建立独立内部组件；旧source/image/event晚回调不能进入新运行。source响应须匹配该run的工程ID/revision/programHash/codeHash才载入副本。独审发现get/cancel/resume返回Run仍可能被错DTO回填，现用共同7字段身份核验后才setRun/onRunUpdate；仅有React key不足以拒绝当前请求返回错对象。定向回归还实测resume catch的错误被重读effect清空，已移除该effect的动作错误清空，保留错误跨readGeneration；合法owned重读允许，foreign通知禁止。独审最终17/17 PASS，确认该P2及错误吞没关闭，未发现本片其他明确P1/P2；不是父级或真实桌面完整验收。
+
+实际命令（`/workspace/Easy-AI`，pnpm Python静态子任务沿用既有workspace UV/XDG缓存）：
+
+| 命令 | 结果与精确范围 |
+| --- | --- |
+| `pnpm exec vitest run apps/desktop/src/RunSnapshot.test.mts apps/desktop/src/App.test.mts apps/desktop/src/runEvents.test.mts packages/block-library/workspace-manager.test.mts` | **38 PASS**，2.27秒；包含新增17项，不把独审17或先前13再加总。当前改名/删除/重建同ID，三标签页及重复导航，旧版本/revision/缺span/错页/超界map，只读操作与关闭，artifact/error/code入口，切run晚source/image/event，source错hash及get/cancel/resume错DTO |
+| 新17项使用的真实/替代边界 | 真实React DOM、真实ProjectEditor/WorkspaceManager及真实Blockly序列化加载，只有SVG宿主绘制使用headless handles；Monaco在JSDOM走真实安全只读fallback。非真实Electron/原生选择器/SVG浏览器绘制验收。3行“old…code”只作UI映射夹具，无模拟训练指标/生产mock |
+| `pnpm exec vitest run apps/desktop/src/monaco-controller.test.mts apps/desktop/src/monaco-mapping.test.mts` | **6 PASS**，0.239秒；旧图多span/最窄语义源/只读controller/释放回归；不与上项或历史全套刷总数 |
+| `pnpm check` | **PASS**；TS/strict mypy45源文件/ruff/格式/合同及真实Blockly fixture漂移/Prettier。后端未改，无全后端矩阵重跑 |
+| `pnpm --filter @easyai/desktop build` | **PASS**；Electron Main TS及Vite静态assets，保留既有>500KB chunk提示；未启动Electron。后端未改，不重复PyInstaller/冻结HTTP窗口 |
+| `git diff --check`、三原件byte/hash | **PASS**；计划116185字节、SHA256 `dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43`；原规格 `5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190`；README `befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852`；均未覆盖 |
+
+中途FAIL保留：首轮TS指出readonly span数组不能传给mutable props，CodeView的只读spans输入改为readonly类型，未复制另一套合同。首轮组件10PASS/3FAIL因测试误写model.class，实际真实fixture是model.define，纠正类型断言后13PASS，名称/当前工程字节不变等断言保留。新增DTO测试37PASS/1FAIL精准揭示resume错误被effect清空，修源码后最终38PASS；没有删此测试或禁止合法重读来刷通过。
+
+当前交付的是A的可见源码定位功能，不是A通过。真实MNIST原件/获准数据路径与CPU人工小样本运行、真实安全桌面窗口/原生选择与点击/关闭重开历史仍缺实际证据。已有历史API/保存快照/数据回放代码不等于真实桌面人工验收；本轮组件测试也不替代该证据。原生Windows存储/desktop CI依然unknown，旧a4609dc/run39135362749的check success/desktop failed且步骤未知边界保持；未查询或绕过被拒Actions，未重试Electron sandbox。
+
+本轮NOT RUN：训练/数据下载/新环境安装、真实SSH/SFTP/硬件、实际Electron/E2E、Windows原生、完整旧450/94矩阵。Windows远程gate关闭不变，无个人电脑操作、main写入、强推、PR、Release、部署或新增费用/凭据/安全权限。下一项由父级复核此A功能片，并先取得真实MNIST与安全桌面条件；在外部条件未具备时可接M5.1非敏感配置保存/稳定targetId，但不得据此绕过本地训练先后顺序或降低A/B。**A、B及M5整体均未验收。**
