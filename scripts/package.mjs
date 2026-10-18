@@ -26,6 +26,7 @@ export const OFFLINE_DOCS = [
   "install-runtime-configuration.md",
   "install-ml-sources.md",
   "install-cv-sources.md",
+  "install-dl-sources.md",
   "install-source-picker.md",
   "install-history.md",
   "electron-builder.md",
@@ -201,6 +202,14 @@ export const resourcePairs = [
   [
     "packages/training-profiles/easyai-cv-linux-cp311.lock",
     "training-profiles/easyai-cv-linux-cp311.lock",
+  ],
+  [
+    "packages/training-profiles/easyai-dl-sources.json",
+    "training-profiles/easyai-dl-sources.json",
+  ],
+  [
+    "packages/training-profiles/easyai-dl-linux-cp311.lock",
+    "training-profiles/easyai-dl-linux-cp311.lock",
   ],
   ["examples/mnist-cnn/project.easyai.json", "templates/project.easyai.json"],
   ["packages/contracts/fixtures/blank.json", "templates/blank.json"],

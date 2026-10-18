@@ -148,6 +148,22 @@ try {
   const expectedCvLock = await readFile(
     join(repository, "packages/training-profiles/easyai-cv-linux-cp311.lock"),
   );
+  const expectedDlSources = await readFile(
+    join(repository, "packages/training-profiles/easyai-dl-sources.json"),
+  );
+  const expectedDlLock = await readFile(
+    join(repository, "packages/training-profiles/easyai-dl-linux-cp311.lock"),
+  );
+  assert.deepEqual(
+    await readFile(join(resources, "training-profiles/easyai-dl-sources.json")),
+    expectedDlSources,
+  );
+  assert.deepEqual(
+    await readFile(
+      join(resources, "training-profiles/easyai-dl-linux-cp311.lock"),
+    ),
+    expectedDlLock,
+  );
   assert.deepEqual(
     await readFile(join(resources, "training-profiles/easyai-cv-sources.json")),
     expectedCvSources,
@@ -200,6 +216,8 @@ try {
       .update(expectedMlLock)
       .update(expectedCvSources)
       .update(expectedCvLock)
+      .update(expectedDlSources)
+      .update(expectedDlLock)
       .digest("hex"),
   );
   const ml = await request("POST", "/environments/install-plan", {
@@ -231,6 +249,41 @@ try {
   if (process.platform === "linux" && process.arch === "x64") {
     assert.deepEqual(cv.value.blockers, []);
   }
+  const dlPlans = [];
+  for (const packageIds of [
+    ["pytorch-lightning"],
+    ["torch", "torchvision", "pytorch-lightning"],
+  ]) {
+    const dl = await request("POST", "/environments/install-plan", {
+      targetId: "local",
+      profileId: "easyai-cpu",
+      packageIds,
+      newEnvironmentSpec: { name: "frozen_dl" },
+    });
+    assert.equal(dl.response.status, 200);
+    assert.equal(dl.value.executionEnabled, false);
+    assert.equal(dl.value.installedBytes, null);
+    assert.equal(
+      dl.value.packageChanges.find((c) => c.packageId === "pytorch-lightning")
+        .targetVersion,
+      "2.6.6",
+    );
+    if (process.platform === "linux" && process.arch === "x64") {
+      assert.deepEqual(dl.value.blockers, []);
+      assert.equal(dl.value.packageChanges.length, 35);
+      assert.equal(
+        new Set(dl.value.packageChanges.map((c) => c.packageId)).size,
+        35,
+      );
+      assert.equal(
+        dl.value.packageChanges.find((c) => c.packageId === "torch")
+          .targetVersion,
+        "2.10.0+cpu",
+      );
+    }
+    dlPlans.push(dl.value);
+  }
+  assert.equal(dlPlans[0].downloadBytes, dlPlans[1].downloadBytes);
   const opencv = await request("POST", "/environments/install-plan", {
     targetId: "local",
     profileId: "easyai-cpu",

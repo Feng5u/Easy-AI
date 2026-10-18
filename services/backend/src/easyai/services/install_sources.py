@@ -20,7 +20,8 @@ class Wheel(TypedDict):
 
 ML_ROOTS = frozenset({"scipy", "pandas", "scikit-learn"})
 CV_ROOTS = frozenset({"scikit-image"})
-OPTIONAL_ROOTS = ML_ROOTS | CV_ROOTS
+DL_ROOTS = frozenset({"pytorch-lightning"})
+OPTIONAL_ROOTS = ML_ROOTS | CV_ROOTS | DL_ROOTS
 UNSUPPORTED = {"opencv-python": "INSTALL_NATIVE_REQUIREMENTS_UNVERIFIED"}
 IMPORTS = {
     "torch": "torch",
@@ -36,6 +37,20 @@ IMPORTS = {
     "imageio": "imageio",
     "tifffile": "tifffile",
     "lazy-loader": "lazy_loader",
+    "pytorch-lightning": "pytorch_lightning",
+    "torchmetrics": "torchmetrics",
+    "lightning-utilities": "lightning_utilities",
+    "tqdm": "tqdm",
+    "pyyaml": "yaml",
+    "aiohttp": "aiohttp",
+    "aiohappyeyeballs": "aiohappyeyeballs",
+    "aiosignal": "aiosignal",
+    "attrs": "attrs",
+    "frozenlist": "frozenlist",
+    "multidict": "multidict",
+    "propcache": "propcache",
+    "yarl": "yarl",
+    "idna": "idna",
 }
 CORE_SOURCES = "easyai-cpu-sources.json"
 CORE_LOCK = "easyai-cpu-linux-cp311.lock"
@@ -45,6 +60,18 @@ ML_HEADER = "# Optional ML wheels; CPython 3.11 / Linux x86_64; no extras. Requi
 CV_SOURCES = "easyai-cv-sources.json"
 CV_LOCK = "easyai-cv-linux-cp311.lock"
 CV_HEADER = "# Optional CV wheels; CPython 3.11 / Linux x86_64; no extras. Requires core and selected ML pins.\n"
+
+DL_SOURCES = "easyai-dl-sources.json"
+DL_LOCK = "easyai-dl-linux-cp311.lock"
+DL_HEADER = (
+    "# Optional DL wheels; CPython 3.11 / Linux x86_64; requires fixed core and fsspec[http].\n"
+)
+ALLOWED_IMPORTS = frozenset(IMPORTS.values()) | {"fsspec.implementations.http"}
+
+
+def required_imports(names: set[str]) -> tuple[str, ...]:
+    modules = tuple(module for name, module in IMPORTS.items() if name in names)
+    return modules + (("fsspec.implementations.http",) if names.intersection(DL_ROOTS) else ())
 
 
 def _pins(packages: list[Wheel]) -> bytes:
@@ -58,9 +85,13 @@ def wheels(root: Path, selected: set[str] | None = None) -> list[Wheel]:
     base: list[Wheel] = json.loads(read_regular(root / CORE_SOURCES, 100000))["packages"]
     if not selected or not selected.intersection(OPTIONAL_ROOTS):
         return base
-    groups = [(ML_SOURCES, ML_LOCK, ML_HEADER)]
+    groups = []
+    if selected.intersection(ML_ROOTS | CV_ROOTS):
+        groups.append((ML_SOURCES, ML_LOCK, ML_HEADER))
     if selected.intersection(CV_ROOTS):
         groups.append((CV_SOURCES, CV_LOCK, CV_HEADER))
+    if selected.intersection(DL_ROOTS):
+        groups.append((DL_SOURCES, DL_LOCK, DL_HEADER))
     extra: list[Wheel] = []
     dependencies: dict[str, list[str]] = {}
     for sources, lock, header in groups:
@@ -74,11 +105,22 @@ def wheels(root: Path, selected: set[str] | None = None) -> list[Wheel]:
         extra.extend(packages)
         dependencies.update(value["dependencies"])
     known = {w["name"] for w in base}
+    if len({w["name"] for w in extra}) != len(extra) or known.intersection(
+        w["name"] for w in extra
+    ):
+        raise ValueError("INSTALL_DEPENDENCIES_UNRESOLVED")
     pending = list(selected.intersection(OPTIONAL_ROOTS))
+    visited: set[str] = set()
     included: set[str] = set()
     while pending:
         name = pending.pop()
-        if name in included or name in known:
+        if name in visited:
+            continue
+        visited.add(name)
+        if name in known:
+            # The reviewed DL graph activates the existing core fsspec[http]
+            # extra. Expand its dependencies without adding or upgrading fsspec.
+            pending.extend(dependencies.get(name, []))
             continue
         if name not in dependencies or not any(w["name"] == name for w in extra):
             raise ValueError("INSTALL_DEPENDENCIES_UNRESOLVED")
@@ -91,7 +133,16 @@ def constraints_hash(root: Path) -> str:
     return hashlib.sha256(
         b"".join(
             read_regular(root / name, 100000)
-            for name in (CORE_SOURCES, CORE_LOCK, ML_SOURCES, ML_LOCK, CV_SOURCES, CV_LOCK)
+            for name in (
+                CORE_SOURCES,
+                CORE_LOCK,
+                ML_SOURCES,
+                ML_LOCK,
+                CV_SOURCES,
+                CV_LOCK,
+                DL_SOURCES,
+                DL_LOCK,
+            )
         )
     ).hexdigest()
 

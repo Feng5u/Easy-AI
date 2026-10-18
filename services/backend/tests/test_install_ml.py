@@ -108,7 +108,7 @@ def test_single_and_full_ml_plans_use_only_their_reviewed_closure(tmp_path):
         assert not blocked.execution_enabled
         catalog = {c.package_id: c for c in service.catalog().packages}
         assert catalog["scikit-learn"].import_name == "sklearn"
-        assert len([c for c in catalog.values() if c.target_version]) == 9
+        assert len([c for c in catalog.values() if c.target_version]) == 10
     finally:
         service.close()
 

@@ -19,7 +19,7 @@ from easyai.runtime.supervisor import ManagedSupervisor
 from easyai.security.files import read_regular
 from easyai.services.install_service import PROFILE_ROOT, ProbeReceipt
 from easyai.services.install_sources import (
-    IMPORTS,
+    ALLOWED_IMPORTS,
     OPTIONAL_ROOTS,
     constraints_hash,
     lock_bytes,
@@ -239,7 +239,7 @@ class ManagedInstallInspector:
 
     def inspect_owned(self, prefix: Path, nonce: str, receipt: ProbeReceipt) -> InstallInspection:
         receipt.quiescent = True  # Fixed input validation has not spawned an owner.
-        if not set(receipt.import_names).issubset(IMPORTS.values()):
+        if not set(receipt.import_names).issubset(ALLOWED_IMPORTS):
             raise ValueError("INSTALL_INSPECTION_INVALID")
         names = [item["name"] for item in wheels(PROFILE_ROOT, set(OPTIONAL_ROOTS))]
         source = (

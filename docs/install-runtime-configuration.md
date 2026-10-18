@@ -14,7 +14,7 @@
 | launcher | 已获准base Python的绝对规范path、实际sha256和bytes；无默认launcher或PATH猜测 |
 | moduleRoot / moduleTreeSha256 | 显式conda及其依赖模块目录，全树相对路径+实际文件SHA256的规范digest，最多10000项/1GiB；无symlink及不安全祖先；需要可信操作者确认来源，版本字符串不替代来源信任 |
 | bootstrap | 完整已备本地conda档案清单，每项path/实际sha256/bytes；包含python-3.11.17和pip及完整依赖；只允许.conda/.tar.bz2；不解析网络包源、不猜缺失依赖 |
-| wheelhouse | 已获准的本机目录，必须包含现有CPU sources清单全部精确filename/hash/bytes；具体ML/scikit-image计划还必须包含其补充闭包的本地wheel及实际hash/字节，按选择加入预算；其余8个未支持可选卡仍block，OpenCV native门不能由manifest解除 |
+| wheelhouse | 已获准的本机目录，必须包含现有CPU sources清单全部精确filename/hash/bytes；具体ML/scikit-image/Lightning计划还必须包含其补充闭包的本地wheel及实际hash/字节，按选择加入预算；其余7个未支持可选卡仍block，OpenCV native门不能由manifest解除 |
 | diskBudgetBytes / seconds | 明确磁盘预算上限和每个受管进程1–3600秒预算；均进入runtime指纹/planHash，UI展示；不是总磁盘占用的虚构估计 |
 | executionAuthorized / authorizationExpires | 默认false、严格布尔及有时区失效时间；表示此主机具体来源的独立授权，仍需本次计划确认。过期/来源漂移拒绝，不自动刷新授权 |
 

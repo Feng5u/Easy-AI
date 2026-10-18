@@ -55,7 +55,7 @@
       "importName": "pytorch_lightning",
       "group": "dl",
       "purpose": "训练流程封装",
-      "dependencyNote": "完整依赖须受控解析；MNIST核心组合采用CPU profile锁定约束。"
+      "dependencyNote": "Linux CPython 3.11固定2.6.6；复用既有CPU torch/fsspec等核心，完整包含fsspec[http]、torchmetrics及14个新增wheel闭包，无其他extras。"
     },
     {
       "packageId": "pillow",

@@ -41,7 +41,7 @@ from easyai.security.project_lock import ProjectLock
 from easyai.services.event_journal import EventJournal, read_events
 from easyai.services.owned_creation import OwnedCreation, require_ready, read_install_job
 from easyai.services.install_sources import (
-    IMPORTS,
+    required_imports,
     OPTIONAL_ROOTS,
     UNSUPPORTED,
     constraints_hash,
@@ -935,12 +935,8 @@ class InstallService:
                         job.logs.append("INSTALL_REPROBE_STARTED")
                     self._record(job)
                 expected = {item.package_id: item.target_version for item in plan.package_changes}
-                probe = ProbeReceipt(
-                    cancel=token,
-                    import_names=tuple(
-                        module for name, module in IMPORTS.items() if name in expected
-                    ),
-                )
+                expected_imports = required_imports(set(expected))
+                probe = ProbeReceipt(cancel=token, import_names=expected_imports)
                 quiescent = False
                 try:
                     report = self._inspect(
@@ -953,11 +949,7 @@ class InstallService:
                 if (
                     not report.python_version.startswith("3.11.")
                     or not report.tensor_ok
-                    or any(
-                        not report.imports.get(module)
-                        for name, module in IMPORTS.items()
-                        if name in expected
-                    )
+                    or any(not report.imports.get(module) for module in expected_imports)
                     or any(
                         report.versions.get(name) != version for name, version in expected.items()
                     )
