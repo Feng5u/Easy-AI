@@ -6,7 +6,7 @@
 
 缺文件返回 `DATASET_MISSING_NO_DOWNLOAD`；不安全路径/别名返回 `DATA_PATH_FORBIDDEN`；粗格式不符返回 `DATASET_CIFAR10_FORMAT_INVALID`。全部初检符合仍返回 `DATASET_CIFAR10_SAFE_PROBE_REQUIRED`、`data.ok=false`，不能得到 `DATASET_READY`。本机 start 走同一门，拒绝发生在训练依赖探测、准备 Run 或启动训练前。数据检查 checkpoint 和启动解释器前重新核项目代次/revision；失效不启动旧选择的探测。UI明确显示“未反序列化 pickle，数据未就绪”。这不是完整 CIFAR10 适配器交付。
 
-安全构造探测目前阻塞：冻结训练 profile 对应 torchvision 0.25.0 的官方 CIFAR10 构造器会先对全部 train/test 文件计算 MD5，再对批次和 metadata 执行 `pickle.load`。`download=False` 只禁止下载，不能阻止 pickle reducer 执行或全量哈希；见[固定版本官方源码](https://raw.githubusercontent.com/pytorch/vision/v0.25.0/torchvision/datasets/cifar.py)。本轮明确禁止执行不可信 pickle，计划 §9.1 又禁止预检扫描全数据哈希，因此不能直接调用构造器后宣称满足计划。未用自制另一数据格式、MD5 白名单或 pickle reducer 白名单替代官方构造验收。下一步需要明确安全解析/执行方案及与原计划全哈希限制的兼容裁决，然后实现和独审；不需要用户提供真实私钥、下载数据或修改教师环境来推进该设计。
+安全构造探测目前阻塞：冻结训练 profile 对应 torchvision 0.25.0 的官方 CIFAR10 构造器会先对全部 train/test 文件计算 MD5，再对批次和 metadata 执行 `pickle.load`。`download=False` 只禁止下载，不能阻止 pickle reducer 执行或全量哈希；见[固定版本官方源码](https://raw.githubusercontent.com/pytorch/vision/v0.25.0/torchvision/datasets/cifar.py)。本轮明确禁止执行不可信 pickle，计划 §9.1 又禁止预检扫描全数据哈希，因此不能直接调用构造器后宣称满足计划。未用自制另一数据格式、MD5 白名单或 pickle reducer 白名单替代官方构造验收。2026-10-18 19:18 UTC已向用户提出窄例外裁决，目前待答；保持SAFE_PROBE_REQUIRED，不重复请求、不执行官方构造、不另造解析路径绕过。答复前停止该项实现，其他证据保留。
 
 同一风险也存在于原远端 `runtime/probe.py` 的 CIFAR 构造分支；本片在构造前返回固定 `unsafe_format_blocked`、`ok=false`，样本摘要为空，不能产生正向数据 binding。该错误同步进公开环境报告合同。MNIST/Fashion 的官方构造探测保持原行为。此处未执行真实远端 Python 或 SSH；已有生成 Bundle 的 `datasets.CIFAR10` 代码依然依赖调用方已有训练环境及数据安全条件，本片没有验收或许可其处理任意第三方 pickle，也没有将布局初检变成可移植训练授权。
 

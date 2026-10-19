@@ -35,6 +35,8 @@ SSH 通道关闭不是进程退出。RPC SDK cleanup 未确认时保留实际 ch
 
 测试以合成来源、固定 fake SSH channel、捕获 bootstrap/pip/probe 命令和明确 stdlib 打印子进程验证协议。真实 helper↔client 测试实际使用文件 hash、容量、claim、flock、ManagedProcess 和退出证据，但把依赖命令明确替换为打印合成报告；不代表真实安装、torch ABI 或 tensor 执行。
 
-真实正向安装/网络故障/进程重启/目标兼容及图形入口仍须以后具体窗口验收。Windows host storage/CI、CIFAR 安全探测裁决、7张未支持包卡（OpenCV native及六张NLP）、本地任务保留管理/未知停止安全解除、真实数据训练、干净平台包和课堂验收仍未完成；不能表述为“全部只差环境”。本片不发布、不生成新 electron-builder 包、不新建凭据/费用/权限。
+真实正向安装/网络故障/进程重启/目标兼容及图形入口仍须以后具体窗口验收。Windows host storage/CI、CIFAR 安全探测裁决、3张未支持包卡（OpenCV native、NLTK、HanLP）、真实数据训练、干净平台包和课堂验收仍未完成；不能表述为“全部只差环境”。本片不发布、不生成新 electron-builder 包、不新建凭据/费用/权限。
 
 已有 owned 环境的 final-probe 返回后直接走 target.mark_ready，故 mark-ready 与 verify/release 使用同一收口等待门。协议回归实际运行该 InstallService 分支，并以 Event 屏障保持已发布 probe 的 serve writer FD；只有实际取得原 flock 才写本次 ready。合成子进程报告不代表真实依赖或 ABI。
+
+2026-10-19收口：保留/清理管理由原计划§5.5留待后续设计；未知身份按§12.6提示人工检查，不新增强制解锁。已有只观察/取消/释放链待真实目标验收，见[有界收口盘点](remaining-critical-path.md)。

@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | 原计划、原规格与README保存 | PASS | 原始plan116185字节及SHA见implementation-progress |
 | Python权威合同/编译器、21类积木 | PASS（定向代码测试） | 真实Blockly fixtures、schema漂移与编译测试；不等于完整课堂验收 |
-| 本机Linux便携布局/冻结sidecar | 待本轮记录 | 精确源码SHA、资源hash manifest、暂存目录独立启动/EOF退出记录 |
+| 本机Linux便携布局/冻结sidecar | PASS（定向冻结sidecar）／干净机NOT RUN | 源码467a2018194ae131789f45cd62a56ffdc0783950的check/build/frozen记录见implementation-progress；旧builder包不代表当前源码包 |
 | 真Electron安全启动/编辑/原生picker/Monaco/Blockly | NOT RUN | sandbox=true；可用桌面上的完整课堂操作，无安全绕过 |
 | 开发 CI 安装门（Linux/Windows） | FAIL（check 与 desktop） | 父侧提供：e454f97044f84f20347b10f3807220727f2dac1f / [run39181255841](https://github.com/T1doo/Easy-AI/actions/runs/39181255841)，2026-10-19 00:34:06 UTC，两 job 均在 pnpm install --frozen-lockfile 失败；前3616826e28cef2d2ce4fd874f1bb81a6fcf17d94 / [run39180535293](https://github.com/T1doo/Easy-AI/actions/runs/39180535293)，00:24:34 UTC 同步骤双失败。准确安装错误正文/根因 UNKNOWN，不能凭步骤名归因 lock mismatch；Actions 访问拒绝继续尊重，无重试/绕路/重跑 |
 | Windows 11 x64 | FAIL（CI desktop 安装门） | 最新证据同上；尚未进入后续桌面验收。既有 d2ac2bf/check SUCCESS、desktop FAIL 已是历史，不能继续称最新。新修复 SHA 的 CI 结果另核 |
@@ -19,9 +19,9 @@
 | 完整代码Bundle桌面导出 | PASS（定向Main/HTTP/文件链）／TST34 NOT RUN | 已保存编译快照、新目录/辅助文件/hash；真实独立训练运行/原生picker/Windows仍缺，见code-bundle-export.md |
 | 显式本地数据上传 | PASS（合成SFTP/协议/组件）／真实NOT RUN | source/target/预算确认、owned任务、取消和回读已接；新增私有持久历史、重选源/认证、只读核验与同slot缺失补传合成链；真实服务器仍未验，见data-upload.md |
 | 运行中远端产物同步 | PASS（合成协议/组件）／真实NOT RUN | 不可变收据/raw事件前缀、增量hash缓存、字节进度、暂停恢复；真实SFTP/跨进程故障未验，见live-artifact-sync.md |
-| 离线教程、教师准备与已知限制随包 | 待本轮记录 | 本地文件/hash、七主题教程与无网络加载，不含私密材料 |
+| 离线教程、教师准备与已知限制随包 | PASS（资源/定向测试）／真实课堂NOT RUN | 七主题教程、教师文档与冻结资源已有；当前源码整包/真实桌面离线加载仍待验 |
 | 许可证与分发授权 | NOT RUN（未完成） | 保留Electron/Chromium及前端/Python许可文本，补精确冻结native/system库审核，项目自身许可证由所有者决定；不得自选新增授权 |
-| 签名/安装器/升级卸载 | NOT RUN | electron-builder26.15.3已精确锁定，Linux dir/tar.gz实际入口已接；仅本地未签名包，不自动发布，无干净机/安装升级验收 |
+| 正式打包/目标机验收 | PASS（旧源码Linux构建）／当前源码及干净机NOT RUN | electron-builder26.15.3已锁定，Linux dir/tar.gz实际入口已接；未签名状态明确；签名与升级卸载不是本期额外必做项 |
 | 性能基准 | NOT RUN | 目标机器、工程/日志规模、启动/编译/图表延迟和内存实际值 |
 
 交付报告须绑定完整SHA、平台/架构、构建命令、测试实际结果和包hash；未验项不得改为PASS。资源manifest只检测相对完整性，不是数字签名或可信来源证明。出现关键启动/SSH/取消/映射失败不放行。Release、部署、签名凭据、收费服务和主分支变更均需另有明确授权。
@@ -39,6 +39,8 @@
 
 代码缺口也仍存在：Windows host storage生产门尚未开放，Windows原生失败正文/后续修复与目标机包仍须推进；17包中3卡无支持闭包（opencv-python、nltk、hanlp），其中OpenCV native要求未核，不能换headless。包卡要补兼容版本/许可/依赖闭包、hash/预算/安装与复检合同及真实验证；NLP语料/模型另需明确条件，不能自动下载。
 
-远端受控安装已新增同一InstallService的owned目标适配、来源预算/身份绑定、预留WAL、唯一owner、取消与断线隔离、只核验收口、最终固定真实复检接口及UI状态，见[remote-install.md](remote-install.md)。目前只有受控合成协议证据，真实远端来源/许可/目标/预算执行授权、安装/ABI/故障/跨进程重启/课堂流仍NOT RUN。恢复不重放安装；未知停止保留锁。其余3卡、本地历史保留管理与未知停止安全解除等代码缺口仍存在；不能称全部仅待环境。本片停止包装外围开发，无新分发包、Release或PR。
+远端受控安装已新增同一InstallService的owned目标适配、来源预算/身份绑定、预留WAL、唯一owner、取消与断线隔离、只核验收口、最终固定真实复检接口及UI状态，见[remote-install.md](remote-install.md)。目前只有受控合成协议证据，真实远端来源/许可/目标/预算执行授权、安装/ABI/故障/跨进程重启/课堂流仍NOT RUN。恢复不重放安装；未知停止保留锁。三张未支持包卡、CIFAR安全官方构造及Windows生产门仍是具体限制，不能称全部仅待环境。原计划§5.5将清理/保留策略明确留待后续设计；§12.6要求未知身份人工检查，不要求强制解除未知停止。已有恢复收口待真实验收，不再列作未实现。本片停止包装外围开发，无新分发包、Release或PR。
 
 NLP 整批默认闭包裁决已接SentencePiece、spaCy、Transformers、Gensim的来源/预算/原安装器与选中import复检；NLTK候选安全阻断，HanLP三个依赖仅sdist而不支持。模型/语料API不提供，普通import零联网与ABI仍未验，详见[install-nlp-sources.md](install-nlp-sources.md)。14/17卡仅为元数据能力，非实际安装或B验收。
+
+当前逐阶段范围、既有裁决待答和下一最小输入以[有界收口盘点](remaining-critical-path.md)为准；旧估工撤回，本轮停止新增产品及包装开发。

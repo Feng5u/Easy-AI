@@ -2445,3 +2445,19 @@ CI准确安装错误正文/根因仍独立UNKNOWN：最新已知e454f97044f84f20
 - `/tmp/easyai-nlp-four-20261019/final-decisions.json` SHA256 `7c87494e3fcec039c792b3382c44b5a3ff82b358f2de7fb4d8db5a32614223e2`。
 - `/tmp/easyai-nlp-four-20261019/invalid-historical-requires-python.json` SHA256 `1cbd2d837115a0ad60a5324c1b19f5426189ceb0dc5510876a419a7cdc6f796a`。
 - `/tmp/easyai-nlp-four-20261019/preserved-files.json` SHA256 `00054a629e46330a5eefa5bccf71435ce641e20caf46634220ea1a67f2788d31`。
+
+## 2026-10-19 M0–M8 有界收口（仅文档）
+
+接受的产品源码为 `467a2018194ae131789f45cd62a56ffdc0783950`，上一证据/本轮起始 HEAD 及远端开发分支均为 `1e345b954f745ac5154f211dcc7200d6527db78b`。本轮不新增产品代码、测试替身或包装；按原计划重新区分代码已有待实测、具体未支持与明确后续设计，完整 A/B 均未通过。
+
+更新 `docs/remaining-critical-path.md` 的 M0–M8 盘点，并同步发布清单、CIFAR 与远端安装文档。§5.5 的保留/清理管理移出本期欠账；§12.6 的未知身份人工检查不扩大为强制解锁需求；存活安装观察/取消/释放链已有，真实链未验。撤回包含已实现与超范围工作的旧25–50/6–18小时估工。仍保留 CIFAR 官方安全构造未完成、OpenCV native/NLTK/HanLP三卡未支持、Windows生产门关闭、真实验收和许可未完成等限制，不称全部只差环境。
+
+实际只读/文档命令（cwd `/workspace/Easy-AI`）：`pwd`、`git status --short`、`git rev-parse HEAD`、`git remote -v`、`cat AGENTS.md`、`cat docs/remaining-critical-path.md`、`cat docs/release-checklist.md`、`rg -n '7 张|7张|下一步|方案|明确' docs/remote-install.md docs/cifar10-preflight.md`、`tail -45 docs/implementation-progress.md`、`git log -3 --format='%H %s'`、`git show-ref refs/remotes/origin/codex/demo-v0.0.0 refs/remotes/origin/main`、Python pathlib文档定向编辑、`git diff --check`、`git diff --stat`、Python pathlib/hashlib原件校验、`git ls-remote origin refs/heads/codex/demo-v0.0.0 refs/heads/main`。
+
+PASS：原plan116185字节，SHA256 `dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43`；原规格21815字节/hash `5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190`；README3629字节/hash `befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852`。`git diff --check` PASS；原工作区clean，无用户改动被覆盖。预推送远端开发分支为上列起始HEAD，main仍 `5323f86232529efcfb52131168ad049f01b219f3`。
+
+独立只读审查已核原plan/现有代码与文档，指出上述旧欠账误分类；本次具体文档另作最终只读复核。测试/build/新CI读取或重跑、真实Electron/SSH/安装/import/训练/数据/包下载、新builder包：NOT RUN（仅文档，无需重复已接受的定向测试）。此前CI安装FAIL、226PASS/1FAIL原始日志缺失根因UNKNOWN等历史记录全部保留，没有转为PASS。
+
+准确阻塞：①CIFAR窄例外于2026-10-18 19:18 UTC既已提出、仍待答，保持SAFE_PROBE_REQUIRED，不重问或绕过；②Actions错误正文读取此前被拒绝，本次未重试/换路；最新已知e454f97044f84f20347b10f3807220727f2dac1f/run39181255841和3616826e28cef2d2ce4fd874f1bb81a6fcf17d94/run39180535293在同pnpm安装步骤双失败，准确正文/根因UNKNOWN，需父侧提供正文；当前源码CI未知；③此前sandbox动作拒绝继续有效，不降安全，需要可保留sandbox的桌面与已有训练数据/环境；④真实SSH/owned安装缺明确目标/可信指纹/预算/窗口及相关执行授权，未尝试。下一项仅在相关输入到齐后恢复对应有界工作；当前停止新增开发并保存成果。不建PR/Release、不部署、不改main/Feng仓库/安全权限，不新增费用或凭据。
+
+最终独立只读复核 PASS：五份收口文档的范围和证据分类无明确P1/P2；未把元数据闭包、合成测试或旧包当A/B。正常提交与推送仅限 `codex/demo-v0.0.0`；提交后的完整SHA与远端一致性在最终回报提供，不能自嵌本提交hash。
