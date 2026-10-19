@@ -2651,3 +2651,27 @@ NOT RUN：本地GUI/浏览器、Windows实机、真实SSH/训练/数据/安装�
 - `/tmp/easyai-app-python-test-20261019.log`：`33a97a0a60c8e49eff3c4b11a40a6b22514789397a3d420bedc547d4f1b72d8a`。
 - `/tmp/easyai-app-python-frozen-build-20261019.log`：`140bbeaf0d42b87696eddcc77a37bcd03c03e825bf5c7a0df9ceae7f15f04295`。
 - `/tmp/easyai-app-python-frozen-test-20261019.log`：`598e651d8bfd55009c56cd315d848d8185d98d8ae4eb67c6d0dd2d14af4ed0c3`。
+
+
+## 2026-10-19 a4de782 真实未签名候选更新
+
+父侧独立确认 `a4de782a5efa717868d7180eee18d60e71dfb16a` 的CI39213624352 Linux/Windows全部SUCCESS，包括真实Windows启动E2E；无明确P1/P2。接续原M8候选范围，不把CI当完整A/B。起始HEAD/远端均该SHA、工作区clean，main仍5323f86232529efcfb52131168ad049f01b219f3；核工作流仅check/build/E2E，无候选打包/upload步骤。现有最新完整v2候选仍旧5b3df8d565f75a1f5cdeaf4e2f9300ce04bee17f，因此实际构建最新候选，没有重复全量测试。
+
+PASS实际命令（cwd /workspace/Easy-AI）：
+- `CI=true XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/.cache UV_CACHE_DIR=/workspace/.uv-cache UV_OFFLINE=1 CSC_IDENTITY_AUTO_DISCOVERY=false pnpm package:builder` exit0；原Git固定快照+offline frozen依赖+tsc/Vite/PyInstaller+electron-builder流程，实际dir/tar.gz而非README。354Node复用/下载0、新独立应用venv43包，无训练依赖；现有Electron44.9.0校验来源和7zip工具未变。
+- 同XDG环境 `pnpm package:builder:verify dist/easyai-builder-a4de782a5efa-1792393988003-linux-x64` exit0；v2批准闭集、ASAR、资源、vendor完整性通过，输出296记录。
+- `python /tmp/easyai_candidate_audit_20261019.py` exit0；tar294普通文件逐项bytes/mode/hash/集合相同，无link/special/越界/重复；受限秘密特征扫描294unpacked文件零命中（非任意秘密保证/PYZ未解包）；实际Analysis-00.toc核64easyai源均在固定快照、7namespace占位符，应用依赖清单无torch/torchvision/tensorflow。
+- `node scripts/test-frozen.mjs dist/easyai-builder-a4de782a5efa-1792393988003-linux-x64/artifacts/linux-unpacked/resources/backend` exit0；包内真实sidecar严格ready PID/schema/端口、Bearer鉴权、资源/工程/黄金编译、离线计划/显式登记取消/禁执行、EOF exit0，无GUI/训练/SSH。
+
+实际tar.gz152781550字节，SHA256 `4733c8bd71f1b32836069fa0670843c0db8b98411200feb5ce42f2306b3ee0b9`；路径、builder manifest/批准输入/source.tar/vendor/依赖锁hash和未验清单见 [candidate-a4de782.md](candidate-a4de782.md)。候选旁已有candidate-audit.json、candidate-provenance.json、candidate-handoff.md；这些收据在封存应用之外，不修改归档。初次口头计数295已纠正为审计实际294，无产物变化。全程无产品代码或依赖变更，无构建失败，原有chunk/缺author等警告保留。
+
+NOT RUN：本包真实Electron/干净机TST33/平台安装包、正式MNIST十轮/SSH/训练环境安装/数据模型下载/签名发布部署；完整A/B不通过。法律审查/项目许可证、系统native义务与正式支持仍缺，两个ready标记保持false。已有sandbox/日志访问拒绝不重试，无新增费用/凭据/权限/教师环境操作。原计划、旧规格、README及锁hash均未变。只追加证据提交于开发分支本地，不为文档再push触发一轮完整CI；最终HEAD/远端差异、独审结论和日志hash随后补记。
+
+独立只读审查PASS：独立verify296记录、tar294文件全项bytes/hash/mode/集合通过；558个tracked Git archive文件与固定提交逐字匹配，无本范围明确P1/P2。审查不重建/联网/GUI/SSH/训练。证据日志SHA256：
+- `/tmp/easyai-candidate-a4de782-build-20261019.log`：`9c7c6934774d042da433c969abe95703c1c36c96b5b9e6b699e64488cb5a89c3`。
+- `/tmp/easyai-candidate-a4de782-verify-20261019.log`：`bc62fb43d72d7e5da9314449e1793a335d43ff538fbb6e927a16f88e0ca49170`。
+- `/tmp/easyai-candidate-a4de782-audit-20261019.log`：`2e4bea775c013b02ed72aecf7fffb055816a1a325fb793783eaf61f534dd6c6d`。
+- `/tmp/easyai-candidate-a4de782-frozen-20261019.log`：`598e651d8bfd55009c56cd315d848d8185d98d8ae4eb67c6d0dd2d14af4ed0c3`。
+- `/tmp/easyai-candidate-a4de782-independent-verify-gKAuKP.log`：`2bcb392594d0486dfbe8cda08816af01c90eb71da8c6c17f80e1f27a4390e864`。
+
+本轮证据本地提交，不push：候选产品源码/远端保持a4de782a5efa717868d7180eee18d60e71dfb16a；证据HEAD完整SHA和clean核对由最终回报给出。后续可随实质工作统一推送，不额外触发CI。

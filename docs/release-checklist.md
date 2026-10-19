@@ -1,5 +1,7 @@
 # v0.0.0 发布验收清单
 
+2026-10-19 最新真实候选已更新至源码 `a4de782a5efa717868d7180eee18d60e71dfb16a`：Linux x64未签名dir/tar.gz、v2封闭输入/输出、归档逐项核验、包内sidecar及独审PASS；原开发CI两平台SUCCESS。详见[candidate-a4de782.md](candidate-a4de782.md)。包内Electron GUI/干净机TST33/正式训练/SSH仍NOT RUN，distributionReady/legalReviewComplete仍false；不是正式发布或完整A/B。下方旧“最新源码包未生成”描述属于历史状态，以本增量为准。
+
 2026-10-19 Windows sidecar身份修复：父侧确认 [run39211585475](https://github.com/T1doo/Easy-AI/actions/runs/39211585475) Linux SUCCESS，Windows launch/firstWindow已成功，后续ready显示“本地服务启动协议不匹配。”。固定应用venv的CPython redirector可能使launcher PID与服务PID不同，现按CPython自身venv语义直接启动固定基础解释器，严格PID/协议/鉴权/EOF门保留。原错误无类别，不宣称唯一实测根因。新增Windows非GUI身份检查；本轮Windows E2E待自然CI，完整A/B仍未通过。见[windows-application-python.md](windows-application-python.md)。
 
 2026-10-19 启动/恢复等待边界修复：用户已提供Windows launch超时和Linux lost-ACK fresh-resume BUSY正文（Windows片段runId未附，不擅自归属）。锁定版本源码确认Main ESM ready等待环，已改入口非阻塞异步启动；显式resume在锁外有界等旧worker并重核scope/auth，原安全门保留。详见[startup-ready-and-resume-fences.md](startup-ready-and-resume-fences.md)。新修复Windows E2E尚未实测，不能把VM或本地Linux结果当通过。
