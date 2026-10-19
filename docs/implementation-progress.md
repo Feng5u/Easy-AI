@@ -3081,3 +3081,14 @@ Linux job117994084895 pnpm check SUCCESS但pnpm test FAILURE，后续build SKIPP
 独审确认本地信任门启用条件已满足，无新明确阻塞。第二阶段只把独立trust门置True，native8测试改为断言真实default True，移除临时gate注入；closed gate/before-dial/错误指纹/changed key/不确定cleanup拒绝均保留。原CI完整步骤保留。
 
 PASS（cwd /workspace/Easy-AI）：`services/backend/.venv/bin/pytest -q services/backend/tests/test_windows_host_key_gate.py services/backend/tests/test_windows_trust_cleanup.py services/backend/tests/test_ssh_identity.py services/backend/tests/test_connection_manager.py services/backend/tests/test_windows_host_keys.py`，68PASS8nativeSKIP/1.21s；Linux不冒充NTFS接受。`CI=true XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/.cache UV_CACHE_DIR=/workspace/.uv-cache UV_OFFLINE=1 pnpm check` 全PASS；日志 `/tmp/easyai-native-trust-default-20261019.log`、`/tmp/easyai-native-trust-default-check-20261019.log`。下一项一次自然CI复验实际默认值。无外部SSH/真实信任或凭据写入/训练或数据下载/发布；完整SSH与A/B未完成。
+
+
+### 原生信任默认路径最终实际CI收据
+
+产品HEAD/remote `c28e955b7787ba1986fc40cd7aa13316f32d7e51`，[CI39236337416](https://github.com/T1doo/Easy-AI/actions/runs/39236337416) Linux job118006196540与Windows job118006196236全SUCCESS。Windows step9真实default native cache+host trust全PASS（没有临时开gate或native API/storage注入），原项目/锁/metadata、冻结backend/resources、开发E2E、打包保护、实际builder、ZIP审计、包内backend和Electron、上传均SUCCESS；Linux pnpm check/test/build全PASS。ZIP435171845字节，audit SHA256 `9b7e9c8bc4c75778dab872c088be800aa9600b247aca31b2b05871a1e9a3ff46`；候选收据docs/candidate-windows-c28e955.md。未下载或假称本地重验ZIP，只读允许run/jobs元数据；没有重试被拒logs/artifacts/browser端点。
+
+独审c28e增量无新P1/P2，4PASS8nativeSKIP，日志/tmp/easyai-trust-default-independent-H27JfS.log（SHA25687536cf5f87874e5853f8e59b02343311b450e0f981f980a274143e452fcfc7c）。本地默认回归68PASS8SKIP日志SHA25682a35554dedf1abdd0c0fa630cba71770f349d6bacbd7e71525b327dc9b4e493；pnpm check日志SHA256e580f738fb6f2a6bfe01cc5daae5d3e702f5220b2ad112eafff67fad6afa0a95。
+
+本阶段指定HostKeyStore原生私有持久化缺口已实际闭环：独立关闭门→真实NTFS接受→独审→默认开启→真实default及包内验证。未知key只允许显式指纹确认，changed key硬拒且没有替换入口，关闭门/before-dial/cleanup未知拒绝门保留。测试仅合成public wire bytes和本地模拟transport；不宣称包内真实SSH或完整Windows SSH完成。
+
+下一项：实际Windows客户端到受控Linux SSH服务器的完整认证/取消/重连/路径安全验收仍NOT RUN，须先由父级明确最小授权目标、账户认证方式、主机指纹与私有state位置；正式MNIST/训练依赖/硬件/TST33/法律审查同样NOT RUN，不擅自下载或修改共享环境。源码与本地docs结案后正常差异仅docs证据提交领先remote，避免额外自然CI。main仍5323f86232529efcfb52131168ad049f01b219f3；原plan/规格/README/依赖锁/golden SHA保持。无main/force/PR/Release/部署/付费/新权限/真实凭据变化。

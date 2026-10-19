@@ -1,5 +1,7 @@
 # Windows 未签名候选
 
+**最新主机信任默认集成候选**：源码 `c28e955b7787ba1986fc40cd7aa13316f32d7e51` / [CI39236337416](https://github.com/T1doo/Easy-AI/actions/runs/39236337416) Linux/Windows全SUCCESS。NTFS主机信任默认路径、冻结模块、包内backend/Electron、ZIP审计和上传通过。ZIP435171845字节，SHA256 `9b7e9c8bc4c75778dab872c088be800aa9600b247aca31b2b05871a1e9a3ff46`，一天留存，见[收据](candidate-windows-c28e955.md)。仅本地信任存储与模拟握手；完整真实SSH/TST33/正式训练/法律审核及A/B未完成。以下旧候选与待办描述是历史记录，均保全。
+
 **最新默认native cache候选**：源码 `af5a1f96509976f9474eee80b5852b66aea1cee6` / [CI39233339421](https://github.com/T1doo/Easy-AI/actions/runs/39233339421) Linux/Windows全SUCCESS，真实默认selector/native存储、包内backend/Electron和上传全部通过。ZIP435167215字节，SHA256 `7ae7812c414dc5ed1a4d02c7d5e13db758c175c2333200ead0f11e4080bada21`，一天留存。见[新收据](candidate-windows-af5a1f9.md)。HostKeyStore独立POSIX门仍未完成，不能称完整Windows SSH或A/B通过；下述旧候选与失败均保全。
 
 **最新通过候选**：源码 `d4ddd7e02ead22d54ac4fea32c3706a733551fc4` / [run39230592065](https://github.com/T1doo/Easy-AI/actions/runs/39230592065) Linux/Windows 全部 SUCCESS。实际 ZIP 构建、审计、包内 backend HTTP/编译/EOF、packaged Electron sandbox/ASAR/正常退出、上传留存均 SUCCESS。ZIP 435166382 字节，SHA256 `e0e96bf48beccc78c96c866a9be0f1a57ba589f8fe1c6372d477df1a9ce5a860`。获取位置与证据边界见 [候选收据](candidate-windows-d4ddd7e.md)，Artifacts 仅保留一天。不是正式发布；完整 A/B、TST33、正式训练/真实SSH/法律审核仍未完成。以下历史 FAIL 均保留。

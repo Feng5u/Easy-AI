@@ -2,7 +2,7 @@
 
 原计划 §13.2 要求未知主机显式核对指纹、变化密钥阻断，禁止 AutoAddPolicy；§3.3/M5要求 Windows客户端连接Linux。缓存 native selector 通过不能替代主机信任库验证。
 
-第一阶段独立关闭信任门，以源码 `0254cce4b38f16843e8ecd070d1d52f4c96333b0` 通过实际 Windows/Linux CI39235525773。独审确认本地原生验收条件后，第二阶段将 `WINDOWS_NATIVE_TRUST_VERIFIED=True` 并移除 native 测试临时开门，验证实际产品默认路径；新一轮 CI 尚待完成。无环境变量/API/renderer开门入口。
+第一阶段独立关闭信任门，以源码 `0254cce4b38f16843e8ecd070d1d52f4c96333b0` 通过实际 Windows/Linux CI39235525773。独审确认本地原生验收条件后，第二阶段将 `WINDOWS_NATIVE_TRUST_VERIFIED=True` 并移除 native 测试临时开门，验证实际产品默认路径；源码 `c28e955b7787ba1986fc40cd7aa13316f32d7e51` 的 CI39236337416 Linux/Windows全SUCCESS，原生默认路径、冻结模块、包内backend/Electron与ZIP审计全部通过；见[候选收据](candidate-windows-c28e955.md)。无环境变量/API/renderer开门入口。
 
 新增 WindowsTrustStore/Transaction 复用 WindowsDirectory 的ACL/reparse/volume/held identity、CRT非继承fd、内核锁、原子发布和FlushFileBuffers。应用state父目录必须已经存在且通过私有目录保护，仅使用native child创建末级信任目录，不修权限或创建任意祖先。固定(volume,128位file-id)跨事务钉住root；读前后验证已打开文件身份，1MiB上限。确认事务持有永久 `.known-hosts.lock`，读最新catalog，再按共同TOFU策略写临时bytes、flush/sync/verify后原子发布整份catalog；临时文件在失败时清理。
 
