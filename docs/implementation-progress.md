@@ -2082,3 +2082,93 @@ NOT RUN：真实wheel下载/训练环境安装/许可接受/实际ABI/import/ten
 - `/tmp/easyai-dl-metadata-20261018/pinned-requests.json` SHA256 `604f4d8fecb0981c8fa6e206591fd7559d6de6d257f7c4e3b49d9adc38eab14c`。
 - `packages/training-profiles/easyai-dl-sources.json` SHA256 `3440d2f85a804f7dbf61b160ce932dd462b23c09cc0754275fd14c3b815ab0a7`。
 - `packages/training-profiles/easyai-dl-linux-cp311.lock` SHA256 `3d541537ad5d6628503bfa78c6c8ab8eb078fa1f88b2fcc8612f4dbff43e378c`。
+
+
+## 2026-10-19 00:22 UTC — M6.3 远端 owned 安装产品纵切（代码/受控协议）
+
+源码 **`ba395c7cfe38ce023f67e64bd50cffbc50d3442f`**；起点/此前远端dev **`1ee530735bc91a77029e04dd32ea6030651969e0`**。origin仍T1doo/Easy-AI，main仍`5323f86232529efcfb52131168ad049f01b219f3`。先全文核原14节与现有SSH/InstallJob/owner/锁；设计冻结[remote-install-design.md](remote-install-design.md)后，单一集成者，既有m2_emit只实现固定stdlib helper/其测试，m0_m1_review独立只读审查，未另建并行writer。
+
+### 产品闭环与安全边界
+
+复用同一InstallService的计划/确认、唯一worker、WAL、lease、取消、最终精确版本/import/tensor及历史；InstallRegistry只路由目标适配，conda bootstrap/pip/probe源码生成器与本机共用，不是另建解析/安装框架。Main→API只引用保存targetId/当前projectId/connectionId，后端按targetRevision、endpoint、可信fingerprint、username和项目重验。私有operator配置提供固定root与已备来源，prefix只能root/training-environments/后端UUID。teacher-existing只读，根外、非owned或旧部分环境拒绝；新环境独占分配不覆盖。
+
+远端snapshot只读实际uid/root/prefix inode、来源hash/字节/module tree、METADATA基线及statvfs可用容量，绑定计划来源/基线/constraints/身份/预算，缺失/冲突/容量不够拒绝。只用已在目标的批准离线来源，不上传/下载包或数据；installedBytes未知保持null。临时helper+ManagedProcess/PortableJournal无需在远端安装Easy-AI/FastAPI。helper启动用-I/-S/-B，固定离线conda/pip及真实probe源码只在未来独立获准的owned目标内执行。
+
+私有恢复策略先fsync，再记INSTALL_REMOTE_RESERVING WAL，之后才发reserve；reserve ACK未知也保留实际本机lease和CANCEL_REQUESTED。远端flock/持久claim与phase intent/index/last-phase/last-writer先于spawn；相同phase只inspect不重发start。SDK close未知保留实际channel+共享I/O gate，adapter操作锁覆盖整个cleanup回收。未知owner保持隔离，不按PID杀、不删除旧锁/部分目录、不以channel关闭当停止。
+
+重新认证同一保存目标后，只inspect/cancel/release，不继续剩余安装。恢复从同job私有快照定位原claim，即使operator策略删除或授权过期，也不把快照变成新执行权（强制false且policy_guard禁止新操作）。quiet phase不是安装成功，收口失败/取消仍needsReprobe=true；已收口终态幂等保持。last-writer阻止失败续装继承旧ready；新建与已有owned都须本轮最终真实复检和静止收口后标ready。目标概要任何编辑含alias会改变revision，未收口安装按原active-conflict门阻止编辑，复用有界只读账本而不反向取得registry锁。UI已接目标/根/来源/容量/确认、已有owned ID、任务取消、历史打开与远端停止核验状态。
+
+这不是只放开targetId或计划展示。实际命令链及默认关闭门已接；详细最低条件、持久状态和边界见[remote-install.md](remote-install.md)。**本轮无真实SSH/安装/ABI通过声明。**
+
+### 实际命令与证据
+
+- PASS：`UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache pnpm check`，最终final2：TS、Python Ruff/mypy（66源文件）、Pydantic生成schema/TS漂移、真实Blockly fixtures与格式均通过。
+- PASS：`services/backend/.venv/bin/pytest -q services/backend/tests/test_remote_install.py services/backend/tests/test_remote_install_protocol.py services/backend/tests/test_remote_install_owner.py services/backend/tests/test_install_transport.py services/backend/tests/test_install_service.py services/backend/tests/test_install_runtime.py services/backend/tests/test_install_process.py services/backend/tests/test_install_probe_ownership.py services/backend/tests/test_install_history.py services/backend/tests/test_install_source_selection.py`，源码提交后final2 **113 passed**；Starlette/anyio既有deprecation warning保留。这是共享安装生命周期的定向回归，非扩大平台矩阵或完成百分比。
+- PASS：`services/backend/.venv/bin/pytest -q services/backend/tests/test_remote_install.py services/backend/tests/test_connection_profiles.py`，新增概要编辑门 **19 passed**，不与上述重叠项累加。独审该门 **1 passed / 5 deselected**，无新增阻断。
+- PASS：`pnpm exec vitest run apps/desktop/src/PackageManager.test.mts apps/desktop/electron/install-history-workflow.test.mts apps/desktop/electron/install-source-workflow.test.mts`，**25 passed**。保持原teacher只读、明确确认、幂等与来源门，新增远端目标绑定/来源本机登记禁用验证。
+- PASS：`UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache XDG_CACHE_HOME=/workspace/.cache pnpm build`，最终final2；仅应用/冻结sidecar构建，非训练环境安装。
+- PASS：`node scripts/test-frozen.mjs`，源码SHA提交后final2：包括新增helper资源原文、现有来源锁、默认禁执行计划、认证黄金编译及临时cwd EOF退出0。
+- PASS：`pnpm test:package` **20 passed**，仅既有保护回归；没有生成新electron-builder包或扩展包装外围。
+- PASS：独审最终远端4文件 **38 passed /1.95s**，无新明确P1/P2；只用合成协议/标准库子进程，不联网/SSH/安装。真实helper↔client互操作在新建4阶段与已有owned续装2阶段实际走dispatch、文件hash/容量、claim/flock、ManagedProcess和退出proof；**fixture明确把bootstrap/pip/probe argv替换为stdlib打印合成报告，绝不执行依赖命令或据此宣称真实tensor/ABI**。
+- PASS：`git diff --check`；原plan116185字节/SHA dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43、旧规格5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190、README befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852及core/ML/CV/DL八个来源/锁hash均未改变。
+
+独审与互操作发现的回执job/plan/nonce不统一、stdin无__file__、SDK cleanup过早放gate、cleanup并发释放别人的gate、reconcile改坏成功历史、新建未allocate/未owned阶段verify、旧ready继承等问题均已修并保留复现/回归。另以WAL+私有恢复策略和reservation未知lease封闭了预留ACK窗口；没有伪造source容量/停止proof或降低现有测试。
+
+中间FAIL真实保留：首次Ruff未用backend100列配置/未用函数定义或unused import、mypy Any返回/TypedDict动态key等已修；旧local runtime monkeypatch引用被提前import捕获导致2回归失败，恢复构造时导入后通过；UI新增目标select使旧测试误选首select，改为精确环境方案aria-label而未改teacher只读生产门；本机/远端文案保留各自语义。互操作初次fixture strict datetime、wheel五字段协议不匹配修正（生产target按五字段投影，未放宽helper）；fake channel在stdin未发完时即EOF的错误fixture已修。后续测试引号收集错误及取消恢复对未owned新建partial误要求marker的问题已修；release仍只在静止proof与claim/inode匹配时收口，existing真正run/serve仍严格owned。各失败日志见下，不覆盖、不合并成虚假首轮全绿。
+
+### 执行器中断与保全
+
+一次工具连接故障发生于阶段verify补丁读取：`exec-server transport closed/disconnected; failed to resume exec-server session: recovery timed out after 25s`。不是安全审批拒绝。当时patch结果未知，暂停写入；有界只读pwd恢复成功后，核原/workspace/Easy-AI、HEAD1ee530、全部WIP与已有进程，未停止未知python或删除锁。备份 `/tmp/easyai-remote-install-recovery-20261019-0001` 保存tracked.patch、untracked源码与日志，共23文件及preserved-files.json。只读确认阶段补丁未写入后仅执行一次修复；未换环境/创建并行writer。后续检查/构建/测试均已实际恢复完成，无待确认的外部安装写入。
+
+### 仍未完成 / 下一项
+
+NOT RUN：真实SSH连接/安装包或数据上传、wheel/语料/模型下载、训练环境安装、许可接受、真实import/ABI/tensor/训练、真实远端网络/重启故障验收、图形桌面/native picker/干净目标机、Windows/macOS原生矩阵、新CI读取/重跑、发布/部署/签名/Release/PR。执行默认关闭；最低条件须以后明确隔离目标/已准备来源与可信launcher、许可/预算/窗口及认证指纹后才可提供。没有新凭据/权限/收费；教师/共享环境未操作。既有Electron sandbox及Actions拒绝未重试/绕过。
+
+现有CI仍只知父级认证邮件的d2ac2bf2ba5562a85276a2a856f894a8a1cda492/run39158015941，2026-10-18 19:18:44 UTC completed，check SUCCESS、desktop FAIL各2 annotations；失败正文/根因与本轮HEAD CI未知。旧5b3 builder tar仍008a7d991e49111b27b85ca932206361635026b7aadd8c67f8d566bdb6620254、builder manifest仍a9d3b42f6d7111589091a450a3cb6d8b8835c7da5c1ca54a7c974baa2c505aa1，旧portable仍5f26ba7bb27917e717faec81c69d98ea97e3e39064ac4490b3e65fcc012fd937；这些旧包不包含本片远端能力，不当本片新分发包。
+
+17卡仍10卡元数据闭包/7卡未支持（OpenCV native及NLP六卡）；CIFAR裁决、Windows、任务保留管理/未知停止显式安全解除、正式数据训练和完整课堂/干净平台包等仍有实际代码或证据缺口，不能称全部只差环境。旧226PASS/1FAIL raw丢失根因UNKNOWN不回溯关闭。下一项由父级复核本受控纵切后接原M6.3剩余支持卡/原计划缺口；真实正向远端安装另须具体授权窗口。
+
+本片只正常开发分支提交推送，最终证据SHA与远端/clean核对见最终回报；main/远端原仓库无写入、不强推、不建PR/Release。M6.3完整真实验收与B未被本片合成链替代。
+
+唯一日志/恢复清单SHA256（失败保留）：
+- `/tmp/easyai-profile-install-guard-review-kuXJFZ.log` SHA256 `81f6ed9823d6162a07b0ba94685dc50f5a10fda8f7637539e82e13a45ddcd3c6`。
+- `/tmp/easyai-remote-install-build-20261019-final1.log` SHA256 `edb04f69f5cef5b63ffad8123813214b6667ae8d174267721b3c4b0478872e99`。
+- `/tmp/easyai-remote-install-build-20261019-final2.log` SHA256 `fbc00805a4140227c04ef741940ffea46ebeaac3fcc4ee37823f52425e501694`。
+- `/tmp/easyai-remote-install-build-20261019-unique1.log` SHA256 `b4b0014ec7012b6d9ad795b6d734054feb78b3e84a27c53bb76bf464fbf19a26`。
+- `/tmp/easyai-remote-install-check-20261018-unique1.log` SHA256 `83c25934436cd4f444b0c9e72609c6e0dcf71733f83c63bedf79e5bf89ead8b7`。
+- `/tmp/easyai-remote-install-check-20261018-unique2.log` SHA256 `9fde7b3055ae6b3db19e09a3cdf1565b00326cb22b35f2d8a61c873c491e7539`。
+- `/tmp/easyai-remote-install-check-20261018-unique3.log` SHA256 `4e832bf48d41d8adc11372a05cdc9d4bbe481b7839dfc6b92e1cf0d955123d22`。
+- `/tmp/easyai-remote-install-check-20261018-unique4.log` SHA256 `8f3379feed518898dd1f9c4374481fb4fce70855bbe1a78a7b093eca35215a1c`。
+- `/tmp/easyai-remote-install-check-20261019-final1.log` SHA256 `c42bd4df1916148541e1f0f0341c6c525fc308786650e029608cdf52c46e75fc`。
+- `/tmp/easyai-remote-install-check-20261019-final2.log` SHA256 `c42bd4df1916148541e1f0f0341c6c525fc308786650e029608cdf52c46e75fc`。
+- `/tmp/easyai-remote-install-check-20261019-unique1.log` SHA256 `351964c23fd230bcdd8dfd57149a249f137650baefed17f380e06dd594aedbfc`。
+- `/tmp/easyai-remote-install-check-20261019-unique2.log` SHA256 `6865b6771518732005ad23b3a0357826242db0ad3348b453eb693655d8a6b406`。
+- `/tmp/easyai-remote-install-check-20261019-unique3.log` SHA256 `c42bd4df1916148541e1f0f0341c6c525fc308786650e029608cdf52c46e75fc`。
+- `/tmp/easyai-remote-install-final-review-39yTZJ.log` SHA256 `d82e72a44198f03799fb3e0d3fa65f76a877c023fe47c63d07e85562dbc4981a`。
+- `/tmp/easyai-remote-install-frozen-20261019-final1.log` SHA256 `598e651d8bfd55009c56cd315d848d8185d98d8ae4eb67c6d0dd2d14af4ed0c3`。
+- `/tmp/easyai-remote-install-frozen-20261019-final2.log` SHA256 `598e651d8bfd55009c56cd315d848d8185d98d8ae4eb67c6d0dd2d14af4ed0c3`。
+- `/tmp/easyai-remote-install-integration-20261018-unique1.log` SHA256 `31aea369e724e06e40899f30e41b4d08322eb801791b7267f074241d775f0735`。
+- `/tmp/easyai-remote-install-integration-20261018-unique2.log` SHA256 `a63aa347137643b6ccc9ff195062a6e15c194133bf2b9922959a5a43d8e06217`。
+- `/tmp/easyai-remote-install-integration-20261018-unique3.log` SHA256 `a7210b0bf1f2d9500a0118669d52bed826809cb9c97ddcfc6b16c350f1699b77`。
+- `/tmp/easyai-remote-install-mypy-20261018-unique1.log` SHA256 `a9a8ac01048fb79eaa5eba94d31ddd87f7f69be21a284fcf9045d215bc53f0d8`。
+- `/tmp/easyai-remote-install-mypy-20261019-unique1.log` SHA256 `e01191578d3a3bac202cef72aec747f3048def999e4a0906368a5b91b8849682`。
+- `/tmp/easyai-remote-install-package-tests-20261019-final1.log` SHA256 `0e5c30dba5f2066b214258cc38f9c812f391dc62eb3e0bce395ab508d1053a04`。
+- `/tmp/easyai-remote-install-profile-guard-20261019-final1.log` SHA256 `0943f5eb45c231d9ba23b595b26c207bb3d996bc857663200ae7d761ae3f613a`。
+- `/tmp/easyai-remote-install-protocol-20261019-unique1.log` SHA256 `e6e710dffd84bddeec51eb01cdcb9daa77fa48ede0c0633275b0700b0002cb97`。
+- `/tmp/easyai-remote-install-protocol-20261019-unique2.log` SHA256 `b3ee9ab94a43604bad195397c0c55d3bcb2647c8dc28657045063e57cd78c221`。
+- `/tmp/easyai-remote-install-protocol-20261019-unique3.log` SHA256 `b336bfbb42d8a55315e2f7350d4a6528e0fd95453f81c1e21f96f9ae7c5d2932`。
+- `/tmp/easyai-remote-install-regression-20261018-unique1.log` SHA256 `1ba6eaf38459f9eda132315d9d7da652faf88e113a25d5b5cfc2c25a167a1ee1`。
+- `/tmp/easyai-remote-install-regression-20261019-final1.log` SHA256 `c9ab1245b8b8f407ff9cda6909920636405fb9d02b14e663b91bad890c07a284`。
+- `/tmp/easyai-remote-install-regression-20261019-final2.log` SHA256 `b1fb05cc00ff11eaf4759f2ef5fba79293d96f64b1cf56a8c3692ed4faa6e8ab`。
+- `/tmp/easyai-remote-install-regression-20261019-unique1.log` SHA256 `23e5124ae3493e1f51d57774f2e328139bdde911326a68e8718287a999eddd3c`。
+- `/tmp/easyai-remote-install-review-AweUt1.log` SHA256 `ffcbb10fd620312ebbe610b07ec434d165efbc0422917a94152843a371f3bc56`。
+- `/tmp/easyai-remote-install-targeted-20261019-unique1.log` SHA256 `4017c3c13f672e5daee6714727151ea5564147ce4872cf2104ce55b5fa4c9330`。
+- `/tmp/easyai-remote-install-targeted-20261019-unique2.log` SHA256 `7da8c91faead82643e98200be866d54475dcd4d1a1f2c46fa0404ed715fdaf55`。
+- `/tmp/easyai-remote-install-targeted-20261019-unique3.log` SHA256 `865b1b882aaee701eed31233e2b639a7faf7989b649618837d0e222405868ac8`。
+- `/tmp/easyai-remote-install-targeted-20261019-unique4.log` SHA256 `c90968dd4b677914f6cd1dc48d510d3050263cad4251e699beea0d71c5df3de7`。
+- `/tmp/easyai-remote-install-ui-20261018-unique1.log` SHA256 `f4aeecd89b2d3a7297c726126b9f37ab9607c7160f65d33f18ea1196def44b5a`。
+- `/tmp/easyai-remote-install-ui-20261018-unique2.log` SHA256 `21860a6d3ba2165c2886fb7159ac8fa9459a2e8154c84b186a041be34def57b2`。
+- `/tmp/easyai-remote-install-ui-20261019-final1.log` SHA256 `e6cef87ec0c9d888e03ebb002a3fa50226a60f5b4b7a6503854b7492490bba79`。
+- `/tmp/easyai-remote-install-ui-20261019-unique1.log` SHA256 `e4f11f44db66c3a8a749bf05ba5c186535ef92d77167696cca8ce2c9f2d4ac22`。
+- `/tmp/easyai-remote-install-wal-20261019-unique1.log` SHA256 `58e99ac9b1f322176945f5e93f4030ebb22f5ecf25bf579e8e866a44af7d531b`。
+- `/tmp/easyai-remote-install-recovery-20261019-0001/preserved-files.json` SHA256 `6988123dac38d834f61f92da99732ea342dcf5661dceaa7c956d86e97cb18be7`。
