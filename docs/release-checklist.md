@@ -1,5 +1,7 @@
 # v0.0.0 发布验收清单
 
+2026-10-19 CI增量更正：用户现已提供 run39181255841 的 **Windows** 安装正文：锁文件/供应链校验通过后，`ERR_PNPM_IGNORED_BUILDS: electron-winstaller@5.4.0`。本轮将不需要的 Squirrel 安装脚本精确设为禁止，保持 strictDepBuilds；Linux原job原因仍UNKNOWN，不能据此同因归类。本文原“缺正文/根因UNKNOWN”的合并叙述已由此更正，仅保留未提供正文的job/历史项。当前修复的Windows CI仍待实证，不改旧FAIL为PASS；Actions接口拒绝未重试。详见 [pnpm脚本策略修复](ci-build-policy.md)。
+
 此表是待执行门槛，不授权发布。状态只使用 PASS / FAIL / NOT RUN；代码存在、单元测试通过或产物生成不能替代真实平台结果。完整 B 尚未通过。
 
 | 项目 | 当前状态 | 必需证据 |
@@ -8,7 +10,7 @@
 | Python权威合同/编译器、21类积木 | PASS（定向代码测试） | 真实Blockly fixtures、schema漂移与编译测试；不等于完整课堂验收 |
 | 本机Linux便携布局/冻结sidecar | PASS（定向冻结sidecar）／干净机NOT RUN | 源码467a2018194ae131789f45cd62a56ffdc0783950的check/build/frozen记录见implementation-progress；旧builder包不代表当前源码包 |
 | 真Electron安全启动/编辑/原生picker/Monaco/Blockly | NOT RUN | sandbox=true；可用桌面上的完整课堂操作，无安全绕过 |
-| 开发 CI 安装门（Linux/Windows） | FAIL（check 与 desktop） | 父侧提供：e454f97044f84f20347b10f3807220727f2dac1f / [run39181255841](https://github.com/T1doo/Easy-AI/actions/runs/39181255841)，2026-10-19 00:34:06 UTC，两 job 均在 pnpm install --frozen-lockfile 失败；前3616826e28cef2d2ce4fd874f1bb81a6fcf17d94 / [run39180535293](https://github.com/T1doo/Easy-AI/actions/runs/39180535293)，00:24:34 UTC 同步骤双失败。准确安装错误正文/根因 UNKNOWN，不能凭步骤名归因 lock mismatch；Actions 访问拒绝继续尊重，无重试/绕路/重跑 |
+| 开发 CI 安装门（Linux/Windows） | FAIL（check 与 desktop） | 父侧提供：e454f97044f84f20347b10f3807220727f2dac1f / [run39181255841](https://github.com/T1doo/Easy-AI/actions/runs/39181255841)，2026-10-19 00:34:06 UTC，两 job 均在 pnpm install --frozen-lockfile 失败；前3616826e28cef2d2ce4fd874f1bb81a6fcf17d94 / [run39180535293](https://github.com/T1doo/Easy-AI/actions/runs/39180535293)，00:24:34 UTC 同步骤双失败。用户已补Windows正文：ERR_PNPM_IGNORED_BUILDS electron-winstaller@5.4.0，本轮策略修复待CI；Linux正文/根因仍UNKNOWN，不能凭步骤名归因 lock mismatch；Actions 访问拒绝继续尊重，无重试/绕路/重跑 |
 | Windows 11 x64 | FAIL（CI desktop 安装门） | 最新证据同上；尚未进入后续桌面验收。既有 d2ac2bf/check SUCCESS、desktop FAIL 已是历史，不能继续称最新。新修复 SHA 的 CI 结果另核 |
 | macOS/MPS/GPU矩阵 | NOT RUN | 真实设备、驱动、环境与实际结果；不得伪称支持 |
 | 至少一个干净目标机包 | NOT RUN | 无Node/开发Python/本机torch，能启动编辑并连接已准备环境 |

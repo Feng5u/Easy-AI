@@ -1,12 +1,14 @@
 # v0.0.0 有界收口盘点（2026-10-19）
 
+2026-10-19 CI增量更正：用户现已提供 run39181255841 的 **Windows** 安装正文：锁文件/供应链校验通过后，`ERR_PNPM_IGNORED_BUILDS: electron-winstaller@5.4.0`。本轮将不需要的 Squirrel 安装脚本精确设为禁止，保持 strictDepBuilds；Linux原job原因仍UNKNOWN，不能据此同因归类。本文原“缺正文/根因UNKNOWN”的合并叙述已由此更正，仅保留未提供正文的job/历史项。当前修复的Windows CI仍待实证，不改旧FAIL为PASS；Actions接口拒绝未重试。详见 [pnpm脚本策略修复](ci-build-policy.md)。
+
 以原 [v0.0.0 plan.md](v0.0.0%20plan.md) 的 M0–M8、TST01–34 与完整 B 为准。原计划基线为 `5323f86232529efcfb52131168ad049f01b219f3`；当前已接受产品源码为 `467a2018194ae131789f45cd62a56ffdc0783950`，配套证据为 `1e345b954f745ac5154f211dcc7200d6527db78b`。后续本次提交仅纠正文档，不新增产品能力。A 和 B 均未获得完整实机验收，不把合成 IDX 的真实 torch 执行或离线合同测试当作 MNIST 效果。
 
 ## M0–M8：实现、限制与验收分别记录
 
 | 阶段 | 已有代码及受控证据 | 具体未完成能力或关闭门 | 尚未通过的真实验收 |
 | --- | --- | --- | --- |
-| M0 安全启动/兼容锁定/CI | Electron 安全配置、受鉴权 sidecar、依赖锁、CI 脚本、冻结后端均已有 | Windows host storage 生产门仍关闭；最新已知 CI 安装失败根因未知 | 干净环境复现、保留 sandbox 的真实桌面启动/退出；当前源码 CI 未知 |
+| M0 安全启动/兼容锁定/CI | Electron 安全配置、受鉴权 sidecar、依赖锁、CI 脚本、冻结后端均已有 | Windows host storage 生产门仍关闭；Windows旧CI根因已知且策略已修，Linux原因未知 | 干净环境复现、保留 sandbox 的真实桌面启动/退出；当前源码 CI 未知 |
 | M1 合同基础 | Python 权威 DTO/生成 TS、21 类 manifest、真实 Blockly fixtures、稳定引用、原子保存/未知版本只读已有 | 本次盘点未发现输入齐全的新增合同编码项 | 相关真实课堂操作与最终矩阵仍待验 |
 | M2 编译/Bundle | 实际 handler/lowering、shape、训练控制流、源码映射、辅助文件与 Bundle 导出已有 | CIFAR 编译存在不表示安全构造已就绪，见 M6 | TST34：导出后在已准备第三方 Python 脱离应用执行；完整执行覆盖 |
 | M3 本地纵向闭环 | 不可变快照、幂等/独占、实际 supervisor、日志/事件/PNG/权重、取消已有；已有合成 IDX 的真实 CPU torch 训练证据 | 不增加假 runner 或假曲线 | 安全桌面上真实 MNIST 正式 10 epoch、指标/取消/退出；A 尚未通过 |
@@ -27,7 +29,7 @@
 ## 阻塞和下一最小输入
 
 1. **CIFAR 既有裁决待答**：2026-10-18 19:18 UTC 已向用户提出窄例外，尚无答复。固定 torchvision 官方构造会全数据 MD5 并读取 pickle，与当前约束冲突，现保持 `DATASET_CIFAR10_SAFE_PROBE_REQUIRED`、`data.ok=false`，不执行构造、不重复提问、不以替代解析器绕过。详见 [cifar10-preflight.md](cifar10-preflight.md)。下一动作取决于该既有问题的明确答复；目前没有合规实现路径可直接继续。
-2. **CI 准确错误正文**：最新已知 `e454f97044f84f20347b10f3807220727f2dac1f` / [run39181255841](https://github.com/T1doo/Easy-AI/actions/runs/39181255841)，2026-10-19 00:34:06 UTC，check/desktop 均在 `pnpm install --frozen-lockfile` 失败；前 `3616826e28cef2d2ce4fd874f1bb81a6fcf17d94` / [run39180535293](https://github.com/T1doo/Easy-AI/actions/runs/39180535293)，00:24:34 UTC 同步骤双失败。准确正文/根因 UNKNOWN；本地 warm Linux 的同版本 check/build 不能替代 clean Linux/Windows CI。Actions 读取此前被拒绝，本次不重试、不换路径、不重跑；需要父侧提供原错误正文后才能有根据地修复。当前源码及本文档 SHA 的 CI 未知。
+2. **CI 按 job 分别确认**：最新已知 `e454f97044f84f20347b10f3807220727f2dac1f` / [run39181255841](https://github.com/T1doo/Easy-AI/actions/runs/39181255841)，2026-10-19 00:34:06 UTC，check/desktop 均在 `pnpm install --frozen-lockfile` 失败；前 `3616826e28cef2d2ce4fd874f1bb81a6fcf17d94` / [run39180535293](https://github.com/T1doo/Easy-AI/actions/runs/39180535293)，00:24:34 UTC 同步骤双失败。Windows根因现已确认为未裁决winstaller脚本，本轮明确禁止执行；Linux正文/根因仍UNKNOWN。本地 warm Linux 的同版本 check/build 不能替代 clean Linux/Windows CI。Actions 读取此前被拒绝，本次不重试、不换路径、不重跑；Windows待本修复SHA实证，Linux仍需父侧提供原错误正文后才能有根据地修复。当前源码及本文档 SHA 的 CI 未知。
 3. **原计划 A/B 真实验收条件**：一套可保留 Electron sandbox 的图形目标、已准备独立训练 Python/真实 MNIST、明确 CPU/GPU 和窗口；B 另需授权隔离 Linux SSH 账号/范围、可信渠道核验的 host fingerprint、既有训练环境/数据与取消/断连/恢复窗口。凭据走私密入口，不能入库。当前云机无图形桌面且有开发 Node/Python，不能冒充干净目标。此前 sandbox 动作拒绝继续有效，不降低安全开关。
 4. **受控安装实测条件**：一次性 owned 环境/私有受控根、可信来源与许可、明确下载/容量预算及具体计划执行授权；老师共享环境只读。三张不支持卡仍是具体产品限制；不以提供服务器就声称它们已支持。当前不安装、下载、import 候选库或变更执行门。
 5. **M8 最终条件**：明确实际支持的平台/架构、干净目标机与许可决定。已有旧包完整性证据保留；本轮不生成新包、不新增签名、权限、费用、发布或 PR。

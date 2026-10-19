@@ -2461,3 +2461,23 @@ PASS：原plan116185字节，SHA256 `dade1fcaadac319e130de415b48154601254dcae9b1
 准确阻塞：①CIFAR窄例外于2026-10-18 19:18 UTC既已提出、仍待答，保持SAFE_PROBE_REQUIRED，不重问或绕过；②Actions错误正文读取此前被拒绝，本次未重试/换路；最新已知e454f97044f84f20347b10f3807220727f2dac1f/run39181255841和3616826e28cef2d2ce4fd874f1bb81a6fcf17d94/run39180535293在同pnpm安装步骤双失败，准确正文/根因UNKNOWN，需父侧提供正文；当前源码CI未知；③此前sandbox动作拒绝继续有效，不降安全，需要可保留sandbox的桌面与已有训练数据/环境；④真实SSH/owned安装缺明确目标/可信指纹/预算/窗口及相关执行授权，未尝试。下一项仅在相关输入到齐后恢复对应有界工作；当前停止新增开发并保存成果。不建PR/Release、不部署、不改main/Feng仓库/安全权限，不新增费用或凭据。
 
 最终独立只读复核 PASS：五份收口文档的范围和证据分类无明确P1/P2；未把元数据闭包、合成测试或旧包当A/B。正常提交与推送仅限 `codex/demo-v0.0.0`；提交后的完整SHA与远端一致性在最终回报提供，不能自嵌本提交hash。
+
+## 2026-10-19 Windows CI 已知脚本策略失败的有界修复
+
+用户提供run39181255841 Windows日志：锁文件与供应链校验通过后ERR_PNPM_IGNORED_BUILDS electron-winstaller@5.4.0。该正文解除Windows这一项根因未知，未授权Actions接口；另一个Linux job原因仍UNKNOWN。起始HEAD/远端开发分支均`66c4570ccec7590bfa9621eb0ff33d6a8ea87bd2`、工作区clean，单一写入者。main仍`5323f86232529efcfb52131168ad049f01b219f3`。
+
+检查精确锁和本机package/script：builder→app-builder-lib的Squirrel peer→winstaller5.4.0。实际install为node ./script/select-7z-arch.js，仅复制包内7z架构文件；未运行。当前Windows CI只构建/测试桌面，无Squirrel目标，正式builder限定Linux dir/tar.gz。pnpm11.25实际policy只读allowBuilds，旧onlyBuiltDependencies许可迁移并收窄为electron@44.9.0:true；winstaller@5.4.0:false，strictDepBuilds:true。未改变锁/依赖/CI，未新增脚本执行许可，未全局放开或approve-builds。完整裁决、命令和失败说明见docs/ci-build-policy.md；当前发布/关键路径清单同步更正，历史FAIL保留。
+
+PASS：`pnpm config get allowBuilds`、`pnpm config get strictDepBuilds`；隔离git archive+新配置，在`/workspace/easyai-pnpm-policy-7onsg4ra`执行`CI=true XDG_CACHE_HOME=/workspace/.cache pnpm install --offline --frozen-lockfile --store-dir /workspace/.local/share/pnpm/store`，354复用/0下载/1.2s，锁及供应链通过。原node_modules记录实际store，所以一次从错误空store失败后只改到此已知本地store；首失败ERR_PNPM_NO_OFFLINE_TARBALL @playwright/test保留，不联网补。隔离真实winstaller vendor无7z.exe/dll，modules状态规则精确。临时无害file依赖负例真实pnpm install --offline被strict以ERR_PNPM_IGNORED_BUILDS拒绝且marker未出现，证明未知脚本仍失败；不当Windows证据。
+
+FAIL：`pnpm --filter @easyai/desktop check`自动依赖核验尝试默认/home/agent/.local/share/pnpm创建ENOENT，未进入TS；未提权或重试此路径。PASS：隔离已安装目录直接`node node_modules/typescript/bin/tsc --noEmit -p apps/desktop/tsconfig.json`及`node node_modules/typescript/bin/tsc --noEmit -p apps/desktop/tsconfig.electron.json`。PASS：`node --test scripts/package-builder.test.mjs` 5项；`git diff --check`。独立只读复核pnpm11.25实际policy、精确依赖与hook/当前目标，未发现明确P1/P2，无新增脚本许可。
+
+NOT RUN：Windows新CI/原生桌面、Squirrel安装器、hook执行、候选包/数据下载、训练/SSH/受控安装、新builder包。只正常推开发分支触发既有一次工作流，不主动重跑旧SHA、workflow_dispatch或读取被拒Actions接口。CIFAR既有待答、安全sandbox/桌面/SSH/安装目标预算授权未变，A/B未通过。下一项父侧合法渠道确认本修复SHA的Windows install及后续阶段；Linux仍单独确认正文和结果。最终完整提交SHA、push与clean/main核对在回报提供。
+
+本轮日志SHA256（FAIL保留）：
+- `/tmp/easyai-pnpm-policy-buildertest-20261019.log`：`abee3290462caa1a7cc8285419d82abe4d6c221e65994ae06463252fb0991ca6`。
+- `/tmp/easyai-pnpm-policy-install-20261019.log`：`3fd0edb29cc11ade955aab30dbd6d701018a12bff3e980d5a036492c89cad362`。
+- `/tmp/easyai-pnpm-policy-install-store-20261019.log`：`68dff657548c5596e358268b183aafd20194613b31c4ddf16ebb9a76de49996a`。
+- `/tmp/easyai-pnpm-policy-strict-negative-20261019.log`：`afa407526c7cde54fd7d8ab14d59d1e12c11b77077d0d9cefdc0d54f1c2759ca`。
+- `/tmp/easyai-pnpm-policy-tscheck-20261019.log`：`a164a71af9b231bfdda437823abe01d11476b128be0f1036c3d3076472abdf8e`。
+- `/tmp/easyai-pnpm-policy-tscheck-direct-20261019.log`：`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`。
