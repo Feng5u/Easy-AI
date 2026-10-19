@@ -53,8 +53,18 @@ def audit(output: Path) -> dict:
         for r in manifest["records"]
         if r["path"].startswith(unpacked + "/")
     }
-    archives = [r for r in manifest["records"] if r["path"].endswith(extension)]
-    if not expected or len(archives) != 1:
+    version = manifest.get("version")
+    if not isinstance(version, str) or not re.fullmatch(
+        r"\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?", version
+    ):
+        raise ValueError("CANDIDATE_VERSION_INVALID")
+    archive_name = f"easyai-{version}-{'win' if platform == 'win32' else 'linux'}-x64{extension}"
+    archives = [
+        r
+        for r in manifest["records"]
+        if "/" not in r["path"] and (r["path"].endswith(".zip") or r["path"].endswith(".tar.gz"))
+    ]
+    if not expected or len(archives) != 1 or archives[0]["path"] != archive_name:
         raise ValueError("CANDIDATE_ARCHIVE_MISSING")
     archive = archives[0]
     archive_path = output / "artifacts" / archive["path"]

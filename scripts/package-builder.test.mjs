@@ -15,6 +15,7 @@ import { tmpdir } from "node:os";
 import {
   verifyBuilder,
   builderLayout,
+  builderArchiveName,
   builderConfiguration,
 } from "./package-builder.mjs";
 import { treeRecords } from "./package-inputs.mjs";
@@ -35,12 +36,15 @@ async function fixture(t, extra, platform = "linux") {
     `${layout.unpacked}/LICENSES.chromium.html`,
     `${layout.unpacked}/resources/app.asar`,
     `${layout.unpacked}/resources/backend/${layout.sidecar}`,
+    ...(platform === "win32"
+      ? [`${layout.unpacked}/resources/backend/_internal/base_library.zip`]
+      : []),
     `${layout.unpacked}/resources/notices/NOTICE.txt`,
     `${layout.unpacked}/resources/notices/inventory.json`,
     ...OFFLINE_DOCS.map(
       (x) => `${layout.unpacked}/resources/offline/docs/${x}`,
     ),
-    `fixture${layout.extension}`,
+    builderArchiveName("0.0.0", platform),
   ].sort();
   for (const file of files) {
     await mkdir(dirname(join(root, "artifacts", file)), { recursive: true });
@@ -261,4 +265,58 @@ test("native Windows ASAR separators preserve entry, privacy and sealed-set chec
   } finally {
     asar.listPackage = original;
   }
+});
+
+test("distribution names use builder OS mapping and preserve strict version paths", () => {
+  assert.equal(
+    builderArchiveName("0.0.0", "win32"),
+    "easyai-0.0.0-win-x64.zip",
+  );
+  assert.equal(
+    builderArchiveName("0.0.0", "linux"),
+    "easyai-0.0.0-linux-x64.tar.gz",
+  );
+  assert.throws(
+    () => builderArchiveName("../private", "win32"),
+    /ARCHIVE_VERSION_INVALID/,
+  );
+});
+
+for (const variant of ["missing", "misnamed", "extra", "other-platform"]) {
+  test(`Windows distribution archive rejects ${variant} root output while retaining nested ZIP`, async (t) => {
+    const { root, manifest, save } = await fixture(t, undefined, "win32");
+    assert.equal(
+      (await verifyBuilder(root)).archive.path,
+      "easyai-0.0.0-win-x64.zip",
+    );
+    const archive = join(root, "artifacts/easyai-0.0.0-win-x64.zip");
+    if (variant === "missing" || variant === "misnamed") await rm(archive);
+    if (variant !== "missing") {
+      const extra =
+        variant === "other-platform"
+          ? "easyai-0.0.0-linux-x64.tar.gz"
+          : "extra.zip";
+      await writeFile(join(root, "artifacts", extra), "synthetic root archive");
+    }
+    manifest.records = await treeRecords(join(root, "artifacts"));
+    await save();
+    await assert.rejects(verifyBuilder(root), /BUILDER_ARCHIVE_MISSING/);
+  });
+}
+
+test("nested library ZIP still requires approved bytes even if output inventory is updated", async (t) => {
+  const { root, manifest, save } = await fixture(t, undefined, "win32");
+  await writeFile(
+    join(
+      root,
+      "artifacts/win-unpacked/resources/backend/_internal/base_library.zip",
+    ),
+    "unapproved library bytes",
+  );
+  manifest.records = await treeRecords(join(root, "artifacts"));
+  await save();
+  await assert.rejects(
+    verifyBuilder(root),
+    /BUILDER_UNAPPROVED_RESOURCE: backend/,
+  );
 });

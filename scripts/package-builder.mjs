@@ -55,6 +55,20 @@ export function builderLayout(platform, arch = "x64") {
       };
 }
 
+export function builderArchiveName(version, platform, arch = "x64") {
+  const layout = builderLayout(platform, arch);
+  if (
+    typeof version !== "string" ||
+    !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(version)
+  )
+    throw Error("BUILDER_ARCHIVE_VERSION_INVALID");
+  return baseConfiguration.artifactName
+    .replaceAll("${version}", version)
+    .replaceAll("${os}", platform === "win32" ? "win" : "linux")
+    .replaceAll("${arch}", arch)
+    .replaceAll("${ext}", layout.extension.slice(1));
+}
+
 export function builderConfiguration(stage, output, electronDist, version) {
   return {
     ...baseConfiguration,
@@ -134,8 +148,19 @@ export async function verifyBuilder(output) {
     ),
   ])
     if (!names.has(name)) throw Error(`BUILDER_RESOURCE_MISSING: ${name}`);
-  const archives = actual.filter((r) => r.path.endsWith(layout.extension));
-  if (archives.length !== 1) throw Error("BUILDER_ARCHIVE_MISSING");
+  // Distribution archives live at the output root. Runtime base_library.zip
+  // remains approved payload, never a second distribution archive.
+  const archives = actual.filter(
+    (r) =>
+      !r.path.includes("/") &&
+      (r.path.endsWith(".zip") || r.path.endsWith(".tar.gz")),
+  );
+  if (
+    archives.length !== 1 ||
+    archives[0].path !==
+      builderArchiveName(manifest.version, manifest.platform, manifest.arch)
+  )
+    throw Error("BUILDER_ARCHIVE_MISSING");
   const archive = join(
     output,
     "artifacts",
@@ -327,7 +352,7 @@ export async function packageBuilder(root = repository) {
     electronDist,
     metadata.devDependencies.electron,
   );
-  await build({
+  const reportedArtifacts = await build({
     projectDir: join(stage, "resources/app"),
     targets: (process.platform === "win32"
       ? Platform.WINDOWS
@@ -336,6 +361,7 @@ export async function packageBuilder(root = repository) {
     publish: "never",
     config: configuration,
   });
+  console.info("EASYAI_BUILDER_REPORTED_ARTIFACTS", reportedArtifacts);
   for (const group of INPUT_GROUPS) {
     const path =
       group === "vendor"

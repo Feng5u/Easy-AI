@@ -2727,3 +2727,31 @@ PASS：`CI=true XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/
 修复后的真实Windows结果：产品提交 `da5a1af18afd4115bf072273cc2b012a65cbee7e` 已正常推送，远端与产品SHA一致。[run39222623389](https://github.com/T1doo/Easy-AI/actions/runs/39222623389) **Linux check SUCCESS；Windows Packaging input and archive guards SUCCESS**，证明分隔符修复在实际Windows测试有效。随后 **Build unsigned Windows candidate (never publish) FAIL**，ZIP审计/包内PID与EOF/packaged Electron/上传全部SKIPPED；仍无已验证可下载Windows候选。旧run39221894722保护FAIL原样保留，不改写为通过。
 
 当前准确阻断是该Windows构建步骤的首个异常/cause/堆栈缺失，构建失败原因UNKNOWN；不是训练环境或SSH条件。需父级通过其已登录GitHub浏览器读取该精确步骤，本执行器没有重试被拒logs/artifacts接口、没有重新跑失败run或猜测改门。独立已完成打包产品接线、26项保护/独审和真实Windows保护通过，下一项据构建正文做最小修复后完成实际候选，不将本段当开发完成。无新增训练环境/数据/SSH/费用/许可/签名/权限；旧Linux候选、b05证据、main及三原件保留。此结果补记仅本地提交，不为文档触发CI；最终HEAD/远端差异在回报提供。
+
+
+## 2026-10-19 父级构建正文后：精确分发归档与嵌套runtime ZIP
+
+起始HEAD `a3a09536154e725b016a666f4cb52c51923941c5`（未推证据，保全），远端产品 `da5a1af18afd4115bf072273cc2b012a65cbee7e`、工作区clean，单一写入者。父级授权已登录浏览器实际正文来自 https://github.com/T1doo/Easy-AI/actions/runs/39222623389/job/117961261322#step:16:244 ：PyInstaller COLLECT完成；builder26.15.3 Windows10.0.26100 win32/x64 Electron44.9.0，ASAR integrity成功，资源编辑/签名按配置跳过，building ZIP easyai-0.0.0-win-x64.zip、7zip-win-x64.tar.gz下载完成后，verifyBuilder:138抛BUILDER_ARCHIVE_MISSING。该错误本身不证明物理文件缺失或名字错；未读取被拒logs接口。
+
+源码确认Node verifier与Python archive audit均对递归inventory endsWith('.zip')计数。PyInstaller实际后端自带_internal/base_library.zip（本地真实a4de候选已只读核到），即便顶层分发ZIP存在也length2误拒。给现有Windows真实ASAR/PE fixture加封存的base_library.zip、Python加同型真实ZIP成员fixture后，旧pnpm test:package确定23PASS/3FAIL，Node BUILDER_ARCHIVE_MISSING及Python CANDIDATE_ARCHIVE_MISSING。此确定复现不冒充原run磁盘inventory已取得。
+
+最小修复：只在artifacts顶层选择分发.zip/.tar.gz，并严格要求唯一且精确匹配同一artifactName配置代入version/os/arch/ext（Windows builder os为win，Node平台为win32）；版本拒绝路径注入。Python审计同范围/名字。其余输出inventory、封存五组、PE重放、ASAR、路径/私密文件、readonly/mode、归档内容字节检查不变；nested ZIP不是豁免，仍是批准backend及外层归档必须逐字节相等的成员。新增missing/misnamed/额外同平台/异平台root档拒绝，以及更新输出inventory仍不能批准篡改base_library.zip；包构建增加打印builder实际返回artifact paths，不用猜文件路径或采用输出自证。
+
+实际命令（cwd /workspace/Easy-AI）：
+- FAIL（旧代码确定复现，原件保留）：`CI=true XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/.cache pnpm test:package`，23PASS/3FAIL，非真实Windows运行。
+- PASS（修复后）：同命令32PASS/1.60s；Node 32中一个入口运行Python8组标准库归档用例，不重复累加。无真实训练/安装或GUI。
+- PASS：`services/backend/.venv/bin/ruff check/format --config services/backend/pyproject.toml scripts/verify-candidate-archive.py scripts/test-candidate-archive.py`；Prettier，git diff --check。
+- PASS：独立四组Node保护32项，复核精确root命名、nested ZIP不豁免、负向拒绝和Linux命名兼容，无新增明确P1/P2；不构建/联网/GUI/写仓库。
+- 真实旧Linux候选的新verifier及archive audit只读回归正在完成，结果下补记；不重建/覆盖旧包。
+
+保全原件、b05/a3证据和已有a4de Linux候选；不更改main、依赖/版本/签名材料/凭据/系统权限/发布或费用，不训练/SSH/数据模型下载/训练环境安装。下一项正常开发分支push一次新修复自然免费CI；只有Windows实际候选与包内smoke成功才标完成。旧两次CI FAIL保留，不改为PASS、不rerun旧run、不凭本地32项冒充Windows。完整A/B仍未通过。
+
+本轮日志SHA256：
+- `/tmp/easyai-root-archive-before-20261019.log`：`c5f1b74480a6669cc885c187916658432b0869990be2ca7f34b0268720dddc7b`。
+- `/tmp/easyai-root-archive-after-20261019.log`：`0fa7eaf0b8d0364828f7979b6c206b47c05004db371ac90c1f68e10a329e75f6`。
+- `/tmp/easyai-root-archive-independent-1CpHxH.log`：`d1ea5f0872876d279b0b26775963c14077ac687835ac3bbcb6910fb35e8f83b1`。
+
+PASS补记：`node scripts/package-builder.mjs --verify dist/easyai-builder-a4de782a5efa-1792393988003-linux-x64` exit0，296记录；固定应用Python -I/runpy加载audit函数只读核同目录exit0，294文件、原归档SHA256 4733c8bd71f1b32836069fa0670843c0db8b98411200feb5ce42f2306b3ee0b9 保持。`pnpm format:check` exit0。
+- `/tmp/easyai-root-archive-linux-verify-20261019.log`：`2bcb392594d0486dfbe8cda08816af01c90eb71da8c6c17f80e1f27a4390e864`。
+- `/tmp/easyai-root-archive-linux-audit-20261019.log`：`900b34fb1aaeecdce5d7030683d4ff3d1d77397664bfaef75a46a8229872e8e5`。
+- `/tmp/easyai-root-archive-format-check-20261019.log`：`cbe9f0d2d90255e8d0e75efb8b65eb31c9f56a6a2fd881e2245b07403e38967f`。

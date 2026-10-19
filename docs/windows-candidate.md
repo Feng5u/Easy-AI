@@ -1,5 +1,7 @@
 # Windows 未签名候选
 
+父级补齐构建正文后，确定发现递归ZIP计数把PyInstaller的_internal/base_library.zip当成第二个分发包。Node与Python均已改为artifacts顶层唯一、精确配置文件名，nested ZIP仍保留全部字节校验；红绿复现和32项独审通过。新Windows实际结果待正常修复CI，旧FAIL不改写。
+
 2026-10-19 当前真实结果：`da5a1af18afd4115bf072273cc2b012a65cbee7e` / [run39222623389](https://github.com/T1doo/Easy-AI/actions/runs/39222623389) Linux SUCCESS，Windows打包保护SUCCESS，实际Build unsigned Windows candidate FAIL，后续ZIP/包内E2E/上传SKIPPED，尚无Windows候选。缺该构建步骤首异常/堆栈，父级可用已登录浏览器读取；根因UNKNOWN，不猜测或放宽保护。原Linux候选保留。
 
 后续确定修复：固定ASAR3.4.1在Windows输出native反斜杠，原入口/隐私/集合检查只识别正斜杠。实际ASAR回归旧代码精确BUILDER_ASAR_ENTRY_MISSING，两个库输出边界归一后26项与独审通过；安全门不变。此源码缺陷不冒充旧CI首错，新的正常修复提交/自然CI结果待核。
