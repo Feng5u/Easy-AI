@@ -3592,3 +3592,22 @@ ZIP435255641字节，SHA256 94d9873d1692c533e2b0d758aa47d4df3d6123f57686ad24930b
 实际本地命令最终PASS：pnpm check；pnpm test（400TS/2skip、950Python/19skip、36Node）；pnpm --filter @easyai/desktop build；git diff --check。定向及独立四文件20PASS不重复相加。日志与hash见前条。本机GUI仍NOTRUN，实际GUI证据仅来自本轮Windows开发态/包内；保留sandbox/CSP/nonce/身份与退出门，无sleep/阈值放宽。
 
 本轮仅TST32及既有两场景失败点修复回归验收，完整M4/M7/M5、真实MNIST效果、TST33/34、硬件/许可与A/B尚未整体验收。下一独立条件：已准备真实MNIST与运行范围；隔离SSH目标/可信指纹/凭据/窗口；TST34已有独立CPU环境无需新安装但尚未实际外部执行；TST33需无开发依赖的干净图形机。未把SSH作为所有本地项前置。无新训练/安装/下载/SSH/安全权限/凭据/共享环境/main/PR/Release/部署。当前仅本地收据/docs提交，避免报告额外CI；remote源码仍精确f487b65，main5323f86232529efcfb52131168ad049f01b219f3及原件/规格/README/锁不变。
+
+
+### TST34 合成 IDX 独立 Bundle 执行切片 PASS
+
+父级独审接受f487b6531f9e492fba3820d8408f3f372227cec9/CI39264647912后明确授权在原CPU32/16合成范围继续原TST34，不装包/下载/改共享环境。本轮基线本地4b89ecb59052fea53ac5d734bc957909fa9968bf，remote源码f487b65；工作区起始干净，当前无产品/测试/锁变动。先核已有CPython3.11.17、torch2.10.0+cpu、torchvision0.25.0+cpu、Matplotlib3.10.8/NumPy2.4.2/Pillow13.0.0，训练根owner/mode700。原5GB/单次1800秒预算未扩大；原根逻辑1988484456B，后验证1989867669B。独占新私有tst34-standalone-001；数据4个raw IDX共37728B，32train/16test，明确合成非MNIST。无需SSH。
+
+真实生产MainWorkflow/startBackend→鉴权sidecar→创建工程→实际Blockly mnist-figures fixture仅EPOCHS1/两BATCH8→保存revision2→Pythoncompile→exportBundle，目录选择回调只指本次目录，不冒称GUI/native picker。完整11文件+bundle.json在standalone-export专用easyai-code-80e7a26d-7ed4-4587-8d47-d8827407a4fc，非RunService暂存；独审核保存快照字节同原工程、IR programHash及5helper逐字同源码。
+
+保留真实FAIL：私有export.mjs在生产导出返回且逐文件hash核完后，误用JS localeCompare聚合hash而exit1；finally正常结束自有sidecar PID327012 exit0/signalnull。未重导出/重启/修改产品；Python规范排序重核同一输出PASS，恢复receipt准确标明不是原HTTP对象录制。原FAIL脚本/log保留；不是生产链缺陷修复。
+
+停止sidecar并核旧PID不存在后，独立训练Python按导出README运行code/train.py --data-root本次合成目录 --output-dir全新external-output --seed42，cwd为完整导出目录。子进程使用最小环境、清除PYTHONPATH/PYTHONHOME/仓库路径，不import Easy-AI；已有venv-I检查无easyai包，导出代码/helper未改。默认Linux numWorkers2原样保留，不用--config变更。私有standalone.py一次执行含真实训练及验证exit0，实际训练PID327173 exit0，9.36秒，stderr空；本次180秒子预算低于原1800秒，无训练重试。
+
+实际full/seed42/SGD lr.01/1epoch/两个loader batch8与保存快照/IR/事件一致；32/16样本、train_loss2.3290645480155945、test_accuracy.125均真实有限，但无MNIST效果含义。8条连续运行事件（非应用13条supervisor流），唯一epoch_completed/pipeline_completed、4产物。独立Python非main runpy只重建同seed初始模型，不再训练；weights_only实际加载，8/8张量更新且有限，三PNG实际Pillow解码成功。CSV与事件、四产物大小/SHA一致，导出所有11文件/hash和快照执行前后不变。0.5秒采样observedChildren=[]不代表无worker，不作为逐worker PID清理/取消证明。
+
+关键hash：program4a367d3633473260a10a6657d4f63cc752ab900e9d988b47878f12bb905c5772；code de8d1fd0ef2ff3436f2f06308c9c28463f8a30b22a5534b7ee10e879f4f4e343；bundle2b2cc10a7108e93bac7d2eecb1e64cd75c023a0f79555fa7a81959dffa4a0774；acceptance.json79de024fd1f7fa81a0b980e31e8c32e1559b58fba6a83c06c42c3ebbaa694a56。模型ee42cc870d1125af4dfb630f6c5bb4e5168b6e94ec3acfbebb7b9a2821952845，三PNG及所有日志/清单hash详见tst34-synthetic-standalone-evidence.md。数据/权重/Bundle/原始机器回执/私有脚本留在仓库外，Git仅记录必要非敏感证据。
+
+独立审查只读标准库重验导出11文件、IR/快照/hash、实际argv/cwd/sidecar停止/exitcode、连续事件/CSV与4产物，以及三张1000×600 PNG的CRC/解压PASS；未重复训练/导入torch，未冒称独立重跑8参数验证。无明确P1/P2，无生产修复需要。实际命令node私有export.mjs FAIL→python私有verify-export.py同目录PASS→python私有standalone.py真实独立训练及验证PASS；不是把原FAIL命令改称PASS。git diff --check PASS，未重复完整常规CI/测试（只有证据文档更改）。
+
+本轮只关闭TST34合成外部执行切片；真实MNIST效果/完整A或B/Windows外部训练/原生picker/TST33/进程树取消/SSH/硬件许可仍未验收。下一条件分别为真实数据与运行范围、隔离SSH目标/指纹/凭据/窗口、干净图形机，不装包/下载或改老师环境。旧TST32 GUI输入1..25及全1=9 unit边界、旧63px原因未确证和startup退出Unknown保持。保全4b89本地收据，当前仅本地文档提交不触发证据CI；remote源码仍f487b65，main5323f86232529efcfb52131168ad049f01b219f3未改，无PR/Release/部署/新权限或凭据。
