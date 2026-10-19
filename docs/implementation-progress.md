@@ -3474,3 +3474,16 @@ PASS命令（既有CI/XDG/UV_OFFLINE环境）：pnpm check；pnpm test（47文�
 - check `/tmp/easyai-selection-echo-check-20261019.log` SHA256 `e580f738fb6f2a6bfe01cc5daae5d3e702f5220b2ad112eafff67fad6afa0a95`。
 - 完整test `/tmp/easyai-selection-echo-all-test-20261019.log` SHA256 `ed4469de334f4b65316ac08f000b05e604a57a3e786404bb5a8fc88efdb9a6b1`。
 - 桌面build `/tmp/easyai-selection-echo-desktop-build-20261019.log` SHA256 `0642a3873b4cf0a1caeaa2a497eaaeb7c59375262842f042dabef8aa1c10c89f`。
+
+
+### 空白CNN真实纵向编辑切片验收：开发态与包内双场景全部SUCCESS
+
+源码及remote dev `4d60b86986e79d46690fd1a5d63d6e5fdb590195`，[CI39257059104](https://github.com/T1doo/Easy-AI/actions/runs/39257059104)。Linux job118074890058完整check/test/build SUCCESS；Windows job118074889967所有步骤SUCCESS：原生存储/主机信任合同、冻结后端/HTTP资源、应用隔离、step14开发态两个真实E2E、打包保护/build、ZIP审计、包内backend鉴权/资源/PID/EOF、step19实际打包应用同样两个E2E、step20上传留存。没有跳过失败第二次数值编辑/shape/修复/重开门，全部由这次单次自然CI执行通过。
+
+新空白场景从三个空工作区实际拖入13块，完成Prep与两组Dataset/Loader及ToolboxCNN的注册和稳定ID引用、Conv/ReLU/Pool/Flatten/Linear链、Python权威编译；第二次IN_FEATURES真实3135编辑得到精确SHAPE_MISMATCH和原Linear ID/禁用运行，再实际修复3136后完整代码等于初始。保存正常退出重启，active模型页恢复，workspaces字段/连接/ID/坐标严格全等、重编译代码全等，未绑定训练环境仍禁用运行。原Dataset错误修复、Monaco只读/映射/CSP、安全与退出场景同时保留且通过。测试只替换临时工程目录picker，没有最终图/注册/参数/编译状态注入。
+
+ZIP435254893B，SHA256 a6d3b407d6046f2c877c1b7624fbc22d07afbaddd270952e322d19afece77ace；artifact `easyai-unsigned-win-x64-4d60b86986e79d46690fd1a5d63d6e5fdb590195`，保留一天。准确操作/下载位置/证据边界写入candidate-windows-4d60b86.md并更新windows-candidate.md顶部。字节/hash及成功状态来自允许的jobs审计元数据，未下载、本机独立重验ZIP或读取artifact正文，受限日志接口未重试。原失败与本地/独立日志保全，不把多次旧FAIL抹成首次成功。
+
+本轮仅验收该M4/DoD空白CNN实际编辑、权威编译、诊断修复、严格保存重开切片；不是完整M4/M7、真实SSH/MNIST训练/效果、TST33、硬件/许可验收或完整A/B。下一项是依据原计划继续剩余UI/教程/发布验收缺口；训练环境、实际数据/SSH/硬件仍按原最小条件与授权门处理，本轮没有安装训练依赖/下载/真实SSH/凭据/权限/共享环境/main/PR/Release/部署操作。main5323f86232529efcfb52131168ad049f01b219f3及原件/README/规格/锁保持。
+
+本地最终命令状态：pnpm check PASS；pnpm test PASS（397 TS/950 Python/36 Node，skip见前条）；pnpm --filter @easyai/desktop build PASS；独立生命周期/React/SVG/focus35PASS与增强2PASS；本机实际GUI NOT RUN，由上述Windows实际开发态/包内测试提供GUI证据。当前仅本地收据/docs证据提交，避免为报告触发另一次CI；源码remote不变，候选精确对应4d60b86986e79d46690fd1a5d63d6e5fdb590195。
