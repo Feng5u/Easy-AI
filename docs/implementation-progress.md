@@ -3314,3 +3314,12 @@ PASS：完整pnpm check；真实SVG DOM/计算回归9tests；最后tsc -p tsconf
 - /tmp/easyai-toolbox-viewport-check-20261019.log SHA256 `e580f738fb6f2a6bfe01cc5daae5d3e702f5220b2ad112eafff67fad6afa0a95`。
 - /tmp/easyai-toolbox-viewport-regression-20261019.log SHA256 `922af7fe6c5ba3a51f1373c8eb129dce76bc104d2b9ef70baa2f767495e6801d`。
 - /tmp/easyai-toolbox-viewport-final-tsc-20261019.log SHA256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`。
+
+
+### 统一几何审查后单次CI：Linux全SUCCESS，Windows新证据待父级
+
+源码/remote `3dd9d04b60ef7aa51cd5bf34479508227b52566d`，[CI39248297720](https://github.com/T1doo/Easy-AI/actions/runs/39248297720)。Linux job118045533158完整check/test/build SUCCESS；Windows job118045532427前置native安全/冻结/backend/资源/build/venv隔离成功后，step14 pnpm test:e2e FAIL；后续打包验收未完成，无新候选。此次仅在统一源码审查和本地真实SVG DOM/受控矩形计算9PASS、check/tsc/格式/diff-check后提交的一次自然CI，未盲重跑旧run或开第二实例。
+
+已请求父级登录页面读取该step实际首错、最后ACTION、门前CANVAS_GEOMETRY与REVEAL_GEOMETRY/DRAG_GEOMETRY及退出标志，当前待返回。新日志前置到区域门之前，但本执行器还没有取得这些实际数值；不能从单step FAIL推断是否通过bounds、Prep注册或后续字段，也不再以源假设代替实际矩形修补。停止进一步CI，先核新事实再决定修复。此前真实退出CLOSE_CONFIRMED仅属3660轮，不能冒充本轮退出结果。
+
+边界：本机实际GUI因既有sandbox/无display条件仍NOT RUN，没有禁用沙盒或权限安装；真实SVG DOM受控计算不算像素布局/拖拽验收。原失败、字节原件、依赖锁/main、现有安全与验收门保持；本轮没有生产图注入/程序注册、训练、数据下载、SSH、发布或付费动作。当前仅本地证据docs提交，避免为报告额外触发CI。下一步所需的准确操作是父级读取上述Windows step14新几何和首错，状态待完成；完整空白CNN、M4/M7/A/B/SSH/MNIST/TST33/许可仍未验收。
