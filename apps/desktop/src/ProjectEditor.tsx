@@ -29,7 +29,7 @@ export function ProjectEditor(props: ProjectEditorProps) {
   const [error, setError] = useState("");
   const [loadError, setLoadError] = useState("");
   const [name, setName] = useState("");
-  const [version, refresh] = useState(0);
+  const [, refresh] = useState(0);
 
   useLayoutEffect(() => {
     if (!data.current || !model.current || !training.current) return;
@@ -149,8 +149,10 @@ export function ProjectEditor(props: ProjectEditorProps) {
   const entry = symbols.find((symbol) => symbol.id === props.selectedBlock);
   const selectedName = entry?.name ?? "";
   useEffect(() => {
+    // Queued geometry/selection events refresh the Inspector without changing
+    // its committed name. They must not replace a name still being typed.
     setName(selectedName);
-  }, [selectedName, props.selectedBlock, version]);
+  }, [selectedName, props.selectedBlock, props.project.projectId]);
   const readOnly = props.readOnly || Boolean(loadError);
   const action = (run: (instance: WorkspaceManager) => void) => {
     const instance = manager.current;

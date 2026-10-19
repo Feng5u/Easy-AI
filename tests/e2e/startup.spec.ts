@@ -176,16 +176,75 @@ test("secure desktop, Dataset error repair, Monaco and saved project reopen", as
     await expect(semanticPaint).toHaveCount(1);
     await expect(semanticPaint).toBeVisible();
     await expect(semanticPaint).toBeInViewport();
-    const paintBox = (await semanticPaint.boundingBox())!;
-    const lineBox = (await mappedLine.boundingBox())!;
-    expect(paintBox.width).toBeGreaterThan(0);
-    expect(paintBox.height).toBeGreaterThan(0);
-    expect(Math.abs(paintBox.y - lineBox.y)).toBeLessThan(2);
-    expect(
-      await semanticPaint.evaluate(
-        (element) => getComputedStyle(element).backgroundColor,
-      ),
-    ).toBe("rgba(114, 160, 76, 0.28)");
+    // Monaco's smooth reveal and view layers render asynchronously. Read both
+    // boxes in one synchronous DOM sample, then require the same strict mapped
+    // identity and geometry on the next frame as well. Do not compare boxes
+    // obtained by separate RPCs during a scroll animation.
+    const aligned = {
+      mappedCount: 1,
+      paintCount: 1,
+      sourceMatches: true,
+      nonzero: true,
+      aligned: true,
+      color: "rgba(114, 160, 76, 0.28)",
+    };
+    await expect
+      .poll(() =>
+        monaco.evaluate(
+          async (element, expected) => {
+            const normalize = (text: string) =>
+              text.replace(/\s+/g, " ").trim();
+            const sample = () => {
+              const lines = [
+                ...element.querySelectorAll(".view-lines > .view-line"),
+              ].filter(
+                (line) =>
+                  normalize(line.textContent ?? "") ===
+                  normalize(expected.text),
+              );
+              const paints = element.querySelectorAll(
+                ".monaco-source-selected-semantic",
+              );
+              const sources = element
+                .closest(".code-view")!
+                .querySelectorAll("ol > li.code-selected button");
+              const paint = paints[0]?.getBoundingClientRect();
+              const line = lines[0]?.getBoundingClientRect();
+              const difference =
+                paint && line ? Math.abs(paint.y - line.y) : null;
+              return {
+                mappedCount: lines.length,
+                paintCount: paints.length,
+                sourceMatches:
+                  sources.length === 1 &&
+                  sources[0]
+                    .getAttribute("aria-label")
+                    ?.endsWith(`源积木 ${expected.id}`) === true,
+                nonzero: Boolean(
+                  paint &&
+                  line &&
+                  paint.width > 0 &&
+                  paint.height > 0 &&
+                  line.width > 0 &&
+                  line.height > 0,
+                ),
+                aligned: difference !== null && difference < 2,
+                difference,
+                color: paints[0]
+                  ? getComputedStyle(paints[0]).backgroundColor
+                  : null,
+              };
+            };
+            const first = sample();
+            await new Promise<void>((resolve) =>
+              requestAnimationFrame(() => resolve()),
+            );
+            return { first, second: sample() };
+          },
+          { text: expectedSourceText, id: datasetId },
+        ),
+      )
+      .toMatchObject({ first: aligned, second: aligned });
     // Reverse navigation must select this declaration's actual source, not just
     // leave an already-selected Dataset unchanged.
     await symbols.getByRole("button", { name: /^train_batches/ }).click();

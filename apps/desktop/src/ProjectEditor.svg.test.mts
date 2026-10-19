@@ -159,6 +159,76 @@ function initialize(block: Blockly.BlockSvg) {
   for (const input of block.inputList)
     for (const field of input.fieldRow) field.getSize();
 }
+it("preserves an Inspector name draft across actual queued Blockly refreshes before Enter", async () => {
+  const { manager, onSelect, onChange } = await mount();
+  const workspace = manager.workspaces.data as Blockly.WorkspaceSvg;
+  let block!: Blockly.BlockSvg;
+  await act(async () => {
+    container
+      .querySelector<HTMLButtonElement>('[role="tab"][aria-controls$="-data"]')!
+      .click();
+  });
+  await act(async () => {
+    block = workspace.newBlock(
+      "data.dataloader",
+      "svg-draft-loader",
+    ) as Blockly.BlockSvg;
+    initialize(block);
+    Blockly.getFocusManager().focusNode(block);
+    await vi.waitFor(() => expect(onSelect).toHaveBeenLastCalledWith(block.id));
+  });
+  const input = container.querySelector<HTMLInputElement>(
+    'input:not([type="checkbox"])',
+  )!;
+  expect(input.value).toBe("MyObject");
+  act(() => {
+    input.focus();
+    Object.getOwnPropertyDescriptor(
+      dom.window.HTMLInputElement.prototype,
+      "value",
+    )!.set!.call(input, "TrainBatches");
+    input.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+  });
+  expect(input.value).toBe("TrainBatches");
+  // A real queued geometry event serializes the same graph and refreshes the
+  // Inspector. Its unchanged committed NAME must not replace a focused draft.
+  onChange.mockClear();
+  await act(async () => {
+    block.moveBy(10, 5);
+    await vi.waitFor(() => expect(onChange).toHaveBeenCalled());
+  });
+  expect(document.activeElement).toBe(input);
+  expect(input.value).toBe("TrainBatches");
+  expect(block.getFieldValue("NAME")).toBe("MyObject");
+  onChange.mockClear();
+  await act(async () => {
+    input.dispatchEvent(
+      new dom.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+    );
+    await vi.waitFor(() => expect(onChange).toHaveBeenCalled());
+  });
+  expect(block.getFieldValue("NAME")).toBe("TrainBatches");
+  expect(block.getField("NAME")!.getSvgRoot()!.textContent).toContain(
+    "TrainBatches",
+  );
+  expect(manager.block(block.id)).toBe(block);
+  expect(onChange.mock.lastCall![0]).toEqual(manager.serialize());
+  expect(
+    manager.symbols().find((symbol) => symbol.id === block.id)?.registered,
+  ).toBe(false);
+  await act(async () => {
+    container
+      .querySelector<HTMLInputElement>('input[type="checkbox"]')!
+      .click();
+    await vi.waitFor(() =>
+      expect(
+        manager.symbols().find((symbol) => symbol.id === block.id)?.registered,
+      ).toBe(true),
+    );
+  });
+  expect(block.getFieldValue("NAME")).toBe("TrainBatches");
+  expect(manager.block(block.id)).toBe(block);
+});
 it("keeps a reopened actual number editor alive through the native selection echo", async () => {
   const { manager, onSelect, onChange } = await mount();
   const workspace = manager.workspaces.model as Blockly.WorkspaceSvg;

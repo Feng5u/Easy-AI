@@ -3552,3 +3552,21 @@ ZIP435255629B，SHA256 74f3522825f4e3f9106319f6af65515ab539304e708bd31e572ad60cc
 实际本地pnpm check/定向unit22/测试发现3项及独审结果仍如上，不能替代GUI。TST32新增实际桌面路径为FAIL（本次套件）/具体场景结果UNKNOWN；包内教程NOT RUN。完整M4/M7、真实MNIST/SSH/TST33/34/许可/硬件/A/B均未整体验收。剩余四项最小输入已独立列于acceptance-prerequisites-20261019.md；本轮无训练/安装/下载/SSH/权限/凭据/共享环境/main/PR/Release/部署行为。
 
 此条仅本地docs提交，避免报告额外触发CI。下一必要动作是核实上述实际首错并保留正常退出或未知清理状态，再按证据做最小修复；这是等待缺失诊断信息，不是新的操作拒绝或已知程序缺陷判定。main5323f86232529efcfb52131168ad049f01b219f3及原计划/规格/README/两个锁保持。
+
+
+### 本次 Windows 两个既有场景首错：真实 draft 丢失 RED 与同帧几何观测修复
+
+父级从已登录页面转回CI39263027274/job118095344258 step14实际正文：2failed/1passed，22.0s。blank-cnn先前Prep/TrainData/TestData已成功；在data.register(trainLoader, TrainBatches)处，13:48:21UTC select/rename动作返回成功，随后5秒14次实际SVG NAME/aria-label始终MyObject而预期TrainBatches，canvas.ts366:42→interaction31:20→blank174:7/134:5；未到TrainBatches checkbox。13:48:26注册断言FAIL，pid2904退出code0/CLOSE_CONFIRMED，renderer failures[]。另一startup在183:46两次boundingBox后立即比较，Math.abs(paintBox.y-lineBox.y)预期<2，实际63。不是旧IN_FEATURES编辑失败；不因前次绿色或新增教程而忽略两项既有路径。第三场景明确名称与startup退出正文仍待补，不先把总计1passed认作教程逐断言通过。
+
+本地真实SVG/React新增回归：真实data.dataloader默认NAME MyObject→实际DOM输入TrainBatches，焦点保留→实际block.moveBy产生异步Blockly事件，经changed/serialize/onChange/props receive/onRefresh→ProjectEditor的version依赖effect将聚焦草稿重置MyObject。旧源码有效RED，失败点是input.value，并非伪造SVG字段。说明一个可真实复现且符合失败表现的产品缺陷；未声称已经取得CI当时每个输入事件的因果轨迹。最小修复：仍force refresh派生视图，但名称effect不依赖每次version，只依已提交selectedName、selectedBlock与projectId。无关刷新不能丢草稿；实际选项/工程改变与Undo/Redo改名仍同步。GREEN同一真实块ID、SVG NAME变TrainBatches、serialize匹配，随后真实checkbox注册不回退；原数值重开与引用菜单、Undo/Redo回归均保留。
+
+Monaco独审查锁定源码：revealLineInCenterIfOutsideViewport默认Smooth，文本层/装饰层按帧更新；原测试分两个await RPC读取bbox，visible/inViewport不足以证明同帧收敛。63px不能单独证明唯一原因，也无证据足以修改产品controller。仅改startup测试观测：expect.poll里单次同步DOM读取，精确规范化源码文本唯一匹配、隐藏source-map唯一button仍为当前Dataset ID、唯一语义paint、双方非零尺寸、原<2px与原颜色门；相邻rAF两次都满足才通过。原可见/视口断言保留；无sleep、无增大阈值、无强制render/reveal、无选择/映射注入，永久错误仍超时FAIL。
+
+定向ProjectEditor.svg/ProjectEditor/monaco-controller/monaco-mapping四文件20PASS，独审同20PASS不重复加总，无新增明确P1/P2。pnpm check PASS，桌面build PASS。完整pnpm test正在收口，未提前宣称PASS；本机GUI仍NOTRUN，无安全降级/重试拒绝接口。按父级要求等本轮完整场景及退出证据合并后才考虑一次有界正常CI，当前尚未提交/推送此修复。
+
+保留日志：/tmp/easyai-inspector-draft-red-20261019.log SHA256 1673c17fb588d8fdee47f6900ebae27cf499d6cf6935f50b0fe23c8c16e91b5a；/tmp/easyai-inspector-draft-green-20261019.log da58ade9f983631537e3f458cc97ce3ec23cf802eb14c396383e5d4357b214a8；/tmp/easyai-inspector-check-20261019.log e580f738fb6f2a6bfe01cc5daae5d3e702f5220b2ad112eafff67fad6afa0a95；/tmp/easyai-inspector-build-20261019.log ed59c825e5fc94ea54ec964d4cb59b35ff78e665c07b9fef35d0f80bcf564803。
+
+
+本地完整收口：pnpm test最终PASS，400 TS/2skip、950 Python/19skip（75.83秒，1既有warning）、36 Node；日志/tmp/easyai-inspector-all-test-20261019.log SHA256 dc6740061ed6ce0eebbfbb025cefa9488d9bf2189da94bd7791bc4758c61bb16。pnpm check、pnpm --filter @easyai/desktop build、git diff --check及独审亦PASS。原plan dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43、原规格5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190、README befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852、pnpm锁886aa7c3d4943909de165f313ac3eaae1260e0b4cd2849995cd960ddc40e046c、uv锁7a04b74c033975f0bdea0c4cc7f828d15edd36efc4abaa2d83fcf10a9f9bf77c均不变。
+
+修复仅先本地正常开发提交，保全5664c6bb2778f2880424c4ea37b2629c96f54fa0及先前证据；remote dev仍9165c6fe9416b8b456a5ba703f30c1329dc7f95b，main仍5323f86232529efcfb52131168ad049f01b219f3。等待父级完整第三场景及startup退出信息后再推进一次必要自然CI；此次未推送/触发新CI。TST32、当前修改Windows实际执行均未验收；不借先前Windows候选或本地单元称通过。没有新训练、数据/依赖下载、SSH、权限、凭据、教师环境或发布操作。
