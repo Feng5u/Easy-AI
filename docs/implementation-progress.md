@@ -3139,3 +3139,16 @@ PASS：固定workspace XDG/UV_OFFLINE=1 pnpm check（/tmp/easyai-ui-check-202610
 已请父级已登录浏览器提供本轮step14首失败断言、行号、expected/received和调用日志；该读取状态pending，本执行器既有logs/artifacts/browser拒绝限制不变，未重试/绕过，未盲重跑workflow或降低UI断言。指定源修复已由本地真实inject红绿、独审无P1/P2、实际Vite build和LinuxCI验证；完整Windows编辑闭环仍FAIL/未验收，packaged UI NOT RUN。下一操作仅据本轮实际首错定位并继续正常修复。
 
 当前无真实训练/下载/SSH/凭据/发布变化；main/原件未动，工作区证据本地提交后clean，该结案证据不单独push触发CI。此前e108与e400已随正常源码push保留到远端。
+
+
+## 2026-10-19 当前Monaco EditContext只读公共语义与真实输入验收
+
+父级读取CI39239060925/job118015170748 step14首错：startup.spec.ts:128，Monaco容器toBeVisible已PASS，后续textarea.inputarea属性检查element not found/5000ms，非原train_data首错。来源https://github.com/T1doo/Easy-AI/actions/runs/39239060925/job/118015170748。Blockly语言初始化缺陷与红绿证据保留，不回退产品。
+
+版本核实：锁定Monaco0.57.0 view.js依据effectiveEditContext创建NativeEditContext或TextAreaEditContext；当前Chromium支持native，nativeEditContext.js创建div，另有aria-hidden的IME textarea，不存在旧textarea.inputarea。两实现分别由native/screenReaderSupport.js:90–95和textArea/textAreaEditContext.js:131–137暴露role=textbox、aria-multiline=true，且aria-autocomplete直接由真实EditorOption.readOnly决定none/both。因此原私有textarea选择器不适用，上一轮e108属性值修正不足；没有产品可写缺陷证据。
+
+本次仅修现有E2E：真实Monaco容器内唯一可访问textbox、multiline与readOnly派生公共ARIA状态；focus并断言实际聚焦，CtrlHome确认真实渲染首行，记录Monaco实际可见代码，键盘插入sentinel后两帧render屏障并确认逐行不变，再全选Delete、CtrlHome恢复viewport、同样确认实际渲染不变。不是扩大selector后跳过加载/只读门，不使用隐藏fallback替代此行为检查，不使用monaco实例私有属性、CDN/新runner、产品test hook或强制旧输入模式。原真实Monaco/CSP/定位/Undo/生成全文/工作区/保存重开断言均保留。
+
+独审无明确P1/P2。PASS：固定workspace XDG/UV_OFFLINE=1 pnpm check（/tmp/easyai-monaco-editcontext-check-20261019.log）；prettier与git diff --check。本执行器无显示服务，真实键盘行为和完整Windowsdev/package验收仍NOT RUN，须看本次一次自然CI。无数据/训练/SSH/凭据/权限/CSP/sandbox变化。
+
+- /tmp/easyai-monaco-editcontext-check-20261019.log SHA256 `e580f738fb6f2a6bfe01cc5daae5d3e702f5220b2ad112eafff67fad6afa0a95`。
