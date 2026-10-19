@@ -38,7 +38,7 @@ pip的isolated不等于禁用global/site配置，no-index也不移除配置追�
 
 ## 尚缺与真实验证条件
 
-四项代码接线、ML、scikit-image与Lightning固定可选闭包已实现；尚需确切可信conda/base模块及bootstrap来源配置、许可/目标/预算的真实执行授权，以及正向真实环境probe、其余7可选卡来源/系统要求核验、Main来源原生对话框真实验收（源码选择/预览/明确登记已有，见install-source-picker.md）、任务历史/保留策略、存活安装子进程重连和未知停止安全解除、远端目标以及实际owned环境纵向验收。实际安装器、probe及持久日志现在已有代码基础，但尚未完成真实依赖安装纵向验证。目录fsync仅用于本地origin先于owned marker的顺序，未据此签完整跨目录断电恢复保证。
+四项代码接线、ML、scikit-image与Lightning固定可选闭包已实现；尚需确切可信conda/base模块及bootstrap来源配置、许可/目标/预算的真实执行授权，以及正向真实环境probe、其余7可选卡来源/系统要求核验、Main来源原生对话框真实验收（源码选择/预览/明确登记已有，见install-source-picker.md）、任务历史/保留策略、存活安装子进程重连和未知停止安全解除、远端真实目标验收以及实际owned环境纵向验收。实际安装器、probe及持久日志现在已有代码基础，但尚未完成真实依赖安装纵向验证。目录fsync仅用于本地origin先于owned marker的顺序，未据此签完整跨目录断电恢复保证。
 
 真实执行前需明确一次性 owned 环境范围、包源和下载预算，展示具体计划后再获得执行授权；SDK/许可另核。不使用教师共享环境、不在应用 Python 安装 torch、不下载训练数据。当前合同/组件/Main/冻结 sidecar 测试均不执行这些动作。
 
@@ -47,3 +47,6 @@ pip的isolated不等于禁用global/site配置，no-index也不移除配置追�
 关闭先设置取消（包括planning inspector），总等待预算从mutex获取前开始；超时保留journal/lease，不将取消请求当静止证明。worker和pipe owner已确认退出且无未知lease后才关闭journal。plan在source散列返回后的最终保存边界再核close请求，迟到结果拒绝。
 
 每次baseline/bootstrap/final probe持有独立receipt和本job取消token，保留其实际supervisor；静止须同时证明leader退出、reader/monitor/cancel线程结束及owner关闭。探测异常不能沿用上一条安装命令的静止结论；未知时保留lease、receipt和journal，不写ready。同prefix存在未确认静止的receipt时拒绝新probe，其他prefix独立；close显式取消所有receipt，单job取消不传播到其他job。规划/确认尚无job的未知probe也阻止关闭与同prefix重入；不自动退休或推断可安全重跑。
+
+
+远端owned安装通过同一InstallService目标适配接入，计划仅接受已保存目标和当前认证会话引用。来源/根/预算来自私有operator策略，真实执行默认关闭；唯一writer/预留WAL/阶段intent/取消与未知隔离、只核验收口及固定实际复检接口见[远端合同](remote-install.md)。合成协议不是安装/ABI通过，未替代剩余7卡与真实课堂/SSH验收。

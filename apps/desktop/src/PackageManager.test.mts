@@ -12,6 +12,7 @@ import { startBackend } from "../electron/backend.mjs";
 import { MainWorkflow } from "../electron/workflow.mjs";
 import type {
   DesktopAPI,
+  AuthenticatedConnection,
   InstallJob,
   InstallPlan,
   PackageCatalog,
@@ -128,11 +129,11 @@ function setup() {
 let dom: InstanceType<typeof JSDOM>,
   root: Root | undefined,
   container: HTMLDivElement;
-async function mount(api: API) {
+async function mount(api: API, remoteSession?: AuthenticatedConnection | null) {
   const { createRoot } = await import("react-dom/client");
   root ??= createRoot(container);
   await act(async () => {
-    root!.render(createElement(PackageManager, { api }));
+    root!.render(createElement(PackageManager, { api, remoteSession }));
   });
 }
 function button(label: string) {
@@ -153,7 +154,9 @@ async function checkbox(label: string) {
   await act(async () => node.click());
 }
 async function choose(value: string) {
-  const node = container.querySelector<HTMLSelectElement>("select")!;
+  const node = container.querySelector<HTMLSelectElement>(
+    'select[aria-label="环境方案"]',
+  )!;
   await act(async () => {
     Object.getOwnPropertyDescriptor(
       dom.window.HTMLSelectElement.prototype,
@@ -623,4 +626,59 @@ it("recovered awaiting confirmation is read-only expiry, not a new actionable in
   expect(container.querySelector('[aria-label="安装任务登记"]')).toBeNull();
   expect(h.api.confirm).not.toHaveBeenCalled();
   expect(h.api.cancel).not.toHaveBeenCalled();
+});
+
+it("remote plans bind the authenticated saved target and never use local source registration", async () => {
+  const h = setup();
+  const auth: AuthenticatedConnection = {
+    targetId: planId,
+    targetRevision: 1,
+    projectId: environmentId,
+    requestId: jobId,
+    identityRequestId: planId,
+    username: "synthetic",
+    authenticated: true,
+    method: "password",
+    expiresInSeconds: 300,
+    scope: {
+      projectId: environmentId,
+      connectionId: jobId,
+      endpoint: { host: "synthetic.invalid", port: 22 },
+      hostFingerprint: "SHA256:" + "A".repeat(43),
+    },
+  };
+  h.api.plan.mockResolvedValue({
+    ...plan(),
+    targetId: planId,
+    targetIdentity: {
+      projectId: environmentId,
+      targetId: planId,
+      targetRevision: 1,
+      endpoint: auth.scope.endpoint,
+      hostFingerprint: auth.scope.hostFingerprint,
+      username: auth.username,
+      root: "/synthetic/owned",
+    },
+    remoteFreeBytes: 1048576,
+  });
+  await mount(h.api, auth);
+  const target = container.querySelector<HTMLSelectElement>(
+    'select[aria-label="安装目标"]',
+  )!;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(
+      dom.window.HTMLSelectElement.prototype,
+      "value",
+    )!.set!.call(target, "remote");
+    target.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+  });
+  expect(button("选择本地离线来源").disabled).toBe(true);
+  await click("只生成安装计划");
+  expect(h.api.plan.mock.calls[0][0]).toMatchObject({
+    targetId: planId,
+    remoteSession: { projectId: environmentId, connectionId: jobId },
+  });
+  expect(container.textContent).toContain("/synthetic/owned");
+  expect(h.api.chooseSources).not.toHaveBeenCalled();
+  expect(h.api.confirm).not.toHaveBeenCalled();
 });

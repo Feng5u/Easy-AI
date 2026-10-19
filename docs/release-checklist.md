@@ -38,4 +38,4 @@
 
 代码缺口也仍存在：Windows host storage生产门尚未开放，Windows原生失败正文/后续修复与目标机包仍须推进；17包中7卡无支持闭包（opencv-python、nltk、spacy、sentencepiece、transformers、gensim、hanlp），其中OpenCV native要求未核，不能换headless。包卡要补兼容版本/许可/依赖闭包、hash/预算/安装与复检合同及真实验证；NLP语料/模型另需明确条件，不能自动下载。
 
-远端受控安装也仍是代码缺口：当前InstallPlanRequest.targetId只允许local，teacher-existing只读；没有远端安装计划/owned目标边界、来源与预算传输、远端环境锁/受管执行/WAL、取消与重连/未知停止隔离、远端复检及可信回读闭环。已有SSH训练执行/产物同步不是远端包安装器。另有本地历史保留管理和未知停止显式安全解除等既有未实现项。本轮只关闭输入封闭P2，停止包装外围开发，不把这些范围造作已完成或只待环境。
+远端受控安装已新增同一InstallService的owned目标适配、来源预算/身份绑定、预留WAL、唯一owner、取消与断线隔离、只核验收口、最终固定真实复检接口及UI状态，见[remote-install.md](remote-install.md)。目前只有受控合成协议证据，真实远端来源/许可/目标/预算执行授权、安装/ABI/故障/跨进程重启/课堂流仍NOT RUN。恢复不重放安装；未知停止保留锁。其余7卡、本地历史保留管理与未知停止安全解除等代码缺口仍存在；不能称全部仅待环境。本片停止包装外围开发，无新分发包、Release或PR。

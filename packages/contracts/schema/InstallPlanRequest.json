@@ -14,14 +14,54 @@
       ],
       "title": "NewEnvironmentSpec",
       "type": "object"
+    },
+    "SessionControl": {
+      "additionalProperties": false,
+      "properties": {
+        "projectId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Projectid",
+          "type": "string"
+        },
+        "connectionId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Connectionid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "projectId",
+        "connectionId"
+      ],
+      "title": "SessionControl",
+      "type": "object"
     }
   },
   "additionalProperties": false,
   "properties": {
     "targetId": {
-      "const": "local",
-      "title": "Targetid",
-      "type": "string"
+      "anyOf": [
+        {
+          "const": "local",
+          "type": "string"
+        },
+        {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "type": "string"
+        }
+      ],
+      "title": "Targetid"
+    },
+    "remoteSession": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SessionControl"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "profileId": {
       "enum": [

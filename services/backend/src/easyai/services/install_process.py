@@ -150,6 +150,36 @@ def owned_python(prefix: Path) -> Path:
     return python
 
 
+def pip_source(wheelhouse: str, lock: str) -> str:
+    argv = [
+        "pip",
+        "--isolated",
+        "--disable-pip-version-check",
+        "install",
+        "--no-index",
+        "--find-links",
+        wheelhouse,
+        "--require-hashes",
+        "--only-binary=:all:",
+        "--no-input",
+        "--no-cache-dir",
+        "-r",
+        lock,
+    ]
+    source = (
+        HEADER
+        + PIP_ENVIRONMENT
+        + "import runpy\nsys.argv="
+        + repr(argv)
+        + "\n"
+        + "try:\n runpy.run_module('pip',run_name='__main__')\n"
+        + "except SystemExit as error:\n"
+        + " if error.code not in (None,0): raise\n"
+        + _event("pipeline_completed")
+    )
+    return source
+
+
 class OfflineWheelInstaller:
     """Real pip implementation; dispatched only through the plan-bound runtime worker.
 
@@ -193,36 +223,42 @@ class OfflineWheelInstaller:
             stream.write(reviewed_lock)
             stream.flush()
             os.fsync(stream.fileno())
-        argv = [
-            "pip",
-            "--isolated",
-            "--disable-pip-version-check",
-            "install",
-            "--no-index",
-            "--find-links",
-            str(self.wheelhouse),
-            "--require-hashes",
-            "--only-binary=:all:",
-            "--no-input",
-            "--no-cache-dir",
-            "-r",
-            str(lock),
-        ]
-        source = (
-            HEADER
-            + PIP_ENVIRONMENT
-            + "import runpy\nsys.argv="
-            + repr(argv)
-            + "\n"
-            + "try:\n runpy.run_module('pip',run_name='__main__')\n"
-            + "except SystemExit as error:\n"
-            + " if error.code not in (None,0): raise\n"
-            + _event("pipeline_completed")
-        )
+        source = pip_source(str(self.wheelhouse), str(lock))
         outcome, _ = self.commands.run(
             [str(owned_python(prefix)), "-I", "-B", "-c", source], prefix, cancel, progress
         )
         return outcome
+
+
+def inspection_source(nonce: str, import_names: tuple[str, ...]) -> str:
+    names = [item["name"] for item in wheels(PROFILE_ROOT, set(OPTIONAL_ROOTS))]
+    source = (
+        HEADER
+        + "import importlib.metadata,platform\n"
+        + "versions={}\n"
+        + "for name in "
+        + repr(names)
+        + ":\n"
+        + " try: versions[name]=importlib.metadata.version(name)\n"
+        + " except importlib.metadata.PackageNotFoundError: pass\n"
+        + "imports={}\n"
+        + "for name in "
+        + repr(import_names)
+        + ":\n"
+        + " try: __import__(name); imports[name]=True\n"
+        + " except Exception: imports[name]=False\n"
+        + "tensor=False\n"
+        + "try:\n import torch\n"
+        + " tensor=bool(torch.nn.functional.conv2d(torch.ones(1,1,3,3),torch.ones(1,1,2,2)).eq(4).all().item())\n"
+        + "except Exception: pass\n"
+        + "report={'nonce':"
+        + repr(nonce)
+        + ",'prefix':sys.prefix,'pythonVersion':platform.python_version(),"
+        + "'versions':versions,'imports':imports,'tensorOk':tensor}\n"
+        + _event("progress", "report")
+        + _event("pipeline_completed")
+    )
+    return source
 
 
 class ManagedInstallInspector:
@@ -241,33 +277,7 @@ class ManagedInstallInspector:
         receipt.quiescent = True  # Fixed input validation has not spawned an owner.
         if not set(receipt.import_names).issubset(ALLOWED_IMPORTS):
             raise ValueError("INSTALL_INSPECTION_INVALID")
-        names = [item["name"] for item in wheels(PROFILE_ROOT, set(OPTIONAL_ROOTS))]
-        source = (
-            HEADER
-            + "import importlib.metadata,platform\n"
-            + "versions={}\n"
-            + "for name in "
-            + repr(names)
-            + ":\n"
-            + " try: versions[name]=importlib.metadata.version(name)\n"
-            + " except importlib.metadata.PackageNotFoundError: pass\n"
-            + "imports={}\n"
-            + "for name in "
-            + repr(receipt.import_names)
-            + ":\n"
-            + " try: __import__(name); imports[name]=True\n"
-            + " except Exception: imports[name]=False\n"
-            + "tensor=False\n"
-            + "try:\n import torch\n"
-            + " tensor=bool(torch.nn.functional.conv2d(torch.ones(1,1,3,3),torch.ones(1,1,2,2)).eq(4).all().item())\n"
-            + "except Exception: pass\n"
-            + "report={'nonce':"
-            + repr(nonce)
-            + ",'prefix':sys.prefix,'pythonVersion':platform.python_version(),"
-            + "'versions':versions,'imports':imports,'tensorOk':tensor}\n"
-            + _event("progress", "report")
-            + _event("pipeline_completed")
-        )
+        source = inspection_source(nonce, receipt.import_names)
         outcome, events = self.commands.run(
             [str(owned_python(prefix)), "-I", "-B", "-c", source],
             prefix,

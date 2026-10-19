@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type {
   DesktopAPI,
+  AuthenticatedConnection,
   InstallJob,
   InstallPlan,
   InstallPlanRequest,
@@ -58,7 +59,23 @@ const observationLabels = {
   historical: "历史结果记录，本次未检查当前环境",
   "stop-unconfirmed": "停止未确认；可能仍有进程或管道 owner，不可视为已停止",
 };
-export function PackageManager({ api }: { api: API }) {
+export function PackageManager({
+  api,
+  remoteSession,
+}: {
+  api: API;
+  remoteSession?: AuthenticatedConnection | null;
+}) {
+  const [target, setTarget] = useState<"local" | "remote">("local");
+  const [ownedId, setOwnedId] = useState("");
+  const [existing, setExisting] = useState(false);
+  const remoteKey = remoteSession
+    ? `${remoteSession.projectId}:${remoteSession.scope.connectionId}:${remoteSession.targetId}`
+    : "";
+  const targetKey = `${target}:${remoteKey}`;
+  const currentTargetKey = useRef(targetKey);
+  currentTargetKey.current = targetKey;
+
   const [catalog, setCatalog] = useState<PackageCatalog | null>(null);
   const [profile, setProfile] = useState<"easyai-cpu" | "teacher-existing">(
     "easyai-cpu",
@@ -225,16 +242,32 @@ export function PackageManager({ api }: { api: API }) {
     }, "来源登记结果尚未确认；不会自动重试或安装。请核对现配置与来源，必要时重新预览。");
   }
   function makePlan() {
-    const ticket = generation.current;
+    const ticket = generation.current,
+      expectedTarget = currentTargetKey.current;
+    if (target === "remote" && !remoteSession?.targetId) return;
     const request: InstallPlanRequest = {
-      targetId: "local",
+      targetId: target === "remote" ? remoteSession!.targetId! : "local",
+      ...(target === "remote"
+        ? {
+            remoteSession: {
+              projectId: remoteSession!.projectId,
+              connectionId: remoteSession!.scope.connectionId,
+            },
+          }
+        : {}),
       profileId: profile,
       packageIds: [...selected] as InstallPlanRequest["packageIds"],
-      newEnvironmentSpec: { name },
+      ...(existing
+        ? { ownedEnvironmentId: ownedId }
+        : { newEnvironmentSpec: { name } }),
     };
     void operation(async () => {
       const value = await api.plan(request);
-      if (mounted.current && ticket === generation.current) {
+      if (
+        mounted.current &&
+        ticket === generation.current &&
+        expectedTarget === currentTargetKey.current
+      ) {
         setPlan(value);
         setAcknowledged(false);
       }
@@ -244,6 +277,12 @@ export function PackageManager({ api }: { api: API }) {
     if (!plan || !acknowledged || plan.blockers.length || activeJob) return;
     const ticket = generation.current,
       expected = plan;
+    if (
+      expected.targetId !== "local" &&
+      (expected.targetId !== remoteSession?.targetId ||
+        expected.targetIdentity?.projectId !== remoteSession?.projectId)
+    )
+      return;
     void operation(async () => {
       const value = await api.confirm({
         planId: expected.planId,
@@ -276,20 +315,96 @@ export function PackageManager({ api }: { api: API }) {
       if (mounted.current) setJob(value);
     });
   }
+  function reconcile(expected: InstallJob, cancel: boolean) {
+    if (
+      !api.reconcile ||
+      !remoteSession ||
+      expected.targetId !== remoteSession.targetId ||
+      expected.targetIdentity?.projectId !== remoteSession.projectId
+    )
+      return;
+    const scope = {
+      projectId: remoteSession.projectId,
+      connectionId: remoteSession.scope.connectionId,
+    };
+    const key = currentTargetKey.current;
+    void operation(async () => {
+      const value = await api.reconcile!(expected.jobId, scope, cancel);
+      if (
+        value.jobId !== expected.jobId ||
+        value.planHash !== expected.planHash ||
+        value.targetId !== expected.targetId
+      )
+        throw Error("安装任务身份不符");
+      if (mounted.current && key === currentTargetKey.current) setJob(value);
+    }, "远端核验结果未知，继续保留隔离；没有重放或继续安装。请重新认证同一目标后核验。");
+  }
   return (
     <section className="panel" aria-labelledby="packages-heading">
       <h2 id="packages-heading" tabIndex={-1}>
         受控包安装计划
       </h2>
       <p>
-        {catalog?.executionEnabled
-          ? "本机离线安装来源已获授权；是否执行仍以具体计划及本次明确确认为准。"
-          : "当前可离线生成计划、明确确认登记和取消登记；真实安装执行、新环境创建与真实依赖复检尚未启用。"}
+        {target === "remote"
+          ? "远端方案只使用目标上已备的离线来源；执行权以固定目标策略和本次计划为准，不沿用本机授权。"
+          : catalog?.executionEnabled
+            ? "本机离线安装来源已获授权；是否执行仍以具体计划及本次明确确认为准。"
+            : "当前可离线生成计划、明确确认登记和取消登记；真实安装执行、新环境创建与真实依赖复检尚未启用。"}
         不会修改应用 Python 或教师共享环境，也不会下载数据。
       </p>
       <p>
-        目标是本机应用管理的新环境，独立于当前工程。任务状态保存在本机，重启不自动恢复执行；可在下方查看已保存任务的只读报告。
+        目标仅限应用拥有的隔离环境，独立于工程的教师环境。任务状态保存在本机，重启不自动恢复执行；可在下方查看已保存任务的只读报告。
       </p>
+      <label>
+        安装目标
+        <select
+          aria-label="安装目标"
+          disabled={locked}
+          value={target}
+          onChange={(event) => {
+            invalidate();
+            setTarget(event.target.value as "local" | "remote");
+          }}
+        >
+          <option value="local">本机 owned 环境</option>
+          <option value="remote" disabled={!remoteSession?.targetId}>
+            当前已认证保存的 SSH 目标
+          </option>
+        </select>
+      </label>
+      {target === "remote" && (
+        <p role="status">
+          {remoteSession?.targetId
+            ? `远端 ${remoteSession.scope.endpoint.host} / ${remoteSession.username}；${remoteSession.scope.hostFingerprint}。仅使用已备离线来源，默认执行关闭，不自动上传或下载。`
+            : "SSH 会话已失效；请重新认证，旧计划不能沿用。"}
+        </p>
+      )}
+      <label>
+        <input
+          type="checkbox"
+          checked={existing}
+          disabled={locked}
+          onChange={(event) => {
+            invalidate();
+            setExisting(event.target.checked);
+          }}
+        />
+        选择已有 owned 环境
+      </label>
+      {existing && (
+        <label>
+          owned 环境 ID
+          <input
+            aria-label="owned 环境 ID"
+            value={ownedId}
+            disabled={locked}
+            onChange={(event) => {
+              invalidate();
+              setOwnedId(event.target.value);
+            }}
+          />
+        </label>
+      )}
       {error && <p role="alert">{error}</p>}
       <section aria-label="已保存安装任务">
         <h3>已保存安装任务与报告</h3>
@@ -335,7 +450,8 @@ export function PackageManager({ api }: { api: API }) {
             <h4>安装任务报告（只读快照）</h4>
             <p>
               任务：<code>{historyReport.summary.jobId}</code>；环境：
-              <code>{historyReport.summary.environmentId}</code>
+              <code>{historyReport.summary.environmentId}</code>；目标：
+              {historyReport.summary.targetId ?? "local"}
             </p>
             <p>
               最后持久记录：{historyReport.summary.recordedAt}，状态：
@@ -395,7 +511,10 @@ export function PackageManager({ api }: { api: API }) {
         <button
           type="button"
           disabled={
-            locked || !selected.length || profile === "teacher-existing"
+            locked ||
+            target === "remote" ||
+            !selected.length ||
+            profile === "teacher-existing"
           }
           onClick={chooseSources}
         >
@@ -470,6 +589,7 @@ export function PackageManager({ api }: { api: API }) {
           <label className="field">
             环境方案
             <select
+              aria-label="环境方案"
               value={profile}
               disabled={locked}
               onChange={(event) => {
@@ -587,7 +707,10 @@ export function PackageManager({ api }: { api: API }) {
               locked ||
               profile === "teacher-existing" ||
               selected.length === 0 ||
-              !/^[A-Za-z][A-Za-z0-9_-]{0,31}$/.test(name)
+              (target === "remote" && !remoteSession?.targetId) ||
+              (existing
+                ? !/^[a-f0-9-]{36}$/.test(ownedId)
+                : !/^[A-Za-z][A-Za-z0-9_-]{0,31}$/.test(name))
             }
             onClick={makePlan}
           >
@@ -604,6 +727,11 @@ export function PackageManager({ api }: { api: API }) {
             {plan.platform}
           </p>
           <p>
+            目标：{plan.targetId}；
+            {plan.targetIdentity
+              ? `${plan.targetIdentity.endpoint.host} / ${plan.targetIdentity.username} / ${plan.targetIdentity.root}`
+              : "本机应用根"}
+            ；远端实际可用容量：{size(plan.remoteFreeBytes ?? null)}。
             基线指纹：<code>{plan.baselineFingerprint}</code>
           </p>
           <p>
@@ -612,15 +740,19 @@ export function PackageManager({ api }: { api: API }) {
           <p>
             {plan.requiresNetwork
               ? "未来执行需要联网：是。"
-              : "本次来源已在本机，不下载依赖。"}
+              : plan.targetId === "local"
+                ? "本次来源已在本机，不下载依赖。"
+                : "本次来源已在远端目标，不下载依赖；SSH 通道本身仍需要连接。"}
             {plan.executionEnabled
-              ? "确认后将创建或修改本机应用受控环境并实际复检。"
+              ? plan.targetId === "local"
+                ? "确认后将创建或修改本机应用受控环境并实际复检。"
+                : "确认后将创建或修改远端应用受控环境并实际复检。"
               : "本次仅登记，不执行安装。"}
           </p>
           {plan.runtimeFingerprint && (
             <p>
               执行来源指纹：<code>{plan.runtimeFingerprint}</code>；bootstrap
-              本地文件：{size(plan.bootstrapBytes ?? null)}；磁盘预算：
+              目标文件：{size(plan.bootstrapBytes ?? null)}；磁盘预算：
               {size(plan.diskBudgetBytes ?? null)}；单进程时间预算：
               {plan.executionSeconds ?? "未知"} 秒。
             </p>
@@ -703,6 +835,16 @@ export function PackageManager({ api }: { api: API }) {
           </button>
         </section>
       )}
+      {historyReport &&
+        historyReport.observed.targetId &&
+        historyReport.observed.targetId !== "local" && (
+          <button
+            disabled={busy || activeJob}
+            onClick={() => setJob(historyReport.observed)}
+          >
+            打开远端任务核验
+          </button>
+        )}
       {job && (
         <section aria-label="安装任务登记">
           <h3>安装任务</h3>
@@ -723,6 +865,33 @@ export function PackageManager({ api }: { api: API }) {
                 ? "本次受控环境已通过依赖与张量复检；不代表数据或训练验收。"
                 : "已通过复检合同；真实执行通道仍需另行验收。"}
           </p>
+          {job.targetId && job.targetId !== "local" && (
+            <>
+              <p>
+                远端任务；断线或重启后保持隔离。重新认证同一目标后可只读核验或请求取消；不会重放安装。静止收口后仍需重新计划与复检。
+              </p>
+              <button
+                disabled={
+                  busy ||
+                  !remoteSession ||
+                  job.targetId !== remoteSession.targetId
+                }
+                onClick={() => reconcile(job, false)}
+              >
+                核验远端停止状态
+              </button>
+              <button
+                disabled={
+                  busy ||
+                  !remoteSession ||
+                  job.targetId !== remoteSession.targetId
+                }
+                onClick={() => reconcile(job, true)}
+              >
+                请求远端 owner 停止
+              </button>
+            </>
+          )}
           <ul>
             {job.logs.map((code, index) => (
               <li key={index}>

@@ -2,7 +2,16 @@
 
 export type Planid = string;
 export type Planhash = string;
-export type Targetid = "local";
+export type Targetid = "local" | string;
+export type Projectid = string;
+export type Targetid1 = string;
+export type Targetrevision = number;
+export type Host = string;
+export type Port = number;
+export type Hostfingerprint = string;
+export type Username = string;
+export type Root = string;
+export type Remotefreebytes = number | null;
 export type Profileid = "easyai-cpu";
 export type Environmentid = string;
 export type Environmentname = string;
@@ -31,6 +40,8 @@ export interface InstallPlan {
   planId: Planid;
   planHash: Planhash;
   targetId?: Targetid;
+  targetIdentity?: InstallTargetIdentity | null;
+  remoteFreeBytes?: Remotefreebytes;
   profileId?: Profileid;
   environmentId: Environmentid;
   environmentName: Environmentname;
@@ -49,6 +60,19 @@ export interface InstallPlan {
   bootstrapBytes?: Bootstrapbytes;
   diskBudgetBytes?: Diskbudgetbytes;
   executionSeconds?: Executionseconds;
+}
+export interface InstallTargetIdentity {
+  projectId: Projectid;
+  targetId: Targetid1;
+  targetRevision: Targetrevision;
+  endpoint: SshEndpoint;
+  hostFingerprint: Hostfingerprint;
+  username: Username;
+  root: Root;
+}
+export interface SshEndpoint {
+  host: Host;
+  port?: Port;
 }
 export interface PackageChange {
   packageId: Packageid;

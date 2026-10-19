@@ -87,6 +87,7 @@ from easyai.domain.install import (
     InstallJob,
     InstallJobHistory,
     InstallJobReport,
+    RemoteInstallReconcile,
 )
 
 
@@ -539,6 +540,15 @@ def create_app(
     @app.get("/api/v1/install-jobs/{job_id}", response_model=InstallJob)
     async def install_job(job_id: str) -> InstallJob:
         return await asyncio.to_thread(local().installs().get, job_id)
+
+    @app.post("/api/v1/install-jobs/{job_id}/reconcile", response_model=InstallJob)
+    async def reconcile_install(job_id: str, request: RemoteInstallReconcile) -> InstallJob:
+        from easyai.services.install_registry import InstallRegistry
+
+        service = local().installs()
+        if not isinstance(service, InstallRegistry):
+            raise ValueError("INSTALL_REMOTE_NOT_CONFIGURED")
+        return await asyncio.to_thread(service.reconcile, job_id, request.session, request.cancel)
 
     @app.post("/api/v1/install-jobs/{job_id}/cancel", response_model=InstallJob)
     async def cancel_install(job_id: str) -> InstallJob:

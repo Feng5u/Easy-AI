@@ -352,6 +352,13 @@ class LocalWorkspace:
                 ):
                     raise ValueError("CONNECTION_PROFILE_ACTIVE_CONFLICT")
 
+            from easyai.services.install_registry import remote_target_unsettled
+
+            if remote_target_unsettled(self.root, target_id):
+                # Alias edits increment revision too. Preserve the identity needed
+                # to reconnect/cancel an uncertain install owner before any edit.
+                raise ValueError("CONNECTION_PROFILE_ACTIVE_CONFLICT")
+
             # Revoke before possible publication: fsync failure can follow replace.
             return self.profiles.update(
                 target_id, request, guard, lambda: self._invalidate_connection_target(target_id)
@@ -1031,12 +1038,9 @@ class LocalWorkspace:
         with self._mutex:
             self._verify()
             if self._install_service is None:
-                from easyai.services.install_runtime import InstallRuntime
+                from easyai.services.install_registry import InstallRegistry
 
-                runtime = InstallRuntime(self.root)
-                self._install_service = InstallService(
-                    self.root, inspector=runtime.inspector, runtime=runtime
-                )
+                self._install_service = InstallRegistry(self.root, self.connections)
             return self._install_service
 
     def transfers(self) -> "DataTransfers":

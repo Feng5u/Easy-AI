@@ -51,6 +51,7 @@ from easyai.services.install_sources import (
 
 if TYPE_CHECKING:
     from easyai.services.install_runtime import InstallRuntime
+    from easyai.services.remote_install import RemoteInstallTarget, RemoteLease
     from easyai.services.install_source_selection import SourceSelection
 
 RESOURCE_ROOT = Path(getattr(sys, "_MEIPASS", SOURCE_ROOT))
@@ -115,7 +116,9 @@ class InstallService:
         inspector: Inspector | None = None,
         clock: Callable[[], float] = time.monotonic,
         runtime: "InstallRuntime | None" = None,
+        target: "RemoteInstallTarget | None" = None,
     ):
+        self._target = target
         self.app_root = application_root
         self.root = application_root / "training-environments"
         self._runtime = runtime
@@ -134,7 +137,7 @@ class InstallService:
         self._by_plan: dict[str, str] = {}
         self._active: dict[str, str] = {}
         self._cancel: dict[str, threading.Event] = {}
-        self._leases: dict[str, ProjectLock] = {}
+        self._leases: dict[str, ProjectLock | RemoteLease] = {}
         self._closed = False
         self._journals: dict[str, EventJournal] = {}
         self._recovered: set[str] = set()
@@ -244,6 +247,7 @@ class InstallService:
         except ValueError:
             raise ValueError("INSTALL_LEDGER_INVALID") from None
         summary = InstallJobSummary(
+            target_id=saved.target_id,
             job_id=saved.job_id,
             environment_id=saved.environment_id,
             plan_id=saved.plan_id,
@@ -411,7 +415,7 @@ class InstallService:
         self._verify_root()
         versions = {item["name"]: item["version"] for item in self._wheels(set(OPTIONAL_ROOTS))}
         raw = json.loads(read_regular(PACKAGES_PATH, 50_000))
-        capability = self._runtime.snapshot() if self._runtime else None
+        capability = self._runtime.snapshot() if self._runtime and self._target is None else None
         self._verify_root()
         return PackageCatalog(
             packages=[
@@ -424,6 +428,8 @@ class InstallService:
 
     def _prefix(self, environment_id: str) -> Path:
         self._verify_root()
+        if self._target is not None:
+            return self._target.prefix(environment_id)
         # environment_id originates from a validated contract or server UUID only.
         try:
             if str(UUID(environment_id)) != environment_id:
@@ -436,6 +442,8 @@ class InstallService:
         return path
 
     def _owned(self, environment_id: str, *, allow_partial: bool = False) -> Path:
+        if self._target is not None:
+            return self._target.owned(environment_id, allow_partial=allow_partial)
         path = self._prefix(environment_id)
         if not path.is_dir():
             raise ValueError("INSTALL_ENVIRONMENT_FORBIDDEN")
@@ -489,7 +497,7 @@ class InstallService:
     ) -> InstallInspection:
         receipt = receipt or ProbeReceipt()
         receipt.quiescent = True  # Local path validation has dispatched no new probe.
-        path = self._owned(environment_id, allow_partial=allow_partial)
+        path = self._owned(environment_id, allow_partial=allow_partial or self._target is not None)
         nonce = str(uuid4())
         report = self._probe(path, nonce, receipt)
         if report.nonce != nonce or report.prefix != str(path):
@@ -499,6 +507,8 @@ class InstallService:
     def _baseline(
         self, environment_id: str, new: bool, receipt: ProbeReceipt | None = None
     ) -> tuple[str, dict[str, str]]:
+        if self._target is not None:
+            return self._target.baseline(environment_id, new)
         path = self._prefix(environment_id)
         if new:
             if path.exists():
@@ -529,6 +539,14 @@ class InstallService:
     def plan(self, request: InstallPlanRequest) -> InstallPlan:
         with self._mutex:
             self._verify_root()
+            if request.target_id != "local" and self._target is None:
+                raise ValueError("INSTALL_REMOTE_NOT_CONFIGURED")
+            if self._target is not None and (
+                request.target_id != self._target.identity.target_id
+                or request.remote_session is None
+                or request.remote_session.project_id != self._target.identity.project_id
+            ):
+                raise ValueError("INSTALL_REMOTE_IDENTITY_CHANGED")
             if request.profile_id == "teacher-existing":
                 raise ValueError("INSTALL_TEACHER_READ_ONLY")
             cards = {item.package_id: item for item in self.catalog().packages}
@@ -536,15 +554,21 @@ class InstallService:
                 raise ValueError("INSTALL_PACKAGE_FORBIDDEN")
             environment_id = request.owned_environment_id or str(uuid4())
             new = request.new_environment_spec is not None
+            if self._target is not None:
+                self._target._local.selected = set(request.package_ids)
             fingerprint, versions = self._baseline(environment_id, new)
             wheels = self._wheels(set(request.package_ids))
             locked = {str(item["name"]): str(item["version"]) for item in wheels}
             selected = set(request.package_ids)
             blockers = []
-            if platform.system() != "Linux" or platform.machine().lower() not in {
-                "x86_64",
-                "amd64",
-            }:
+            if self._target is None and (
+                platform.system() != "Linux"
+                or platform.machine().lower()
+                not in {
+                    "x86_64",
+                    "amd64",
+                }
+            ):
                 blockers.append("INSTALL_PROFILE_PLATFORM_UNSUPPORTED")
             if any(item not in locked for item in selected):
                 blockers.append("INSTALL_DEPENDENCIES_UNRESOLVED")
@@ -577,6 +601,9 @@ class InstallService:
                 else None
             )
             value = InstallPlan(
+                target_id=request.target_id,
+                target_identity=self._target.identity if self._target else None,
+                remote_free_bytes=self._target.free_bytes if self._target else None,
                 plan_id=str(uuid4()),
                 plan_hash="0" * 64,
                 environment_id=environment_id,
@@ -619,6 +646,8 @@ class InstallService:
             return value
 
     def _fresh(self, plan: InstallPlan, receipt: ProbeReceipt | None = None) -> None:
+        if self._target is not None:
+            self._target.bind(plan)
         if self._runtime is not None:
             selected = {item.package_id for item in plan.package_changes if item.requested}
             capability = (
@@ -658,6 +687,11 @@ class InstallService:
             if plan.environment_id in self._active:
                 raise ValueError("INSTALL_ENVIRONMENT_CONFLICT")
             job = InstallJob(
+                target_id=plan.target_id,
+                target_identity=plan.target_identity,
+                selected_packages=[
+                    item.package_id for item in plan.package_changes if item.requested
+                ],
                 job_id=str(uuid4()),
                 plan_id=plan.plan_id,
                 plan_hash=plan.plan_hash,
@@ -784,17 +818,45 @@ class InstallService:
             plan = saved.value
             if plan.new_environment and (provisioner is None or self._inspector is None):
                 raise ValueError("INSTALL_PROVISIONER_NOT_ENABLED")
-            if plan.new_environment and sys.platform == "win32":
+            if plan.new_environment and sys.platform == "win32" and self._target is None:
                 raise ValueError("INSTALL_CREATION_PLATFORM_UNVERIFIED")
+            if self._target is not None:
+                self._target.persist_policy(plan, job_id)
+                job.state, job.status_code = "INSTALLING", "INSTALL_REMOTE_RESERVING"
+                self._record(job)  # Durable reservation intent BEFORE any consuming remote RPC.
             creation = (
-                OwnedCreation(self.app_root, plan.environment_id, job_id, plan.plan_hash)
+                (
+                    self._target.creation(plan, job_id)
+                    if self._target is not None
+                    else OwnedCreation(self.app_root, plan.environment_id, job_id, plan.plan_hash)
+                )
                 if plan.new_environment
                 else None
             )
             prefix = (
                 self._prefix(plan.environment_id) if creation else self._owned(plan.environment_id)
             )
-            lease = creation.reserve() if creation else ProjectLock(prefix / ".easyai-install.lock")
+            from easyai.services.remote_install import RemoteReservationUnknown
+
+            def uncertain_reservation(remote_lease: "RemoteLease") -> InstallJob:
+                self._leases[job_id] = remote_lease
+                job.state, job.status_code = "CANCEL_REQUESTED", "INSTALL_STOP_UNCONFIRMED"
+                job.verified, job.needs_reprobe = False, True
+                self._record(job)
+                return job.model_copy(deep=True)
+
+            try:
+                lease = (
+                    creation.reserve()
+                    if creation
+                    else self._target.lease(plan, job_id)
+                    if self._target is not None
+                    else ProjectLock(prefix / ".easyai-install.lock")
+                )
+            except RemoteReservationUnknown as error:
+                return uncertain_reservation(error.remote_lease)
+            if self._target is not None:
+                self._leases[job_id] = lease  # Retain before any later setup/cleanup can fail.
             if lease.fd is None:
                 lease.close()
                 raise ValueError("INSTALL_ENVIRONMENT_CONFLICT")
@@ -802,18 +864,46 @@ class InstallService:
                 lease.verify()
                 self._exclude_uncertain_writer(job)
             except BaseException:
-                lease.close()
+                try:
+                    lease.close()
+                except Exception:
+                    if self._target is not None:
+                        from easyai.services.remote_install import RemoteLease
+
+                        if isinstance(lease, RemoteLease):
+                            return uncertain_reservation(lease)
+                    raise
+                if self._target is not None:
+                    self._leases.pop(job_id, None)
                 raise
             try:
                 configuration_lease = ProjectLock(self.app_root / ".install-source.lock")
             except BaseException:
-                lease.close()
+                try:
+                    lease.close()
+                except Exception:
+                    if self._target is not None:
+                        from easyai.services.remote_install import RemoteLease
+
+                        if isinstance(lease, RemoteLease):
+                            return uncertain_reservation(lease)
+                    raise
+                self._leases.pop(job_id, None)
                 raise
             try:
                 configuration_lease.verify()
             except BaseException:
                 configuration_lease.close()
-                lease.close()
+                try:
+                    lease.close()
+                except Exception:
+                    if self._target is not None:
+                        from easyai.services.remote_install import RemoteLease
+
+                        if isinstance(lease, RemoteLease):
+                            return uncertain_reservation(lease)
+                    raise
+                self._leases.pop(job_id, None)
                 raise ValueError("INSTALL_SOURCE_BUSY") from None
             self._leases[job_id] = lease
             self._executing.add(threading.current_thread())
@@ -824,8 +914,14 @@ class InstallService:
             try:
                 self._record(job)  # Write-ahead: never start an unrecorded writer.
             except BaseException:
-                self._leases.pop(job_id).close()
-                self._executing.discard(threading.current_thread())
+                try:
+                    self._leases[job_id].close()
+                except Exception:
+                    pass  # Retain the lease; outer worker persists unknown cleanup.
+                else:
+                    self._leases.pop(job_id)
+                finally:
+                    self._executing.discard(threading.current_thread())
                 raise
             finally:
                 configuration_lease.close()  # WAL is visible before a configuration commit can check it.
@@ -964,6 +1060,8 @@ class InstallService:
                     else:
                         if creation is not None:
                             creation.mark_ready()
+                        elif self._target is not None:
+                            self._target.mark_ready(plan, job_id)
                         job.state, job.status_code, job.verified, job.needs_reprobe = (
                             "SUCCEEDED",
                             "INSTALL_VERIFIED",
@@ -991,7 +1089,14 @@ class InstallService:
                 if quiescent:
                     if not restore_awaiting:
                         self._active.pop(job.environment_id, None)
-                    self._leases.pop(job_id).close()
+                    try:
+                        self._leases[job_id].close()
+                    except Exception:
+                        job.state, job.status_code = "CANCEL_REQUESTED", "INSTALL_STOP_UNCONFIRMED"
+                        job.verified, job.needs_reprobe = False, True
+                        self._active[job.environment_id] = job_id
+                    else:
+                        self._leases.pop(job_id)
                 if len(job.logs) < 128:
                     job.logs.append(job.status_code)
                 try:

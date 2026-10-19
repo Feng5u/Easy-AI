@@ -152,6 +152,11 @@ export interface DesktopAPI {
     confirm(request: InstallConfirmation): Promise<InstallJob>;
     job(jobId: string): Promise<InstallJob>;
     cancel(jobId: string): Promise<InstallJob>;
+    reconcile?(
+      jobId: string,
+      session: { projectId: string; connectionId: string },
+      cancel: boolean,
+    ): Promise<InstallJob>;
   };
   connections: {
     listProfiles(): Promise<ConnectionProfile[]>;

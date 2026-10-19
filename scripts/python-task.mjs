@@ -63,6 +63,8 @@ const operations = {
       "--add-data",
       "../../runtime/probe.py:easyai/resources/runtime",
       "--add-data",
+      "../../runtime/install_owner.py:easyai/resources/runtime",
+      "--add-data",
       "../../runtime/supervisor.py:easyai/resources/runtime",
       "--add-data",
       "../../runtime/portable_journal.py:easyai/resources/runtime",

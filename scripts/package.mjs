@@ -29,6 +29,7 @@ export const OFFLINE_DOCS = [
   "install-dl-sources.md",
   "install-source-picker.md",
   "install-history.md",
+  "remote-install.md",
   "electron-builder.md",
 ];
 const repository = resolve(import.meta.dirname, "..");
@@ -216,6 +217,7 @@ export const resourcePairs = [
   ...[
     "entry.py",
     "probe.py",
+    "install_owner.py",
     "supervisor.py",
     "portable_journal.py",
     "easyai_runtime.py",

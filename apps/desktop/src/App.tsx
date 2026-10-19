@@ -684,7 +684,7 @@ export function App({ api }: { api?: DesktopAPI }) {
       </div>
       {packagesOpened && bridge?.packages && (
         <div hidden={!packagesVisible}>
-          <PackageManager api={bridge.packages} />
+          <PackageManager api={bridge.packages} remoteSession={remoteSession} />
         </div>
       )}
       {tutorialVisible && (

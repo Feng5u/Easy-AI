@@ -32,6 +32,7 @@ export const WORKFLOW_CHANNELS = [
   "easyai:installJobs:list",
   "easyai:installJobs:report",
   "easyai:installJobs:cancel",
+  "easyai:installJobs:reconcile",
   "easyai:connections:listProfiles",
   "easyai:connections:createProfile",
   "easyai:connections:updateProfile",
@@ -178,6 +179,7 @@ export class MainWorkflow {
       "easyai:installJobs:list": 0,
       "easyai:installJobs:report": 1,
       "easyai:installJobs:cancel": 1,
+      "easyai:installJobs:reconcile": 3,
       "easyai:connections:listProfiles": 0,
       "easyai:connections:createProfile": 1,
       "easyai:connections:updateProfile": 2,
@@ -647,13 +649,16 @@ export class MainWorkflow {
             (key) =>
               ![
                 "targetId",
+                "remoteSession",
                 "profileId",
                 "packageIds",
                 "ownedEnvironmentId",
                 "newEnvironmentSpec",
               ].includes(key),
           ) ||
-          value.targetId !== "local" ||
+          (value.targetId !== "local" &&
+            (typeof value.targetId !== "string" ||
+              !uuid.test(value.targetId))) ||
           typeof value.profileId !== "string" ||
           !["teacher-existing", "easyai-cpu"].includes(value.profileId) ||
           !Array.isArray(value.packageIds) ||
@@ -666,6 +671,24 @@ export class MainWorkflow {
           new Set(value.packageIds).size !== value.packageIds.length
         )
           throw new Error("安装计划输入无效。");
+        let remoteSession:
+          { projectId: string; connectionId: string } | undefined;
+        if (value.targetId !== "local") {
+          const scope = object(value.remoteSession, [
+            "projectId",
+            "connectionId",
+          ]);
+          remoteSession = {
+            projectId: id(scope.projectId),
+            connectionId: id(scope.connectionId),
+          };
+          const auth = (await this.sessions.invoke(
+            "easyai:connections:current",
+            [remoteSession.projectId, remoteSession.connectionId],
+          )) as AuthenticatedConnection | null;
+          if (!auth || auth.targetId !== value.targetId)
+            throw Error("SSH_SESSION_INVALID");
+        } else if (value.remoteSession != null) throw Error("安装目标不一致。");
         const owned =
           value.ownedEnvironmentId !== undefined &&
           value.ownedEnvironmentId !== null;
@@ -686,11 +709,31 @@ export class MainWorkflow {
           target = { newEnvironmentSpec: { name: spec.name } };
         }
         return backend.request("POST", "/api/v1/environments/install-plan", {
-          targetId: "local",
+          targetId: value.targetId,
+          ...(remoteSession ? { remoteSession } : {}),
           profileId: value.profileId,
           packageIds: [...value.packageIds],
           ...target,
         });
+      }
+      case "easyai:installJobs:reconcile": {
+        const jobId = id(args[0]),
+          scope = object(args[1], ["projectId", "connectionId"]);
+        const session = {
+          projectId: id(scope.projectId),
+          connectionId: id(scope.connectionId),
+        };
+        if (typeof args[2] !== "boolean") throw Error("安装恢复输入无效。");
+        const auth = await this.sessions.invoke("easyai:connections:current", [
+          session.projectId,
+          session.connectionId,
+        ]);
+        if (!auth) throw Error("SSH_SESSION_INVALID");
+        return backend.request(
+          "POST",
+          `/api/v1/install-jobs/${jobId}/reconcile`,
+          { session, cancel: args[2] },
+        );
       }
       case "easyai:installJobs:confirm": {
         const value = object(args[0], [

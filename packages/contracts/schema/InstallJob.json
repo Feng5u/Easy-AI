@@ -1,6 +1,115 @@
 {
+  "$defs": {
+    "InstallTargetIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "projectId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Projectid",
+          "type": "string"
+        },
+        "targetId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Targetid",
+          "type": "string"
+        },
+        "targetRevision": {
+          "minimum": 1,
+          "title": "Targetrevision",
+          "type": "integer"
+        },
+        "endpoint": {
+          "$ref": "#/$defs/SshEndpoint"
+        },
+        "hostFingerprint": {
+          "pattern": "^SHA256:[A-Za-z0-9+/]{43}$",
+          "title": "Hostfingerprint",
+          "type": "string"
+        },
+        "username": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Username",
+          "type": "string"
+        },
+        "root": {
+          "maxLength": 1024,
+          "minLength": 2,
+          "pattern": "^/[^\\\\\\x00-\\x1f\\x7f]*$",
+          "title": "Root",
+          "type": "string"
+        }
+      },
+      "required": [
+        "projectId",
+        "targetId",
+        "targetRevision",
+        "endpoint",
+        "hostFingerprint",
+        "username",
+        "root"
+      ],
+      "title": "InstallTargetIdentity",
+      "type": "object"
+    },
+    "SshEndpoint": {
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "title": "Host",
+          "type": "string"
+        },
+        "port": {
+          "default": 22,
+          "maximum": 65535,
+          "minimum": 1,
+          "title": "Port",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "host"
+      ],
+      "title": "SshEndpoint",
+      "type": "object"
+    }
+  },
   "additionalProperties": false,
   "properties": {
+    "targetId": {
+      "anyOf": [
+        {
+          "const": "local",
+          "type": "string"
+        },
+        {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "type": "string"
+        }
+      ],
+      "default": "local",
+      "title": "Targetid"
+    },
+    "targetIdentity": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/InstallTargetIdentity"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "selectedPackages": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9-]{0,63}$",
+        "type": "string"
+      },
+      "maxItems": 17,
+      "title": "Selectedpackages",
+      "type": "array"
+    },
     "jobId": {
       "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
       "title": "Jobid",

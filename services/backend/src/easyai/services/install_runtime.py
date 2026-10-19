@@ -165,6 +165,46 @@ def tree(root: Path) -> str:
     return digest(sorted(records))
 
 
+def bootstrap_source(config: OfflineConfiguration, prefix: str, spec: str, condarc: str) -> str:
+    argv = [
+        "conda",
+        "--no-plugins",
+        "create",
+        "--offline",
+        "--no-default-packages",
+        "--copy",
+        "--json",
+        "--yes",
+        "--prefix",
+        prefix,
+        "--file",
+        spec,
+    ]
+    # -S excludes site/.pth; only the fully hashed, explicit module root is
+    # added. The approved base interpreter/stdlib remains a trust boundary.
+    source = HEADER + "sys.path.insert(0," + repr(config.module_root) + ")\nimport conda\n"
+    source += "assert conda.__version__==" + repr(CONDA_VERSION) + "\n"
+    source += (
+        "assert os.path.realpath(conda.__file__)=="
+        + repr(str(Path(config.module_root) / "conda/__init__.py"))
+        + "\n"
+    )
+    source += (
+        "import conda.base.context as cfg\n"
+        "_set_path=cfg.Context._set_search_path\n"
+        "def _private_path(self,_ignored,**kw):\n return _set_path(self,("
+        + repr(condarc)
+        + ",),**kw)\n"
+        "cfg.Context._set_search_path=_private_path\ncfg.context.__init__()\n"
+    )
+    source += "import runpy\nsys.argv=" + repr(argv) + "\n"
+    source += (
+        "try: runpy.run_module('conda',run_name='__main__')\nexcept SystemExit as e:\n if e.code not in (None,0): raise\n"
+        + _event("pipeline_completed")
+    )
+    return source
+
+
 class CondaBootstrap:
     """Exact 25.9.1 CLI contract; no force/clone/removal/solver/network fallback."""
 
@@ -208,42 +248,7 @@ class CondaBootstrap:
         condarc.write_text(
             "channels: []\ncreate_default_packages: []\nauto_update_conda: false\nnotify_outdated_conda: false\nnumber_channel_notices: 0\nregister_envs: false\n"
         )
-        argv = [
-            "conda",
-            "--no-plugins",
-            "create",
-            "--offline",
-            "--no-default-packages",
-            "--copy",
-            "--json",
-            "--yes",
-            "--prefix",
-            str(prefix),
-            "--file",
-            str(spec),
-        ]
-        # -S excludes site/.pth; only the fully hashed, explicit module root is
-        # added. The approved base interpreter/stdlib remains a trust boundary.
-        source = HEADER + "sys.path.insert(0," + repr(config.module_root) + ")\nimport conda\n"
-        source += "assert conda.__version__==" + repr(CONDA_VERSION) + "\n"
-        source += (
-            "assert os.path.realpath(conda.__file__)=="
-            + repr(str(Path(config.module_root) / "conda/__init__.py"))
-            + "\n"
-        )
-        source += (
-            "import conda.base.context as cfg\n"
-            "_set_path=cfg.Context._set_search_path\n"
-            "def _private_path(self,_ignored,**kw):\n return _set_path(self,("
-            + repr(str(condarc))
-            + ",),**kw)\n"
-            "cfg.Context._set_search_path=_private_path\ncfg.context.__init__()\n"
-        )
-        source += "import runpy\nsys.argv=" + repr(argv) + "\n"
-        source += (
-            "try: runpy.run_module('conda',run_name='__main__')\nexcept SystemExit as e:\n if e.code not in (None,0): raise\n"
-            + _event("pipeline_completed")
-        )
+        source = bootstrap_source(config, str(prefix), str(spec), str(condarc))
         progress()  # Service claim/lease/inode guard immediately before exec.
         self.runtime.validated(plan)
         if (protected(prefix, directory=True).st_dev, prefix.stat().st_ino) != (

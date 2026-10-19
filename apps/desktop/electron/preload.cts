@@ -15,6 +15,8 @@ const api: DesktopAPI = {
       ipcRenderer.invoke("easyai:dataTransfers:cancel", id, scope),
   },
   packages: {
+    reconcile: (id, session, cancel) =>
+      ipcRenderer.invoke("easyai:installJobs:reconcile", id, session, cancel),
     history: () => ipcRenderer.invoke("easyai:installJobs:list"),
     report: (id) => ipcRenderer.invoke("easyai:installJobs:report", id),
     chooseSources: (request) =>

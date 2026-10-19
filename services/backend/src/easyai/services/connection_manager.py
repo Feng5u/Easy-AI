@@ -553,6 +553,32 @@ class ConnectionManager:
                 and checkpoint.cancel_state == "none",
             )
 
+    def install_transport(self, request: SessionControl, identity: Any, launcher: str) -> Any:
+        """Internal fixed-helper adapter, pinned to a saved authenticated target."""
+        from easyai.services.install_transport import InstallSshTransport
+
+        with self._mutex:
+            lease = self._valid_lease(request.project_id, request.connection_id)
+            if lease is None:
+                raise SshFailure("SSH_AUTHENTICATION_REQUIRED")
+
+            def guard() -> None:
+                current = self._valid_lease(request.project_id, request.connection_id)
+                auth = lease.operation.request
+                if (
+                    current is not lease
+                    or identity.project_id != request.project_id
+                    or identity.target_id != auth.target_id
+                    or identity.target_revision != auth.target_revision
+                    or identity.endpoint != lease.scope.endpoint
+                    or identity.host_fingerprint != lease.scope.host_fingerprint
+                    or identity.username != auth.username
+                ):
+                    raise SshFailure("SSH_SESSION_INVALID")
+
+            guard()
+            return InstallSshTransport(lease.session, self._mutex, guard, launcher)
+
     def cancel_environment(self, request: EnvironmentRequest) -> None:
         with self._mutex:
             lease = self._valid_lease(request.project_id, request.connection_id)

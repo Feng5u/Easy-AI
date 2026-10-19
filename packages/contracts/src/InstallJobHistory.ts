@@ -1,5 +1,6 @@
 /* Generated from Pydantic. Do not edit. */
 
+export type Targetid = "local" | string;
 export type Jobid = string;
 export type Environmentid = string;
 export type Planid = string;
@@ -24,6 +25,7 @@ export interface InstallJobHistory {
   limit?: Limit;
 }
 export interface InstallJobSummary {
+  targetId?: Targetid;
   jobId: Jobid;
   environmentId: Environmentid;
   planId: Planid;

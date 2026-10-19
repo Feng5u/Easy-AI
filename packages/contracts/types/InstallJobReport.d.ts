@@ -1,5 +1,6 @@
 /* Generated from Pydantic. Do not edit. */
 
+export type Targetid = "local" | string;
 export type Jobid = string;
 export type Environmentid = string;
 export type Planid = string;
@@ -13,6 +14,88 @@ export type Statuscode = string;
 export type Origin = "current" | "recovered" | "external";
 export type Workeralive = boolean;
 export type Observation = "managed-worker-alive" | "registered-only" | "historical" | "stop-unconfirmed";
+export type Targetid1 = "local" | string;
+export type Projectid = string;
+export type Targetid2 = string;
+export type Targetrevision = number;
+export type Host = string;
+export type Port = number;
+export type Hostfingerprint = string;
+export type Username = string;
+export type Root = string;
+/**
+ * @maxItems 17
+ */
+export type Selectedpackages =
+  | []
+  | [string]
+  | [string, string]
+  | [string, string, string]
+  | [string, string, string, string]
+  | [string, string, string, string, string]
+  | [string, string, string, string, string, string]
+  | [string, string, string, string, string, string, string]
+  | [string, string, string, string, string, string, string, string]
+  | [string, string, string, string, string, string, string, string, string]
+  | [string, string, string, string, string, string, string, string, string, string]
+  | [string, string, string, string, string, string, string, string, string, string, string]
+  | [string, string, string, string, string, string, string, string, string, string, string, string]
+  | [string, string, string, string, string, string, string, string, string, string, string, string, string]
+  | [string, string, string, string, string, string, string, string, string, string, string, string, string, string]
+  | [
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string
+    ]
+  | [
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string
+    ]
+  | [
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string
+    ];
 export type Jobid1 = string;
 export type Planid1 = string;
 export type Planhash1 = string;
@@ -37,6 +120,7 @@ export interface InstallJobReport {
   currentEnvironmentVerified?: Currentenvironmentverified;
 }
 export interface InstallJobSummary {
+  targetId?: Targetid;
   jobId: Jobid;
   environmentId: Environmentid;
   planId: Planid;
@@ -50,6 +134,9 @@ export interface InstallJobSummary {
   observation: Observation;
 }
 export interface InstallJob {
+  targetId?: Targetid1;
+  targetIdentity?: InstallTargetIdentity | null;
+  selectedPackages?: Selectedpackages;
   jobId: Jobid1;
   planId: Planid1;
   planHash: Planhash1;
@@ -61,4 +148,17 @@ export interface InstallJob {
   changesPossible?: Changespossible;
   verified?: Verified;
   executionEnabled?: Executionenabled;
+}
+export interface InstallTargetIdentity {
+  projectId: Projectid;
+  targetId: Targetid2;
+  targetRevision: Targetrevision;
+  endpoint: SshEndpoint;
+  hostFingerprint: Hostfingerprint;
+  username: Username;
+  root: Root;
+}
+export interface SshEndpoint {
+  host: Host;
+  port?: Port;
 }

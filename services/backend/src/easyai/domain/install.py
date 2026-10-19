@@ -1,10 +1,12 @@
-"""Local controlled-install planning and lifecycle contracts; no commands or paths in requests."""
+"""Controlled local/remote install planning and lifecycle contracts; no commands or paths in requests."""
 
 from typing import Annotated, Literal, Self
 from datetime import datetime
 from pydantic import Field, model_validator, field_validator
 from easyai.domain.contracts import Contract
-from easyai.domain.environment import Identifier
+from easyai.domain.environment import Identifier, RemotePath, Fingerprint
+from easyai.domain.ssh import SshEndpoint
+from easyai.domain.connections import SessionControl
 
 Digest = Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
 PackageId = Annotated[str, Field(pattern=r"^[a-z][a-z0-9-]{0,63}$")]
@@ -89,8 +91,19 @@ class NewEnvironmentSpec(Contract):
     name: str = Field(pattern=r"^[A-Za-z][A-Za-z0-9_-]{0,31}$")
 
 
+class InstallTargetIdentity(Contract):
+    project_id: Identifier
+    target_id: Identifier
+    target_revision: int = Field(ge=1)
+    endpoint: SshEndpoint
+    host_fingerprint: Fingerprint
+    username: str = Field(min_length=1, max_length=128)
+    root: RemotePath
+
+
 class InstallPlanRequest(Contract):
-    target_id: Literal["local"]
+    target_id: Literal["local"] | Identifier
+    remote_session: SessionControl | None = None
     profile_id: Literal["teacher-existing", "easyai-cpu"]
     package_ids: list[PackageId] = Field(min_length=1, max_length=17)
     owned_environment_id: Identifier | None = None
@@ -98,6 +111,8 @@ class InstallPlanRequest(Contract):
 
     @model_validator(mode="after")
     def one_target(self) -> Self:
+        if (self.target_id == "local") != (self.remote_session is None):
+            raise ValueError("INSTALL_TARGET_AMBIGUOUS")
         if (self.owned_environment_id is None) == (self.new_environment_spec is None):
             raise ValueError("INSTALL_TARGET_AMBIGUOUS")
         if len(self.package_ids) != len(set(self.package_ids)):
@@ -116,7 +131,9 @@ class PackageChange(Contract):
 class InstallPlan(Contract):
     plan_id: Identifier
     plan_hash: Digest
-    target_id: Literal["local"] = "local"
+    target_id: Literal["local"] | Identifier = "local"
+    target_identity: InstallTargetIdentity | None = None
+    remote_free_bytes: int | None = Field(default=None, ge=0)
     profile_id: Literal["easyai-cpu"] = "easyai-cpu"
     environment_id: Identifier
     environment_name: str
@@ -174,6 +191,9 @@ InstallState = Literal[
 
 
 class InstallJob(Contract):
+    target_id: Literal["local"] | Identifier = "local"
+    target_identity: InstallTargetIdentity | None = None
+    selected_packages: list[PackageId] = Field(default_factory=list, max_length=17)
     job_id: Identifier
     plan_id: Identifier
     plan_hash: Digest
@@ -188,6 +208,7 @@ class InstallJob(Contract):
 
 
 class InstallJobSummary(Contract):
+    target_id: Literal["local"] | Identifier = "local"
     job_id: Identifier
     environment_id: Identifier
     plan_id: Identifier
@@ -213,3 +234,15 @@ class InstallJobReport(Contract):
     recorded: InstallJob
     observed: InstallJob
     current_environment_verified: Literal[False] = False
+
+
+class RemoteInstallReconcile(Contract):
+    session: SessionControl
+    cancel: bool = False
+
+    @field_validator("cancel", mode="before")
+    @classmethod
+    def strict_cancel(cls, value: object) -> bool:
+        if type(value) is not bool:
+            raise ValueError("INSTALL_REQUEST_INVALID")
+        return value

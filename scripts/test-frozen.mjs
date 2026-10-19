@@ -14,7 +14,7 @@ const build = process.argv[2]
   ? resolve(process.argv[2])
   : join(repository, "services/backend/dist/easyai-sidecar");
 const resources = join(build, "_internal/easyai/resources");
-for (const name of ["entry.py", "easyai_runtime.py"])
+for (const name of ["entry.py", "easyai_runtime.py", "install_owner.py"])
   assert.deepEqual(
     await readFile(join(resources, "runtime", name)),
     await readFile(join(repository, "runtime", name)),
