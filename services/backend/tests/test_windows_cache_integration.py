@@ -1,4 +1,4 @@
-"""Actual selector/native NTFS integration, test-only gate; no external SSH/training."""
+"""Actual default selector/native NTFS integration; no external SSH/training."""
 
 import os
 import socket
@@ -12,9 +12,9 @@ pytestmark = pytest.mark.skipif(os.name != "nt", reason="Requires native Windows
 
 
 @pytest.fixture(autouse=True)
-def native_integration_gate(monkeypatch):
-    assert remote_cache.WINDOWS_NATIVE_CACHE_VERIFIED is False
-    monkeypatch.setattr(remote_cache, "WINDOWS_NATIVE_CACHE_VERIFIED", True)
+def native_default_selector(monkeypatch):
+    assert remote_cache.WINDOWS_NATIVE_CACHE_VERIFIED is True
+    assert remote_cache.windows_cache_enabled()
 
     def no_network(*args, **kwargs):
         pytest.fail("Native integration must never connect to an external endpoint")

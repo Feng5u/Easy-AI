@@ -66,8 +66,9 @@ Access = Literal["read", "update", "exclusive"]
 
 
 # Internal acceptance gate. No environment variable, API or renderer can enable it.
-# Keep false until native selector integration and its security gates are verified.
-WINDOWS_NATIVE_CACHE_VERIFIED = False
+# Native selector integration/security gates passed Windows CI39232044136.
+# This accepts only the tested host-local cache; SSH trust/remote gates are separate.
+WINDOWS_NATIVE_CACHE_VERIFIED = True
 
 
 def windows_cache_enabled() -> bool:

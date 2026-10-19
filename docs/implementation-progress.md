@@ -2986,3 +2986,19 @@ NativeWindowsApi.names现在固定64KiB缓冲、limit1..4096、最多limit+3调�
 - `/tmp/easyai-windows-selector-consumers-20261019.log`：SHA256 `836cc82727a6c96d074cd14028b54d3952b1b75e5708309b27bf892498cb068d`。
 - `/tmp/easyai-windows-selector-check-20261019.log`：SHA256 `7bb5b9eb40318a727256c7414127c5ca33b23bf440aa4e4841edbfc9e05a4201`。
 - `/tmp/easyai-windows-selector-independent-JNkecT.log`：SHA256 `1451c283a421a17e8aa3e0ec493adeb2b1827ba77706f4e0ba77b0821c59afc3`。
+
+
+### 第一阶段原生CI通过后：第二阶段验证产品默认selector
+
+第一阶段源码/远端06c470cdb83e622e0cdabbf84359ce6a3ff3c4f2 / [run39232044136](https://github.com/T1doo/Easy-AI/actions/runs/39232044136) Linux job117992069835与Windows job117992069498均SUCCESS。Windows step9实际执行全部native合同及3项真实selector集成成功，step8、freeze/resources/devE2E/guard/build/ZIP/backend/Electron/retain全成功。ZIP435167246字节、SHA25636cace8fd194eb584181386da33783182cb91770910489ae58cc66518ccb3267，仅读允许jobs元数据，无logs/artifact拒绝接口重试，原d4包证据保全。
+
+用户“保持默认门直到实际native集成通过”条件现在已满足。独审只读复核认为本地缓存selector启用无新增明确阻断点，建议限于该gate、native测试改断言真实default，再验证packaged启动；明确不代表Windows SSH全链ready。本阶段把WINDOWS_NATIVE_CACHE_VERIFIED=True（附证据run），删除nativeintegration fixture临时开gate，改为assert真实产品默认enabled。保留closed gate负例，另加ARM64拒绝负例；CI native步骤更名准确，不再称product gate off。没有新环境变量/API/renderer权限开关或OS权限增加。
+
+本地PASS：services/backend/.venv/bin/pytest -q services/backend/tests/test_windows_cache_selector.py services/backend/tests/test_windows_storage_contract.py services/backend/tests/test_run_storage.py services/backend/tests/test_windows_cache_integration.py，69PASS3SKIP/0.85s；SKIP为Linux无法执行native，不冒充defaultWindows确认。第二阶段pnpm check结果稍后补记。第一阶段完整120/103回归和静态检查不因数字重复，第二阶段实际default需自然新CI。
+
+明确后续代码缺口已只读定位：HostKeyStore在host_keys.py构造仍拒非POSIX，直接fcntl/dir_fd实现，故缓存启用不会绕过SSH主机信任或伪称完整Windows SSH。该部分需要继续受保护的native信任库适配，独立于正式数据/凭据/硬件；不把整体暂停在TST33或正式训练。当前范围/证据与边界另记docs/windows-cache-selector.md。原计划/规格/README/锁、旧候选、main不动，无发布/PR/强推/真实SSH/下载/训练依赖/共享环境变更。
+
+- `/tmp/easyai-windows-selector-default-20261019.log`：SHA256 `23bc248547bc728b3bf6a02fa43a9efda2557c7395afe5d6dcc22be61a3b604f`。
+
+第二阶段workspace XDG/UV_OFFLINE=1 pnpm check PASS，TS/ruff/mypy/fixtures/format全部通过；git diff --check PASS。下一步仅此默认selector变更正常push一次自然免费CI，核实际默认Windows与packaged startup，不重跑第一阶段。
+- `/tmp/easyai-windows-selector-default-check-20261019.log`：SHA256 `7bb5b9eb40318a727256c7414127c5ca33b23bf440aa4e4841edbfc9e05a4201`。

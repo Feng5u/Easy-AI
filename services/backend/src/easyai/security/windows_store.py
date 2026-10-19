@@ -1,4 +1,4 @@
-"""Experimental Windows x64/NTFS host storage. Production capability stays OFF.
+"""Native Windows x64/NTFS host storage behind the selector acceptance gate.
 
 Native calls are handle relative; no privilege changes, ACL repairs, shell or
 path-based fallback. Linux policy/ABI tests do not validate these Windows calls.

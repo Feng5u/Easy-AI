@@ -67,3 +67,11 @@ def test_windows_selector_stays_closed_without_internal_native_acceptance(monkey
         remote_cache.local_directory(Path("C:/private"))
     with pytest.raises(ValueError, match="REMOTE_CACHE_PLATFORM_UNVERIFIED"):
         remote_cache.require_local_cache()
+
+
+def test_windows_selector_rejects_unverified_architecture(monkeypatch):
+    monkeypatch.setattr(remote_cache, "os", SimpleNamespace(name="nt"))
+    monkeypatch.setattr(remote_cache, "platform", SimpleNamespace(machine=lambda: "ARM64"))
+    monkeypatch.setattr(remote_cache, "WINDOWS_NATIVE_CACHE_VERIFIED", True)
+    with pytest.raises(ValueError, match="REMOTE_CACHE_PLATFORM_UNVERIFIED"):
+        remote_cache.require_local_cache()
