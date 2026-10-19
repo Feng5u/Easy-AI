@@ -987,6 +987,16 @@ class LocalWorkspace:
                 raise ValueError("REMOTE_RESUME_TARGET_INVALID")
             if self.runs.remote.settled(run) and run.sync_state == "complete":
                 return run
+        # Public disconnected/unknown state precedes the old worker's finally.
+        # Wait outside workspace/core/service locks; never retire or unlock it.
+        self.runs.remote.wait_worker_exit(run_id)
+        with self._mutex:
+            run = self.require_run(run_id)
+            self._identity_project(request.project_id)
+            if run.project_id != request.project_id or run.config.runner != "ssh":
+                raise ValueError("REMOTE_RESUME_TARGET_INVALID")
+            if self.runs.remote.settled(run) and run.sync_state == "complete":
+                return run
             manager = self.connections()
         return self.runs.remote.begin(run_id, manager, request, initial=False)
 

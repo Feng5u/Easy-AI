@@ -2569,3 +2569,53 @@ NOT RUN：Electron/浏览器GUI、pnpm test:e2e实际执行、Windows本地复�
 - `/tmp/easyai-e2e-tscheck-20261019.log`：`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`。
 - `/tmp/easyai-e2e-bridge-audit-20261019.cjs`：`1296f08835399f6f357c021c23b837857e2ac68420376db9ddc373e7cabef0ae`。
 - `/tmp/easyai-e2e-bridge-audit-v2-20261019.cjs`：`56b3e04e475aee5ecfbf789993e641ffdf2dee2d9ff4adf29b42f96d55d9a8ac`。
+
+## 2026-10-19 明确正文后的 Main ready 环及 fresh-resume owner 等待修复
+
+起始本地/远端均`547f3428feb5797d39524a6262329e14b74371de`，工作区clean，单一写入者；main仍`5323f86232529efcfb52131168ad049f01b219f3`。指定保存环境恢复ready后继续，未新建写入者或覆盖已有工作。
+
+输入证据及关联边界：用户Windows正文确认startup.spec第5行electron.launch 15000ms超时，Electron44.9.0 PID1940已启动、Node inspector listening/connected/attached，没有到九项bridge断言；未附runId，不归到特定run。父侧Linux文本附件明确test_consumed_start_lost_ack_explicit_fresh_resume_never_restarts：unknown/disconnected公开后fresh resume 422REMOTE_RUN_BUSY（应202）；原1FAIL/923PASS/8skip/1warning/86.32s，与上一paused/syncing用例不同。当前允许的GitHub jobs元数据独立确认run39198968754两个job分别在pnpm test及test:e2e失败；步骤结果不等于正文归属。没有访问此前被拒日志接口或替代路径。
+
+实现及因果详见docs/startup-ready-and-resume-fences.md：固定官方Electron44.9.0 init→appCodeLoaded→NodeBindings.JoinAppCode→后续原生CDP handler，与本机Playwright1.64.1 loader延后ready形成等待环；Main顶层await改为非阻塞调用异步startDesktop。ready前scheme/single-instance保留；窗口、Main IPC sender、安全偏好、sidecar、退出清理主体保留。固定脱敏phase日志和通用失败对话框，无自动退出、延长timeout、--no-sandbox、版本变更或跳过E2E。scripts/main-bootstrap-probe.mjs及main-bootstrap.test.mts只用于非GUI模块顺序回归：实际临时编译Main+真实pinnedPW loader+显式nativeReady/backendReady屏障，不冒充Electron/Windows真实安全结果。
+
+Linux在LocalWorkspace.resume_remote初核后，释放workspace锁调用已有wait_worker_exit（默认最多3秒）；再核require_run/currentproject/runner/settled，重新取manager，由原begin核当前认证与thread/retiring/physical静止/freshlease/identity门，initial=False不重复start。未知状态公开不等于worker退出，未删BUSY/清理门、不主动retire/unlock、不添加sleep。确定_publish后屏障下旧代码严格422FAIL（1.08s），新4调度valid/cleanup_busy/project_changed/auth_closed严格通过：202恢复、BUSY、当前工程404RESOURCE_NOT_FOUND、无认证422均符合原错误合同；负例无inspect/start替换，start与fixture-starts仍1，最外finally释放屏障。
+
+实际命令和中间结果（cwd /workspace/Easy-AI，FAIL全部保留）：
+- FAIL：原产品+确定worker屏障的`services/backend/.venv/bin/pytest -q services/backend/tests/test_remote_run_api.py::test_consumed_start_lost_ack_explicit_fresh_resume_never_restarts`，1FAIL/1.08s，精确422REMOTE_RUN_BUSY。首轮新增4例曾2FAIL/2PASS：测试漏SessionControl导入和把工程切换原404误写422；纠正用例后4PASS/3.16s，不改产品拒绝行为。
+- FAIL（确定旧顺序）：`node --experimental-vm-modules scripts/main-bootstrap-probe.mjs /workspace/Easy-AI/apps/desktop/dist-electron/main.mjs`的before2日志，未兑现ready时Main评价不完成，严格false!=true。首probe缺process.env、随后缺ready emit参数与跨realm对象prototype比较均为VM夹具问题，日志分别保留，修正夹具不改产品断言含义。
+- PASS：修复后同probe（after3），入口先完成，ready前无窗口/sidecar，ready后安全window一次、sidecar一次、受控视图加载；`pnpm exec vitest run apps/desktop/electron/main-bootstrap.test.mts`（同下XDG环境），1PASS/986ms，实际tsc临时输出，未启动Electron。
+- PASS：`CI=true XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/.cache UV_CACHE_DIR=/workspace/.uv-cache UV_OFFLINE=1 pnpm check`，TS/Ruff/mypy66/合同/fixtures/Prettier；`CI=true XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/.cache pnpm --filter @easyai/desktop build`，exit0，Linux开发构建，保留大chunk警告，不是新builder包。
+- FAIL：同XDG/UV环境`pnpm test`第一轮，335个前端测试中1FAIL/334PASS/2skip，App DOM clean noncanonical export在mount的visible-tab断言为null，尚未跑后端。随后单独`pnpm exec vitest run apps/desktop/src/App.test.mts`25PASS/4.28s；未改该模块、加等待或放宽断言，首失败根因仍UNKNOWN，不因重跑通过抹除。
+- FAIL：第二轮完整pnpm test前端335PASS/2skip；后端1FAIL/926PASS/8skip（77.26s），旧acceptance wait替身不接受默认seconds的TypeError。已让替身与真实签名seconds=3一致，严格断言验收助手及API两次观察为[存活,已退出]，首轮仍真实短等待BUSY/owner不换/start1，再release+join，第二次静止复核；不是跳过真实API等待。
+- PASS：最终`services/backend/.venv/bin/pytest -q services/backend/tests/test_remote_run_api.py`，22PASS/15.30s，含lost-ACK四调度、暂停原子发布、验收助手二次等待。最终完整pnpm test结果随后补记，未仅跑选中用例当全量。
+
+独立只读审查分工均已完成，保持单写入者：Windows复核固定源码环、实际Main/PW loader的非GUI回归、生命周期/脱敏错误处理与安全门；Linux复核锁外join、等待后scope/auth复核、old owner/fresh lease/start门及更新替身，均无本范围剩余明确P1/P2。未重复外部/GUI动作。
+
+NOT RUN：本地Electron/浏览器或Windows实机E2E、真实SSH/训练/数据/受控安装/新打包；此前浏览器与日志接口拒绝未重试，未新增权限、费用、凭据、教师环境变更或CIFAR例外。测试用vm --experimental-vm-modules只用于独立Node子进程，不给Electron追加开关。下一项仅正常开发分支push一次让现有CI验证本修复；不dispatch/重跑/读取logs。完整A/B未通过。
+
+最终完整PASS：同上XDG/UV环境第三轮`pnpm test` exit0，前端335PASS/2skip（40文件PASS/1文件skip），后端927PASS/8skip/1warning（75.51s），Node包保护20PASS（875ms）；1项新VM测试与4项参数测试已包含在全量中，不叠加计数。Linux desktop build767模块/1.81s；pnpm check PASS。此前App DOM首轮失败未改代码、根因仍UNKNOWN，后续25项及完整前端通过不追溯抹除；旧替身TypeError经匹配真实API签名与加强两次状态断言修复。
+
+PASS：原plan116185字节及SHA256 dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43、旧规格及README字节/hash均不变；pnpm-workspace/pnpm-lock/uv.lock/package/CI未改，git diff --check PASS。预push远端仍547f3428feb5797d39524a6262329e14b74371de，main仍5323f86232529efcfb52131168ad049f01b219f3。
+
+本轮日志与非GUI回归脚本SHA256（含夹具错误、产品复现与纠正）：
+- `/tmp/easyai-main-ready-after-20261019.log`：`6368d1a666e83bcac409730cdc118f8b288b5bb0cb468f5a74ccdaf44bdc5e2c`。
+- `/tmp/easyai-main-ready-after2-20261019.log`：`fb45140743c39789fd63ef7a617c91c015b9a0446e1fb2ed5ef72653aeab1a1e`。
+- `/tmp/easyai-main-ready-after3-20261019.log`：`e7bc35c1fbdf239c7ce635bba41d9e3f1be773e2ac46d9f8a59d27a9191c76ca`。
+- `/tmp/easyai-main-ready-before-20261019.log`：`192343e8d8a0290d9f41fc45b836aad85e68657e60430a9f65eda173da44453d`。
+- `/tmp/easyai-main-ready-before2-20261019.log`：`171251168907db0250693bd1e530c037de446055a361926ba5e70184d6d4fa67`。
+- `/tmp/easyai-main-ready-compile-20261019.log`：`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`。
+- `/tmp/easyai-main-ready-regression-20261019.log`：`d1508cf5f790bfe3bde7a1e8ca669f6db1530a6d07bdee00506232e64b9a1d65`。
+- `/tmp/easyai-resume-fence-after-20261019.log`：`f022348f68d973f5451c2a8b9814dfd0c961bc9974a408305b7da71635f92054`。
+- `/tmp/easyai-resume-fence-after2-20261019.log`：`dff7d2d2d5938f5841a042ae2a32c837ee02733d546b48bc077c6cb294a44fc0`。
+- `/tmp/easyai-resume-fence-before-20261019.log`：`7ad5fc046cf551f70d2249f528ce9ff89b3f6a926a95db26775b6fd484e44e28`。
+- `/tmp/easyai-ready-resume-api-final-20261019.log`：`bc9dce12794307d45aeb6706bf8051d260d7e766a7454a8bea0129900dafce9b`。
+- `/tmp/easyai-ready-resume-app-target-20261019.log`：`d72178c1a78c91b684fdb037674aa9ea474bf7b71d834d68d68cea5305fcdb39`。
+- `/tmp/easyai-ready-resume-build-20261019.log`：`b2bd1f27b61830baa5435568be00c295b9a652a52b4b2f61dd19da675b2e9aeb`。
+- `/tmp/easyai-ready-resume-check-20261019.log`：`33d638c44f61709c5fea38251066696a5a89ca3d3d4d8bf8ffb532d282f23af2`。
+- `/tmp/easyai-ready-resume-format-20261019.log`：`13cd11ca20573e5f4c821f82ecf4e2205618b8bec1289a3693b18b463b710388`。
+- `/tmp/easyai-ready-resume-test-20261019.log`：`abaadc90aa5ba204ed877d4e13fcedb827900dc1270dfcde21219db7fc7a75f2`。
+- `/tmp/easyai-ready-resume-test2-20261019.log`：`d6c5815d31f24e02209c4bf48d0ef6abcdab0c43c1372deaabfc8d2eba6622f5`。
+- `/tmp/easyai-ready-resume-test3-20261019.log`：`76432fea19c300ebf22b6b17819cfbc9ad1de102a0c34e66c509dd7c0cd86170`。
+- `scripts/main-bootstrap-probe.mjs`：`25bd9f6f73941df568746963b10f7a1365d1b9d579c9371f60a31aaf7d5b6115`。
+
+所有检查后正常提交并仅push codex/demo-v0.0.0一次；自然CI及完整最终SHA由最终回报提供。新Windows实际launch/正常关闭及云Linux结果待CI，不由VM/本地PASS替代。无未授权外部调用、main/原仓库/强推/PR/Release/部署。

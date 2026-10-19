@@ -1,5 +1,7 @@
 # v0.0.0 发布验收清单
 
+2026-10-19 启动/恢复等待边界修复：用户已提供Windows launch超时和Linux lost-ACK fresh-resume BUSY正文（Windows片段runId未附，不擅自归属）。锁定版本源码确认Main ESM ready等待环，已改入口非阻塞异步启动；显式resume在锁外有界等旧worker并重核scope/auth，原安全门保留。详见[startup-ready-and-resume-fences.md](startup-ready-and-resume-fences.md)。新修复Windows E2E尚未实测，不能把VM或本地Linux结果当通过。
+
 2026-10-19 run39198400814增量：父侧已确认Linux pnpm test PASS（build当时运行中），Windows安装/后端前置及desktop build全部PASS，当前pnpm test:e2e FAIL。真实桌面阶段仍未通过。已准备旧bridge键名断言的确定本地修复，未推送；该问题未确认是本次首个错误，等待首错误块/expect差异或call log，见implementation-progress末节。未重试浏览器/日志接口或降低sandbox。
 
 2026-10-19 新正文后的有界修复：Linux截图已定位`test_running_png_sync_pause_resume_keeps_training_owner_and_rejects_retired_scope`的paused/syncing发布竞争；Windows首错误已定位RunSnapshot.tsx与runSnapshot.ts的大小写/扩展名替换歧义，MISSING_EXPORT SnapshotCode。当前改为原子paused/pending（保持complete/error终态）与唯一组件名RunSnapshotCode.tsx，严格测试/安全门保留。后续CI结果仍待父侧核验；此前“缺这两个错误正文”已解除，不再当当前阻塞。详见implementation-progress末节。
@@ -17,7 +19,7 @@
 | 本机Linux便携布局/冻结sidecar | PASS（定向冻结sidecar）／干净机NOT RUN | 源码467a2018194ae131789f45cd62a56ffdc0783950的check/build/frozen记录见implementation-progress；旧builder包不代表当前源码包 |
 | 真Electron安全启动/编辑/原生picker/Monaco/Blockly | NOT RUN | sandbox=true；可用桌面上的完整课堂操作，无安全绕过 |
 | 开发 CI 安装门（Linux/Windows） | PASS（run39195428530） | 当前安装门已解除，以下两次旧FAIL为历史，不改写旧结果： 父侧提供：e454f97044f84f20347b10f3807220727f2dac1f / [run39181255841](https://github.com/T1doo/Easy-AI/actions/runs/39181255841)，2026-10-19 00:34:06 UTC，两 job 均在 pnpm install --frozen-lockfile 失败；前3616826e28cef2d2ce4fd874f1bb81a6fcf17d94 / [run39180535293](https://github.com/T1doo/Easy-AI/actions/runs/39180535293)，00:24:34 UTC 同步骤双失败。用户已补Windows正文：ERR_PNPM_IGNORED_BUILDS electron-winstaller@5.4.0，本轮策略修复待CI；Linux正文/根因仍UNKNOWN，不能凭步骤名归因 lock mismatch；Actions 访问拒绝继续尊重，无重试/绕路/重跑 |
-| Windows 11 x64 | FAIL（CI desktop build） | run39195428530安装、persistence、实验NTFS、freeze和frozenHTTP PASS；desktop build FAIL、e2e skipped，production storage门仍关闭。既有 d2ac2bf/check SUCCESS、desktop FAIL 已是历史，不能继续称最新。新修复 SHA 的 CI 结果另核 |
+| Windows 11 x64 | FAIL（CI E2E，当前修复待验） | run39195428530安装、persistence、实验NTFS、freeze和frozenHTTP PASS；desktop build FAIL、e2e skipped，production storage门仍关闭。既有 d2ac2bf/check SUCCESS、desktop FAIL 已是历史，不能继续称最新。新修复 SHA 的 CI 结果另核 |
 | macOS/MPS/GPU矩阵 | NOT RUN | 真实设备、驱动、环境与实际结果；不得伪称支持 |
 | 至少一个干净目标机包 | NOT RUN | 无Node/开发Python/本机torch，能启动编辑并连接已准备环境 |
 | 真实MNIST正式10轮 | NOT RUN | 机器/环境/数据来源、seed/模式、实际指标与截图，非合成曲线 |

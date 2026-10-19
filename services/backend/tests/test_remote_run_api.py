@@ -443,30 +443,83 @@ def test_cancel_before_start_is_durable_and_releases_project(harness):
     wait_for(lambda: api.get(f"/api/v1/runs/{next_id}").json(), lambda r: r["syncState"] == "error")
 
 
-def test_consumed_start_lost_ack_explicit_fresh_resume_never_restarts(harness):
+@pytest.mark.parametrize("after_wait", ["valid", "cleanup_busy", "project_changed", "auth_closed"])
+def test_consumed_start_lost_ack_explicit_fresh_resume_never_restarts(
+    harness, monkeypatch, after_wait
+):
+    from easyai.services.remote_runs import RemoteRuns
+    from easyai.domain.connections import SessionControl
+
     workspace, endpoint, api, project = harness
     _, _, request = binding(harness)
     endpoint.lose_start_ack = True
-    route = f"/api/v1/projects/{project.project_id}/runs"
-    started = api.post(route, json=request, headers={"Idempotency-Key": "unknown"})
-    assert started.status_code == 202
-    run_id = started.json()["runId"]
-    base = f"/api/v1/runs/{run_id}"
-    unknown = wait_for(
-        lambda: api.get(base).json(),
-        lambda r: r["remote"]
-        and r["remote"]["startOutcome"] == "unknown"
-        and r["connectionState"] == "disconnected",
-    )
-    assert unknown["status"] == "STARTING"
-    control = authorize(workspace, api, project)
-    resumed = api.post(base + "/resume", json=control)
-    assert resumed.status_code == 202, resumed.text
-    wait_for(lambda: api.get(base).json(), lambda r: r["status"] == "RUNNING")
-    (endpoint.run_base / run_id / "fixture-finish").touch()
-    wait_for(lambda: api.get(base).json(), lambda r: r["syncState"] == "error")
-    assert endpoint.commands.count("--start") == 1
-    assert len((endpoint.run_base / run_id / "fixture-starts").read_text().splitlines()) == 1
+    published, release = threading.Event(), threading.Event()
+    original_publish = RemoteRuns._publish
+    wait_owner = workspace.runs.remote.wait_worker_exit
+
+    def hold_unknown(self, run_id, checkpoint, **kwargs):
+        original_publish(self, run_id, checkpoint, **kwargs)
+        if (
+            checkpoint.start_outcome == "unknown"
+            and checkpoint.connection_state == "disconnected"
+            and threading.current_thread().name.startswith("easyai-run-")
+            and not published.is_set()
+        ):
+            published.set()
+            assert release.wait(5)
+
+    def release_after_fence(run_id, seconds=3):
+        old = workspace.runs.remote._workers[run_id].thread
+        assert old is not None and old.is_alive()
+        with pytest.raises(ValueError, match="REMOTE_RUN_BUSY"):
+            wait_owner(run_id, 0.01)
+        assert old.is_alive() and endpoint.commands.count("--start") == 1
+        if after_wait == "cleanup_busy":
+            wait_owner(run_id, 0.01)  # Real bounded timeout, no owner replacement.
+        release.set()
+        wait_owner(run_id, seconds)
+        assert not old.is_alive()
+        if after_wait == "project_changed":
+            other = endpoint.run_base.parent / "new-project"
+            other.mkdir()
+            workspace.create(workspace.select("project", other).selection_id, "other", "mnist-cnn")
+        elif after_wait == "auth_closed":
+            workspace.connections().close(SessionControl.model_validate(control))
+
+    monkeypatch.setattr(RemoteRuns, "_publish", hold_unknown)
+    monkeypatch.setattr(workspace.runs.remote, "wait_worker_exit", release_after_fence)
+    try:
+        route = f"/api/v1/projects/{project.project_id}/runs"
+        started = api.post(route, json=request, headers={"Idempotency-Key": "unknown"})
+        assert started.status_code == 202
+        run_id = started.json()["runId"]
+        base = f"/api/v1/runs/{run_id}"
+        assert published.wait(5)
+        unknown = api.get(base).json()
+        assert unknown["remote"]["startOutcome"] == "unknown"
+        assert unknown["connectionState"] == "disconnected"
+        assert unknown["status"] == "STARTING"
+        control = authorize(workspace, api, project)
+        resumed = api.post(base + "/resume", json=control)
+        if after_wait != "valid":
+            expected = {
+                "cleanup_busy": "REMOTE_RUN_BUSY",
+                "project_changed": "RESOURCE_NOT_FOUND",
+                "auth_closed": "REMOTE_AUTHENTICATION_REQUIRED",
+            }[after_wait]
+            assert resumed.status_code == (404 if after_wait == "project_changed" else 422)
+            assert resumed.json()["error"]["code"] == expected
+            assert endpoint.commands.count("--start") == 1
+            assert "--inspect" not in endpoint.commands
+            return
+        assert resumed.status_code == 202, resumed.text
+        wait_for(lambda: api.get(base).json(), lambda r: r["status"] == "RUNNING")
+        (endpoint.run_base / run_id / "fixture-finish").touch()
+        wait_for(lambda: api.get(base).json(), lambda r: r["syncState"] == "error")
+        assert endpoint.commands.count("--start") == 1
+        assert len((endpoint.run_base / run_id / "fixture-starts").read_text().splitlines()) == 1
+    finally:
+        release.set()
 
 
 def test_shared_protected_journal_provider_reopens_unknown_without_start(harness):
@@ -1084,10 +1137,16 @@ def test_acceptance_resume_waits_exact_old_worker_without_restarting(harness, mo
     # Release only through the new bounded wait seam. Old code attempts resume
     # while the worker is deterministically alive and raises REMOTE_RUN_BUSY.
     wait_owner = getattr(workspace.runs.remote, "wait_worker_exit", None)
+    wait_states = []
     if wait_owner is not None:
 
-        def release_then_wait(run_id, seconds):
-            assert run_id == started.run_id and old.is_alive()
+        def release_then_wait(run_id, seconds=3):
+            assert run_id == started.run_id
+            wait_states.append(old.is_alive())
+            if not old.is_alive():
+                # The explicit API rechecks the same owner after the acceptance
+                # helper's wait and fresh authorization; this second wait is quiet.
+                return wait_owner(run_id, seconds)
             with pytest.raises(ValueError, match="REMOTE_RUN_BUSY"):
                 wait_owner(run_id, 0.01)
             assert old.is_alive() and workspace.runs.remote._workers[run_id].thread is old
@@ -1102,6 +1161,7 @@ def test_acceptance_resume_waits_exact_old_worker_without_restarting(harness, mo
         )
         assert restored.connection_id != control["connectionId"]
         assert authentications == [True]
+        assert wait_states == [True, False]
         assert endpoint.commands.count("--start") == 1
     finally:
         release.set()
