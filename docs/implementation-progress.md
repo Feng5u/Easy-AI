@@ -3513,3 +3513,16 @@ ZIP435254893B，SHA256 a6d3b407d6046f2c877c1b7624fbc22d07afbaddd270952e322d19afe
 - 唯一teardown节点重现PASS `/tmp/easyai-repeat-navigation-offline-teardown-target-20261019.log` SHA256 `ee25bfe2103170ea8ccc88d2b46f72490382b88b9d9029f133e5886c8c823191`。
 - 最终完整PASS `/tmp/easyai-repeat-navigation-all-test-final-20261019.log` SHA256 `87efddc2432206fabdd3dd957e566a42cd5455d41dd83dde8f0e885d1852d797`。
 - 桌面build `/tmp/easyai-repeat-navigation-desktop-build-20261019.log` SHA256 `f8852f097d52c97087398d855549db3efd22952f5a37db5771cd7cf7e8b3ddf5`。
+
+
+### 重复诊断/Monaco源定位验收：单次CI开发态与包内全部SUCCESS
+
+源码与remote dev `3c53280b16fc63f30567520951b3fe3055624863`，[CI39261021740](https://github.com/T1doo/Easy-AI/actions/runs/39261021740)。Linux job118088365188 check/test/build全SUCCESS；Windows job118088364839所有门SUCCESS：native安全/冻结backend/资源/应用隔离、step14开发态两个完整E2E、打包保护/build、ZIP审计、包内backend PID/鉴权/资源/EOF、step19实际打包应用同样两个完整E2E和step20上传。没有盲重跑旧run，只有本轮实证修复后的这次自然CI。
+
+每种模式中，已选Linear的真实标题经实际wheel完全滚离主画布，ID保持；重复同一诊断源按钮两次、修复编译后重复Monaco真实声明行两次，均由显式导航恢复整条path在实际画布内并toBeInViewport。标题离屏前提不夸称宽积木整块先离屏；恢复检查不reveal/平移/选择。原二次数值编辑/3135精确shape/3136修复/代码全等、空白13块真实构建/稳定ID注册引用、保存正常重开严格恢复，以及原Dataset错误修复与Monaco只读/映射/安全场景全部保留并PASS。native echo的4d60 syncSelection未改回居中。
+
+ZIP435255629B，SHA256 74f3522825f4e3f9106319f6af65515ab539304e708bd31e572ad60ccefe3615；artifact `easyai-unsigned-win-x64-3c53280b16fc63f30567520951b3fe3055624863`，上传SUCCESS/留存一天。新candidate-windows-3c53280.md记录真实动作与证据边界，windows-candidate.md顶部更新，4d60及所有旧失败保留。字节/hash与成功状态来自允许的jobs审计元数据，本机未下载或独立重验ZIP、未读取artifact正文，受限接口不重试。
+
+本地最终pnpm check/test/desktop build PASS（399 TS/950 Python/36 Node，skip见前条）；首次Python离线fixture teardown FAIL与单节点/全套再PASS如实保留，本轮Linux全套亦PASS，不声称具体时序原因已修复。独立导航/生命周期审查无新增明确P1/P2，React技能复核完成；本地实际GUI仍NOT RUN，由Windows真实两种模式提供GUI证据。
+
+当前仅本地收据/docs提交，避免报告额外CI；c7ca38d证据已随正常源码推送保全，remote源码精确对应3c53280b16fc63f30567520951b3fe3055624863。main5323f86232529efcfb52131168ad049f01b219f3、原计划/规格/README/锁未改。此次仅关闭原计划内重复同目标源定位缺口；下一项仍按原计划核剩余M4/M7与发布验收，完整M4/M7、真实SSH/MNIST训练/效果、TST33/硬件/许可/A/B未验边界不变。无真实训练/SSH/下载/权限/凭据/共享环境/main/PR/Release/部署行为。

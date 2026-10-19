@@ -1,5 +1,7 @@
 # Windows 未签名候选
 
+**最新重复源定位候选**：源码 `3c53280b16fc63f30567520951b3fe3055624863` / [CI39261021740](https://github.com/T1doo/Easy-AI/actions/runs/39261021740) Linux/Windows全SUCCESS。开发态与实际打包应用均保留原两个完整E2E，并验证已选Linear滚离后重复点击同一诊断源按钮和Monaco声明行仍重新可见，原生数字编辑回声不居中。ZIP435255629字节，SHA256 `74f3522825f4e3f9106319f6af65515ab539304e708bd31e572ad60ccefe3615`；审计/包内backend/上传PASS，一天留存。见[收据与真实UI验收范围](candidate-windows-3c53280.md)。完整M4/M7/SSH/MNIST/TST33/许可/A/B尚未完成，以下旧候选与失败均保全。
+
 **最新空白 CNN 真实构建候选**：源码 `4d60b86986e79d46690fd1a5d63d6e5fdb590195` / [CI39257059104](https://github.com/T1doo/Easy-AI/actions/runs/39257059104) Linux/Windows全SUCCESS。开发态与实际打包应用均完成两个原样E2E场景：原示例编辑修复，以及空白三工作区→实际工具箱13块CNN→稳定ID注册/引用→权威编译→3135 shape诊断→3136修复→保存正常重启严格恢复。ZIP435254893字节，SHA256 `a6d3b407d6046f2c877c1b7624fbc22d07afbaddd270952e322d19afece77ace`；审计/包内backend/上传全部PASS，保留一天。见[候选收据与实际操作路径](candidate-windows-4d60b86.md)。仅指定编辑切片，完整M4/M7/SSH/MNIST/TST33/许可/A/B尚未完成。以下旧候选与失败均保全为历史。
 
 **最新真实编辑闭环候选**：源码 `6e2be20efa54eb0c8253dc3f13bb37a29592f6b1` / [CI39241524644](https://github.com/T1doo/Easy-AI/actions/runs/39241524644) Linux/Windows全SUCCESS。Windows开发态和实际打包应用均完成示例→Dataset删除→真实编译报错定位→Undo→重新编译→保存重启，另含真实Monaco只读行为/语义高亮及反向定位/CSP；包内backend、ZIP审计、上传也PASS。ZIP435253885字节，SHA256 `69c358da9e0db34efd67893e926b78112de3910b2a1115a6596e75d45e113e00`，一天留存，见[候选收据与实际操作路径](candidate-windows-6e2be20.md)。仅指定UI切片，真实SSH/MNIST/TST33/许可与完整A/B仍未完成。以下旧候选/失败与待办描述保全为历史记录。
