@@ -3112,3 +3112,21 @@ PASS：固定workspace XDG/UV_OFFLINE=1 pnpm check（/tmp/easyai-ui-check-202610
 独立只读复审发现可直接证明的测试P2（不宣称为上述CI首错）：锁定Monaco0.57.0 `esm/vs/editor/browser/controller/editContext/textArea/textAreaEditContext.js:536` 对domReadOnly&&readOnly明确setAttribute('readonly','true')，原测试要求空串。现保留只读门改检查DOM `readOnly===true`，产品无修改；固定环境 `pnpm exec tsc -p tsconfig.tests.json` 与prettier、git diff --check PASS。该确定修正先本地保留，未以未知首错盲触发新CI；父级补首错后继续有据修复与自然CI。原3e7a失败事实保全，不降低Monaco/CSP、完整恢复/编译、安全断言。
 
 独审进入首轮前未发现明确产品P1/P2；根数组顺序误断言在push前已改为仅根按ID排序完整比较，不改产品。当前UI开发态未通过，实际打包UI NOT RUN；不复用c28e旧绿色声称此新链成功。最新可用旧候选仍docs/candidate-windows-c28e955.md。原件SHA保持、main不变，未执行训练/下载/SSH/凭据/发布。
+
+
+### 父级补首错后继续：真实Blockly SVG缺少locale的初始化缺陷
+
+父级授权云浏览器已读取原CI39237904291/job118011368851 step14首错：startup.spec.ts:113，创建示例后getByRole(complementary,“对象注册与引用”).getByRole(button,/^train_data/) not found，5000ms，step10秒；没有更深栈/Received/context正文。来源https://github.com/T1doo/Easy-AI/actions/runs/39237904291/job/118011368851#step:14:17。原FAIL保留；未重试日志接口。
+
+追查确认examples真实模板train-dataset/train_data注册true，后端create保留extraState，snapshot取data根注册对象，picker参数一致；没有改模板/注册状态伪造按钮。新确定产品缺陷：从blockly/core导入不带Msg字典，真实Blockly.inject初始化WorkspaceSvg.setInitialAriaContext→updateAriaLabel在workspace_svg.ts:782无条件Msg.WORKSPACE_LABEL_MANY_STACKS.replace，因undefined抛TypeError。此前大量headlessWorkspace测试不走SVG，未覆盖。以现有Vitest+锁定JSDOM运行真实browserWorkspaceFactory（无Blockly/SVG API替身）精确复现，补locale后真实inject成功。该源缺陷解释创建后画布无法初始化，但在新Windows通过前不把它冒充旧CI唯一根因。
+
+最小修复：WorkspaceManager导入锁定本地blockly/msg/zh-hans，在inject之前setLocale，namespace仅传string消息以兼容包的ESM/CJS类型声明；没有新网络/依赖/资产授权。现有workspace-manager.test补一项真实3页SVG初始化与中文region/零块figure aria回归，没有另造runner。该回归移除setLocale时同782.replace明确FAIL，恢复后与symbols共14PASS。开发中一处测试精确翻译预期误写“工作区”，库实际“Blocks工作区。”，改验证中文工作区语义；一次TS报synthetic default不满足string字典，改为明确string筛选，失败日志保留。
+
+最终PASS：固定workspace XDG/UV_OFFLINE=1 `pnpm exec vitest run packages/block-library/workspace-manager.test.mts packages/block-library/symbols.test.mts`（14PASS）；`pnpm check`；`pnpm --filter @easyai/desktop build`（实际Vite含本地locale与原nonce插件）；git diff --check。JSDOM初始化不冒充实际Windows或CSP验收。Monaco只读语义修正e108保留，删除/错误定位/Undo/全部恢复断言不延时、不删减。下一项正常合并推送两修正，自然有界Windows dev/package CI，旧失败/原main/原件/候选保全，无训练/下载/SSH/凭据/发布。
+
+- /tmp/easyai-browser-canvas-diagnostic-20261019.log SHA256 `8fddfc6a1888281402bafb34b1450cffcfef492ed1852c999441d552e80a7d7a`。
+- /tmp/easyai-browser-canvas-locale-20261019.log SHA256 `9e1aa7ea6ef298f5b181e7bdc95358fa8e3864b6ea9ffea0bb99b40a9858dd78`。
+- /tmp/easyai-svg-locale-red-20261019.log SHA256 `c2737668f25df50371b75cfaf952bae7edc60b906e5a9de998f37970c93b9113`。
+- /tmp/easyai-svg-locale-final-tests-20261019.log SHA256 `c35e377978b7a8dbe11ea3c5a067795e96efff24c0974b60a9b1bf2da0ed10d7`。
+- /tmp/easyai-svg-locale-check-final-20261019.log SHA256 `e580f738fb6f2a6bfe01cc5daae5d3e702f5220b2ad112eafff67fad6afa0a95`。
+- /tmp/easyai-svg-locale-build-20261019.log SHA256 `de1f00a1c132cf8bdc8ed84df158a0cf14d59ece9c45e23fbb78d33da8756fff`。

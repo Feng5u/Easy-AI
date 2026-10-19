@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import * as Blockly from "blockly/core";
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import {
   WorkspaceManager,
+  browserWorkspaceFactory,
   canonical,
   toolboxFor,
   validateWorkspaces,
@@ -268,4 +270,49 @@ describe("persistent three-workspace lifecycle with real headless Blockly", () =
       manager.dispose();
     }
   });
+});
+
+it("initializes actual SVG canvases with local workspace accessibility messages", () => {
+  const require = createRequire(import.meta.url);
+  const { JSDOM } = require(
+    require.resolve("jsdom", { paths: [require.resolve("blockly/core")] }),
+  );
+  const dom = new JSDOM("<!doctype html><html><body></body></html>");
+  const handles: ReturnType<typeof browserWorkspaceFactory>[] = [];
+  try {
+    for (const key of [
+      "window",
+      "document",
+      "Element",
+      "HTMLElement",
+      "Node",
+      "SVGElement",
+      "DOMParser",
+      "XMLSerializer",
+    ])
+      vi.stubGlobal(
+        key,
+        key === "window"
+          ? dom.window
+          : key === "document"
+            ? dom.window.document
+            : dom.window[key],
+      );
+    for (const tab of ["data", "model", "training"] as const) {
+      const host = document.createElement("div");
+      document.body.append(host);
+      const handle = browserWorkspaceFactory(host, tab, false);
+      handles.push(handle);
+      expect(handle.workspace).toBeInstanceOf(Blockly.WorkspaceSvg);
+      const region = host.querySelector('[role="region"]');
+      expect(region?.getAttribute("aria-label")).toContain("工作区");
+      expect(
+        host.querySelector('[role="figure"]')?.getAttribute("aria-label"),
+      ).toContain("0");
+    }
+  } finally {
+    handles.forEach((handle) => handle.dispose());
+    dom.window.close();
+    vi.unstubAllGlobals();
+  }
 });

@@ -1,4 +1,5 @@
 import * as Blockly from "blockly/core";
+import * as zhHans from "blockly/msg/zh-hans";
 import manifest from "../../../packages/block-library/manifest.json";
 import { registerBlocks } from "../../../packages/block-library/register.mjs";
 import {
@@ -269,6 +270,15 @@ export const browserWorkspaceFactory: WorkspaceFactory = (
   tab,
   readOnly,
 ) => {
+  // Core intentionally omits messages. SVG creation reads workspace ARIA strings
+  // synchronously, before any blocks load; headless workspaces do not exercise it.
+  Blockly.setLocale(
+    Object.fromEntries(
+      Object.entries(zhHans).filter(
+        (entry): entry is [string, string] => typeof entry[1] === "string",
+      ),
+    ),
+  );
   const workspace = Blockly.inject(host, {
     // Build the complete canvas once. Readonly is a live interaction gate,
     // not a reason to omit the toolbox that may later become available.
