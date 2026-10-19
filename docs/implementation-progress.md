@@ -2707,3 +2707,18 @@ ZIP/tar标准库审计只读精确集合/大小/hash，Windows核readonly而非�
 本轮真实CI结果补记：正常提交/推送产品 `ca184beffeb5850adea499e08fb50619d6b01bc7`（含保留的b05证据），[run39221894722](https://github.com/T1doo/Easy-AI/actions/runs/39221894722) **Linux check SUCCESS / Windows desktop FAIL**。Windows原开发态startup E2E及前置native/frozen/venv检查成功；新增 `Packaging input and archive guards`（实际 `pnpm test:package`）FAIL，随后Windows实际构建、ZIP审计、包内sidecar、packaged Electron及artifact上传均SKIPPED。因此本轮尚无Windows候选，不能把已接线或本地25PASS当产物成功；原Linux a4de候选继续有效保留。
 
 准确阻断：需要父级在已登录GitHub浏览器读取该步骤首个失败测试名、error/cause和首个堆栈（包括是否hookFailed/EPERM/EBUSY）。当前仅run/jobs元数据，无正文，根因UNKNOWN。独审再次只读复核无可从源码确定的Windows-only问题；ASAR读取try/finally关闭fd，没有证据归因句柄缓存；旧Linux-only六项按原scope跳过，不跳新Windows门。没有猜测修复、放宽/跳过保护或重跑CI，也不访问此前被拒logs/artifacts接口；父级可读正文，无需用户再搬。该阻断是实际Windows保护失败，不是真实训练/SSH缺资源；正文到达后接续精确修复并验证。此补记仅本地证据提交不再push触发CI，最终SHA/remote/clean由回报给出。
+
+
+## 2026-10-19 Windows ASAR native分隔符确定修复（接续同一候选任务）
+
+首错误正文仍未取得，但独审随后从固定ASAR3.4.1的lib/filesystem.js:listFiles确认确定P2：native path.join在Windows输出\dist\index.html；原builder入口检查要求/dist/index.html，后续隐私regex和批准集合也只识别正斜杠。这是源码证实且可独立修复的缺陷，不继续把“缺正文”当所有开发终点，也不声称它就是CI39221894722唯一/首个实测错误。保留刚提交的964c257证据，不回写旧FAIL。
+
+新增实际ASAR fixture回归，只将锁定库listPackage的输出变为Windows分隔符形态，其余生产verifier、真实ASAR读字节不替换；要求合法包通过且dist/.env.local仍拒绝。旧代码 `node --test scripts/package-builder.test.mjs` 精确8PASS/1FAIL，BUILDER_ASAR_ENTRY_MISSING。随后仅在两个listPackage输出边界replaceAll反斜杠为/，保留所有入口、隐私、特殊ASAR、集合和字节断言。
+
+PASS：`CI=true XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/.cache pnpm test:package` 26项/1.17s。独立直接`node --test scripts/package.test.mjs scripts/package-builder.test.mjs scripts/package-inputs.test.mjs scripts/candidate-archive.test.mjs` 26PASS，P2复核关闭，无放宽安全门。独审首次`pnpm test:package`未设工作区XDG，pnpm自动状态修复试图创建/home/agent/.local/share/pnpm而ENOENT，未进入测试、未执行安装；停止该路径而直接运行同一Node脚本，原失败单独保留。并非Windows产品错误或全套测试结果。Prettier和git diff --check PASS，未改依赖/应用/协议/训练/SSH/旧候选。
+
+本次是明确缺陷修复后的新源码正常push/自然CI，不是重跑旧run或为了数字重复全套。本地不具Windows执行条件，新的实际Windows候选结果仍须该新CI；当前本地仅四文件证据补记和两核心/测试文件改动，无用户WIP覆盖。
+- `/tmp/easyai-win-asar-before-20261019.log`：`2de8446341a81a7502065167944bda168c3fededfe7ae073119bd4728d094dd9`。
+- `/tmp/easyai-win-asar-after-20261019.log`：`21b9e1134ab24a4e4400a7eab7155017262f577f1c27184b2539e7584ed8fc8f`。
+- `/tmp/easyai-win-asar-independent-20261019-unique1.log`：`a164a71af9b231bfdda437823abe01d11476b128be0f1036c3d3076472abdf8e`。
+- `/tmp/easyai-win-asar-independent-20261019-unique2.log`：`e6c6d8163425b1ca96b8beed707fd66ab3f7df107e2513eff0e1e4d3478d6705`。

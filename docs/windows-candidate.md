@@ -1,5 +1,7 @@
 # Windows 未签名候选
 
+后续确定修复：固定ASAR3.4.1在Windows输出native反斜杠，原入口/隐私/集合检查只识别正斜杠。实际ASAR回归旧代码精确BUILDER_ASAR_ENTRY_MISSING，两个库输出边界归一后26项与独审通过；安全门不变。此源码缺陷不冒充旧CI首错，新的正常修复提交/自然CI结果待核。
+
 2026-10-19 实测增量：源码 `ca184beffeb5850adea499e08fb50619d6b01bc7` 的 [run39221894722](https://github.com/T1doo/Easy-AI/actions/runs/39221894722) Linux SUCCESS；Windows原开发E2E成功，新增Packaging input and archive guards（pnpm test:package）FAIL，后续实际打包/包内E2E/上传SKIPPED，尚无Windows候选。首错误正文待父级已登录浏览器读取，根因UNKNOWN；保护不跳过、不猜测同因。下文“待本轮CI”为提交时状态，现以此结果为准。
 
 原计划 §4/§18 M8.2 优先 Windows 11 x64 客户端，但此前 builder 只接受 Linux。开发态 Windows E2E 成功不证明学生能使用包。本轮扩展原有同主机固定 Git 快照、offline/frozen 应用依赖、PyInstaller --onedir、electron-builder26.15.3 流程，生成 Windows x64 `win-unpacked/easyai.exe` 与 ZIP，不增加安装器、签名、发布或训练环境。

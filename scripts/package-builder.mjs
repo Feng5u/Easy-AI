@@ -142,7 +142,11 @@ export async function verifyBuilder(output) {
     layout.unpacked,
     "resources/app.asar",
   );
-  const entries = asar.listPackage(archive);
+  // ASAR 3.4.1 lists paths with native separators. Canonicalize at this
+  // boundary before entry/privacy/sealed-set checks on every host.
+  const entries = asar
+    .listPackage(archive)
+    .map((name) => name.replaceAll("\\", "/"));
   if (
     entries.some((name) =>
       /(?:^|\/)(?:node_modules|src|\.env[^/]*|\.git|machine\.local\.json)(?:\/|$)|\.map$|\.test\.[^/]+$/.test(
@@ -229,6 +233,7 @@ export async function verifyApprovedOutput(
   const archive = join(unpacked, "resources/app.asar");
   const entries = asar
     .listPackage(archive)
+    .map((name) => name.replaceAll("\\", "/"))
     .filter((name) => {
       const info = asar.statFile(archive, name.slice(1), false);
       if (info.link || info.unpacked)

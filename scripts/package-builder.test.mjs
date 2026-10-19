@@ -238,3 +238,27 @@ test("Windows verifier rejects an altered sealed original before replaying PE ch
     /APPROVED_VENDOR_EXECUTABLE_CHANGED/,
   );
 });
+
+test("native Windows ASAR separators preserve entry, privacy and sealed-set checks", async (t) => {
+  const valid = await fixture(t);
+  const privateInput = await fixture(t, {
+    "dist/.env.local": "SYNTHETIC_SECRET_ONLY",
+  });
+  const original = asar.listPackage;
+  // Locked ASAR 3.4.1 uses native path.join: reproduce its Windows output
+  // while still reading real ASAR bytes through the production verifier.
+  asar.listPackage = (...args) =>
+    original(...args).map((name) => name.replaceAll("/", "\\"));
+  try {
+    assert.equal(
+      (await verifyBuilder(valid.root)).sourceCommit,
+      "a".repeat(40),
+    );
+    await assert.rejects(
+      verifyBuilder(privateInput.root),
+      /BUILDER_ASAR_UNEXPECTED_INPUT/,
+    );
+  } finally {
+    asar.listPackage = original;
+  }
+});
