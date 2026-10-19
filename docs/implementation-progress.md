@@ -2866,3 +2866,14 @@ PASS：工作区XDG环境 `pnpm test:package`，34项/1.74s；独立直接四文
 - `/tmp/easyai-catalog-eol-profiles-20261019.log`：SHA256 `ead3add28371ee891b8e47f036ccc4b676709b1c4f248108c6c955199b8944f9`。
 - `/tmp/easyai-catalog-eol-package-20261019.log`：SHA256 `5a133717d9d08bdd15c2c98f59d94a382dc1c37d60ff26da4d6845ac29fa6dc9`。
 - `/tmp/easyai-profile-eol-independent-m3GAh7.log`：SHA256 `b14e0dcca43e975b46b35445307c28b4ae77cf9ef06ecb6e3fdb2e0b81fc3f50`。
+
+
+### 实际Windows复核：目录与checkout修复通过，新包内smoke仍失败
+
+产品修复/远端完整SHA `4304d2d1756e77a6c80468737cfeff449a48201f`，正常push产生唯一新自然 [run39228433732](https://github.com/T1doo/Easy-AI/actions/runs/39228433732)。Linux check job117980313555 SUCCESS（pnpm check/test/build）；Windows desktop job117980313772 FAILURE。原失败step8现SUCCESS，实际Windows目录、blocked plan及真实Git autocrlf回归均通过，未将期望改422。step9 NTFS、10冻结backend、11冻结HTTP/resources、12desktopbuild、13PID/isolation、14开发E2E、15packageguards、16实际候选构建、17ZIP audit全部SUCCESS。严格原测试/门保留。
+
+新实际ZIP easyai-0.0.0-win-x64.zip，435171827字节，SHA256 b625e8bd68c709d3a940ce36857ee378f52c3f877079c67bdd916477a07134eb（来自审计step名实际输出，非本地推算）。step18 Packaged backend PID, auth, resources and EOF FAIL；step19 packaged Electron、20 artifact留存均SKIPPED。因此没有通过全部门或已上传可下载的Windows候选；构建/审计成功不算smoke完成。
+
+准确剩余阻塞：需要父级从已登录浏览器读取 https://github.com/T1doo/Easy-AI/actions/runs/39228433732/job/117980313772#step:18:1 的首异常/断言和新增FROZEN_SMOKE_DIAGNOSTIC整行，以定位本轮端点/状态/脱敏frame及异常类别。本执行器仅使用允许的run/jobs元数据，未重试此前被拒logs/artifacts/browser接口；该新正文证据pending。不能把当前FAIL继续叫作旧catalog500，原因UNKNOWN；没有猜改/放宽原门/重跑CI。已通过异步问题请求父级提供该新正文。
+
+本轮结束检查：HEAD/远端产品4304d2d一致、工作区clean（本补记前）；远端main仍5323f86232529efcfb52131168ad049f01b219f3。原计划hash dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43、原规格/README/两个依赖锁hash与原值一致，旧Linux候选及c4证据保全。此补记只作本地docs提交不push，以免无实质新修复浪费CI。下一步据新正文继续最小修复和独审，再实际确认Windows packaged backend/Electron/上传。无main/force/PR/Release/部署/新权限或训练环境/数据/模型/SSH/教师环境变动；完整A/B、TST33、正式MNIST、真实SSH及法律审核仍未完成。

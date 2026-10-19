@@ -1,5 +1,7 @@
 # Windows 未签名候选
 
+最新实际结果：修复源码 `4304d2d1756e77a6c80468737cfeff449a48201f` / [run39228433732](https://github.com/T1doo/Easy-AI/actions/runs/39228433732) Linux 全套 SUCCESS。Windows 原step8（含目录/被阻止计划/真实Git checkout回归）SUCCESS，NTFS/冻结资源/开发E2E/打包保护/实际build/ZIP审计均SUCCESS。新ZIP **435171827字节**，SHA256 `b625e8bd68c709d3a940ce36857ee378f52c3f877079c67bdd916477a07134eb`。但step18包内后端smoke FAIL，packaged Electron与上传SKIPPED；不能当作可用/可下载候选。尚缺本次首异常及FROZEN_SMOKE_DIAGNOSTIC正文，已请父级浏览器读取，执行器不重试被拒日志接口，不沿用旧500归因或再触发CI。
+
 父级补齐上次step8首错：认证catalog返回422 expected200（该test:42），1FAIL9PASS，尚未进入plan。真实Git core.autocrlf=true checkout回归确定复现422 INSTALL_DEPENDENCIES_UNRESOLVED：optional lock严格比对LF header+pins，而未固定EOL的checkout可变成CRLF。现仅对training-profiles的JSON/lock增加text eol=lf，保持批准bytes，不修改parser/权限/平台门。新回归200/17卡/执行false/十文件原bytes，篡改ML pin仍422；53项profile、36项打包保护与独审通过。实际Windows新CI待核，不将本地复现冒充唯一观察根因或完成候选。
 
 2026-10-19 最新修复源码 `e8efb040650acde8d5e6e422bd549991281d25cf` / [run39227538152](https://github.com/T1doo/Easy-AI/actions/runs/39227538152)：Linux 全套 SUCCESS；Windows 步骤8（项目持久化、native locks、新增安装元数据测试）FAIL，原NTFS/冻结构建/冻结资源检查 SUCCESS，后续候选构建/ZIP审计/包内smoke/上传 SKIPPED。暂缺步骤8首个pytest失败正文，不能归因新增测试或宣称旧500已在Windows验证关闭。本轮没有新Windows ZIP，下面9f的ZIP是旧失败证据。父级需从已登录浏览器读取首失败nodeid、expected/actual和traceback；不重试旧run或被拒日志接口。
