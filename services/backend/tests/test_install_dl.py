@@ -139,7 +139,7 @@ def test_single_and_dl_group_share_deduplicated_closure_without_core_upgrade(tmp
         )
         mixed = wheels(PROFILE_ROOT, {"pytorch-lightning", "scikit-image", "scikit-learn"})
         assert len(mixed) == len({w["name"] for w in mixed})
-        assert len([p for p in service.catalog().packages if p.target_version]) == 10
+        assert len([p for p in service.catalog().packages if p.target_version]) == 11
     finally:
         service.close()
 

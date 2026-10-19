@@ -205,6 +205,14 @@ export const resourcePairs = [
     "training-profiles/easyai-cv-linux-cp311.lock",
   ],
   [
+    "packages/training-profiles/easyai-nlp-sources.json",
+    "training-profiles/easyai-nlp-sources.json",
+  ],
+  [
+    "packages/training-profiles/easyai-nlp-linux-cp311.lock",
+    "training-profiles/easyai-nlp-linux-cp311.lock",
+  ],
+  [
     "packages/training-profiles/easyai-dl-sources.json",
     "training-profiles/easyai-dl-sources.json",
   ],

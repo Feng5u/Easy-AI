@@ -14,7 +14,7 @@ bootstrap停止且nonce/sys.prefix/Python3.11检查通过，才写兼容的两�
 
 easyai-cpu 复用已有 Linux x86_64 / CPython 3.11 CPU 来源及 hash lock。单包请求也展示完整基础闭包，不隐瞒附带包。未锁定的可选包、平台不符或已有版本冲突产生明确 blocker，不猜版本、不自动升级。downloadBytes 是 wheel 下载元数据之和，installedBytes 是解包估计，均不是完整环境占用；未解析时为 null，不宣称零。
 
-ML补充锁已覆盖scipy/pandas/scikit-learn及joblib/threadpoolctl；CV新增scikit-image及imageio/tifffile/lazy-loader，复用SciPy/core，按选择加入固定闭包，核心锁不变。DL补充14个固定依赖及fsspec[http]扩展，见[DL合同](install-dl-sources.md)。17卡中10卡有解析版本，其余7卡未支持。OpenCV只有候选证据，因目标系统动态库要求未核实，返回INSTALL_NATIVE_REQUIREMENTS_UNVERIFIED，不入锁、不换headless。新增wheel只有注册表下载体积，未下载测解包，ML/CV/DL计划installedBytes=null。见[ML合同](install-ml-sources.md)和[CV合同](install-cv-sources.md)。未选可选模块不进行实际import，基线版本inventory仍覆盖已知支持的distribution。
+ML补充锁已覆盖scipy/pandas/scikit-learn及joblib/threadpoolctl；CV新增scikit-image及imageio/tifffile/lazy-loader，复用SciPy/core，按选择加入固定闭包，核心锁不变。DL补充14个固定依赖及fsspec[http]扩展，见[DL合同](install-dl-sources.md)。17卡中11卡有解析版本，其余6卡未支持。OpenCV只有候选证据，因目标系统动态库要求未核实，返回INSTALL_NATIVE_REQUIREMENTS_UNVERIFIED，不入锁、不换headless。新增wheel只有注册表下载体积，未下载测解包，ML/CV/DL/NLP计划installedBytes=null。见[ML合同](install-ml-sources.md)和[CV合同](install-cv-sources.md)。未选可选模块不进行实际import，基线版本inventory仍覆盖已知支持的distribution。
 
 计划包含 baselineFingerprint、constraintsHash、planHash 和十分钟有效期。确认必须携带同一 planId/hash，confirmed 与 networkAcknowledged 必须是真正的布尔 true；整数 1 被拒绝。确认会重新核基线与来源 hash；重试同计划返回同一 job。固定错误码不回显用户路径、凭据或原始异常。
 
@@ -38,7 +38,7 @@ pip的isolated不等于禁用global/site配置，no-index也不移除配置追�
 
 ## 尚缺与真实验证条件
 
-四项代码接线、ML、scikit-image与Lightning固定可选闭包已实现；尚需确切可信conda/base模块及bootstrap来源配置、许可/目标/预算的真实执行授权，以及正向真实环境probe、其余7可选卡来源/系统要求核验、Main来源原生对话框真实验收（源码选择/预览/明确登记已有，见install-source-picker.md）、任务历史/保留策略、存活安装子进程重连和未知停止安全解除、远端真实目标验收以及实际owned环境纵向验收。实际安装器、probe及持久日志现在已有代码基础，但尚未完成真实依赖安装纵向验证。目录fsync仅用于本地origin先于owned marker的顺序，未据此签完整跨目录断电恢复保证。
+四项代码接线、ML、scikit-image、Lightning及SentencePiece固定可选闭包已实现；尚需确切可信conda/base模块及bootstrap来源配置、许可/目标/预算的真实执行授权，以及正向真实环境probe、其余6可选卡来源/系统要求核验、Main来源原生对话框真实验收（源码选择/预览/明确登记已有，见install-source-picker.md）、任务历史/保留策略、存活安装子进程重连和未知停止安全解除、远端真实目标验收以及实际owned环境纵向验收。实际安装器、probe及持久日志现在已有代码基础，但尚未完成真实依赖安装纵向验证。目录fsync仅用于本地origin先于owned marker的顺序，未据此签完整跨目录断电恢复保证。
 
 真实执行前需明确一次性 owned 环境范围、包源和下载预算，展示具体计划后再获得执行授权；SDK/许可另核。不使用教师共享环境、不在应用 Python 安装 torch、不下载训练数据。当前合同/组件/Main/冻结 sidecar 测试均不执行这些动作。
 
@@ -49,4 +49,6 @@ pip的isolated不等于禁用global/site配置，no-index也不移除配置追�
 每次baseline/bootstrap/final probe持有独立receipt和本job取消token，保留其实际supervisor；静止须同时证明leader退出、reader/monitor/cancel线程结束及owner关闭。探测异常不能沿用上一条安装命令的静止结论；未知时保留lease、receipt和journal，不写ready。同prefix存在未确认静止的receipt时拒绝新probe，其他prefix独立；close显式取消所有receipt，单job取消不传播到其他job。规划/确认尚无job的未知probe也阻止关闭与同prefix重入；不自动退休或推断可安全重跑。
 
 
-远端owned安装通过同一InstallService目标适配接入，计划仅接受已保存目标和当前认证会话引用。来源/根/预算来自私有operator策略，真实执行默认关闭；唯一writer/预留WAL/阶段intent/取消与未知隔离、只核验收口及固定实际复检接口见[远端合同](remote-install.md)。合成协议不是安装/ABI通过，未替代剩余7卡与真实课堂/SSH验收。
+远端owned安装通过同一InstallService目标适配接入，计划仅接受已保存目标和当前认证会话引用。来源/根/预算来自私有operator策略，真实执行默认关闭；唯一writer/预留WAL/阶段intent/取消与未知隔离、只核验收口及固定实际复检接口见[远端合同](remote-install.md)。合成协议不是安装/ABI通过，未替代剩余6卡与真实课堂/SSH验收。
+
+NLP 本片仅固定 SentencePiece 0.2.2 的来源、默认闭包、预算、同一安装器及选中 import 复检；NLTK 当前候选有未修复漏洞响应，其余四卡闭包尚未核完，具体裁决见[install-nlp-sources.md](install-nlp-sources.md)。11/17卡的元数据能力不代表真实安装或 B 验收。

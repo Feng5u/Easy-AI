@@ -55,8 +55,9 @@ class SourceSelection:
         allowed = {item["packageId"] for item in catalog["packages"]}
         if len(selected) != len(request.package_ids) or not selected <= allowed:
             raise ValueError("INSTALL_PACKAGE_FORBIDDEN")
-        if selected.intersection(UNSUPPORTED):
-            raise ValueError("INSTALL_NATIVE_REQUIREMENTS_UNVERIFIED")
+        unsupported = sorted(selected.intersection(UNSUPPORTED))
+        if unsupported:
+            raise ValueError(UNSUPPORTED[unsupported[0]])
         records = wheels(PROFILE_ROOT, selected)
         if not selected <= {w["name"] for w in records}:
             raise ValueError("INSTALL_DEPENDENCIES_UNRESOLVED")

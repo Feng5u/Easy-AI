@@ -1,0 +1,3 @@
+# Optional NLP wheels; CPython 3.11 / Linux x86_64; no extras, models or corpora. Requires core lock.
+sentencepiece==0.2.2 \
+    --hash=sha256:1416b92f2f010333786fe6306ed2631121d5ea492219b0841e967b6765e64107

@@ -21,8 +21,13 @@ class Wheel(TypedDict):
 ML_ROOTS = frozenset({"scipy", "pandas", "scikit-learn"})
 CV_ROOTS = frozenset({"scikit-image"})
 DL_ROOTS = frozenset({"pytorch-lightning"})
-OPTIONAL_ROOTS = ML_ROOTS | CV_ROOTS | DL_ROOTS
-UNSUPPORTED = {"opencv-python": "INSTALL_NATIVE_REQUIREMENTS_UNVERIFIED"}
+NLP_ROOTS = frozenset({"sentencepiece"})
+OPTIONAL_ROOTS = ML_ROOTS | CV_ROOTS | DL_ROOTS | NLP_ROOTS
+UNSUPPORTED = {
+    "opencv-python": "INSTALL_NATIVE_REQUIREMENTS_UNVERIFIED",
+    "nltk": "INSTALL_KNOWN_PACKAGE_VULNERABILITY",
+    **dict.fromkeys(("spacy", "transformers", "gensim", "hanlp"), "INSTALL_NLP_CLOSURE_UNREVIEWED"),
+}
 IMPORTS = {
     "torch": "torch",
     "torchvision": "torchvision",
@@ -51,6 +56,7 @@ IMPORTS = {
     "propcache": "propcache",
     "yarl": "yarl",
     "idna": "idna",
+    "sentencepiece": "sentencepiece",
 }
 CORE_SOURCES = "easyai-cpu-sources.json"
 CORE_LOCK = "easyai-cpu-linux-cp311.lock"
@@ -66,6 +72,9 @@ DL_LOCK = "easyai-dl-linux-cp311.lock"
 DL_HEADER = (
     "# Optional DL wheels; CPython 3.11 / Linux x86_64; requires fixed core and fsspec[http].\n"
 )
+NLP_SOURCES = "easyai-nlp-sources.json"
+NLP_LOCK = "easyai-nlp-linux-cp311.lock"
+NLP_HEADER = "# Optional NLP wheels; CPython 3.11 / Linux x86_64; no extras, models or corpora. Requires core lock.\n"
 ALLOWED_IMPORTS = frozenset(IMPORTS.values()) | {"fsspec.implementations.http"}
 
 
@@ -92,6 +101,8 @@ def wheels(root: Path, selected: set[str] | None = None) -> list[Wheel]:
         groups.append((CV_SOURCES, CV_LOCK, CV_HEADER))
     if selected.intersection(DL_ROOTS):
         groups.append((DL_SOURCES, DL_LOCK, DL_HEADER))
+    if selected.intersection(NLP_ROOTS):
+        groups.append((NLP_SOURCES, NLP_LOCK, NLP_HEADER))
     extra: list[Wheel] = []
     dependencies: dict[str, list[str]] = {}
     for sources, lock, header in groups:
@@ -142,6 +153,8 @@ def constraints_hash(root: Path) -> str:
                 CV_LOCK,
                 DL_SOURCES,
                 DL_LOCK,
+                NLP_SOURCES,
+                NLP_LOCK,
             )
         )
     ).hexdigest()

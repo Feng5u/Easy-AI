@@ -148,6 +148,17 @@ try {
   const expectedCvLock = await readFile(
     join(repository, "packages/training-profiles/easyai-cv-linux-cp311.lock"),
   );
+  const expectedNlpSources = await readFile(
+    join(repository, "packages/training-profiles/easyai-nlp-sources.json"),
+  );
+  const expectedNlpLock = await readFile(
+    join(repository, "packages/training-profiles/easyai-nlp-linux-cp311.lock"),
+  );
+  for (const name of ["easyai-nlp-sources.json", "easyai-nlp-linux-cp311.lock"])
+    assert.deepEqual(
+      await readFile(join(resources, "training-profiles", name)),
+      await readFile(join(repository, "packages/training-profiles", name)),
+    );
   const expectedDlSources = await readFile(
     join(repository, "packages/training-profiles/easyai-dl-sources.json"),
   );
@@ -218,6 +229,8 @@ try {
       .update(expectedCvLock)
       .update(expectedDlSources)
       .update(expectedDlLock)
+      .update(expectedNlpSources)
+      .update(expectedNlpLock)
       .digest("hex"),
   );
   const ml = await request("POST", "/environments/install-plan", {
@@ -284,6 +297,52 @@ try {
     dlPlans.push(dl.value);
   }
   assert.equal(dlPlans[0].downloadBytes, dlPlans[1].downloadBytes);
+  const nlp = await request("POST", "/environments/install-plan", {
+    targetId: "local",
+    profileId: "easyai-cpu",
+    packageIds: ["sentencepiece"],
+    newEnvironmentSpec: { name: "frozen_nlp" },
+  });
+  assert.equal(nlp.response.status, 200);
+  assert.equal(nlp.value.executionEnabled, false);
+  assert.equal(nlp.value.installedBytes, null);
+  assert.equal(nlp.value.constraintsHash, planned.value.constraintsHash);
+  assert.equal(
+    nlp.value.packageChanges.find((c) => c.packageId === "sentencepiece")
+      .targetVersion,
+    "0.2.2",
+  );
+  if (process.platform === "linux" && process.arch === "x64") {
+    assert.deepEqual(nlp.value.blockers, []);
+    assert.equal(nlp.value.packageChanges.length, 22);
+    assert.equal(
+      nlp.value.downloadBytes,
+      JSON.parse(expectedSources).packages.reduce(
+        (sum, p) => sum + p.downloadBytes,
+        0,
+      ) + 1394242,
+    );
+  }
+  const rejectedNlp = await request("POST", "/environments/install-plan", {
+    targetId: "local",
+    profileId: "easyai-cpu",
+    packageIds: [
+      "nltk",
+      "sentencepiece",
+      "spacy",
+      "transformers",
+      "gensim",
+      "hanlp",
+    ],
+    newEnvironmentSpec: { name: "frozen_nlp_group" },
+  });
+  assert.equal(rejectedNlp.response.status, 200);
+  assert.equal(rejectedNlp.value.executionEnabled, false);
+  assert.equal(rejectedNlp.value.downloadBytes, null);
+  assert(
+    rejectedNlp.value.blockers.includes("INSTALL_KNOWN_PACKAGE_VULNERABILITY"),
+  );
+  assert(rejectedNlp.value.blockers.includes("INSTALL_NLP_CLOSURE_UNREVIEWED"));
   const opencv = await request("POST", "/environments/install-plan", {
     targetId: "local",
     profileId: "easyai-cpu",
