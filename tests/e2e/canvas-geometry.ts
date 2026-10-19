@@ -79,3 +79,39 @@ export function mainWorkspaceOwnsPoint(
   const hit = panel.ownerDocument.elementFromPoint(point.x, point.y);
   return Boolean(hit && workspace?.contains(hit));
 }
+
+/** Read-only hit test; an editable field must receive its own pointer event. */
+export function fieldHitPoint(
+  element: Element,
+  options: {
+    area: { x: number; y: number; width: number; height: number };
+    allowBlock: boolean;
+  },
+) {
+  const box = element.getBoundingClientRect();
+  const owner = element.closest("g[data-id]");
+  for (const y of [0.5, 0.25, 0.75])
+    for (const x of [0.5, 0.25, 0.75]) {
+      const point = {
+        x: box.left + box.width * x,
+        y: box.top + box.height * y,
+      };
+      if (
+        point.x < options.area.x ||
+        point.x > options.area.x + options.area.width ||
+        point.y < options.area.y ||
+        point.y > options.area.y + options.area.height
+      )
+        continue;
+      const hit = element.ownerDocument.elementFromPoint(point.x, point.y);
+      if (hit && element.contains(hit)) return { point, receiver: "field" };
+      if (
+        hit &&
+        options.allowBlock &&
+        owner &&
+        hit.closest("g[data-id]") === owner
+      )
+        return { point, receiver: "block" };
+    }
+  return { point: null, receiver: "occluded" };
+}

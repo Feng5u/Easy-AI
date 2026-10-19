@@ -1,6 +1,7 @@
 import { test, expect, type Locator, type Page } from "@playwright/test";
 import {
   inspectCanvasGeometry,
+  fieldHitPoint,
   mainWorkspaceOwnsPoint,
 } from "./canvas-geometry.js";
 
@@ -68,27 +69,28 @@ export class Canvas {
     return snapshot.area;
   }
 
-  async reveal(element: Locator) {
+  async reveal(element: Locator, allowBlock = false) {
     // Blockly scrollbars transform the SVG; ordinary DOM scrolling does not pan it.
     for (let attempt = 0; attempt <= 4; attempt++) {
       const area = await this.bounds();
       const box = (await element.boundingBox())!;
-      const dx =
+      let dx =
         box.x < area.x + 12
           ? box.x - area.x - 24
           : box.x + box.width > area.x + area.width - 12
             ? box.x + box.width - area.x - area.width + 24
             : 0;
-      const dy =
+      let dy =
         box.y < area.y + 12
           ? box.y - area.y - 24
           : box.y + box.height > area.y + area.height - 12
             ? box.y + box.height - area.y - area.height + 24
             : 0;
-      if (!dx && !dy) return;
+      const hit = await element.evaluate(fieldHitPoint, { area, allowBlock });
+      if (!dx && !dy && hit.point) return hit.point;
       console.info(
         "EASYAI_TOOLBOX_REVEAL_GEOMETRY",
-        JSON.stringify({ attempt, area, box, dx, dy }),
+        JSON.stringify({ attempt, area, box, dx, dy, hit }),
       );
       if (attempt === 4) break;
       // Scrollbars are siblings of the main SVG; their wheel events never
@@ -110,6 +112,13 @@ export class Canvas {
           "No visible main-workspace target for a physical wheel gesture",
         );
       }, area);
+      if (!hit.point) {
+        // Viewport inclusion alone is insufficient: fixed zoom controls (or
+        // another overlay) may cover the field. Pan its centre to a point
+        // actually owned by the main workspace, leaving all controls intact.
+        dx = box.x + box.width / 2 - pointer.x;
+        dy = box.y + box.height / 2 - pointer.y;
+      }
       interactionSignal();
       await this.page.mouse.move(pointer.x, pointer.y);
       interactionSignal();
@@ -119,6 +128,20 @@ export class Canvas {
     throw new Error(
       "Canvas field was not reachable with actual scrollbar gestures",
     );
+  }
+  async clickField(
+    element: Locator,
+    label: string,
+    receiver: Locator = element,
+  ) {
+    const point = await this.reveal(element, receiver !== element);
+    await interaction(label, async (signal) => {
+      const box = (await receiver.boundingBox())!;
+      signal.throwIfAborted();
+      await receiver.click({
+        position: { x: point.x - box.x, y: point.y - box.y },
+      });
+    });
   }
   async connection(id: string, kind: "input" | "next") {
     // Read the actual pinned Geras notch path. A detached SVG path measures its
@@ -157,6 +180,7 @@ export class Canvas {
         this.block(destination.parent)
           .locator(":scope > g.blocklyField")
           .first(),
+        true,
       );
     }
     const target =
@@ -244,8 +268,7 @@ export class Canvas {
   }
   async option(id: string, field: string, value: string) {
     const control = this.field(id, field);
-    await this.reveal(control);
-    await interaction(`open reference or enum ${field}`, () => control.click());
+    await this.clickField(control, `open reference or enum ${field}`);
     await interaction(`choose reference or enum ${field}`, () =>
       this.page.getByRole("option", { name: value, exact: true }).click(),
     );
@@ -253,8 +276,7 @@ export class Canvas {
   }
   async number(id: string, field: string, value: string) {
     const control = this.field(id, field);
-    await this.reveal(control);
-    await interaction(`open number ${field}`, () => control.click());
+    await this.clickField(control, `open number ${field}`);
     const input = this.page.locator("input.blocklyHtmlInput");
     await expect(input).toBeVisible();
     await interaction(`edit number ${field}`, async (signal) => {
@@ -266,9 +288,10 @@ export class Canvas {
   }
   async register(id: string, name: string) {
     const header = this.block(id).locator(":scope > g.blocklyField").first();
-    await this.reveal(header);
-    await interaction(`select object for registration ${name}`, () =>
-      header.click(),
+    await this.clickField(
+      header,
+      `select object for registration ${name}`,
+      this.block(id),
     );
     const inspector = this.page.getByRole("complementary", {
       name: "对象注册与引用",

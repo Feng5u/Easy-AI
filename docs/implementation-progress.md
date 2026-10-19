@@ -3323,3 +3323,24 @@ PASS：完整pnpm check；真实SVG DOM/计算回归9tests；最后tsc -p tsconf
 已请求父级登录页面读取该step实际首错、最后ACTION、门前CANVAS_GEOMETRY与REVEAL_GEOMETRY/DRAG_GEOMETRY及退出标志，当前待返回。新日志前置到区域门之前，但本执行器还没有取得这些实际数值；不能从单step FAIL推断是否通过bounds、Prep注册或后续字段，也不再以源假设代替实际矩形修补。停止进一步CI，先核新事实再决定修复。此前真实退出CLOSE_CONFIRMED仅属3660轮，不能冒充本轮退出结果。
 
 边界：本机实际GUI因既有sandbox/无display条件仍NOT RUN，没有禁用沙盒或权限安装；真实SVG DOM受控计算不算像素布局/拖拽验收。原失败、字节原件、依赖锁/main、现有安全与验收门保持；本轮没有生产图注入/程序注册、训练、数据下载、SSH、发布或付费动作。当前仅本地证据docs提交，避免为报告额外触发CI。下一步所需的准确操作是父级读取上述Windows step14新几何和首错，状态待完成；完整空白CNN、M4/M7/A/B/SSH/MNIST/TST33/许可仍未验收。
+
+
+### 实际zoom遮挡首错：统一字段命中与真实平移避让
+
+父级浏览器读CI39248297720/job118045532427 step14：两次physical drag PASS，Prep注册header.click8000ms超时；字段visible/enabled/stable，但zoom-in sprites.svg所在g transform=translate(574,406)持续拦截pointer。canvas.ts271，reveal box{x629,y517.75,width63.20001220703125,height16}，dx19.20001220703125/dy0；renderer[]，pid8500/code0/CLOSE_CONFIRMED。故本轮已越过bounds且真实拖入/连接门返回，但此前reveal只看矩形进入viewport便完成，不能证明实际点击可达；原FAIL与正常退出证据保全。
+
+统一修复reveal完成条件而非修改产品zoom：新只读fieldHitPoint在实测字段矩形3×3候选上查询elementFromPoint；editable控件必须命中字段自身子树，注册静态header/为连接准备的header可命中同一owner block路径。只有原完整viewport边距条件和实际命中点同时满足才返回全局坐标；若被遮挡，把字段center通过真实wheel平移到一个实测可命中的main-workspace点，至多4手势，控件原样保留。若部分字段可点，可选实测命中位置，绝不force click或修改DOM控件、程序选择/注册。保持诊断hit分类/矩形/原始viewport日志。
+
+新clickField统一dropdown、number、SHUFFLE与注册：editable用真实字段locator在命中位置点击；静态header处用其真实owner block locator在同一物理点点击（相对当前bbox），避免只读文本/底层block path接收语义不符。所有click保留Playwright receives-events gate，bbox await后派发前检查共享abort。reveal所有消费者逐一接入，未留下旧默认center click；普通HTML inspector输入/checkbox、菜单option、tab、compile等继续原接收事件检查。
+
+系统审查后续同类风险：固定zoom与兄弟scrollbars不属于field/owner，必须拒绝；editable不能把另一个同block字段当成功；root点击必须同owner header点而不是子block；pan点实际属于mainworkspace，wheel只平移且不触发选择；DOM/iframe坐标均为同renderer CSS viewport，relative position从当前receiver box换算；连接notch/main target命中门、实际注册/引用字段/模型参数/精确shape/修复/保存重开仍保留。4wheel/8s动作/15s步骤/180s场景/12s单次正常退出门未扩大。
+
+本地实际browserWorkspaceFactory三页SVG DOM中，使用真实zoom-in image与workspace节点、父级字段矩形和明确受控elementFromPoint输入，回归全遮挡无命中、部分遮挡拒绝被盖center并选择真正可接收点、无遮挡接受。JSDOM无真实像素/命中引擎，以上只是分类计算回归，不冒充GUI避让成功；没有向E2E注入图或选中。新测试初稿局部document造成TDZ，单测与TS准确阻断，改fixtureDocument后通过；红日志保留。
+
+PASS：完整pnpm check、现有SVG/geometry/命中9tests、diff-check；独立只读审查无明确P1/P2，并独立执行相同9PASS（不与本地9相加刷数）。本轮仅测试helper和测试场景改变，产品/安全/CSP/后端/依赖/原件不变。下一次仅本轮实际zoom首因支持的正常开发提交自然CI，旧run不重试；本机实际GUI仍NOT RUN，所有正式空白CNN/M4/M7/A/B、真实SSH/MNIST/TST33/许可未验收。无训练/下载/权限/共享环境/main/发布变化。
+
+- /tmp/easyai-toolbox-occlusion-tests-20261019.log SHA256 `8b2ff81ace90a7e15198e942546c38a432c831bd600c82bf130bf25fa37bff4c`。
+- /tmp/easyai-toolbox-occlusion-tests-final-20261019.log SHA256 `57717d185289e7530f84558d3ea32fae95d4176239fd8364fb8fb71bf824f495`。
+- /tmp/easyai-toolbox-occlusion-check-20261019.log SHA256 `88a4326969cfae90aa6526cd8ad03eca9f029faf19b8e3159c253cef10e2aecc`。
+- /tmp/easyai-toolbox-occlusion-check-final-20261019.log SHA256 `e580f738fb6f2a6bfe01cc5daae5d3e702f5220b2ad112eafff67fad6afa0a95`。
+- /tmp/easyai-field-hit-independent-OUUlgg.log SHA256 `2e8f4fc1c92e8c1215ad78a96f0d385f9588be9a7d0ac17c153a91818a91f2f5`。

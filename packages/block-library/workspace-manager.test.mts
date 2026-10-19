@@ -12,7 +12,10 @@ import {
 } from "../../apps/desktop/src/WorkspaceManager.js";
 import type { ProjectDocument } from "../../apps/desktop/electron/bridge.js";
 import { FieldSymbolRef } from "./symbols.mjs";
-import { inspectCanvasGeometry } from "../../tests/e2e/canvas-geometry.js";
+import {
+  inspectCanvasGeometry,
+  fieldHitPoint,
+} from "../../tests/e2e/canvas-geometry.js";
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
 function fixture(): ProjectDocument {
@@ -383,6 +386,53 @@ it("initializes actual SVG canvases with local workspace accessibility messages"
           value: previousHeight,
         });
         rectangles.forEach((mock) => mock.mockRestore());
+      }
+      // No hit-test/layout engine in JSDOM: exercise membership decisions
+      // using actual workspace/zoom SVG nodes and explicit screen inputs.
+      const zoom = host.querySelector(".blocklyZoomIn image")!;
+      expect(zoom).not.toBeNull();
+      const fixtureDocument = dom.window.document;
+      const originalHitTest = Object.getOwnPropertyDescriptor(
+        fixtureDocument,
+        "elementFromPoint",
+      );
+      const fieldBox = vi
+        .spyOn(background, "getBoundingClientRect")
+        .mockReturnValue(new dom.window.DOMRect(629, 517.75, 63.2, 16));
+      const options = {
+        area: { x: 158, y: 52.25, width: 539.5, height: 551 },
+        allowBlock: false,
+      };
+      try {
+        Object.defineProperty(fixtureDocument, "elementFromPoint", {
+          configurable: true,
+          value: () => zoom,
+        });
+        expect(fieldHitPoint(background, options)).toEqual({
+          point: null,
+          receiver: "occluded",
+        });
+        // A partly covered rectangle must choose a genuinely receiving point,
+        // rather than claiming its covered centre is clickable.
+        Object.defineProperty(fixtureDocument, "elementFromPoint", {
+          configurable: true,
+          value: (x: number) => (x >= 650 ? zoom : background),
+        });
+        expect(fieldHitPoint(background, options).point?.x).toBeLessThan(650);
+        Object.defineProperty(fixtureDocument, "elementFromPoint", {
+          configurable: true,
+          value: () => background,
+        });
+        expect(fieldHitPoint(background, options).receiver).toBe("field");
+      } finally {
+        fieldBox.mockRestore();
+        if (originalHitTest)
+          Object.defineProperty(
+            fixtureDocument,
+            "elementFromPoint",
+            originalHitTest,
+          );
+        else Reflect.deleteProperty(fixtureDocument, "elementFromPoint");
       }
     }
   } finally {

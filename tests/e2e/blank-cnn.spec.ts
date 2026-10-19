@@ -136,8 +136,9 @@ test("build a CNN from the toolbox, diagnose shape and restore the saved graph",
         data.option(testLoader, "DATASET_REF", "TestData"),
       );
       const shuffle = data.field(testLoader, "SHUFFLE");
-      await interaction("data.reveal", () => data.reveal(shuffle));
-      await interaction("toggle test loader SHUFFLE", () => shuffle.click());
+      await interaction("data.checkbox testLoader SHUFFLE", () =>
+        data.clickField(shuffle, "toggle test loader SHUFFLE"),
+      );
       await interaction("data.register testLoader TestBatches", () =>
         data.register(testLoader, "TestBatches"),
       );
