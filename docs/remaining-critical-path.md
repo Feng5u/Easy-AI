@@ -1,5 +1,7 @@
 # v0.0.0 有界收口盘点（2026-10-19）
 
+2026-10-19 后续CI证据：父侧通过允许的run/jobs元数据确认 [run39195428530](https://github.com/T1doo/Easy-AI/actions/runs/39195428530) 的Linux/Windows安装门均PASS，原安装阻塞解除。Linux setup/check PASS、pnpm test FAIL（失败正文仍缺）；Windows persistence/实验NTFS/freeze/frozenHTTP资源门均PASS，随后desktop build FAIL、e2e skipped。精确源码a62b48ac04e9c9fd434f9217d78679ebe1a2fa7a本地Linux完整test与desktop build均PASS，不能覆盖云CI FAIL或证明Windows通过。未读被拒接口，本轮无确定修复、不推送触发新CI。最小所需错误段见implementation-progress末节。
+
 2026-10-19 CI增量更正：用户现已提供 run39181255841 的 **Windows** 安装正文：锁文件/供应链校验通过后，`ERR_PNPM_IGNORED_BUILDS: electron-winstaller@5.4.0`。本轮将不需要的 Squirrel 安装脚本精确设为禁止，保持 strictDepBuilds；Linux原job原因仍UNKNOWN，不能据此同因归类。本文原“缺正文/根因UNKNOWN”的合并叙述已由此更正，仅保留未提供正文的job/历史项。当前修复的Windows CI仍待实证，不改旧FAIL为PASS；Actions接口拒绝未重试。详见 [pnpm脚本策略修复](ci-build-policy.md)。
 
 以原 [v0.0.0 plan.md](v0.0.0%20plan.md) 的 M0–M8、TST01–34 与完整 B 为准。原计划基线为 `5323f86232529efcfb52131168ad049f01b219f3`；当前已接受产品源码为 `467a2018194ae131789f45cd62a56ffdc0783950`，配套证据为 `1e345b954f745ac5154f211dcc7200d6527db78b`。后续本次提交仅纠正文档，不新增产品能力。A 和 B 均未获得完整实机验收，不把合成 IDX 的真实 torch 执行或离线合同测试当作 MNIST 效果。

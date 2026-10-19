@@ -1,5 +1,7 @@
 # pnpm 11.25.0 构建脚本策略修复
 
+2026-10-19 后续CI证据：父侧通过允许的run/jobs元数据确认 [run39195428530](https://github.com/T1doo/Easy-AI/actions/runs/39195428530) 的Linux/Windows安装门均PASS，原安装阻塞解除。Linux setup/check PASS、pnpm test FAIL（失败正文仍缺）；Windows persistence/实验NTFS/freeze/frozenHTTP资源门均PASS，随后desktop build FAIL、e2e skipped。精确源码a62b48ac04e9c9fd434f9217d78679ebe1a2fa7a本地Linux完整test与desktop build均PASS，不能覆盖云CI FAIL或证明Windows通过。未读被拒接口，本轮无确定修复、不推送触发新CI。最小所需错误段见implementation-progress末节。
+
 起始 HEAD `66c4570ccec7590bfa9621eb0ff33d6a8ea87bd2`，单一写入者、工作区clean，远端开发分支相同；main仍`5323f86232529efcfb52131168ad049f01b219f3`。本修复只处理用户提供的Windows CI run39181255841正文：锁文件校验/下载完成后，`ERR_PNPM_IGNORED_BUILDS: electron-winstaller@5.4.0`。没有重新读取Actions日志或重跑旧SHA；Linux job原失败正文未提供，根因仍UNKNOWN。
 
 ## 精确原因与决定

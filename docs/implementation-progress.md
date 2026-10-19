@@ -2481,3 +2481,26 @@ NOT RUN：Windows新CI/原生桌面、Squirrel安装器、hook执行、候选包
 - `/tmp/easyai-pnpm-policy-strict-negative-20261019.log`：`afa407526c7cde54fd7d8ab14d59d1e12c11b77077d0d9cefdc0d54f1c2759ca`。
 - `/tmp/easyai-pnpm-policy-tscheck-20261019.log`：`a164a71af9b231bfdda437823abe01d11476b128be0f1036c3d3076472abdf8e`。
 - `/tmp/easyai-pnpm-policy-tscheck-direct-20261019.log`：`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`。
+
+## 2026-10-19 run39195428530 后续失败的本地复现（无产品改动、不触发新CI）
+
+父侧通过允许的run/jobs元数据确认：两个`pnpm install --frozen-lockfile` PASS，原安装阻塞解除；check的setup/check PASS，pnpm test FAIL；desktop的Project persistence、Experimental NTFS readiness、Freeze backend、Frozen backend HTTP/resource gates全部PASS，随后`pnpm --filter @easyai/desktop build` FAIL、e2e skipped。未提供两个失败正文；未访问此前被拒日志接口或替代绕行。实验NTFS阶段成功不自动开放Windows生产门。
+
+单一写入者；起始精确HEAD及远端开发分支`a62b48ac04e9c9fd434f9217d78679ebe1a2fa7a`，工作区clean，main仍`5323f86232529efcfb52131168ad049f01b219f3`。本地当前平台Linux，暖缓存/既有环境，不能冒充Windows或clean CI。
+
+实际命令（cwd `/workspace/Easy-AI`）与结果：
+- PASS：`CI=true XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/.cache pnpm install --offline --frozen-lockfile --store-dir /workspace/.local/share/pnpm/store`，Already up to date，803ms，锁/供应链通过，无下载。
+- PASS：`CI=true XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/.cache UV_CACHE_DIR=/workspace/.uv-cache UV_OFFLINE=1 pnpm test`，exit0；Vitest39文件PASS/1文件skip，334PASS/2skip；pytest924PASS/8skip/1warning，74.98s；Node包保护20PASS，938ms。跳过项不充当真实桌面/Windows/SSH证据，警告原文保留。未用缩小测试范围代替原命令。
+- PASS：`CI=true XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/.cache pnpm --filter @easyai/desktop build`，exit0；tsc及Vite8.3.4，767模块，Vite928ms；保留大于500KiB chunk警告，未调整安全或warning阈值。仅生成开发dist，不是新builder包。
+- PASS：`git diff --check`；源码/锁/工作流未变。本次只补证据文档，不推送，避免无修复地触发下一CI。
+
+独立只读复核当前build入口`tsc -p tsconfig.electron.json && vite build`、相对配置、URL资源加载与nonce adapter的Windows分隔符规范化，未发现可确定Windows缺陷；不根据平台或步骤名猜测路径/CSP/依赖根因。严格脚本策略保持原修复；不关闭任何安全门。
+
+准确阻塞/最小缺失正文：Linux check job的`pnpm test`中第一个失败suite/test名称、expected/actual或pytest traceback及最终各runner摘要/退出码（若进程直接退出则其错误/信号段）；Windows desktop build步骤首个实际错误及前后20–30行、最终退出码；若TS需完整错误号/文件行号，若Vite需首个插件/模块/cause。用户已有正文只覆盖上轮安装错误，不能推断本轮原因。当前两个CI阶段FAIL，原因UNKNOWN；本地未复现且没有实质修复，因此不盲推新CI。NOT RUN：Windows本地复现/E2E、Actions日志读取/重跑、新打包、真实训练/SSH/受控安装；CIFAR限制未变，但不阻止独立诊断。
+
+本地完整日志SHA256：
+- `/tmp/easyai-ci-followup-install-20261019.log`：`1b449d2fc7c7617eb08451638870c85310ec821225a6b49051835f3b3b291a9e`。
+- `/tmp/easyai-ci-followup-test-20261019.log`：`d863116fe7f4a28d3e7240d62bd233cec1cf2a2bee8bd1a16f1548d4afd79b73`。
+- `/tmp/easyai-ci-followup-desktopbuild-20261019.log`：`1813320c0343741d367acea834e8b23ac1d9f9a5f481a491af9cfc6eebeab3f6`。
+
+本节及相关清单只作本地证据提交，保持远端a62b48ac04e9c9fd434f9217d78679ebe1a2fa7a，不push，不请求/重跑CI。下一项取得上述最小失败正文后按实际错误恢复有界修复；最终报告给出本地完整证据SHA和未推送差异。
