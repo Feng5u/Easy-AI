@@ -3570,3 +3570,25 @@ Monaco独审查锁定源码：revealLineInCenterIfOutsideViewport默认Smooth，
 本地完整收口：pnpm test最终PASS，400 TS/2skip、950 Python/19skip（75.83秒，1既有warning）、36 Node；日志/tmp/easyai-inspector-all-test-20261019.log SHA256 dc6740061ed6ce0eebbfbb025cefa9488d9bf2189da94bd7791bc4758c61bb16。pnpm check、pnpm --filter @easyai/desktop build、git diff --check及独审亦PASS。原plan dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43、原规格5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190、README befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852、pnpm锁886aa7c3d4943909de165f313ac3eaae1260e0b4cd2849995cd960ddc40e046c、uv锁7a04b74c033975f0bdea0c4cc7f828d15edd36efc4abaa2d83fcf10a9f9bf77c均不变。
 
 修复仅先本地正常开发提交，保全5664c6bb2778f2880424c4ea37b2629c96f54fa0及先前证据；remote dev仍9165c6fe9416b8b456a5ba703f30c1329dc7f95b，main仍5323f86232529efcfb52131168ad049f01b219f3。等待父级完整第三场景及startup退出信息后再推进一次必要自然CI；此次未推送/触发新CI。TST32、当前修改Windows实际执行均未验收；不借先前Windows候选或本地单元称通过。没有新训练、数据/依赖下载、SSH、权限、凭据、教师环境或发布操作。
+
+
+### 父级补齐测试归属，允许修复后单次自然 CI
+
+父级已核CI39263027274共三个测试，明确两个失败为blank-cnn/startup；点式reporter第三个成功点与1passed，结合该提交唯一第三场景tutorial-convolution.spec.ts:7，可将TST32开发态场景记PASS（依测试集合与总计归属），不称逐断言正文独立核验或包内PASS。13:48:26 pid2904为blank-cnn code0/CLOSE_CONFIRMED；13:48:30 EASYAI_E2E_RENDERER_FAILURES[]；13:48:33 pid4744 CLOSE_CONFIRMED code0后有成功点。日志未给startup单独可归属退出PID，该项保持Unknown；不等待不存在记录，不补造或归借其他PID。原套件2FAIL/1PASS及当轮包内NOTRUN保持。
+
+父级据已知两首错与本地RED/GREEN/独审批准下一次有界CI。正常推送f487b6531f9e492fba3820d8408f3f372227cec9（包含5664旧失败证据及修复），无新功能、无改锁或放松门。唯一自然[CI39264647912](https://github.com/T1doo/Easy-AI/actions/runs/39264647912)启动，Windows job118100940580、Linux job118100941005；目标是完整三个开发态与相同三个包内场景。结果尚待返回；不重跑原失败run。
+
+
+### TST32 开发态与实际包内验收通过：f487b65 唯一自然 CI 收口
+
+源码/remote dev f487b6531f9e492fba3820d8408f3f372227cec9，[CI39264647912](https://github.com/T1doo/Easy-AI/actions/runs/39264647912) Linux job118100941005与Windows job118100940580全部SUCCESS。Linux完整check/test/build通过；Windows原生持久化/安全、后端冻结/资源、桌面build/venv隔离、step14实际开发态三个完整场景、打包保护/构建、step17ZIP审计、step18包内backend PID/鉴权/资源/EOF、step19实际打包应用相同三个完整场景、step20上传全部SUCCESS。旧两个编辑场景的严格字段/稳定ID/注册引用/数值/shape/重复定位/保存重开/只读与高亮门均保留。
+
+TST32新增教程实际桌面路径在两种模式均PASS：固定1..25输入/九位置精确高亮、九项乘积、和、全网格、核2编辑、右下184、选窗74、非法11/空值隐藏旧结果与修复/重置；不打开工程、不选解释器/数据、不训练。全1=9仍是原计划明确unit要求，不冒称桌面显示全1或执行Python算术。依据固定三测试集合与允许CI步骤SUCCESS，不称已独立读取每条断言日志。独立复核run/jobs与实际workflow同命令三场景、两job及上传SUCCESS，无新增P1/P2。
+
+本轮名称draft产品缺陷有本地真实RED/GREEN与两种实际桌面回归，Monaco是严格同帧/跨rAF收敛观测修复，产品controller未改，63px唯一历史原因未独立确诊。原CI39263027274的2FAIL/1PASS及startup单独退出Unknown保留，不将本轮正常退出门或其他PID回填旧run。
+
+ZIP435255641字节，SHA256 94d9873d1692c533e2b0d758aa47d4df3d6123f57686ad24930b13b91cf4eec8；artifact easyai-unsigned-win-x64-f487b6531f9e492fba3820d8408f3f372227cec9上传SUCCESS/一天留存。新收据candidate-windows-f487b65.md及windows-candidate顶部更新；acceptance-prerequisites-20261019.md补TST32收口状态，四项独立条件不变。ZIP字节/hash来自成功审计步骤元数据，本机未下载/重算ZIP或读artifact正文，受限接口未重试。
+
+实际本地命令最终PASS：pnpm check；pnpm test（400TS/2skip、950Python/19skip、36Node）；pnpm --filter @easyai/desktop build；git diff --check。定向及独立四文件20PASS不重复相加。日志与hash见前条。本机GUI仍NOTRUN，实际GUI证据仅来自本轮Windows开发态/包内；保留sandbox/CSP/nonce/身份与退出门，无sleep/阈值放宽。
+
+本轮仅TST32及既有两场景失败点修复回归验收，完整M4/M7/M5、真实MNIST效果、TST33/34、硬件/许可与A/B尚未整体验收。下一独立条件：已准备真实MNIST与运行范围；隔离SSH目标/可信指纹/凭据/窗口；TST34已有独立CPU环境无需新安装但尚未实际外部执行；TST33需无开发依赖的干净图形机。未把SSH作为所有本地项前置。无新训练/安装/下载/SSH/安全权限/凭据/共享环境/main/PR/Release/部署。当前仅本地收据/docs提交，避免报告额外CI；remote源码仍精确f487b65，main5323f86232529efcfb52131168ad049f01b219f3及原件/规格/README/锁不变。
