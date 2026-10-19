@@ -7,6 +7,7 @@ import {
 import { test, expect, type Locator, type Page } from "@playwright/test";
 import {
   inspectCanvasGeometry,
+  mainWorkspacePointer,
   fieldHitPoint,
   mainWorkspaceOwnsPoint,
 } from "./canvas-geometry.js";
@@ -101,23 +102,7 @@ export class Canvas {
       if (attempt === 4) break;
       // Scrollbars are siblings of the main SVG; their wheel events never
       // reach the workspace listener. Hit-test a visible point inside it.
-      const pointer = await this.panel.evaluate((panel, area) => {
-        const workspace = panel.querySelector(
-          ".blocklyMainBackground",
-        )!.parentElement!;
-        for (const y of [0.5, 0.25, 0.75])
-          for (const x of [0.5, 0.25, 0.75]) {
-            const point = {
-              x: area.x + area.width * x,
-              y: area.y + area.height * y,
-            };
-            const hit = document.elementFromPoint(point.x, point.y);
-            if (hit && workspace.contains(hit)) return point;
-          }
-        throw new Error(
-          "No visible main-workspace target for a physical wheel gesture",
-        );
-      }, area);
+      const pointer = await this.panel.evaluate(mainWorkspacePointer, area);
       if (!hit.point) {
         // Viewport inclusion alone is insufficient: fixed zoom controls (or
         // another overlay) may cover the field. Pan its centre to a point
@@ -133,6 +118,74 @@ export class Canvas {
     }
     throw new Error(
       "Canvas field was not reachable with actual scrollbar gestures",
+    );
+  }
+  async sourceVisible(id: string) {
+    // Observation only: do not pan/reveal here, since explicit navigation must
+    // restore visibility by itself, including the document viewport.
+    await expect(this.block(id)).toBeInViewport();
+    await expect
+      .poll(async () => {
+        const { area } = await this.panel.evaluate(inspectCanvasGeometry);
+        const box = await this.block(id)
+          .locator(":scope > path.blocklyPath")
+          .boundingBox();
+        return Boolean(
+          box &&
+          area.width >= 48 &&
+          area.height >= 48 &&
+          box.x >= area.x &&
+          box.y >= area.y &&
+          box.x + box.width <= area.x + area.width &&
+          box.y + box.height <= area.y + area.height,
+        );
+      })
+      .toBe(true);
+  }
+  async panSourceOut(id: string, source: Locator) {
+    // Blockly deliberately retains half a viewport of padded content. A wide
+    // block may remain partly painted at the scroll limit; its actual title
+    // must leave the canvas, and relocation below must restore the entire path.
+    const header = this.block(id).locator(fieldLabels).first();
+    for (let attempt = 0; attempt <= 4; attempt++) {
+      const area = await this.bounds();
+      const box = (await header.boundingBox())!;
+      const outside =
+        box.x + box.width <= area.x ||
+        box.x >= area.x + area.width ||
+        box.y + box.height <= area.y ||
+        box.y >= area.y + area.height;
+      console.info(
+        "EASYAI_TOOLBOX_SOURCE_GEOMETRY",
+        JSON.stringify({
+          id,
+          attempt,
+          area,
+          header: box,
+          outside,
+          block: await this.block(id).boundingBox(),
+        }),
+      );
+      if (outside) {
+        await source.scrollIntoViewIfNeeded();
+        await expect(source).toBeInViewport();
+        await expect(header).not.toBeInViewport();
+        return;
+      }
+      if (attempt === 4) break;
+      const pointer = await this.panel.evaluate(mainWorkspacePointer, area);
+      await interaction(
+        "pan the selected source title outside the canvas",
+        async (signal) => {
+          await this.page.mouse.move(pointer.x, pointer.y);
+          signal.throwIfAborted();
+          await this.page.mouse.wheel(area.width * 2 + box.width, 0);
+          await this.frame();
+        },
+      );
+    }
+    throw new Error(
+      "The selected source title did not leave the actual workspace viewport",
     );
   }
   async clickField(

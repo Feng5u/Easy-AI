@@ -115,3 +115,22 @@ export function fieldHitPoint(
     }
   return { point: null, receiver: "occluded" };
 }
+
+/** An actual main-workspace receiver for physical panning, excluding overlays. */
+export function mainWorkspacePointer(
+  panel: Element,
+  area: { x: number; y: number; width: number; height: number },
+) {
+  const workspace = panel.querySelector(
+    ".blocklyMainBackground",
+  )!.parentElement!;
+  for (const y of [0.5, 0.25, 0.75])
+    for (const x of [0.5, 0.25, 0.75]) {
+      const point = { x: area.x + area.width * x, y: area.y + area.height * y };
+      const hit = panel.ownerDocument.elementFromPoint(point.x, point.y);
+      if (hit && workspace.contains(hit)) return point;
+    }
+  throw new Error(
+    "No visible main-workspace target for a physical wheel gesture",
+  );
+}

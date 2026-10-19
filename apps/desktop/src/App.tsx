@@ -31,7 +31,10 @@ import { CodeView } from "./CodeView.js";
 import { RunDashboard } from "./RunDashboard.js";
 import { isRunSettled } from "./runEvents.js";
 import { ProjectDraft } from "./ProjectDraft.js";
-import type { WorkspaceTab } from "./editor-contract.js";
+import type {
+  BlockNavigationRequest,
+  WorkspaceTab,
+} from "./editor-contract.js";
 const ProjectEditor = lazy(() =>
   import("./ProjectEditor.js").then((module) => ({
     default: module.ProjectEditor,
@@ -68,6 +71,8 @@ export function App({ api }: { api?: DesktopAPI }) {
   const [error, setError] = useState<OperationFailure | null>(null);
   const [notice, setNotice] = useState("");
   const [selectedBlock, setSelectedBlock] = useState<string | null>(null);
+  const [blockNavigation, setBlockNavigation] =
+    useState<BlockNavigationRequest | null>(null);
   const [saving, setSaving] = useState(false);
   const [autosaveStopped, setAutosaveStopped] = useState(false);
   const [history, setHistory] = useState<Run[]>([]);
@@ -264,6 +269,7 @@ export function App({ api }: { api?: DesktopAPI }) {
     setCompilation(null);
     setDirty(false);
     setSelectedBlock(null);
+    setBlockNavigation(null);
     intent.current = null;
   }
   async function openProject(
@@ -553,6 +559,15 @@ export function App({ api }: { api?: DesktopAPI }) {
       }
     });
   }
+  function locateBlock(blockId: string | null) {
+    if (!project || !blockId) return;
+    setSelectedBlock(blockId);
+    setBlockNavigation((previous) => ({
+      projectId: project.projectId,
+      blockId,
+      sequence: (previous?.sequence ?? 0) + 1,
+    }));
+  }
   function tutorialLocate(target: TutorialTarget) {
     if (!project) return;
     const topic = tutorials.find((item) => item.id === tutorialTopic)!;
@@ -561,7 +576,7 @@ export function App({ api }: { api?: DesktopAPI }) {
     );
     if (!hit) return;
     setViewTab(hit.workspace);
-    setSelectedBlock(hit.id);
+    locateBlock(hit.id);
   }
   function tutorialHelp(blockType: string) {
     const topic = tutorialForBlock(blockType);
@@ -1027,6 +1042,7 @@ export function App({ api }: { api?: DesktopAPI }) {
               project={project}
               readOnly={!writable || Boolean(busy) || activeRun}
               selectedBlock={selectedBlock}
+              navigationRequest={blockNavigation}
               onChange={changeWorkspaces}
               onSelect={setSelectedBlock}
               onHelp={tutorialHelp}
@@ -1090,7 +1106,7 @@ export function App({ api }: { api?: DesktopAPI }) {
                       <button
                         type="button"
                         onClick={() =>
-                          setSelectedBlock(diagnostic.origin?.blockId ?? null)
+                          locateBlock(diagnostic.origin?.blockId ?? null)
                         }
                       >
                         源积木 {diagnostic.origin.blockId}
@@ -1135,7 +1151,7 @@ export function App({ api }: { api?: DesktopAPI }) {
                   code={compilation.code}
                   spans={compilation.sourceMap ?? []}
                   selectedBlock={selectedBlock}
-                  onSelectBlock={setSelectedBlock}
+                  onSelectBlock={locateBlock}
                 />
               </details>
             )}

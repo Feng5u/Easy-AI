@@ -34,6 +34,16 @@ vi.mock("./ProjectEditor.js", async () => {
         element("output", { "data-testid": "visible-tab" }, props.activeTab),
         element(
           "output",
+          { "data-testid": "visible-navigation" },
+          JSON.stringify(props.navigationRequest ?? null),
+        ),
+        element(
+          "button",
+          { onClick: () => props.onSelect("repeat-source") },
+          "原生选择同一积木",
+        ),
+        element(
+          "output",
           { "data-testid": "visible-blocks" },
           String(blocks.length),
         ),
@@ -1181,4 +1191,87 @@ it("package planning entry stays read-only and hiding it preserves the opened pa
   expect(plan).not.toHaveBeenCalled();
   expect(confirm).not.toHaveBeenCalled();
   expect(h.dirty.mock.calls.every(([value]) => value === false)).toBe(true);
+});
+
+it("issues a fresh explicit navigation for repeated diagnostic and code clicks, but not native selection", async () => {
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
+  const h = bridge();
+  h.api.projects.compile = vi.fn<DesktopAPI["projects"]["compile"]>(
+    async () => ({
+      revision: 1,
+      programHash: "a".repeat(64),
+      runnable: false,
+      diagnostics: [
+        {
+          code: "SHAPE_MISMATCH",
+          severity: "error",
+          message: "输入维度不符",
+          origin: { workspace: "model", blockId: "repeat-source" },
+        },
+      ],
+      code: "value = model()",
+      sourceMap: [
+        {
+          file: "train.py",
+          startLine: 1,
+          endLine: 1,
+          kind: "semantic",
+          origin: { workspace: "model", blockId: "repeat-source" },
+        },
+      ],
+    }),
+  );
+  await mount(h.api);
+  await click("检查与编译");
+  const navigation = () =>
+    JSON.parse(
+      container.querySelector('[data-testid="visible-navigation"]')!
+        .textContent!,
+    );
+  await click("源积木 repeat-source");
+  expect(navigation()).toEqual({
+    projectId: project().projectId,
+    blockId: "repeat-source",
+    sequence: 1,
+  });
+  await click("源积木 repeat-source");
+  expect(navigation().sequence).toBe(2);
+  const line = container.querySelector<HTMLButtonElement>(
+    '.code-line[aria-label="第 1 行，源积木 repeat-source"]',
+  )!;
+  await act(async () => line.click());
+  expect(navigation().sequence).toBe(3);
+  await act(async () => line.click());
+  expect(navigation().sequence).toBe(4);
+  await click("原生选择同一积木");
+  expect(navigation().sequence).toBe(4);
+  expect(
+    container.querySelector('[data-testid="visible-selected"]')?.textContent,
+  ).toBe("repeat-source");
+  expect(h.api.projects.compile).toHaveBeenCalledTimes(1);
+  const next = {
+    ...project(),
+    projectId: "718f0f85-57a3-4cf2-8f37-89e22f2d1c5a",
+  };
+  h.api.selections.pick = async () => ({
+    selectionId: "df916535-8edc-4ada-a408-30e86a70b6b4",
+    kind: "project",
+    label: "next project",
+  });
+  h.api.projects.open = async () => ({ project: next, readOnly: false });
+  await click("选择目录并打开");
+  expect(navigation()).toBeNull();
+  await click("检查与编译");
+  await click("源积木 repeat-source");
+  expect(navigation()).toEqual({
+    projectId: next.projectId,
+    blockId: "repeat-source",
+    sequence: 1,
+  });
 });

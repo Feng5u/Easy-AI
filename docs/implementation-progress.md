@@ -3487,3 +3487,29 @@ ZIP435254893B，SHA256 a6d3b407d6046f2c877c1b7624fbc22d07afbaddd270952e322d19afe
 本轮仅验收该M4/DoD空白CNN实际编辑、权威编译、诊断修复、严格保存重开切片；不是完整M4/M7、真实SSH/MNIST训练/效果、TST33、硬件/许可验收或完整A/B。下一项是依据原计划继续剩余UI/教程/发布验收缺口；训练环境、实际数据/SSH/硬件仍按原最小条件与授权门处理，本轮没有安装训练依赖/下载/真实SSH/凭据/权限/共享环境/main/PR/Release/部署操作。main5323f86232529efcfb52131168ad049f01b219f3及原件/README/规格/锁保持。
 
 本地最终命令状态：pnpm check PASS；pnpm test PASS（397 TS/950 Python/36 Node，skip见前条）；pnpm --filter @easyai/desktop build PASS；独立生命周期/React/SVG/focus35PASS与增强2PASS；本机实际GUI NOT RUN，由上述Windows实际开发态/包内测试提供GUI证据。当前仅本地收据/docs证据提交，避免为报告触发另一次CI；源码remote不变，候选精确对应4d60b86986e79d46690fd1a5d63d6e5fdb590195。
+
+
+### 重复同目标源定位：显式导航请求与原生选择分离
+
+父级独审接受源码4d60b86986e79d46690fd1a5d63d6e5fdb590195/CI39257059104空白13块CNN有界闭环，指出原计划内剩余缺口：App诊断按钮/当前CodeView仍仅setSelectedBlock，同ID React不触发selection effect，已选源滚离后重复定位无效。核源码属实；不改回native echo居中，也不重写编辑架构。
+
+最小实现：App显式locateBlock生成仅内存BlockNavigationRequest(projectId,blockId,sequence)，当前诊断/CodeView及同类教程当前工程定位共用入口，原生onSelect仍只更新选中ID。acceptSession清请求。ProjectEditor消费当前工程+序号，重核真实块/所属页；缺失/跨工程也结束该请求，防止Undo后迟到重放。隐藏页先onTabChange并return，待实际activeTab渲染及既有layout setActive完成后才原select/center并将host滚入页面；消费后保存/revision/receive不重放，其他选择回声仍走4d60原样syncSelection。请求不写入工程/IPC，不扩bridge/权限/CSP；旧运行快照映射入口未接当前工程导航。
+
+定向实证：原App状态路径RED（实际源按钮点击后没有新导航请求）；真实SVG/React在已选同ID且目标页隐藏时，旧effect定向RED center0而预期1（仅临时替换本轮自有effect，finally原样恢复，不gitreset/覆盖用户工作）。修复后App重复诊断/真实CodeView文本fallback点击各生成新序号，native选择不生成导航；新工程重置并绑定新projectId。真实SVG重复请求各center一次，center时目标DOM页及workspace确已可见；跨工程/缺失请求不迟后重放，旧请求存在时实际数字输入intermediate props回写仍保持原input，显式请求才允许关闭。原数字重开/3135→3136及真实引用菜单生命周期两项继续通过。App+SVG完整29PASS，独立相关定向6PASS/23skip及SVG3PASS（不重复加总），无新增明确P1/P2。
+
+新增真实E2E沿原空白场景验证：原二次数值编辑流程原样保留；shape错误后两轮实际wheel将Linear标题完全滚离画布→再次同ID诊断源定位，修复编译后再两轮同样Monaco真实映射行点击。Blockly内容padding限制宽积木不必能整块滚出，故前提明确为标题实际rect完全离开main area并not.toBeInViewport；同时原ID保持。定位后严格要求整条path全盒进实际画布且源块toBeInViewport，观察断言不调用reveal/平移/选择。点击前只展示实际来源控件并重新确认标题仍不可见，没有程序设置字段/选择/连接/图或注入响应。实际wheel命中、最多4手势、原动作/场景/正常退出时限不变。几何日志记录真实标题和整块，不能把标题离屏夸称整块先离屏。GUI仍待单次自然CI，本机因既有sandbox/display条件NOT RUN。
+
+依react-best-practices技能复核两个TSX：functional state更新事件序号、只消费新请求的effect、真实页激活后DOM命令、原生回声无导航；无新网络/全局监听/状态持久化。独立复核确认上述边界和最终helper无明确P1/P2，不要求额外架构/外围工作。
+
+本地首次pnpm test：399 TS PASS，950 Python PASS/19skip但test_remote_run_api::test_acceptance_resume_waits_exact_old_worker_without_restarting teardown报REMOTE_CLEANUP_UNCONFIRMED，整命令FAIL，Node未执行。该fixture禁止socket网络、使用自有stdlib非训练子进程；未改Python或降低cleanup门。只对该节点一次有界重现1PASS，再完整pnpm test重跑PASS（399 TS/2skip、950 Python/19skip、36 Node）；具体fixture线程时序根因未确认，不抹去首次FAIL或声称永久消除。check初稿新测试compile fixture类型/缺kind被准确阻断，补完整类型及semantic span后最终check PASS。
+
+最终命令PASS（既有CI/XDG/UV_OFFLINE环境）：pnpm check；pnpm test；pnpm --filter @easyai/desktop build；git diff --check。前轮构建后只有测试/helper更改，产品build结果适用于当前生产源码；最终TS/check涵盖全部新测试。提交前HEADc7ca38d32037b6757e03e173255cb26f80d0a893、remote dev4d60b86986e79d46690fd1a5d63d6e5fdb590195，保全c7ca文档随正常开发推送；main5323f86232529efcfb52131168ad049f01b219f3、原plan/规格/README/依赖锁SHA完全相同。下一项仅本轮明确源缺陷与本地/独审后的单次自然CI，旧run不重跑，无真实训练/SSH/数据下载/权限/凭据/共享环境/发布变化。原完整M4/M7/TST33/许可/A/B未验边界保持。
+
+- App RED `/tmp/easyai-repeat-navigation-app-red-20261019.log` SHA256 `44857040b62de01aa4f45dff528399c27660c899d770f613b7c703f843f8a7e3`。
+- 实际同ID SVG RED `/tmp/easyai-repeat-navigation-svg-actual-red-20261019.log` SHA256 `e2c3ee420a4ea7fecdc2f7ea84595574f8312bb618c775fac4b9c17f90bb9ef2`。
+- App+SVG29项 `/tmp/easyai-repeat-navigation-app-svg-final-20261019.log` SHA256 `157625f6e55e1d9c52684f590ec475eb4f28c7eefd55cb0c4c44d5fa187ab8f5`。
+- 最终check `/tmp/easyai-repeat-navigation-check-final4-20261019.log` SHA256 `e580f738fb6f2a6bfe01cc5daae5d3e702f5220b2ad112eafff67fad6afa0a95`。
+- 首次全套FAIL `/tmp/easyai-repeat-navigation-all-test-20261019.log` SHA256 `2f2ab64130b0f1c2a05849ea1c8d8bdd98372dd12f876775e0dbfdd0a1e121fd`。
+- 唯一teardown节点重现PASS `/tmp/easyai-repeat-navigation-offline-teardown-target-20261019.log` SHA256 `ee25bfe2103170ea8ccc88d2b46f72490382b88b9d9029f133e5886c8c823191`。
+- 最终完整PASS `/tmp/easyai-repeat-navigation-all-test-final-20261019.log` SHA256 `87efddc2432206fabdd3dd957e566a42cd5455d41dd83dde8f0e885d1852d797`。
+- 桌面build `/tmp/easyai-repeat-navigation-desktop-build-20261019.log` SHA256 `f8852f097d52c97087398d855549db3efd22952f5a37db5771cd7cf7e8b3ddf5`。

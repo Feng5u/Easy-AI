@@ -287,7 +287,14 @@ test("build a CNN from the toolbox, diagnose shape and restore the saved graph",
       await expect(
         page.getByRole("button", { name: "开始本次运行", exact: true }),
       ).toBeDisabled();
-      await mismatch.getByRole("button").click();
+      for (let repeat = 0; repeat < 2; repeat++) {
+        await model.panSourceOut(linear, mismatch.getByRole("button"));
+        await expect(
+          page.getByLabel("所选积木 ID", { exact: true }),
+        ).toHaveText(linear);
+        await mismatch.getByRole("button").click();
+        await model.sourceVisible(linear);
+      }
       await expect(
         page
           .getByRole("complementary", { name: "对象注册与引用" })
@@ -304,6 +311,28 @@ test("build a CNN from the toolbox, diagnose shape and restore the saved graph",
       await expect
         .poll(() => page.locator(".code-view > ol > li code").allTextContents())
         .toEqual(code);
+    });
+    await test.step("repeat code-to-source navigation after panning the same selected block out", async () => {
+      const expectedLine = code
+        .find((line) => line.includes("nn.Linear(3136, 10)"))!
+        .trim();
+      const line = page
+        .getByLabel("Monaco 只读代码视图")
+        .locator(".monaco-editor .view-lines .view-line")
+        .filter({ hasText: expectedLine });
+      for (let repeat = 0; repeat < 2; repeat++) {
+        await expect(line).toHaveCount(1);
+        await model.panSourceOut(linear, line);
+        await expect(
+          page.getByLabel("所选积木 ID", { exact: true }),
+        ).toHaveText(linear);
+        await expect(line).toHaveCount(1);
+        await line.click({ position: { x: 4, y: 4 } });
+        await model.sourceVisible(linear);
+        await expect(
+          page.getByLabel("所选积木 ID", { exact: true }),
+        ).toHaveText(linear);
+      }
     });
     await saved();
     const built = await snapshot();

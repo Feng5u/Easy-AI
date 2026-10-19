@@ -5,6 +5,7 @@ import { createRequire } from "node:module";
 import * as Blockly from "blockly/core";
 import type { ProjectDocument } from "../electron/bridge.js";
 import type { ManagerCallbacks } from "./WorkspaceManager.js";
+import type { BlockNavigationRequest } from "./editor-contract.js";
 import { WorkspaceManager } from "./WorkspaceManager.js";
 import { ProjectEditor } from "./ProjectEditor.js";
 const captured = vi.hoisted(() => ({ managers: [] as WorkspaceManager[] }));
@@ -105,6 +106,7 @@ afterEach(async () => {
 async function mount() {
   const onSelect = vi.fn();
   const onChange = vi.fn();
+  let navigate!: (id: string, projectId?: string) => void;
   function Screen() {
     const [project, setProject] = useState<ProjectDocument>({
       projectId: "2c92b153-77e4-4bb4-874e-adcc8b2a6e36",
@@ -119,11 +121,22 @@ async function mount() {
       settings: { executionMode: "full" },
     });
     const [selected, setSelected] = useState<string | null>(null);
+    const [navigationRequest, setNavigationRequest] =
+      useState<BlockNavigationRequest | null>(null);
+    navigate = (id, projectId = project.projectId) => {
+      setSelected(id);
+      setNavigationRequest((previous) => ({
+        projectId,
+        blockId: id,
+        sequence: (previous?.sequence ?? 0) + 1,
+      }));
+    };
     const [tab, setTab] = useState<"data" | "model" | "training">("model");
     return createElement(ProjectEditor, {
       project,
       readOnly: false,
       selectedBlock: selected,
+      navigationRequest,
       activeTab: tab,
       onSelect(id) {
         onSelect(id);
@@ -139,7 +152,7 @@ async function mount() {
   const { createRoot } = await import("react-dom/client");
   root = createRoot(container);
   await act(async () => root!.render(createElement(Screen)));
-  return { manager: captured.managers[0], onSelect, onChange };
+  return { manager: captured.managers[0], onSelect, onChange, navigate };
 }
 function initialize(block: Blockly.BlockSvg) {
   block.initSvg();
@@ -354,4 +367,80 @@ it("keeps the actual reference menu alive through native selection and commits t
   expect(field.getSvgRoot()!.getAttribute("aria-expanded")).toBe("false");
   expect(onChange.mock.lastCall![0]).toEqual(manager.serialize());
   expect(manager.block(dataset.id)).toBe(dataset);
+});
+
+it("consumes each explicit same-ID request once after the real target tab is visible", async () => {
+  const { manager, onSelect, onChange, navigate } = await mount();
+  const workspace = manager.workspaces.model as Blockly.WorkspaceSvg;
+  let block!: Blockly.BlockSvg;
+  await act(async () => {
+    block = workspace.newBlock(
+      "model.linear",
+      "svg-repeat-target",
+    ) as Blockly.BlockSvg;
+    initialize(block);
+    await vi.waitFor(() => expect(onChange).toHaveBeenCalled());
+  });
+  const host = container.querySelector<HTMLElement>(
+    '[role="tabpanel"][aria-label="模型结构"]',
+  )!;
+  const pageScroll = vi.fn();
+  host.scrollIntoView = pageScroll;
+  const originalCenter = workspace.centerOnBlock.bind(workspace);
+  const center = vi
+    .spyOn(workspace, "centerOnBlock")
+    .mockImplementation((id, only) => {
+      expect(host.hidden).toBe(false);
+      expect(workspace.isVisible()).toBe(true);
+      originalCenter(id, only);
+    });
+  await act(async () => {
+    Blockly.getFocusManager().focusNode(block);
+    await vi.waitFor(() => expect(onSelect).toHaveBeenLastCalledWith(block.id));
+  });
+  expect(center).not.toHaveBeenCalled();
+  await act(async () => {
+    container
+      .querySelector<HTMLButtonElement>('[role="tab"][aria-controls$="-data"]')!
+      .click();
+  });
+  expect(host.hidden).toBe(true);
+  await act(async () => navigate(block.id));
+  expect(center).toHaveBeenCalledTimes(1);
+  expect(pageScroll).toHaveBeenCalledTimes(1);
+  await act(async () => navigate(block.id));
+  expect(center).toHaveBeenCalledTimes(2);
+  expect(pageScroll).toHaveBeenCalledTimes(2);
+  // An explicit command may dismiss an active editor. A native echo still may
+  // not, including when the old command remains present in the props.
+  const field = block.getField("IN_FEATURES")!;
+  let input!: HTMLInputElement;
+  onChange.mockClear();
+  await act(async () => {
+    field.showEditor();
+    input = document.querySelector<HTMLInputElement>("input.blocklyHtmlInput")!;
+    input.value = "3135";
+    input.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+    await vi.waitFor(() => expect(onChange).toHaveBeenCalled());
+  });
+  expect(input.isConnected).toBe(true);
+  expect(center).toHaveBeenCalledTimes(2);
+  await act(async () => navigate(block.id));
+  expect(input.isConnected).toBe(false);
+  expect(center).toHaveBeenCalledTimes(3);
+  await act(async () => navigate(block.id, "another-project"));
+  expect(center).toHaveBeenCalledTimes(3);
+  await act(async () => navigate("svg-missing-target"));
+  expect(center).toHaveBeenCalledTimes(3);
+  onChange.mockClear();
+  await act(async () => {
+    const restored = workspace.newBlock(
+      "model.relu",
+      "svg-missing-target",
+    ) as Blockly.BlockSvg;
+    initialize(restored);
+    await vi.waitFor(() => expect(onChange).toHaveBeenCalled());
+  });
+  expect(center).toHaveBeenCalledTimes(3);
+  expect(pageScroll).toHaveBeenCalledTimes(3);
 });

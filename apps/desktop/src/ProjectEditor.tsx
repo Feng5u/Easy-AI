@@ -1,6 +1,10 @@
 import { FigureInspector } from "./FigureInspector.js";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import type { ProjectEditorProps, WorkspaceTab } from "./editor-contract.js";
+import type {
+  BlockNavigationRequest,
+  ProjectEditorProps,
+  WorkspaceTab,
+} from "./editor-contract.js";
 import { WorkspaceManager, workspaceTabs } from "./WorkspaceManager.js";
 import type { SymbolRecord } from "../../../packages/block-library/symbols.mjs";
 import "./ProjectEditor.css";
@@ -16,6 +20,7 @@ export function ProjectEditor(props: ProjectEditorProps) {
   const callbacks = useRef(props);
   callbacks.current = props;
   const manager = useRef<WorkspaceManager | null>(null);
+  const consumedNavigation = useRef<BlockNavigationRequest | null>(null);
   const data = useRef<HTMLDivElement>(null);
   const model = useRef<HTMLDivElement>(null);
   const training = useRef<HTMLDivElement>(null);
@@ -45,6 +50,7 @@ export function ProjectEditor(props: ProjectEditorProps) {
       },
     );
     manager.current = instance;
+    consumedNavigation.current = null;
     try {
       instance.receive(callbacks.current.project.workspaces);
       setLoadError("");
@@ -89,8 +95,50 @@ export function ProjectEditor(props: ProjectEditorProps) {
     manager.current?.setReadOnly(props.readOnly || Boolean(loadError));
   }, [props.readOnly, loadError]);
   useEffect(() => {
-    manager.current?.syncSelection(props.selectedBlock);
-  }, [props.selectedBlock]);
+    const instance = manager.current;
+    if (!instance) return;
+    const request = props.navigationRequest;
+    if (!request) consumedNavigation.current = null;
+    if (
+      request &&
+      (request.projectId !== consumedNavigation.current?.projectId ||
+        request.sequence !== consumedNavigation.current?.sequence)
+    ) {
+      // Only a fresh explicit command may move the canvas. Native selection
+      // echoes still take the non-navigating path below.
+      if (request.projectId !== props.project.projectId) {
+        consumedNavigation.current = request;
+        return;
+      }
+      const tab = workspaceTabs.find((candidate) =>
+        instance.workspaces[candidate].getBlockById(request.blockId),
+      );
+      if (!tab) {
+        consumedNavigation.current = request;
+        return;
+      }
+      if (props.activeTab !== tab) {
+        callbacks.current.onTabChange(tab);
+        return;
+      }
+      // The target panel is now unhidden and the layout effect has activated
+      // its actual SVG workspace, so center with current viewport metrics.
+      consumedNavigation.current = request;
+      instance.select(request.blockId);
+      ({ data, model, training })[tab].current?.scrollIntoView({
+        block: "nearest",
+        inline: "nearest",
+        behavior: "instant",
+      });
+      return;
+    }
+    instance.syncSelection(props.selectedBlock);
+  }, [
+    props.selectedBlock,
+    props.navigationRequest,
+    props.activeTab,
+    props.project.projectId,
+  ]);
 
   const selected = props.selectedBlock
     ? manager.current?.block(props.selectedBlock)
