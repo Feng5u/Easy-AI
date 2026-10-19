@@ -151,8 +151,12 @@ test("secure desktop, Dataset error repair, Monaco and saved project reopen", as
       .locator(".code-view > ol > li code")
       .allTextContents();
     await symbols.getByRole("button", { name: /^train_data/ }).click();
-    const datasetId = (await symbols.locator(":scope > small").textContent())!;
-    await expect(symbols.locator("strong")).toHaveText("data.dataset_builtin");
+    const datasetId = (await symbols
+      .getByLabel("所选积木 ID", { exact: true })
+      .textContent())!;
+    await expect(
+      symbols.getByLabel("所选积木类型", { exact: true }),
+    ).toHaveText("data.dataset_builtin");
     // Dataset has one semantic declaration. Derive its expected text from the
     // actual compiler map, then verify the rendered line and painted background.
     const mappedSource = page.locator(".code-view > ol > li.code-selected");
@@ -185,10 +189,16 @@ test("secure desktop, Dataset error repair, Monaco and saved project reopen", as
     // Reverse navigation must select this declaration's actual source, not just
     // leave an already-selected Dataset unchanged.
     await symbols.getByRole("button", { name: /^train_batches/ }).click();
-    await expect(symbols.locator("strong")).toHaveText("data.dataloader");
+    await expect(
+      symbols.getByLabel("所选积木类型", { exact: true }),
+    ).toHaveText("data.dataloader");
     await mappedLine.click({ position: { x: 4, y: 4 } });
-    await expect(symbols.locator(":scope > small")).toHaveText(datasetId);
-    await expect(symbols.locator("strong")).toHaveText("data.dataset_builtin");
+    await expect(symbols.getByLabel("所选积木 ID", { exact: true })).toHaveText(
+      datasetId,
+    );
+    await expect(
+      symbols.getByLabel("所选积木类型", { exact: true }),
+    ).toHaveText("data.dataset_builtin");
     await expect(compile).toBeEnabled();
     const before = JSON.parse(
       await readFile(
@@ -220,7 +230,9 @@ test("secure desktop, Dataset error repair, Monaco and saved project reopen", as
       page.getByRole("button", { name: "开始本次运行", exact: true }),
     ).toBeDisabled();
     await missing.getByRole("button", { name: /^源积木 / }).click();
-    await expect(symbols.locator("strong")).toHaveText("data.dataloader");
+    await expect(
+      symbols.getByLabel("所选积木类型", { exact: true }),
+    ).toHaveText("data.dataloader");
     await expect(
       page.getByRole("tab", { name: "数据处理", exact: true }),
     ).toHaveAttribute("aria-selected", "true");
@@ -229,7 +241,9 @@ test("secure desktop, Dataset error repair, Monaco and saved project reopen", as
       symbols.getByRole("button", { name: /^train_data/ }),
     ).toBeVisible();
     await symbols.getByRole("button", { name: /^train_data/ }).click();
-    await expect(symbols.locator(":scope > small")).toHaveText(datasetId);
+    await expect(symbols.getByLabel("所选积木 ID", { exact: true })).toHaveText(
+      datasetId,
+    );
     await expect(compile).toBeEnabled();
     await compile.click();
     await expect(passed).toBeVisible();

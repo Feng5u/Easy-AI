@@ -206,9 +206,13 @@ export function ProjectEditor(props: ProjectEditorProps) {
           {selected ? (
             <>
               <p>
-                <strong>{selected.type}</strong>
+                <strong>
+                  <output aria-label="所选积木类型">{selected.type}</output>
+                </strong>
               </p>
-              <small>{selected.id}</small>
+              <small>
+                <output aria-label="所选积木 ID">{selected.id}</output>
+              </small>
               {props.onHelp && (
                 <button
                   type="button"

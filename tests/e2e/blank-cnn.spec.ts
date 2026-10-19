@@ -44,12 +44,57 @@ test("build a CNN from the toolbox, diagnose shape and restore the saved graph",
     page.setDefaultNavigationTimeout(8000);
     page.on("pageerror", (error) => failures.push(error.name));
     page.on("console", (message) => {
+      if (message.text().startsWith("EASYAI_TOOLBOX_SELECTION "))
+        console.info(message.text());
       if (
         /Content Security Policy|Refused to (?:load|apply|execute|create)/i.test(
           message.text(),
         )
       )
         failures.push("CSP violation");
+    });
+    await page.evaluate(() => {
+      let remaining = 64;
+      const inspected = () =>
+        document.querySelector('[aria-label="所选积木 ID"]')?.textContent ??
+        null;
+      const report = (kind: string, target: Element | null) => {
+        if (remaining-- <= 0) return;
+        console.info(
+          "EASYAI_TOOLBOX_SELECTION",
+          JSON.stringify({
+            kind,
+            targetTag: target?.tagName ?? null,
+            targetBlock:
+              target?.closest("g[data-id]")?.getAttribute("data-id") ?? null,
+            activeTag: document.activeElement?.tagName ?? null,
+            activeBlock:
+              document.activeElement
+                ?.closest("g[data-id]")
+                ?.getAttribute("data-id") ?? null,
+            inspected: inspected(),
+          }),
+        );
+      };
+      for (const kind of ["pointerdown", "focusin", "focusout"])
+        document.addEventListener(
+          kind,
+          (event) =>
+            report(kind, event.target instanceof Element ? event.target : null),
+          true,
+        );
+      let previous = inspected();
+      new MutationObserver(() => {
+        const current = inspected();
+        if (current !== previous) {
+          previous = current;
+          report("inspector", null);
+        }
+      }).observe(document.body, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+      });
     });
     await expect(page.getByTestId("backend-status")).toHaveText(
       "本地服务已就绪。",
@@ -246,7 +291,7 @@ test("build a CNN from the toolbox, diagnose shape and restore the saved graph",
       await expect(
         page
           .getByRole("complementary", { name: "对象注册与引用" })
-          .locator(":scope > small"),
+          .getByLabel("所选积木 ID", { exact: true }),
       ).toHaveText(linear);
       await interaction("model.number linear IN_FEATURES", () =>
         model.number(linear, "IN_FEATURES", "3136"),

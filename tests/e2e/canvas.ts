@@ -296,7 +296,9 @@ export class Canvas {
     const inspector = this.page.getByRole("complementary", {
       name: "对象注册与引用",
     });
-    await expect(inspector.locator(":scope > small")).toHaveText(id);
+    await expect(
+      inspector.getByLabel("所选积木 ID", { exact: true }),
+    ).toHaveText(id);
     const input = inspector.getByRole("textbox", {
       name: "用于生成代码的名称",
     });

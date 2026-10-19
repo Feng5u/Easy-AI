@@ -3353,3 +3353,24 @@ PASS：完整pnpm check、现有SVG/geometry/命中9tests、diff-check；独立�
 已请求父级在已登录页面读取该step首个错误、最后ACTION、REVEAL_GEOMETRY的hit/point与canvas几何、退出标志。动作待父级完成；现有元数据不能判断Prep/引用/数字/checkbox的哪个步骤失败或哪个门已通过，不能把源修复或旧轮CLOSE_CONFIRMED借为本轮证据。停止进一步修补和CI，先核此轮真实失败；没有盲重跑或重试受限日志/artifact/browserAPI。旧原始FAIL与本地红绿/独立日志均保留。
 
 本轮统一实际命中修复、9项本地与独立回归以及完整check通过不冒充GUI成功。后续仍保留真实click/注册/引用/权威编译/shape/重开门，不以放宽测试换通过。当前只有本地docs证据提交，工作区提交后clean、领先remote一条，main/原件/依赖不变。完整空白CNN/M4/M7/A/B、真实SSH/MNIST/TST33/许可仍未完成；没有训练/下载/权限/凭据/共享环境/main/发布或付费变化。
+
+
+### Inspector逻辑选择与Blockly焦点分离：实际事件红绿与完整回归
+
+父级已登录浏览器读取CI39249659748/job118050050131 step14：`select object for registration Prep`动作PASS；随后canvas.ts299的Inspector精确原始ID断言失败（`:scope > small`元素不存在，5000ms），实际命中point{x676.4000091552734,y525.75}/receiver field。renderer[]、pid980/code0/signalnull/CLOSE_CONFIRMED。未取得当时完整focus事件时间线，不能武断声称是某一个具体focus瞬间；保留原FAIL。本轮先核实际Inspector源码：small确实是aside直接子元素，旧启动场景仍通过，不能只换selector就宣称修复。
+
+源码证据：锁定Blockly13.4 FocusManager在HTML输入框获得焦点时对原BlockSvg调用onNodeBlur→unselect→真实Selected(null)，原WorkspaceManager无条件将它映射为React所选对象null。真实Gesture.doBlockClick另发公开Click(block)，原manager忽略。新增实际browserWorkspaceFactory/BlockSvg节点/FocusManager与HTML input.focus回归，等待真实Selected(null)事件送达屏障后，旧manager准确RED：预期原ID，实际null。修复后GREEN：保留Inspector逻辑对象直到明确workspace click/键盘焦点回到workspace root/删除原对象；实际block click选中真实存在ID，zoom click不修改图。非空Selected仍核actualblock。没有在E2E中程序化设置选择、注册、加载图或修改字段。
+
+该本地测试仅真实SVG DOM与focus事件生命周期：挂载实际未render字段的BlockSvg根以避免JSDOM不实现的像素测量，不冒充实际Windows像素点击。早期探针缺global rAF、清理错误及仅setTimeout0未等事件队列的结果全部保留，不作为有效产品红绿；有效RED是actual-red日志，等待确切Selected(null)送达。初次完整check准确发现新测试Object.fromEntries的过宽类型断言，改为显式data/model/training对象后check PASS，没有压制TS错误。一次未带XDG前缀的prettier调用因/home/agent目录条件失败，随后只在既有workspace环境变量下执行成功；未升级权限或更改依赖锁。
+
+Inspector原始ID/type保留真实值与原strong/small布局，增加命名只读output；三个E2E消费者统一按公开名称定位，保留精确原始ID/type断言，去除私有层级假设。审查实际注册输入、引用/数字/checkbox菜单与字段的DOM关系，继续真实用户操作及实际编译/图持久化门。blank场景新增只读64条有界focus/pointer/Inspector变更诊断，仅记录tag和测试blockID，不读输入/路径/凭据、不设置focus、不改DOM/图、不阻止事件。独立只读复核焦点逻辑与trace均无明确P1/P2，独立相关10项PASS；本地与独立数量不重复相加。
+
+PASS命令（CI=true，XDG_DATA_HOME=/workspace/.local/share，XDG_CACHE_HOME=/workspace/.cache，UV_CACHE_DIR=/workspace/.uv-cache，UV_OFFLINE=1）：完整`pnpm test`：44文件PASS/1skip，363 TypeScript PASS/2skip，950 Python PASS/19skip，36 Node打包测试PASS；最终完整`pnpm check`：桌面/合同/E2E TS、Python lint/type、合同/实际序列化fixtures与格式全部PASS。`git diff --check` PASS。本机真实GUI仍NOT RUN（既有sandbox/无DISPLAY约束），没有禁用sandbox或绕过日志/artifact接口。下一步只为本轮明确源码缺陷及红绿回归推送一次自然CI；旧run不重跑，新的Windows真实注册/完整空白CNN仍待验收，不能以本地焦点测试替代。
+
+提交前HEAD9cff87b1ccb21d86f88d1d75e8dbf39235cd4542，remote dev为df1434114a470ef1d23e49459c5e96c772aaad5d；前者是保留的本地证据提交。main仍5323f86232529efcfb52131168ad049f01b219f3；plan116185B及README/原规格/两个锁SHA与原记录完全一致。完整M4/M7、真实SSH/MNIST/TST33/许可/A/B仍未验收；无训练环境安装、数据下载、共享环境/权限/凭据/main/部署/发布变化。
+
+- 有效RED `/tmp/easyai-inspector-focus-actual-red-20261019.log` SHA256 `628af8be5a05b2b7360ff38189b27e6fff231f8192934c22b244b14e52c76076`。
+- GREEN10项 `/tmp/easyai-inspector-focus-final-20261019.log` SHA256 `67e9036dd9885dd3bd2b3cc59910e4e34728dea8f45f78ed655b606ac5ecd25e`。
+- 独立10项 `/tmp/easyai-inspector-focus-independent-IUQW64.log` SHA256 `704b3c58c7bc9ab09de7bdfd091b1796129fdce7aa2a98188b8c608d156f2a51`。
+- 最终check `/tmp/easyai-inspector-selection-check-final-20261019.log` SHA256 `e580f738fb6f2a6bfe01cc5daae5d3e702f5220b2ad112eafff67fad6afa0a95`。
+- 完整test `/tmp/easyai-inspector-selection-regression-20261019.log` SHA256 `826982dfff9e3e73668e0d2ee7885550aaba6edca05280a8903c766e7919dd98`。

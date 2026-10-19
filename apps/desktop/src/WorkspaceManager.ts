@@ -346,6 +346,7 @@ export class WorkspaceManager {
   private blocked = false;
   private disposed = false;
   private readOnly: boolean;
+  private inspectedId: string | null = null;
   private active: WorkspaceTab = "data";
   constructor(
     hosts: Record<WorkspaceTab, HTMLElement>,
@@ -452,10 +453,39 @@ export class WorkspaceManager {
   private changed(event: Blockly.Events.Abstract): void {
     if (this.disposed || this.suppressed || this.blocked) return;
     if (event.type === Blockly.Events.SELECTED) {
-      this.callbacks.onSelect(
-        (event as Blockly.Events.Selected).newElementId ?? null,
-      );
-      this.callbacks.onRefresh();
+      const id = (event as Blockly.Events.Selected).newElementId;
+      if (id && this.block(id)) this.inspect(id);
+      else if (!id) {
+        const workspace = Object.values(this.handles).find(
+          (handle) => handle.workspace.id === event.workspaceId,
+        )?.workspace;
+        // Blockly's focus lifecycle emits Selected(null) when HTML inspector
+        // controls or popovers gain focus. That is not a request to discard
+        // the object being inspected. An explicitly focused workspace root,
+        // or a removed object, still clears the logical selection.
+        const workspaceFocused =
+          workspace?.rendered &&
+          typeof document !== "undefined" &&
+          document.activeElement ===
+            (workspace as Blockly.WorkspaceSvg).getFocusableElement();
+        if (
+          !workspace?.rendered ||
+          workspaceFocused ||
+          (this.inspectedId !== null && !this.block(this.inspectedId))
+        )
+          this.inspect(null);
+      }
+      return;
+    }
+    if (event.type === Blockly.Events.CLICK) {
+      const click = event as Blockly.Events.Click;
+      if (click.targetType === "workspace") this.inspect(null);
+      else if (
+        click.targetType === "block" &&
+        click.blockId &&
+        this.block(click.blockId)
+      )
+        this.inspect(click.blockId);
       return;
     }
     if (event.isUiEvent) return;
@@ -485,6 +515,8 @@ export class WorkspaceManager {
       Blockly.Events.setGroup(group);
     }
     refreshReferences(this.workspaces);
+    if (this.inspectedId !== null && !this.block(this.inspectedId))
+      this.inspect(null);
     const value = this.serialize();
     const signature = canonical(value);
     if (signature !== this.currentSignature) {
@@ -508,6 +540,7 @@ export class WorkspaceManager {
     for (const handle of Object.values(this.handles)) handle.setReadOnly(value);
   }
   select(id: string | null): void {
+    this.inspectedId = id && this.block(id) ? id : null;
     if (!id) {
       for (const handle of Object.values(this.handles)) handle.select(null);
       return;
@@ -518,6 +551,11 @@ export class WorkspaceManager {
         this.handles[tab].select(id);
         return;
       }
+  }
+  private inspect(id: string | null): void {
+    this.inspectedId = id;
+    this.callbacks.onSelect(id);
+    this.callbacks.onRefresh();
   }
   figure(id: string): FigureView | null {
     if (this.disposed || this.blocked) return null;
