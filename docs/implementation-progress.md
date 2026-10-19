@@ -3002,3 +3002,22 @@ NativeWindowsApi.names现在固定64KiB缓冲、limit1..4096、最多limit+3调�
 
 第二阶段workspace XDG/UV_OFFLINE=1 pnpm check PASS，TS/ruff/mypy/fixtures/format全部通过；git diff --check PASS。下一步仅此默认selector变更正常push一次自然免费CI，核实际默认Windows与packaged startup，不重跑第一阶段。
 - `/tmp/easyai-windows-selector-default-check-20261019.log`：SHA256 `7bb5b9eb40318a727256c7414127c5ca33b23bf440aa4e4841edbfc9e05a4201`。
+
+
+### 第二阶段Windows默认路径通过；Linux已知负例前提修复与首错待核
+
+第二阶段源码/remote f89831a15498e00db6da3d20891e9a4fe45c0b4a / [run39232654843](https://github.com/T1doo/Easy-AI/actions/runs/39232654843)：Windows job117994085200完整SUCCESS，step8 startup/metadata/compile与step9实际默认native selector集成/security contracts、原freeze/resources/devE2E/guards/build/ZIP/backend/Electron/retain全SUCCESS。无storage factory/API或gate临时开启注入，defaultcache actualWindows已验证。实际ZIP435167215字节，SHA256a869cd8a1a331b212f83f823982e8ad8ff2b6e5dfe032baa7bcc0caadbabba98。原d4和06c候选保留，本执行器未下载此包或读uploadreceipt，不把Windows成功夸成完整SSH。
+
+Linux job117994084895 pnpm check SUCCESS但pnpm test FAILURE，后续build SKIPPED，整体CI失败。已请求父级浏览器 https://github.com/T1doo/Easy-AI/actions/runs/39232654843/job/117994084895#step:9:1 首测试名/异常，证据pending；未读被拒logs/artifacts接口，不假定唯一CI根因。
+
+父级再次收到环境断连通知；同实例最小只读 date/git HEAD/status/日志sha/ls-remote 在2026-10-19T09:50:34Z exit0，实际可执行，HEAD/remote f898、工作区clean、日志可读、main不变；未重启未知进程或另开写入者，也未因通知重复测试。
+
+独立源码核对发现两个确定旧夹具前提失效：test_local_ssh_storage.test_unverified_platform_refuses_before_any_local_or_native_access与test_remote_run_api.test_unverified_cache_platform_refuses_binding_and_prepare_without_staging只将capability.os.name=nt当未验证能力。新真实Windows能力已启用，这个前提不再成立；本地定向两例旧夹具确定2FAIL（首例转nativebackend、第二binding200而非预期422）。只在两负例各增加monkeypatch WINDOWSNATIVECACHEVERIFIED=False，明确未验证能力，不改产品/expected码/零storage/bind/staging/命令副作用断言。真实默认Windows正例仍已通过且保持。不凭该本地红例声称CI全部失败唯一根因。
+
+匹配命令：pytest -q services/backend/tests/test_local_ssh_storage.py::test_unverified_platform_refuses_before_any_local_or_native_access services/backend/tests/test_remote_run_api.py::test_unverified_cache_platform_refuses_binding_and_prepare_without_staging（固定应用.venv），旧2FAIL；修复后pytest -q services/backend/tests/test_local_ssh_storage.py services/backend/tests/test_remote_run_api.py，43PASS/16.20s。ruff check/format --check两文件与git diff --check PASS。独审只读2PASS，确认不是松测试、保留全部负向断言，无新增明确P1/P2。此次无产品源改动，不为数字重复上一轮静态/构建。
+
+下一步仅该确定夹具修复一次正常新提交自然CI，非重跑失败run或猜改产品。HostKeyStore独立POSIX门及before-dial信任存储验证继续保持，仍为下一项明确代码缺口，不等正式数据或外部SSH凭据才推进。本轮新CI结果另补，完整A/B、TST33、真实SSH/MNIST/硬件/法律审核仍未完成。原件、锁、旧候选与main不变，无发布/PR/main/force/新权限/付费/凭据/下载/训练环境/教师环境操作。
+
+- `/tmp/easyai-windows-selector-unverified-before-20261019.log`：SHA256 `d278e55af62905366a25f09ddc11b63f0ac850af4c9abc1cef82ee4701d25d76`。
+- `/tmp/easyai-windows-selector-unverified-after-20261019.log`：SHA256 `e62cca81e849d49993dffabbde5e2d26b2f1743459f4f4843b5c39a6232dac3d`。
+- `/tmp/easyai-cache-negative-independent-I3Z63T.log`：SHA256 `ec25e3d8f9c376b631bdb960261bed46c270ea3da0832e862b39d1aca41b17bd`。

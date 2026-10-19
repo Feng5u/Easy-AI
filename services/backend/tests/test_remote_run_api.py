@@ -730,6 +730,7 @@ def test_unverified_cache_platform_refuses_binding_and_prepare_without_staging(
     calls = sum(session.channel_calls for session in endpoint.sessions)
     # Capability-provider injection only, not Windows filesystem emulation.
     with monkeypatch.context() as capability:
+        capability.setattr(storage, "WINDOWS_NATIVE_CACHE_VERIFIED", False)
         capability.setattr(storage, "os", SimpleNamespace(name="nt"))
         refused = api.post(f"/api/v1/projects/{project.project_id}/run-bindings", json=body)
         assert (

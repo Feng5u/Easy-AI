@@ -193,6 +193,7 @@ def test_unverified_platform_refuses_before_any_local_or_native_access(monkeypat
     def forbidden(*args, **kwargs):
         pytest.fail("Unsupported backend must not touch storage")
 
+    monkeypatch.setattr(storage, "WINDOWS_NATIVE_CACHE_VERIFIED", False)
     monkeypatch.setattr(storage, "os", SimpleNamespace(name="nt", open=forbidden))
     with pytest.raises(ValueError, match="PLATFORM_UNVERIFIED"):
         storage.local_directory(Path("/synthetic"))
