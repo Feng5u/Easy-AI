@@ -1,7 +1,8 @@
 """Fixed Linux install-owner RPC. Standard library only; never resolves/downloads packages.
 
 The authenticated application supplies source configuration and fixed command argv.
-No action deletes a path. An uncertain phase is a permanent barrier until its owner
+No action deletes environment/user paths; publication removes only its own temporary file.
+An uncertain phase is a permanent barrier until its owner
 has written a quiet terminal receipt; a missing ACK never permits another launch.
 """
 
@@ -192,6 +193,41 @@ def write_json(path, value):
     write_file(path, encoded(value))
 
 
+def publish_status(path, value):
+    """Publish a complete durable receipt once, never replacing any existing inode."""
+    import ctypes
+
+    temporary = path.with_name("easyai-status-" + str(uuid4()))
+    write_json(temporary, value)
+    parent = directory_fd(path.parent, owned=True)
+    try:
+        # Linux renameat2(RENAME_NOREPLACE) exposes only the complete, single-link
+        # inode. link/unlink would expose nlink/ctime transitions to file_read.
+        rename = getattr(ctypes.CDLL(None, use_errno=True), "renameat2", None)
+        if rename is None:
+            fail("INSTALL_ATOMIC_PUBLISH_UNAVAILABLE")
+        rename.argtypes = [
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_uint,
+        ]
+        rename.restype = ctypes.c_int
+        if rename(parent, os.fsencode(temporary.name), parent, os.fsencode(path.name), 1) != 0:
+            error = ctypes.get_errno()
+            raise OSError(error, os.strerror(error), str(path))
+        os.fsync(parent)
+    finally:
+        # Only our private temporary name may be removed; final status is immutable,
+        # including malformed/unknown pre-existing evidence. Never retry publication.
+        try:
+            os.unlink(temporary.name, dir_fd=parent)
+        except FileNotFoundError:
+            pass
+        os.close(parent)
+
+
 def replace_json(path, value):
     if path.exists():
         file_read(path)
@@ -229,7 +265,7 @@ def new_directory(path):
 
 
 @contextmanager
-def lock(path):
+def lock(path, pending=None):
     fd = open_file(path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW | os.O_NONBLOCK, owned=True)
     try:
         info = os.fstat(fd)
@@ -240,10 +276,18 @@ def lock(path):
             or info.st_nlink != 1
         ):
             fail("INSTALL_LOCK_UNSAFE")
-        try:
-            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            fail("INSTALL_WRITER_BUSY")
+        deadline = time.monotonic() + 2
+        while True:
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                if pending is None or time.monotonic() >= deadline:
+                    fail("INSTALL_WRITER_BUSY")
+                pending()  # Revalidate the same durable phase/intent on every wait.
+                time.sleep(0.01)
+        if pending is not None:
+            pending()  # Also close the final wait→acquire intent-change window.
         yield fd
     finally:
         os.close(fd)
@@ -841,6 +885,23 @@ def inspect_phase(context, job):
     return result
 
 
+def settling_owner(context, job):
+    receipt = inspect_phase(context, job)
+    phase = receipt.get("phase")
+    if phase is None or not receipt["quiescent"]:
+        return None
+    expected = {"phase": phase, "jobId": job.name, "planHash": context.request["planHash"]}
+
+    def revalidate():
+        context.job()
+        if read_json(job / "last-phase.json") != expected:
+            fail("INSTALL_PHASE_MISMATCH")
+        intent_check(context, phase_path(context, job))
+
+    revalidate()
+    return revalidate
+
+
 def run_phase(context, job, writer_fd):
     context.authorized()
     path = phase_path(context, job)
@@ -1054,7 +1115,8 @@ def dispatch(request):
                     )
             result = inspect_phase(context, job)
         else:
-            with lock(context.slot / ".writer.lock") as writer_fd:
+            pending = settling_owner(context, job) if action in {"verify", "release"} else None
+            with lock(context.slot / ".writer.lock", pending=pending) as writer_fd:
                 if (job / "closed.json").exists() and action != "release":
                     fail("INSTALL_CLAIM_CLOSED")
                 if action == "allocate":
@@ -1220,7 +1282,7 @@ def serve(path, writer_fd=None):
         # Exclusive serve claim + writer ownership prove no child has been dispatched.
         # Check immediately before the actual spawn boundary, not only in the poll loop.
         if cancellation_requested():
-            write_json(
+            publish_status(
                 path / "status.json",
                 {
                     "phase": request["phase"],
@@ -1272,7 +1334,7 @@ def serve(path, writer_fd=None):
                 # Never expose unbounded output in RPC; the managed journal already caps lines.
                 if len(encoded(events)) > MAX_JSON // 2:
                     events, outcome = [], "failed" if quiet else "unknown"
-                write_json(
+                publish_status(
                     path / "status.json",
                     {
                         "phase": request["phase"],

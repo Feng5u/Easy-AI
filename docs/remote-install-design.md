@@ -30,3 +30,10 @@ UI从已认证保存目标进入同一包面板，展示目标/指纹/owned根/�
 serve 在真正调用 ManagedProcess.start 前核对持久取消的 job/plan/phase。独占 serve claim 与 writer 所有权证明尚未派发，才允许写 dispatched=false、cancelled、quiescent=true、events=[]。运行中取消先于 done 判断，未知/不静止仍不得释放。
 
 ConnectionManager 的认证 lease 按 launcher 保存 InstallSshTransport，target adapter 的重建不丢失 SDK cleanup owner。重取 transport、切换 launcher 与 lease retiring 均非阻塞 reap；operation gate 串行回收，只有实际 channel.closed 且 cleanup thread done 才释放本 owner 持有的共享 I/O gate，不释放其他操作的 gate。
+
+
+## 终态收据发布与 writer 收口
+
+status.json 不再直接创建后写入。先以 O_EXCL/O_NOFOLLOW 写同目录随机私有临时文件、flush/fsync，再经 Linux libc renameat2 的 RENAME_NOREPLACE 一次原子发布并 fsync 目录。读者只见缺失或完整的单链接 inode，不放宽 file_read 的 private/owner/nlink/stamp 检查。已有未知、坏文件或符号链接均保留；能力或文件系统不支持时 fail closed，不以普通 rename 覆盖。仅移除本次创建的随机临时名字。
+
+完整静止收据发布后，serve 可能尚未 close writer FD。verify/release 只有已核同 job/plan/phase 的静止收据才最多等2秒获取原 flock，等待逐次重验 claim、last-phase 和 intent。取得锁才继续；原意图变化、超时或未知 phase 不会变成静止、不重试启动、不删除锁。确定性屏障分别覆盖空文件/大收据 fsync 前与收据可见但 writer 仍持有窗口。

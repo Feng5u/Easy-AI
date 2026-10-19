@@ -635,3 +635,198 @@ def test_inherited_writer_close_does_not_unlock_parent(owner, tmp_path):
                 fcntl.flock(other, fcntl.LOCK_EX | fcntl.LOCK_NB)
     with owner.lock(path):
         pass
+
+
+@pytest.mark.parametrize("stage", ["opened", "fsync"])
+def test_inspect_during_status_creation_never_reads_partial_receipt(
+    owner, payload, monkeypatch, stage
+):
+    payload = writer(payload)
+    allocate(owner, payload)
+    run = run_request(payload, "pass")
+    with monkeypatch.context() as patch:
+        patch.setattr(owner.subprocess, "Popen", lambda *a, **k: None)
+        staged = rpc(owner, run, "run")
+    rpc(owner, payload, "cancel")
+    opened, resume = threading.Event(), threading.Event()
+    original, original_sync, original_encoded = owner.open_file, owner.os.fsync, owner.encoded
+    errors, descriptors = [], set()
+
+    def large_receipt(value):
+        if isinstance(value, dict) and "outcome" in value and "events" in value:
+            # Explicit synthetic large receipt, not a real process/tensor report.
+            value = {**value, "events": [{"synthetic": "x" * (512 * 1024)}]}
+        return original_encoded(value)
+
+    def barrier(path, *args, **kwargs):
+        fd = original(path, *args, **kwargs)
+        if args[0] & os.O_CREAT and (
+            path.name == "status.json" or path.name.startswith("easyai-status-")
+        ):
+            descriptors.add(fd)
+            if stage == "opened":
+                opened.set()  # File exists but no receipt byte has been written.
+                assert resume.wait(3)
+        return fd
+
+    def sync_barrier(fd):
+        if stage == "fsync" and fd in descriptors and not opened.is_set():
+            opened.set()  # Large receipt is flushed but not fsynced/published.
+            assert resume.wait(3)
+        return original_sync(fd)
+
+    def serve():
+        try:
+            owner.serve(staged["phaseRoot"])
+        except BaseException as error:
+            errors.append(error)
+
+    monkeypatch.setattr(owner, "open_file", barrier)
+    monkeypatch.setattr(owner.os, "fsync", sync_barrier)
+    monkeypatch.setattr(owner, "encoded", large_receipt)
+    thread = threading.Thread(target=serve)
+    thread.start()
+    try:
+        assert opened.wait(2)
+        result = rpc(owner, payload, "inspect")
+        assert result["outcome"] == "unknown" and not result["quiescent"]
+    finally:
+        resume.set()
+        thread.join(3)
+    assert not thread.is_alive() and not errors
+    result = rpc(owner, payload, "inspect")
+    assert result["outcome"] == "cancelled" and result["quiescent"]
+    assert len(result["events"][0]["synthetic"]) == 512 * 1024
+
+
+@pytest.mark.parametrize("action", ["verify", "release"])
+def test_complete_receipt_waits_for_same_phase_writer_close(owner, payload, monkeypatch, action):
+    payload = writer(payload)
+    allocate(owner, payload)
+    run = run_request(payload, "pass")
+    with monkeypatch.context() as patch:
+        patch.setattr(owner.subprocess, "Popen", lambda *a, **k: None)
+        staged = rpc(owner, run, "run")
+    rpc(owner, payload, "cancel")
+    published, waiting, resume = threading.Event(), threading.Event(), threading.Event()
+    original_publish, original_sleep = owner.publish_status, owner.time.sleep
+    errors, results = [], []
+
+    def held_publish(path, value):
+        original_publish(path, value)
+        published.set()  # Status is complete; actual serve still owns writer flock.
+        assert resume.wait(3)
+
+    def observe_wait(seconds):
+        waiting.set()
+        original_sleep(seconds)
+
+    def serve():
+        try:
+            owner.serve(staged["phaseRoot"])
+        except BaseException as error:
+            errors.append(error)
+
+    def closeout():
+        try:
+            results.append(rpc(owner, payload, action))
+        except BaseException as error:
+            errors.append(error)
+
+    monkeypatch.setattr(owner, "publish_status", held_publish)
+    monkeypatch.setattr(owner.time, "sleep", observe_wait)
+    server = threading.Thread(target=serve)
+    client = threading.Thread(target=closeout)
+    server.start()
+    try:
+        assert published.wait(2)
+        assert rpc(owner, payload, "inspect")["quiescent"]
+        client.start()
+        assert waiting.wait(1), "Closeout treated the transient writer lock as an RPC failure"
+        assert not results and not errors
+    finally:
+        resume.set()
+        server.join(3)
+        if client.ident is not None:
+            client.join(3)
+    assert not server.is_alive() and not client.is_alive() and not errors
+    assert results[0]["ack"]
+
+
+def test_status_publication_never_overwrites_existing_unknown_or_symlink(owner, tmp_path):
+    path = tmp_path / "status.json"
+    path.write_bytes(b"{}")
+    path.chmod(0o600)
+    original = path.stat()
+    with pytest.raises(FileExistsError):
+        owner.publish_status(path, {"outcome": "completed"})
+    assert path.read_bytes() == b"{}" and path.stat().st_ino == original.st_ino
+    target = tmp_path / "unrelated"
+    target.write_bytes(b"untouched")
+    link = tmp_path / "alias.json"
+    link.symlink_to(target)
+    with pytest.raises(FileExistsError):
+        owner.publish_status(link, {"outcome": "completed"})
+    assert target.read_bytes() == b"untouched" and link.is_symlink()
+    assert not list(tmp_path.glob("easyai-status-*"))
+
+
+def test_status_publication_unsupported_never_falls_back_to_overwrite(owner, tmp_path, monkeypatch):
+    import ctypes
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(ctypes, "CDLL", lambda *a, **k: SimpleNamespace())
+    path = tmp_path / "status.json"
+    with pytest.raises(ValueError, match="INSTALL_ATOMIC_PUBLISH_UNAVAILABLE"):
+        owner.publish_status(path, {"outcome": "unknown"})
+    assert not path.exists() and not list(tmp_path.glob("easyai-status-*"))
+
+
+@pytest.mark.parametrize("action", ["verify", "release"])
+def test_unknown_phase_closeout_never_waits_or_releases(owner, payload, monkeypatch, action):
+    payload = writer(payload)
+    allocate(owner, payload)
+    run = run_request(payload, "pass")
+    with monkeypatch.context() as patch:
+        patch.setattr(owner.subprocess, "Popen", lambda *a, **k: None)
+        rpc(owner, run, "run")
+    context = owner.Context({**payload, "action": action})
+    monkeypatch.setattr(owner.time, "sleep", lambda _: pytest.fail("Unknown phase cannot wait"))
+    with owner.lock(context.slot / ".writer.lock"):
+        with pytest.raises(ValueError, match="INSTALL_WRITER_BUSY"):
+            rpc(owner, payload, action)
+    job, _ = context.job()
+    assert not (job / "closed.json").exists()
+    result = rpc(owner, payload, "inspect")
+    assert result["outcome"] == "unknown" and not result["quiescent"]
+
+
+def test_waited_lock_revalidates_after_actual_acquisition(owner, tmp_path, monkeypatch):
+    path = tmp_path / "writer.lock"
+    waiting, resume = threading.Event(), threading.Event()
+    same_intent, results = [True], []
+
+    def pending():
+        if not same_intent[0]:
+            raise ValueError("INSTALL_PHASE_MISMATCH")
+
+    def barrier(_):
+        waiting.set()
+        assert resume.wait(3)
+
+    def client():
+        try:
+            with owner.lock(path, pending=pending):
+                results.append("wrong-intent-acquired")
+        except ValueError as error:
+            results.append(str(error))
+
+    monkeypatch.setattr(owner.time, "sleep", barrier)
+    with owner.lock(path):
+        thread = threading.Thread(target=client)
+        thread.start()
+        assert waiting.wait(1)
+        same_intent[0] = False  # Intent changes after last validation but before acquisition.
+    resume.set()  # Original writer is already closed; next flock succeeds.
+    thread.join(3)
+    assert not thread.is_alive() and results == ["INSTALL_PHASE_MISMATCH"]
