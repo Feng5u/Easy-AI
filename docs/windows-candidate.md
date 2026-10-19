@@ -1,5 +1,7 @@
 # Windows 未签名候选
 
+最新golden修复源码 `7b095e72e8eb411bebbc21d8208d49899bf8b87c` / [run39229460721](https://github.com/T1doo/Easy-AI/actions/runs/39229460721)：Windows step8（含新增golden checkout/compilation测试）FAIL；NTFS/冻结后端/冻结HTTP资源SUCCESS，其后候选build及包内smoke/上传SKIPPED。当前无首失败nodeid/stack，不沿用旧golden LF归因；需父级浏览器读取本次step8。未重跑或放宽测试。
+
 父级补齐4304 step18正文：offline package plan先PASS，编译HTTP200、stderr0；strictEqual在test-frozen.mjs:506失败，actual生成Python为LF、expected checkout golden为CRLF，已不是500。现仅为三份compiler golden声明LF，刷新工具写UTF-8 bytes，原Python测试加强为raw bytes对照；不normalize断言、不改编译器内容/哈希或golden正文。真实Git autocrlf红绿、39项匹配测试、36项打包保护通过，实际Windows新包内/Electron结果待核。
 
 最新实际结果：修复源码 `4304d2d1756e77a6c80468737cfeff449a48201f` / [run39228433732](https://github.com/T1doo/Easy-AI/actions/runs/39228433732) Linux 全套 SUCCESS。Windows 原step8（含目录/被阻止计划/真实Git checkout回归）SUCCESS，NTFS/冻结资源/开发E2E/打包保护/实际build/ZIP审计均SUCCESS。新ZIP **435171827字节**，SHA256 `b625e8bd68c709d3a940ce36857ee378f52c3f877079c67bdd916477a07134eb`。但step18包内后端smoke FAIL，packaged Electron与上传SKIPPED；不能当作可用/可下载候选。尚缺本次首异常及FROZEN_SMOKE_DIAGNOSTIC正文，已请父级浏览器读取，执行器不重试被拒日志接口，不沿用旧500归因或再触发CI。

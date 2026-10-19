@@ -2902,3 +2902,14 @@ PASS：工作区XDG环境 `pnpm test:package`，34项/1.74s；独立直接四文
 独审补记：只读checkout+compiler回归28PASS，独立在内存生成3份golden与现有bytes完全一致（12734/13111/36689字节），未运行updater/构建/联网/修改文件，无新增明确P1/P2。pnpm format:check与git diff --check PASS。
 - `/tmp/easyai-golden-eol-independent-hnkviG.log`：SHA256 `74f86a5293b707c7ac69da66c43b77971486ba38ed342ffe41236e3789edfb20`。
 - `/tmp/easyai-golden-eol-format-20261019.log`：SHA256 `cbe9f0d2d90255e8d0e75efb8b65eb31c9f56a6a2fd881e2245b07403e38967f`。
+
+
+### 实例连通性与本次golden修复CI实际状态
+
+修复正常提交/push `7b095e72e8eb411bebbc21d8208d49899bf8b87c`，保留97证据历史。父级中途收到环境断连通知；在同实例 /workspace/Easy-AI 执行date -u/pwd/git rev-parse/git status/3日志sha256/git ls-remote，2026-10-19T09:22:19Z exit0，实际可执行；HEAD/remote同7b，工作区clean，红绿/独审日志可读，main仍5323f86232529efcfb52131168ad049f01b219f3。未重启未知进程、未换执行器/新写入者。
+
+一次自然新CI [run39229460721](https://github.com/T1doo/Easy-AI/actions/runs/39229460721) Windows job117983628622 FAILURE：step8 Project persistence, native locks and install metadata FAIL（该步此次新增test_golden_checkout与test_compilation）；step9 NTFS/10backendfreeze/11frozenHTTPresources SUCCESS；step12–20全部SKIPPED，无新ZIP，未实际验证新golden政策下的包内后端/Electron。Linux job117983628196 check/test SUCCESS，写本段时build in_progress，最终结果另补。
+
+剩余准确阻塞：需父级浏览器读取 https://github.com/T1doo/Easy-AI/actions/runs/39229460721/job/117983628622#step:8:1 首失败pytest nodeid、expected/actual、traceback及FAIL/teardown ERROR区别，已异步请求，证据pending。本执行器只读允许run/jobs元数据，未重试此前被拒logs/artifacts/browser接口；当前失败具体原因UNKNOWN，不因整模块新增测试猜作symlink权限/编码/路径或继续归因旧LF/CRLF，也不删新测试使后续构建运行。等待新正文后最小修复，无重跑CI/松门/新增权限/发布操作。
+
+最终逐项元数据复核：Linux check job117983628196已SUCCESS，pnpm check/test/build全部通过；Windows仍step8 FAILURE，其后候选SKIP。此失败证据仅本地docs提交不push，避免无修复再耗CI；远端产品7b保持，工作区提交后clean。原件/锁/旧Linux候选未改，完整A/B和发布验收未通过。下一步取得本次step8首失败正文，保留现有测试门逐根因修复并独审，再有界自然CI。
