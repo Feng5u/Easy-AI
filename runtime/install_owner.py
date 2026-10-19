@@ -244,7 +244,34 @@ def lock(path):
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             fail("INSTALL_WRITER_BUSY")
-        yield
+        yield fd
+    finally:
+        os.close(fd)
+
+
+@contextmanager
+def inherited_lock(path, fd):
+    if fd is None:
+        with lock(path) as owned:
+            yield owned
+        return
+    if type(fd) is not int or fd < 0:
+        fail("INSTALL_LOCK_UNSAFE")
+    try:
+        info = os.fstat(fd)
+        expected = os.stat(path, follow_symlinks=False)
+        if (
+            not stat.S_ISREG(info.st_mode)
+            or info.st_uid != os.getuid()
+            or info.st_mode & 0o077
+            or info.st_nlink != 1
+            or (info.st_dev, info.st_ino) != (expected.st_dev, expected.st_ino)
+        ):
+            fail("INSTALL_LOCK_UNSAFE")
+        # Same open-file description: the parent's flock remains continuously held.
+        # Do not LOCK_UN: the parent can still own its copy of this descriptor.
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        yield fd
     finally:
         os.close(fd)
 
@@ -814,7 +841,7 @@ def inspect_phase(context, job):
     return result
 
 
-def run_phase(context, job):
+def run_phase(context, job, writer_fd):
     context.authorized()
     path = phase_path(context, job)
     index = job / "phases" / context.request["phase"]
@@ -943,7 +970,10 @@ def run_phase(context, job):
                 str(path / "code" / "install_owner.py"),
                 "--serve",
                 str(path),
+                "--writer-fd",
+                str(writer_fd),
             ],
+            pass_fds=(writer_fd,),
             stdin=subprocess.DEVNULL,
             stdout=log,
             stderr=log,
@@ -1024,7 +1054,7 @@ def dispatch(request):
                     )
             result = inspect_phase(context, job)
         else:
-            with lock(context.slot / ".writer.lock"):
+            with lock(context.slot / ".writer.lock") as writer_fd:
                 if (job / "closed.json").exists() and action != "release":
                     fail("INSTALL_CLAIM_CLOSED")
                 if action == "allocate":
@@ -1088,7 +1118,7 @@ def dispatch(request):
                         replace_json(context.slot / "ready.json", ready)
                     result = {"ack": True, "prefixIdentity": inode, "usedBytes": used}
                 elif action == "run":
-                    result = run_phase(context, job)
+                    result = run_phase(context, job, writer_fd)
                 elif action == "release":
                     workspace = context.root / "install-processes" / job.name
                     indexes = {entry.name for entry in (job / "phases").iterdir()}
@@ -1139,7 +1169,7 @@ def load_module(path, name):
     return module
 
 
-def serve(path):
+def serve(path, writer_fd=None):
     path = absolute(path)
     directory(path, owned=True)
     intent = read_json(path / "intent.json")
@@ -1148,7 +1178,7 @@ def serve(path):
     job, _ = context.job()
     if path != phase_path(context, job):
         fail("INSTALL_PHASE_MISMATCH")
-    with lock(context.slot / ".writer.lock"):
+    with inherited_lock(context.slot / ".writer.lock", writer_fd):
         if (job / "closed.json").exists():
             fail("INSTALL_CLAIM_CLOSED")
         context.authorized()
@@ -1178,24 +1208,43 @@ def serve(path):
             max_log_bytes=1024 * 1024,
             inherit_environment=False,
         )
+
+        def cancellation_requested():
+            cancel = path / "install-cancel.request.json"
+            return cancel.exists() and read_json(cancel) == {
+                "phase": request["phase"],
+                "jobId": request["jobId"],
+                "planHash": request["planHash"],
+            }
+
+        # Exclusive serve claim + writer ownership prove no child has been dispatched.
+        # Check immediately before the actual spawn boundary, not only in the poll loop.
+        if cancellation_requested():
+            write_json(
+                path / "status.json",
+                {
+                    "phase": request["phase"],
+                    "phaseRoot": str(path),
+                    "jobId": request["jobId"],
+                    "planHash": request["planHash"],
+                    "outcome": "cancelled",
+                    "quiescent": True,
+                    "events": [],
+                    "dispatched": False,
+                },
+            )
+            return
         cancelled, fault, outcome, quiet = False, False, "unknown", False
         deadline = time.monotonic() + context.config["seconds"]
         try:
             process.start()
             while True:
+                if cancellation_requested():
+                    cancelled = True
+                    process.request_cancel()
                 with process.snapshot() as (_, done, _):
                     if done:
                         break
-                cancel = path / "install-cancel.request.json"
-                if cancel.exists():
-                    record = read_json(cancel)
-                    if record == {
-                        "phase": request["phase"],
-                        "jobId": request["jobId"],
-                        "planHash": request["planHash"],
-                    }:
-                        cancelled = True
-                        process.request_cancel()
                 if time.monotonic() >= deadline or occupied(context, job) > context.budget:
                     fault = True
                     process.request_cancel()
@@ -1250,10 +1299,13 @@ def main():
 
         parser = Parser(add_help=False)
         parser.add_argument("--serve")
+        parser.add_argument("--writer-fd", type=int)
         args = parser.parse_args()
         if args.serve:
-            serve(args.serve)
+            serve(args.serve, args.writer_fd)
             return
+        if args.writer_fd is not None:
+            fail("INSTALL_ARGUMENT_INVALID")
         raw = sys.stdin.buffer.read(MAX_JSON + 1)
         if len(raw) > MAX_JSON:
             fail("INSTALL_REQUEST_LIMIT")

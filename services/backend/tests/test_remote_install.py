@@ -3,6 +3,7 @@
 import ast
 from datetime import datetime, timedelta, timezone
 import json
+import threading
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -315,3 +316,90 @@ def test_reservation_ack_loss_is_durable_unknown_and_only_quiet_reconciles(remot
     assert recovered.state == "CANCELLED" and recovered.needs_reprobe
     assert not child._leases and rpc.claims[result.environment_id]["closed"]
     assert not remote_target_unsettled(service.app_root, result.target_id)
+
+
+def test_registry_reconcile_reuses_session_cleanup_owner_after_delayed_sdk_close(remote):
+    """Real Registry→ConnectionManager→transport lifecycle, synthetic SDK only."""
+    from easyai.services.connection_manager import ConnectionManager
+    from test_install_transport import Channel
+
+    service, rpc, identity, scope, _ = remote
+    plan = planned(remote)
+    rpc.lose_next_run = True
+    job = wait(service, confirmed(service, plan))
+    assert job.state == "CANCEL_REQUESTED"
+    phase = next(iter(rpc.phases))
+    rpc.phases[phase].update(outcome="cancelled", quiescent=True)
+    close_entered, release_close = threading.Event(), threading.Event()
+    channels = []
+
+    class ProtocolChannel(Channel):
+        def __init__(self, delayed):
+            super().__init__(True)
+            self.delayed = delayed
+            self.out = b""
+
+        def shutdown_write(self):
+            tree = ast.parse(self.sent.decode())
+            assignment = next(
+                n
+                for n in tree.body
+                if isinstance(n, ast.Assign)
+                and any(isinstance(t, ast.Name) and t.id == "_request" for t in n.targets)
+            )
+            request = ast.literal_eval(assignment.value)
+            self.out = json.dumps(rpc.call(request)).encode()
+            self.eof_received = True
+
+        def close(self):
+            if self.delayed:
+                close_entered.set()
+                assert release_close.wait(3)
+            self.closed = True
+
+    def channel(**kwargs):
+        value = ProtocolChannel(not channels)
+        channels.append(value)
+        return value
+
+    session = SimpleNamespace(
+        io_lock=threading.Lock(), closed_quiescent=False, open_probe_channel=channel
+    )
+    auth = SimpleNamespace(
+        target_id=identity.target_id,
+        target_revision=identity.target_revision,
+        username=identity.username,
+    )
+    lease = SimpleNamespace(
+        scope=SimpleNamespace(
+            endpoint=identity.endpoint, host_fingerprint=identity.host_fingerprint
+        ),
+        operation=SimpleNamespace(request=auth),
+        session=session,
+        install_transports={},
+    )
+    manager = ConnectionManager.__new__(ConnectionManager)
+    manager._mutex = threading.RLock()
+    manager._valid_lease = (
+        lambda project, connection: lease
+        if (project, connection) == (scope.project_id, scope.connection_id)
+        else None
+    )
+    service._manager = lambda: manager
+    _, first = service._target_service(identity.target_id, scope)
+    first.bind(plan, job.job_id)
+    transport = first.rpc.__self__
+    try:
+        with pytest.raises(ValueError, match="INSTALL_REMOTE_CLEANUP_UNCONFIRMED"):
+            first.call("inspect")
+        assert close_entered.is_set() and session.io_lock.locked()
+        pending = transport._cleanup_owner
+        release_close.set()
+        assert pending[1].wait(1) and channels[0].closed
+        result = service.reconcile(job.job_id, scope, True)
+        assert result.state == "CANCELLED" and result.needs_reprobe and not result.verified
+        current = service._job_service(job.job_id)._target
+        assert current is not first and current.rpc.__self__ is transport
+        assert len(channels) == 3 and not session.io_lock.locked()
+    finally:
+        release_close.set()

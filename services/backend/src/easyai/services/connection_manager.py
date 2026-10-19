@@ -18,6 +18,7 @@ from easyai.services.ssh_identity import IdentityGrant, SshIdentityService
 from easyai.services.private_keys import load_private_key
 
 if TYPE_CHECKING:
+    from easyai.services.install_transport import InstallSshTransport
     from easyai.services.data_transfer_transport import DataUploadTransport
     from easyai.domain.remote_run import RemoteRunCheckpoint, RemoteRunIdentity
     from easyai.services.remote_artifacts import SftpArtifactSync
@@ -96,6 +97,7 @@ class _Lease:
     environments: EnvironmentService
     expires_at: float
     timer: Timer
+    install_transports: dict[str, "InstallSshTransport"] = field(default_factory=dict)
 
 
 @dataclass
@@ -103,6 +105,7 @@ class _Retiring:
     session: VerifiedSshSession
     environments: EnvironmentService | None
     done: threading.Event = field(default_factory=threading.Event)
+    install_transports: tuple["InstallSshTransport", ...] = ()
 
 
 class ConnectionManager:
@@ -136,7 +139,10 @@ class ConnectionManager:
         self._retired[(project, request)] = now + 600
 
     def _queue_close(
-        self, session: VerifiedSshSession, environments: EnvironmentService | None = None
+        self,
+        session: VerifiedSshSession,
+        environments: EnvironmentService | None = None,
+        install_transports: tuple["InstallSshTransport", ...] = (),
     ) -> None:
         # Called under the shared lock. The worker never executes SDK calls while
         # owning it, including when the caller still holds an outer RLock level.
@@ -144,7 +150,7 @@ class ConnectionManager:
             return
         if self._retiring is not None:
             raise SshFailure("SSH_CLEANUP_UNCONFIRMED")
-        retiring = _Retiring(session, environments)
+        retiring = _Retiring(session, environments, install_transports=install_transports)
         self._retiring = retiring
 
         def clean() -> None:
@@ -163,6 +169,9 @@ class ConnectionManager:
     def _cleanup_busy(self) -> bool:
         retiring = self._retiring
         if retiring is not None:
+            for owner in retiring.install_transports:
+                if not owner.reap_cleanup():
+                    return True
             quiet = (
                 retiring.environments.quiescent
                 if retiring.environments is not None
@@ -177,7 +186,9 @@ class ConnectionManager:
         lease, self._lease = self._lease, None
         if lease is not None:
             lease.timer.cancel()
-            self._queue_close(lease.session, lease.environments)
+            self._queue_close(
+                lease.session, lease.environments, tuple(lease.install_transports.values())
+            )
 
     def invalidate(self) -> None:
         with self._mutex:
@@ -577,7 +588,15 @@ class ConnectionManager:
                     raise SshFailure("SSH_SESSION_INVALID")
 
             guard()
-            return InstallSshTransport(lease.session, self._mutex, guard, launcher)
+            for owner in lease.install_transports.values():
+                owner.reap_cleanup()
+            cached = lease.install_transports.get(launcher)
+            if cached is None:
+                if len(lease.install_transports) >= 16:
+                    raise ValueError("INSTALL_REMOTE_BUSY")
+                cached = InstallSshTransport(lease.session, self._mutex, guard, launcher)
+                lease.install_transports[launcher] = cached
+            return cached
 
     def cancel_environment(self, request: EnvironmentRequest) -> None:
         with self._mutex:

@@ -534,3 +534,104 @@ def test_later_writer_does_not_inherit_prior_healthy_receipt(owner, payload, mon
     snap = {k: v for k, v in fresh.items() if k not in {"jobId", "planHash"}}
     with pytest.raises(ValueError, match="INSTALL_ENVIRONMENT_NOT_READY"):
         rpc(owner, snap, "snapshot")
+
+
+def test_detached_child_finishes_while_parent_still_holds_writer_lock(owner, payload, monkeypatch):
+    """Deterministic handoff barrier: Popen cannot return until child exits.
+
+    The parent retains its writer lock throughout. A separately opened NB lock
+    in the child always fails here; no scheduler timing or sleeps are involved.
+    The only managed command prints a stdlib synthetic completion event.
+    """
+    payload = writer(payload)
+    allocate(owner, payload)
+    event = "@@EASYAI_EVENT@@" + json.dumps(
+        {"type": "pipeline_completed", "blockId": None, "payload": {}}
+    )
+    run = run_request(payload, "print(" + repr(event) + ",flush=True)")
+    original = owner.subprocess.Popen
+    spawned = []
+
+    def child_before_parent_return(argv, **kwargs):
+        import fcntl
+
+        lock_path = (
+            Path(payload["configuration"]["root"])
+            / "environment-creations"
+            / payload["environmentId"]
+            / ".writer.lock"
+        )
+        with lock_path.open("rb") as separate:
+            with pytest.raises(BlockingIOError):
+                fcntl.flock(separate, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        child = original(argv, **kwargs)
+        spawned.append(child)
+        child.wait(timeout=5)  # Explicit child-exit barrier while parent owns the lock.
+        return child
+
+    with monkeypatch.context() as patch:
+        patch.setattr(owner.subprocess, "Popen", child_before_parent_return)
+        result = rpc(owner, run, "run")
+    log = (Path(result["phaseRoot"]) / "owner.log").read_text()
+    assert result["outcome"] == "completed" and result["quiescent"], log
+    assert (Path(result["phaseRoot"]) / "serve.claim.json").is_file()
+    assert result["events"][-1]["payload"]["exitCode"] == 0
+    assert rpc(owner, run, "run")["outcome"] == "completed"
+    assert len(spawned) == 1  # Existing phase is observed, never started again.
+    assert rpc(owner, payload, "release")["ack"]
+
+
+def test_persisted_cancel_before_serve_never_starts_managed_child(owner, payload, monkeypatch):
+    payload = writer(payload)
+    allocate(owner, payload)
+    sentinel = Path(payload["configuration"]["root"]) / "must-not-run.txt"
+    event = "@@EASYAI_EVENT@@" + json.dumps(
+        {"type": "pipeline_completed", "blockId": None, "payload": {}}
+    )
+    run = run_request(
+        payload,
+        "from pathlib import Path;Path("
+        + repr(str(sentinel))
+        + ').write_text("ran");print('
+        + repr(event)
+        + ",flush=True)",
+    )
+    with monkeypatch.context() as patch:
+        patch.setattr(owner.subprocess, "Popen", lambda *a, **k: None)
+        staged = rpc(owner, run, "run")
+    assert not rpc(owner, payload, "cancel")["quiescent"]
+    assert (Path(staged["phaseRoot"]) / "install-cancel.request.json").is_file()
+    owner.serve(staged["phaseRoot"])
+    result = rpc(owner, payload, "inspect")
+    assert not sentinel.exists(), "A pre-cancelled phase executed its child"
+    assert result["outcome"] == "cancelled" and result["quiescent"] and not result["dispatched"]
+    assert result["events"] == []  # No fabricated process_exited record for a child never started.
+    assert rpc(owner, payload, "release")["ack"]
+
+
+def test_inherited_writer_descriptor_rejects_different_inode(owner, tmp_path):
+    import os
+
+    expected, other = tmp_path / "writer.lock", tmp_path / "other.lock"
+    with owner.lock(expected):
+        descriptor = owner.open_file(other, os.O_CREAT | os.O_RDWR, owned=True)
+        with pytest.raises(ValueError, match="INSTALL_LOCK_UNSAFE"):
+            with owner.inherited_lock(expected, descriptor):
+                pytest.fail("Unrelated descriptor acquired writer authority")
+        with pytest.raises(OSError):
+            os.fstat(descriptor)
+
+
+def test_inherited_writer_close_does_not_unlock_parent(owner, tmp_path):
+    import fcntl
+    import os
+
+    path = tmp_path / "writer.lock"
+    with owner.lock(path) as parent:
+        with owner.inherited_lock(path, os.dup(parent)):
+            pass
+        with path.open("rb") as other:
+            with pytest.raises(BlockingIOError):
+                fcntl.flock(other, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    with owner.lock(path):
+        pass

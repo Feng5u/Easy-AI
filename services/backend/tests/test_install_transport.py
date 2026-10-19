@@ -124,3 +124,24 @@ def test_same_adapter_serializes_cleanup_recycle_and_active_request():
     worker.join(2)
     assert not worker.is_alive() and results == [{"nonce": "fixture"}]
     assert not session.io_lock.locked()
+
+
+def test_retiring_connection_reaps_owned_cleanup_without_releasing_another_gate():
+    from easyai.services.connection_manager import ConnectionManager, _Retiring
+
+    transport, channel, session = fixture(False)
+    with pytest.raises(ValueError, match="INSTALL_REMOTE_CLEANUP_UNCONFIRMED"):
+        transport.call({"action": "snapshot"})
+    manager = ConnectionManager.__new__(ConnectionManager)
+    manager._auth = None
+    retirement = _Retiring(session, None, install_transports=(transport,))
+    retirement.done.set()
+    manager._retiring = retirement
+    assert manager._cleanup_busy() and session.io_lock.locked()
+    channel.closed = True
+    session.closed_quiescent = True
+    assert not manager._cleanup_busy() and manager._retiring is None
+    assert not session.io_lock.locked()
+    session.io_lock.acquire()  # A different operation now owns the shared gate.
+    assert transport.reap_cleanup() and session.io_lock.locked()
+    session.io_lock.release()

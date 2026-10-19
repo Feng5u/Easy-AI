@@ -30,6 +30,26 @@ class InstallSshTransport:
         finally:
             self._operation_gate.release()
 
+    def reap_cleanup(self) -> bool:
+        """Nonblocking lifecycle reap; release only this adapter's proven quiet owner."""
+        if not self._operation_gate.acquire(blocking=False):
+            return False
+        try:
+            return self._reap_owned()
+        finally:
+            self._operation_gate.release()
+
+    def _reap_owned(self) -> bool:
+        pending = self._cleanup_owner
+        if pending is None:
+            return True
+        previous, done = pending
+        if not done.is_set() or not previous.closed:
+            return False
+        self._cleanup_owner = None
+        self.session.io_lock.release()
+        return True
+
     def _call_owned(self, request: dict[str, Any]) -> dict[str, Any]:
         if request["action"] not in {
             "snapshot",
@@ -58,13 +78,8 @@ class InstallSshTransport:
         ).encode()
         if len(payload) > 2 * 1024 * 1024:
             raise ValueError("INSTALL_REMOTE_PROTOCOL_LIMIT")
-        pending = self._cleanup_owner
-        if pending is not None:
-            previous, done = pending
-            if not done.is_set() or not (previous.closed or self.session.closed_quiescent):
-                raise ValueError("INSTALL_REMOTE_CLEANUP_UNCONFIRMED")
-            self._cleanup_owner = None
-            self.session.io_lock.release()
+        if not self._reap_owned():
+            raise ValueError("INSTALL_REMOTE_CLEANUP_UNCONFIRMED")
         if not self.session.io_lock.acquire(blocking=False):
             raise ValueError("INSTALL_REMOTE_BUSY")
         channel = None
@@ -158,10 +173,7 @@ class InstallSshTransport:
                 self._cleanup_owner = (channel, done)
                 owner.start()
                 done.wait(0.2)
-                if done.is_set() and (channel.closed or self.session.closed_quiescent):
-                    self._cleanup_owner = None
-                    self.session.io_lock.release()
-                else:
+                if not self._reap_owned():
                     # Retain both the actual SDK owner and its I/O gate. Neither
                     # a successful JSON reply nor accepted close proves cleanup.
                     raise ValueError("INSTALL_REMOTE_CLEANUP_UNCONFIRMED")

@@ -21,3 +21,12 @@ InstallService注入target adapter，保留plan/confirm/execute核心；adapter�
 ## 产品状态与验收
 
 UI从已认证保存目标进入同一包面板，展示目标/指纹/owned根/来源快照/实际容量/预算、禁执行状态、确认和任务取消/重连核验。未知停止显示隔离并阻止新writer。成功必须精确版本、全部选定import及tensor真实复检，且owner静止证据匹配同一job/plan/phase。合成协议只证明代码与门，不冒充真实安装。原剩余7卡、CIFAR、Windows及真实桌面/SSH门仍列为未完成。
+
+
+## 父子交接与会话清理边界
+
+远端 RPC 父进程把已锁定 writer FD 经 pass_fds 交给 detached owner；校验同 inode/私有权限后继续使用同一 open-file description，双方仅 close，不 LOCK_UN。子进程无需与仍持锁的父进程重新竞争。相同 phase 仍只观察，不重试未知启动。
+
+serve 在真正调用 ManagedProcess.start 前核对持久取消的 job/plan/phase。独占 serve claim 与 writer 所有权证明尚未派发，才允许写 dispatched=false、cancelled、quiescent=true、events=[]。运行中取消先于 done 判断，未知/不静止仍不得释放。
+
+ConnectionManager 的认证 lease 按 launcher 保存 InstallSshTransport，target adapter 的重建不丢失 SDK cleanup owner。重取 transport、切换 launcher 与 lease retiring 均非阻塞 reap；operation gate 串行回收，只有实际 channel.closed 且 cleanup thread done 才释放本 owner 持有的共享 I/O gate，不释放其他操作的 gate。
