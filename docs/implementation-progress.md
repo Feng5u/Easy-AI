@@ -2274,3 +2274,35 @@ NOT RUN：真实 SSH/安装/下载/数据上传、训练环境 import/ABI/tensor
 - `/tmp/easyai-status-publication-20261019-red1.log` SHA256 `e16c755193ae6719c149dc98b9a034184f1c918a14c7ec942be66d792ed498a6`。
 - `/tmp/easyai-status-publication-review-ZsgNcg.log` SHA256 `804802130b505cdc042f4c825e00c68da8841919e0bb711eab8fd3e811fbe92f`。
 - `/tmp/easyai-final-lock-revalidation-review-yviUys.log` SHA256 `1ae7b6c3c9ffac75206a11a478dfef45290dcbc685d93e689f09e66657fb6d27`。
+
+
+## 2026-10-19：existing-owned final-probe → mark-ready 收口遗漏 P2
+
+父侧已复核关闭 ac0e0a460c39da7a575e378605d0811a75986498 的 status 原子发布与 verify/release 等待，又指出已有环境在 final-probe 后没有 creation.verify，直接调用 target.mark_ready，遗漏同一 writer 收口窗口。本轮仅修此分支，未重开外围。开始 checkout codex/demo-v0.0.0 / HEAD `950308c7e42a29d49c8b3384f9bf9b678bc78a90`，工作区 clean。源码完整 SHA `b873a004f5a8dc5321be30177a3e6ae3047cab3c`。
+
+修复：mark-ready 加入现有 settling_owner 门，与 verify/release 相同，仅在同 job/plan/phase 静止收据下最多等2秒取得原 flock；每次等待、实际获锁后重验 claim、last-phase、intent。原 owned/inode/预算/授权检查不变，不删除锁，不重复执行命令，unknown 不开启等待。helper SHA256 `59bdebc76ae2a01479512dc6628589e6628bbd6f93437bf56897c7de411867c5`。
+
+实际回归使用现有 InstallService→RemoteInstallTarget→helper/ManagedProcess 互操作链：先完成新建的4阶段，再对已有 owned 环境走安装+最终 probe 的2阶段。仅在已有环境 final-probe 的 status 已发布、serve 仍持 writer FD 时用 Event 屏障暂停真实 helper；实际 target.mark_ready 必须进入等待才放行 owner。旧实现确定性捕获 `('mark-ready', 'INSTALL_WRITER_BUSY')`；修复后同任务 SUCCEEDED/verified=true/needsReprobe=false、租约释放，ready 可读且总阶段数仍6，无重发。bootstrap/pip/probe 命令源码仍只捕获并明确替换为标准库打印合成报告；不当真实依赖/ABI/tensor/训练证据。原 unknown phase 回归追加 mark-ready，保留直接拒绝、不等待、不收口。
+
+实际命令与结果（/workspace/Easy-AI；唯一日志/noclobber，FAIL保留）：
+
+- FAIL（修前预期复现）：`services/backend/.venv/bin/pytest -q services/backend/tests/test_remote_install_protocol.py -k existing-owned-closeout`，1 failed /1 deselected，1.77s；red1 含准确 INSTALL_WRITER_BUSY。
+- PASS：`services/backend/.venv/bin/pytest -q services/backend/tests/test_remote_install_protocol.py services/backend/tests/test_remote_install_owner.py services/backend/tests/test_install_transport.py services/backend/tests/test_remote_install.py`，55 passed /3.74s；green1。
+- PASS：最终加强 verified/reprobe/lease 断言后 `services/backend/.venv/bin/pytest -q services/backend/tests/test_remote_install_protocol.py`，2 passed /1.43s；protocol-final1。
+- PASS：`UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache pnpm check`，TS/合同/fixtures、Ruff/格式、mypy 66源文件等通过。
+- PASS：`UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache XDG_CACHE_HOME=/workspace/.cache node scripts/python-task.mjs build`；源码提交后 `node scripts/test-frozen.mjs`，原文资源、默认禁执行登记/取消、认证黄金编译/临时 cwd、EOF exit0 通过。未做新 electron-builder 包或扩无关矩阵。
+- PASS：独立只读审查9 passed /35 deselected、0.88s，覆盖实际 existing-owned probe/mark-ready 屏障、unknown 拒绝、原子发布边界，无新增明确阻断问题；未代改源码/SSH/安装/Actions。
+- PASS：git diff --check；plan 仍116185字节、SHA256 dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43，README/原规格未变；来源锁、manifest/lock/CI配置无改动。
+
+工作区/远端：源码提交后工作区 clean；预推送只读核远端开发分支仍950308c7e42a29d49c8b3384f9bf9b678bc78a90，main仍5323f86232529efcfb52131168ad049f01b219f3。证据提交后仅正常推开发分支、再核最终 SHA/clean/main，见最终回报。未写main/Feng、无强推/PR/Release/部署。
+
+NOT RUN：真实 SSH/安装/上传/下载/依赖 import/ABI/tensor/训练、真实桌面/原生picker/干净机、Windows/macOS、CI日志请求或主动重跑。当前 source/证据 SHA 的 CI 结果 UNKNOWN；最新已知 e454f97044f84f20347b10f3807220727f2dac1f/run39181255841 与3616826e28cef2d2ce4fd874f1bb81a6fcf17d94/run39180535293 均为 pnpm install --frozen-lockfile 步骤双失败，准确安装错误正文/根因仍 UNKNOWN。既有 Actions 日志访问拒绝没有重试/换路，需要父侧提供准确正文才能继续定位。真实执行门/原计划缺口与B未完成状态不变。下一项父侧复核此有限 P2 后续原 M6.3，不把本合成回归称完整验收。
+
+本轮日志 SHA256：
+- `/tmp/easyai-existing-ready-20261019-build1.log` SHA256 `9b80f6521854897c5cc00c7b7660631d7f0f62c5642c8dba54a046485c09d4ca`。
+- `/tmp/easyai-existing-ready-20261019-check1.log` SHA256 `c42bd4df1916148541e1f0f0341c6c525fc308786650e029608cdf52c46e75fc`。
+- `/tmp/easyai-existing-ready-20261019-frozen1.log` SHA256 `598e651d8bfd55009c56cd315d848d8185d98d8ae4eb67c6d0dd2d14af4ed0c3`。
+- `/tmp/easyai-existing-ready-20261019-green1.log` SHA256 `3bada9d170c9aeb03627ee9b0eb9d9816cabed95ecb224007f76c36e4369e535`。
+- `/tmp/easyai-existing-ready-20261019-protocol-final1.log` SHA256 `b7f8336f049bf5c200bf2bd7d571241e78b1a0d0214b388833883d38af823e1b`。
+- `/tmp/easyai-existing-ready-20261019-red1.log` SHA256 `f154a77d30264cd443812e526cf52e3d681f2efaad882d5cc177edf451202b1e`。
+- `/tmp/easyai-existing-ready-review-tNx0IT.log` SHA256 `e9f1f2b5598cb26d49c4fd46238f9dc6a79e55cf9dc7e86fb9895c04b19b5e75`。
