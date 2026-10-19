@@ -3034,3 +3034,41 @@ Linux job117994084895 pnpm check SUCCESS但pnpm test FAILURE，后续build SKIPP
 本轮指定缺口完成：有界NTFS native枚举、require_local_cache/local_directory/limited_names/RunService默认selector真实接通，在实际native集成通过后才启用门，并再次实际验证product default和包内启动；ACL/reparse/volume/身份/锁/持久化均保持。父级独审与本地回归证据见上，不宣称真实外部SSH。
 
 下一具体代码项仍是HostKeyStore独立POSIX门及native私有主机信任库适配，SshClient before-dial仍拒绝该未支持平台；原计划§13.2未知/变化key确认与保护必须保持。此代码工作独立于正式数据/外部SSH凭据，可继续推进，整体不暂停在TST33/十轮训练。完整Windows SSH、真实SSH/正式MNIST/硬件/TST33/法律审核与A/B仍未完成；未自动下载/安装/修改共享训练环境。无main/force/PR/Release/部署/新权限/付费/凭据。此最终证据仅本地docs提交不push额外CI，remote产品af5保持；main、原计划/规格/README/依赖锁与原golden未动，工作区提交后clean。
+
+
+## 2026-10-19 HostKeyStore Windows原生信任存储第一阶段（独立默认门仍关闭）
+
+起始HEAD dd6f062cb815abb4e318f64414a64be2b6fef87e，工作区clean，remote af5a1f96509976f9474eee80b5852b66aea1cee6；dd6证据保全。父级浏览器独立确认af5 CI39233339421全SUCCESS、artifact12177092913，源码独审nativecache无P1/P2/松门，切片接受，未把完整SSH标完成。
+
+调用链确认：LocalWorkspace.ssh懒构造SshClient(store factory)；SshClient._open先获取/创建HostKeyStore再dial；HostKeyStore构造拒非POSIX。因此即便cache已默认native，Windows在任何外部握手前仍拒绝。原方案§13.2要求未知指纹明确确认、变化key阻断；本轮目标是其安全存储适配，不是绕过校验或真实外部SSH。
+
+实现：独立WINDOWS_NATIVE_TRUST_VERIFIED=False，只有cache接受且该trust门接受才选择WindowsTrustStore；第一阶段默认拒绝保留。Native TrustStore只在既有受保护application state父下用WindowsDirectory.child创建末级root，(volume,128-bitfileid)钉住身份，单次bounded文件读和读前后verify_file；永久writer kernel锁后重新读catalog，公共TOFU确认逻辑决定payload，exclusive临时bytes→flush/sync/verify→原子publish，失败finally清temp。所有Native ACL/reparse/volume/身份/锁/flush保持。changed key维持硬拒、无新replacement入口；catalog原子替换必须由公共explicit-confirm策略触发。POSIX directory flock/dirfd保护与key parser保持，仅抽出rawbytes reader以共用解析。
+
+开发校验真实记录：初始抽取POSIX helper漏把missing-file返回{}改bytes，测试27FAIL16PASS；修成b''后身份原43PASS。一次ruff报局部WindowsTrustStore导入遮蔽TYPE_CHECKING类型，改lazy alias后静态通过。这些失败日志保全，未push坏版本。
+
+独审发现新P2：lock.close失败跳过directory.close并丢owner。修为所有owner总attempt、进程级保留不确定(owner,原chain快照,实际fd)、拒之后新store/transaction/read/write，绝不盲重试数字句柄；进程退出为恢复边界。首补修误抓descriptor而实际WindowsWriterLock字段fd，独审再次指出，已修真实fd并回归模拟fd先清空再抛。最终独立4PASS确认P2关闭；gate仍False。纯fake cleanup合同不冒充native接受。
+
+测试：新增8项native实际文件语义（只Windows执行）：显式TOFU/错误fingerprint/重开/changed拒、竞争confirm不得覆key、永久kernel writer锁、sync/publish失败保留旧file并清temp、root替换拒绝、非规则known_hosts拒绝、Socket/Transport本地模拟握手仍走真实trust校验。仅合成Ed25519 public wire bytes，没有私钥生成/写真实trust/认证或外部socket，create_connection禁用。另有closed gate及lazy client before-dial拒绝、close不确定owner/全部cleanup尝试/之后零新打开合同。
+
+匹配命令 cwd /workspace/Easy-AI：
+- PASS：pytest -q services/backend/tests/test_ssh_identity.py（固定应用.venv），修复后43PASS/0.82s。
+- PASS：pytest -q services/backend/tests/test_windows_host_keys.py services/backend/tests/test_windows_host_key_gate.py services/backend/tests/test_ssh_identity.py services/backend/tests/test_connection_manager.py，65PASS8nativeSKIP/1.21s；Linux不证明native。
+- PASS：最终cleanup/gate/identity/connection集合68PASS/1.22s。
+- PASS：workspace XDG/UV_OFFLINE=1 pnpm check，TS/ruff/mypy67源文件/fixtures/format通过；git diff --check。
+- PASS：node scripts/python-task.mjs build /tmp/easyai-native-trust-frozen-JiZqzH；固定应用python -I scripts/verify-frozen-trust.py /tmp/easyai-native-trust-frozen-JiZqzH/dist/easyai-sidecar/easyai-sidecar（只读CArchiveReader，四信任/cache模块实际存在，不执行archive代码）；node scripts/test-frozen.mjs同backend目录完整HTTP/golden compile/resources/EOF0通过。CI packaged backend步骤添加同readonly模块门，再运行原smoke，不替代任何原断言。
+- PASS：独审初44PASS8nativeSKIP发现P2，补修中2PASS指出fd字段不符，最终4PASS关闭P2；无关闭gate/校验绕过。仍须实际Windows接受后才可评估默认开启。
+
+第一阶段CI保留所有原步骤，native步骤追加trust/gate/cleanup文件；产品默认门False。下一项独审最终增量后一次自然有界免费CI，以真实Windows文件语义结果为准；若失败据首正文最小修复，不盲重跑。说明见docs/windows-host-trust.md。原main/原件/锁/golden/旧候选保留；无外部SSH、真实信任/凭据写入、训练/数据/模型/共享环境、发布/PR/强推/付费/新权限变化。
+
+- `/tmp/easyai-native-trust-posix-20261019.log`：SHA256 `70b58425d7201370c94320fc51529a49381a6e4fd754966554f2a21267482cea`。
+- `/tmp/easyai-native-trust-posix-fixed-20261019.log`：SHA256 `56ae43fbb3ff0b487704406d367f68416988e722834dedde6fb5b879cd5c59c8`。
+- `/tmp/easyai-native-trust-check-20261019.log`：SHA256 `2881776672bab2eac585cc998a4599ada587d9127fbb94b0f5401ad1044f3d72`。
+- `/tmp/easyai-native-trust-final-check-20261019.log`：SHA256 `e580f738fb6f2a6bfe01cc5daae5d3e702f5220b2ad112eafff67fad6afa0a95`。
+- `/tmp/easyai-native-trust-targeted-20261019.log`：SHA256 `cfc93c42fae4ca238b200e7ca92d9726ef45f98c99e19893d48346995608bf5b`。
+- `/tmp/easyai-native-trust-cleanup-final-20261019.log`：SHA256 `83a6bcfcc1a8cb004f5910e6b133063a3d2ea98b593a3c972ac1b33f97723b9d`。
+- `/tmp/easyai-native-trust-build-20261019.log`：SHA256 `5e782cb70f1756439d64b98e622f2d2095be0cf40d2ea596b4cebf056216185b`。
+- `/tmp/easyai-native-trust-archive-20261019.log`：SHA256 `06cf684abaf7301dfe3527f0004569909e2844ed6b8e48f1627920c72a37d120`。
+- `/tmp/easyai-native-trust-frozen-smoke-20261019.log`：SHA256 `598e651d8bfd55009c56cd315d848d8185d98d8ae4eb67c6d0dd2d14af4ed0c3`。
+- `/tmp/easyai-native-trust-independent-jRTorb.log`：SHA256 `4425df8cae543967634a87a52089d85ab88f71822f6ac0660e1774cc345a5492`。
+- `/tmp/easyai-trust-cleanup-independent-156WKn.log`：SHA256 `cdf8d13a3f141b449c7d92c9b86d6fd681de17445a1d661236b92f93860eafac`。
+- `/tmp/easyai-trust-cleanup-final-independent-uVPhWk.log`：SHA256 `ebd938888ffaa2af3581cec946b9b58fbc84d3d34af429b416dd4a0ad79f1a12`。

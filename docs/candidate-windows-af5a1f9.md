@@ -19,3 +19,5 @@ Linux上旧“os.name=nt即未验证”夹具已改成明确关闭gate，保留�
 下一项具体代码缺口是 `HostKeyStore.__init__` 的独立POSIX门（`services/backend/src/easyai/security/host_keys.py`），而且 `SshClient._open` 在任何出站dial之前先验证该信任存储；当前Windows因此仍明确拒绝完整SSH路径。不得把缓存可用等同主机指纹持久化或SSH全链就绪。原计划§13.2的未知/变化密钥、确认、私有存储、原子写入与身份门须由原生信任库适配继续保持，无需等正式数据才可开发。
 
 真实SSH/正式MNIST/数据、硬件矩阵、干净Windows TST33、法律审核仍未验；没有下载模型/数据、安装训练依赖、修改教师环境或创建Release/PR/部署。main及输入原件未动。
+
+父级浏览器后续独立确认本候选CI全SUCCESS及artifact ID `12177092913`；缓存selector/RunService/有界原生枚举初审无新增P1/P2，两gatefalse夹具修正合理。本候选切片接受，完整SSH仍未验。

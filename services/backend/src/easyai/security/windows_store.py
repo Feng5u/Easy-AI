@@ -579,6 +579,11 @@ class WindowsDirectory:
                 finally:
                     self.api.close(probe)
 
+    def identity(self) -> tuple[int, bytes]:
+        self.verify()
+        value = self._chain[-1][2]
+        return value.volume, value.file_id
+
     def child(self, name: str, *, create: bool = False) -> LocalDirectory:
         return self._child(name, "update" if create else "open")
 

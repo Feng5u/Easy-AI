@@ -45,7 +45,7 @@ jobs:
         if: ${{ !cancelled() }}
         timeout-minutes: 3
         working-directory: services/backend
-        run: uv run --frozen pytest -q tests/test_windows_storage_contract.py tests/test_windows_native_store.py tests/test_windows_cache_selector.py tests/test_windows_cache_integration.py
+        run: uv run --frozen pytest -q tests/test_windows_storage_contract.py tests/test_windows_native_store.py tests/test_windows_cache_selector.py tests/test_windows_cache_integration.py tests/test_windows_host_keys.py tests/test_windows_host_key_gate.py tests/test_windows_trust_cleanup.py
       - name: Freeze backend including experimental native ABI module
         id: freeze_backend
         if: ${{ !cancelled() }}
@@ -72,7 +72,10 @@ jobs:
         run: '& services/backend/.venv/Scripts/python.exe -I scripts/verify-candidate-archive.py "${{ steps.candidate.outputs.directory }}"'
       - name: Packaged backend PID, auth, resources and EOF
         timeout-minutes: 2
-        run: node scripts/test-frozen.mjs "${{ steps.candidate.outputs.backend }}"
+        run: |
+          & services/backend/.venv/Scripts/python.exe -I scripts/verify-frozen-trust.py "${{ steps.candidate.outputs.backend }}/easyai-sidecar.exe"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/test-frozen.mjs "${{ steps.candidate.outputs.backend }}"
       - name: Packaged Electron sandbox, ASAR identity and normal shutdown
         env:
           EASYAI_E2E_PACKAGE: ${{ steps.candidate.outputs.executable }}

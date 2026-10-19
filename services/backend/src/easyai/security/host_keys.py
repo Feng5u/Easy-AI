@@ -10,12 +10,19 @@ import stat
 from pathlib import Path
 import threading
 import time
-from typing import Callable, Iterator, Protocol
+from typing import Callable, Iterator, Protocol, TYPE_CHECKING
 from uuid import uuid4
 
 import paramiko  # type: ignore[import-untyped]
 
 from easyai.domain.ssh import HostKeyObservation, SshEndpoint
+
+if TYPE_CHECKING:
+    from easyai.security.windows_host_keys import WindowsTrustStore, WindowsTrustTransaction
+
+# Native trust transactions remain unavailable until their own Windows acceptance.
+# Cache acceptance alone cannot enable host-key trust.
+WINDOWS_NATIVE_TRUST_VERIFIED = False
 
 MAX_STORE_BYTES = 1024 * 1024
 MAX_PUBLIC_BYTES = 16384
@@ -76,15 +83,25 @@ class HostKeyStore:
             raise ValueError("SSH_TRUST_PATH_INVALID")
         self.root = root
         self._root_identity: tuple[int, int] | None = None
-        if os.name != "posix":
+        self._native_store: WindowsTrustStore | None = None
+        if os.name == "nt":
+            from easyai.security.remote_cache import windows_cache_enabled
+
+            if not WINDOWS_NATIVE_TRUST_VERIFIED or not windows_cache_enabled():
+                raise ValueError("SSH_TRUST_PLATFORM_UNVERIFIED")
+            from easyai.security.windows_host_keys import WindowsTrustStore as NativeTrustStore
+
+            self._native_store = NativeTrustStore(root)
+        elif os.name == "posix":
+            self._uid = os.geteuid()
+            # Keep the existing POSIX root trust anchor and directory flock protocol.
+            self._system_uid = Path(root.anchor).stat().st_uid
+            with self._directory(create=True) as fd:
+                assert isinstance(fd, int)
+                initial = os.fstat(fd)
+                self._root_identity = (initial.st_dev, initial.st_ino)
+        else:
             raise ValueError("SSH_TRUST_PLATFORM_UNVERIFIED")
-        self._uid = os.geteuid()
-        # The kernel-provided filesystem root is the platform trust anchor (some
-        # containers map its owner to a nonzero uid). Never extend this to files.
-        self._system_uid = Path(root.anchor).stat().st_uid
-        with self._directory(create=True) as fd:
-            initial = os.fstat(fd)
-            self._root_identity = (initial.st_dev, initial.st_ino)
         self.path = self.root / "known_hosts"
         self._clock = clock
         self._mutex = threading.RLock()
@@ -112,7 +129,13 @@ class HostKeyStore:
             self._check_directory(path.lstat(), final=path == self.root)
 
     @contextmanager
-    def _directory(self, *, exclusive: bool = False, create: bool = False) -> Iterator[int]:
+    def _directory(
+        self, *, exclusive: bool = False, create: bool = False
+    ) -> Iterator["int | WindowsTrustTransaction"]:
+        if self._native_store is not None:
+            with self._native_store.transaction(exclusive=exclusive) as transaction:
+                yield transaction
+            return
         # Walk from the kernel filesystem root, keeping descriptors for every
         # ancestor; never follow symlinks, chmod/chown, or trust path-only checks.
         import fcntl
@@ -164,29 +187,13 @@ class HostKeyStore:
         if (info.st_dev, info.st_ino) != self._root_identity:
             raise ValueError("SSH_TRUST_PATH_INVALID")
 
-    def _read(self, directory: int | None = None) -> dict[str, PublicIdentity]:
+    def _read(
+        self, directory: "int | WindowsTrustTransaction | None" = None
+    ) -> dict[str, PublicIdentity]:
         if directory is None:
             with self._directory() as fd:
                 return self._read(fd)
-        try:
-            fd = os.open(
-                "known_hosts", os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory
-            )
-        except FileNotFoundError:
-            return {}
-        with os.fdopen(fd, "rb") as stream:
-            info = os.fstat(stream.fileno())
-            self._check_file(info)
-            if info.st_size > MAX_STORE_BYTES:
-                raise ValueError("SSH_TRUST_STORE_LIMIT")
-            raw = stream.read(MAX_STORE_BYTES + 1)
-            if len(raw) > MAX_STORE_BYTES:
-                raise ValueError("SSH_TRUST_STORE_LIMIT")
-            self._check_file(os.fstat(stream.fileno()))
-            published = os.stat("known_hosts", dir_fd=directory, follow_symlinks=False)
-            self._check_file(published)
-            if (published.st_dev, published.st_ino) != (info.st_dev, info.st_ino):
-                raise ValueError("SSH_TRUST_PATH_INVALID")
+        raw = self._read_posix(directory) if isinstance(directory, int) else directory.read()
         records: dict[str, PublicIdentity] = {}
         try:
             text = raw.decode("ascii")
@@ -214,13 +221,40 @@ class HostKeyStore:
             raise ValueError("SSH_TRUST_STORE_INVALID") from None
         return records
 
-    def _write(self, records: dict[str, PublicIdentity], directory: int) -> None:
+    def _read_posix(self, directory: int) -> bytes:
+        try:
+            fd = os.open(
+                "known_hosts", os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory
+            )
+        except FileNotFoundError:
+            return b""
+        with os.fdopen(fd, "rb") as stream:
+            info = os.fstat(stream.fileno())
+            self._check_file(info)
+            if info.st_size > MAX_STORE_BYTES:
+                raise ValueError("SSH_TRUST_STORE_LIMIT")
+            raw = stream.read(MAX_STORE_BYTES + 1)
+            if len(raw) > MAX_STORE_BYTES:
+                raise ValueError("SSH_TRUST_STORE_LIMIT")
+            self._check_file(os.fstat(stream.fileno()))
+            published = os.stat("known_hosts", dir_fd=directory, follow_symlinks=False)
+            self._check_file(published)
+            if (published.st_dev, published.st_ino) != (info.st_dev, info.st_ino):
+                raise ValueError("SSH_TRUST_PATH_INVALID")
+        return raw
+
+    def _write(
+        self, records: dict[str, PublicIdentity], directory: "int | WindowsTrustTransaction"
+    ) -> None:
         payload = "".join(
             f"{name} {key.algorithm} {base64.b64encode(key.raw).decode()}\n"
             for name, key in sorted(records.items())
         ).encode()
         if len(payload) > MAX_STORE_BYTES:
             raise ValueError("SSH_TRUST_STORE_LIMIT")
+        if not isinstance(directory, int):
+            directory.write(payload)
+            return
         temp = f".known-hosts-{uuid4()}.tmp"
         try:
             fd = os.open(temp, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600, dir_fd=directory)
