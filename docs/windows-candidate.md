@@ -1,5 +1,7 @@
 # Windows 未签名候选
 
+最新实际结果：归档计数确定修复后的 `a5a958657e60fe14ac6150d6b568e0c45479c3e9` / [run39223971924](https://github.com/T1doo/Easy-AI/actions/runs/39223971924) Linux SUCCESS、Windows打包保护SUCCESS，但实际构建FAIL，后续审计/包内smoke/上传SKIPPED。当前缺新首错误正文，不能假定与旧归档错误同因；父级可从已登录浏览器读取。仍无已验证Windows候选。
+
 父级补齐构建正文后，确定发现递归ZIP计数把PyInstaller的_internal/base_library.zip当成第二个分发包。Node与Python均已改为artifacts顶层唯一、精确配置文件名，nested ZIP仍保留全部字节校验；红绿复现和32项独审通过。新Windows实际结果待正常修复CI，旧FAIL不改写。
 
 2026-10-19 当前真实结果：`da5a1af18afd4115bf072273cc2b012a65cbee7e` / [run39222623389](https://github.com/T1doo/Easy-AI/actions/runs/39222623389) Linux SUCCESS，Windows打包保护SUCCESS，实际Build unsigned Windows candidate FAIL，后续ZIP/包内E2E/上传SKIPPED，尚无Windows候选。缺该构建步骤首异常/堆栈，父级可用已登录浏览器读取；根因UNKNOWN，不猜测或放宽保护。原Linux候选保留。

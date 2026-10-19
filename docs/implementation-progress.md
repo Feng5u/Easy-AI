@@ -2755,3 +2755,8 @@ PASS补记：`node scripts/package-builder.mjs --verify dist/easyai-builder-a4de
 - `/tmp/easyai-root-archive-linux-verify-20261019.log`：`2bcb392594d0486dfbe8cda08816af01c90eb71da8c6c17f80e1f27a4390e864`。
 - `/tmp/easyai-root-archive-linux-audit-20261019.log`：`900b34fb1aaeecdce5d7030683d4ff3d1d77397664bfaef75a46a8229872e8e5`。
 - `/tmp/easyai-root-archive-format-check-20261019.log`：`cbe9f0d2d90255e8d0e75efb8b65eb31c9f56a6a2fd881e2245b07403e38967f`。
+
+
+实际新CI补记：修复提交/远端 `a5a958657e60fe14ac6150d6b568e0c45479c3e9`，[run39223971924](https://github.com/T1doo/Easy-AI/actions/runs/39223971924) Linux check SUCCESS、Windows Packaging input and archive guards SUCCESS，但Build unsigned Windows candidate (never publish)仍FAIL；ZIP审计/包内sidecar/packaged Electron/上传SKIPPED。本地/独审32项与实际Windows保护通过不证明候选构建成功，仍无已验证可下载Windows候选。
+
+本执行器只读取允许的run/jobs元数据，无本次异常正文，不能沿用上一轮BUILDER_ARCHIVE_MISSING或宣称同因。父级需在其已登录GitHub浏览器读取该新run构建步骤的首error/cause/stack、前约20行阶段输出及新增EASYAI_BUILDER_REPORTED_ARTIFACTS真实返回路径。没有重试被拒logs/artifacts接口，也不再猜测修复或触发CI。先前已保留a3证据；本补记仅本地提交不push，remote仍a5a9586，main/原件/旧Linux候选和所有路径/私密文件/精确内容门不变。实际构建失败已确认，根因UNKNOWN，不是待授权/不确定执行；Windows候选与包内smoke均未标完成。下一步据新正文继续最小修复。
