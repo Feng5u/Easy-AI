@@ -3442,3 +3442,12 @@ JSDOM无canvas布局，本地只提供明确受控measureText宽度，所有节�
 - 独立32 `/tmp/easyai-svg-fields-independent-BERQMT.log` SHA256 `1f319f2ed62d6cc885f8e05ac0ad74cdeaf003d7e3df4fadf6a268f3a82fc809`。
 - check `/tmp/easyai-svg-field-check-20261019.log` SHA256 `e580f738fb6f2a6bfe01cc5daae5d3e702f5220b2ad112eafff67fad6afa0a95`。
 - 全部TS `/tmp/easyai-svg-field-all-ts-20261019.log` SHA256 `d8efdac6a5160c0b0d174d96508aeabaf5f3c2fcdffccbf1dd31f03e46d530c6`。
+
+
+### 统一真实字段映射修复单次CI结果：等待Windows实际新首错
+
+源码/remote dev `72d4d844b59c2292852e0a91ebcc817636d21c88`，[CI39255211142](https://github.com/T1doo/Easy-AI/actions/runs/39255211142)。Linux job118068662800完整check/test/build SUCCESS；Windows job118068662715前置native安全、冻结后端、HTTP资源、桌面build与venv隔离成功，step14真实开发态E2E FAIL，后续打包/包内验收未执行，无新候选。
+
+已请求父级在已登录页面读取该step首错/调用栈、最后ACTION/SELECTION及相关CANVAS/REVEAL/DRAG_GEOMETRY、PROCESS_EXIT/CLOSE_CONFIRMED。状态待返回；尚不能从元数据判断原NAME断言、注册、引用或数值/后续图闭环越过情况，也不能把上轮pid3668退出记录借给本轮。统一结构回归22、React10独立32、全TS395与check成功不冒充真实GUI成功。取得实际新首错前暂停依赖它的修补/CI，未重跑旧run、未重试受限日志/artifact接口。
+
+当前仅本地docs证据提交避免报告额外触发CI，main仍5323f86232529efcfb52131168ad049f01b219f3；原件/规格/README/锁无变化。完整空白CNN/M4/M7、真实SSH/MNIST/TST33/许可/A/B仍未验收，无训练安装/数据下载/权限/凭据/共享环境/main/发布操作。
