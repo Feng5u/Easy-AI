@@ -16,7 +16,12 @@ from easyai.domain.contracts import ArtifactRecord, Contract, Event, Run, RunCon
 from easyai.domain.program import ProgramIR
 from easyai.domain.remote_run import RemoteRunIdentity
 from easyai.security.project_lock import ProjectLock
-from easyai.security.remote_cache import LocalDirectory, LocalOwnerLock, local_directory
+from easyai.security.remote_cache import (
+    LocalDirectory,
+    LocalOwnerLock,
+    local_directory,
+    windows_cache_enabled,
+)
 from easyai.security.files import read_regular, digest_regular
 from easyai.services.event_journal import EventJournal, read_runtime_events
 from easyai.services.project_service import ProjectService
@@ -52,9 +57,11 @@ class RunService:
     """One local owner; restart replays records and never starts an old process."""
 
     def __init__(self, root: Path, *, storage: Callable[[Path], LocalDirectory] | None = None):
-        # Windows local application startup retains its existing persistence path.
-        # SSH is separately denied there; experimental native injection is internal.
-        self._storage = storage or (local_directory if os.name == "posix" else None)
+        # Unsupported hosts retain local startup; gated Windows integration uses
+        # the same selector as SSH/storage consumers, without POSIX substitution.
+        self._storage = storage or (
+            local_directory if os.name == "posix" or windows_cache_enabled() else None
+        )
         self.root = root.absolute() if self._storage is not None else root.resolve(strict=True)
         self._mutex = threading.RLock()
         self._store: LocalDirectory | None = None

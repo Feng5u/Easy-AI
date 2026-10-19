@@ -450,10 +450,14 @@ class NativeWindowsApi:
         else:
             self._bool(self.kernel.LockFileEx(handle, 3, 0, 1, 0, C.byref(overlap)))
 
-    def names(self, handle: int) -> list[str]:
+    def names(self, handle: int, *, limit: int = 4096) -> list[str]:
+        if type(limit) is not int or not 1 <= limit <= 4096:
+            raise ValueError("WINDOWS_CACHE_ENUMERATION_LIMIT_INVALID")
         result: list[str] = []
+        seen: set[str] = set()
         first = True
-        while True:
+        # Bound calls as well as allocation, including hostile duplicate/dot pages.
+        for _ in range(limit + 3):
             buffer, status = C.create_string_buffer(65536), IoStatus()
             value = int(
                 self.nt.NtQueryDirectoryFile(
@@ -474,6 +478,8 @@ class NativeWindowsApi:
             if value & 0xFFFFFFFF == 0x80000006:
                 if int(status.StatusOrPointer or 0) & 0xFFFFFFFF not in (0, 0x80000006):
                     self._status(I32(int(status.StatusOrPointer or 0) & 0xFFFFFFFF).value)
+                if status.Information:
+                    raise ValueError("WINDOWS_CACHE_ENUMERATION_INVALID")
                 return result
             self._completed(value, status)
             used = int(status.Information)
@@ -488,17 +494,24 @@ class NativeWindowsApi:
                 if length % 2 or offset + 12 + length > used:
                     raise ValueError("WINDOWS_CACHE_ENUMERATION_INVALID")
                 name = raw[offset + 12 : offset + 12 + length].decode("utf-16-le", errors="strict")
+                key = name.casefold()
+                if key in seen:
+                    raise ValueError("WINDOWS_CACHE_ENUMERATION_INVALID")
+                seen.add(key)
                 if name not in (".", ".."):
+                    if len(result) >= limit:
+                        raise ValueError("DATA_TRANSFER_SOURCE_LIMIT")
                     result.append(component(name))
                 if not advance:
                     break
                 if advance % 4 or advance < 12 + length:
                     raise ValueError("WINDOWS_CACHE_ENUMERATION_INVALID")
                 offset += advance
+        raise ValueError("DATA_TRANSFER_SOURCE_LIMIT")
 
 
 class WindowsDirectory:
-    """Held NTFS handles; deliberately not selected by local_directory() yet."""
+    """Held NTFS handles; selectable only behind the native acceptance gate."""
 
     def __init__(self, path: Path, *, api: NativeWindowsApi | None = None):
         self.api = api if api is not None else NativeWindowsApi()
@@ -592,9 +605,9 @@ class WindowsDirectory:
         finally:
             self.api.close(handle)
 
-    def names(self) -> list[str]:
+    def names(self, *, limit: int = 4096) -> list[str]:
         self.verify()
-        result = self.api.names(self._handle)
+        result = self.api.names(self._handle, limit=limit)
         self.verify()
         return result
 

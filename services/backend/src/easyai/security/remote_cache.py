@@ -1,9 +1,10 @@
-"""Host-local SSH storage contract; currently a POSIX backend only.
+"""Host-local SSH storage contract; POSIX production and gated native Windows integration.
 
 Never repair existing permissions, follow symlinks or substitute weaker I/O.
 """
 
 import os
+import platform
 from pathlib import Path
 import stat
 from typing import Literal, Protocol
@@ -64,13 +65,22 @@ def verify_directory(path: Path, held: int) -> None:
 Access = Literal["read", "update", "exclusive"]
 
 
-def require_local_cache() -> None:
-    """Reject before binding/preparing a run, without importing a native backend.
+# Internal acceptance gate. No environment variable, API or renderer can enable it.
+# Keep false until native selector integration and its security gates are verified.
+WINDOWS_NATIVE_CACHE_VERIFIED = False
 
-    This is a capability gate, not a product/platform acceptance declaration.
-    No Windows implementation or weaker path-based fallback is currently enabled.
-    """
-    if os.name != "posix":
+
+def windows_cache_enabled() -> bool:
+    return (
+        WINDOWS_NATIVE_CACHE_VERIFIED
+        and os.name == "nt"
+        and platform.machine().lower() in {"amd64", "x86_64"}
+    )
+
+
+def require_local_cache() -> None:
+    """Reject unsupported hosts before binding/preparing; never fall back to POSIX."""
+    if os.name != "posix" and not windows_cache_enabled():
         raise ValueError("REMOTE_CACHE_PLATFORM_UNVERIFIED")
 
 
@@ -278,12 +288,23 @@ class _PosixWriterLock:
 
 def local_directory(path: Path) -> LocalDirectory:
     require_local_cache()
-    return _PosixDirectory(path)
+    if os.name == "posix":
+        return _PosixDirectory(path)
+    from easyai.security.windows_store import WindowsDirectory
+
+    return WindowsDirectory(path)
 
 
 def limited_names(directory: LocalDirectory, limit: int) -> list[str]:
     """Bound enumeration before list allocation for user-selected upload trees."""
-    if not isinstance(directory, _PosixDirectory) or not 1 <= limit <= 1024:
+    if type(limit) is not int or not 1 <= limit <= 1024:
+        raise ValueError("REMOTE_CACHE_PLATFORM_UNVERIFIED")
+    if windows_cache_enabled():
+        from easyai.security.windows_store import WindowsDirectory
+
+        if isinstance(directory, WindowsDirectory):
+            return sorted(directory.names(limit=limit))
+    if not isinstance(directory, _PosixDirectory):
         raise ValueError("REMOTE_CACHE_PLATFORM_UNVERIFIED")
     directory.verify()
     result: list[str] = []

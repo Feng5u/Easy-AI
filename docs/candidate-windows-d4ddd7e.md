@@ -36,3 +36,5 @@ Windows 实际通过：项目持久化/native lock/包目录与被阻止计划�
 下一项是干净 Windows 11 x64 普通用户环境的 TST33 与真实课堂 UI 操作（先验证 ZIP hash，再解压启动/退出/编译，不需要 torch、数据或 SSH）。本执行器没有该桌面机器，不冒充 CI Electron smoke 为此项通过。正式 MNIST 十轮效果、真实 SSH/断线/取消/重连恢复、硬件矩阵和第三方法律审核仍 NOT RUN/未完成；相应数据、隔离训练环境、主机和授权条件需单独满足。不绕过系统安全提示、不自动安装训练依赖/下载数据模型或正式发布。
 
 原 Linux 候选和计划/规格/README/依赖锁/golden 均保持；main 仍 `5323f86232529efcfb52131168ad049f01b219f3`。
+
+父级后续已通过已登录浏览器独立确认完整CI SUCCESS、包内后端三条PASS含EOF0、Electron1PASS/2.1s，并确认artifact ID `12176144515`（一天保留）；初审未发现本轮Windows修复P1/P2或放宽门。该独立核实仍不等于完整A/B。

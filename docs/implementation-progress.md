@@ -2958,3 +2958,31 @@ Linux check job117987315485 SUCCESS：pnpm check/test/build全部SUCCESS。Windo
 当前目标“Windows实际候选、ZIP审计、包内后端与Electron smoke”已完成；旧失败证据全部保全，仍不等于完整v0.0.0 gateA/B。下一项TST33干净Windows11x64普通用户桌面和真实课堂UI（先下载核大小/hash、解压启动/退出/编译），当前执行器无该桌面，NOT RUN；不需torch/数据/SSH即可先做此项。正式MNIST十轮效果、真实SSH/断线取消重连/硬件矩阵/法律审核仍未完成，需相应隔离训练环境、数据、主机与明确授权条件，不自动下载安装或改教师共享环境。Windows production storage仍off，distributionReady/legalReviewComplete仍false。
 
 本收据及最终进度仅本地docs证据提交，不push额外CI；remote产品保持d4。原README/计划/规格/依赖锁/golden与旧Linux候选保持。无main/force/PR/Release/部署/付费/新凭据/权限变化。下一阶段由父级统一监督排定，当前无代码故障日志阻塞，剩余为明确未验收条件。
+
+
+## 2026-10-19 Windows宿主run/SSH本地存储selector与有界原生枚举（第一阶段门仍关闭）
+
+起始HEAD dabd58a2f2d40e42ae79c2df85ff3b1eb587d398，工作区clean，remote d4ddd7e02ead22d54ac4fea32c3706a733551fc4；dabd证据保全。父级浏览器独立确认原候选CI完整SUCCESS、包内backend三条PASS/EOF0、Electron1PASS2.1s，artifact12176144515一天保留，初审无P1/P2/松门，原包/收据保留。
+
+原计划需求引用：docs/v0.0.0 plan.md §3.3第156行优先Windows11x64客户端连接LinuxSSH；§13单跳Linux，M5.3运行/持久事件、M5.4重连/取消/同步，M8.2要求干净机可连接已备环境。源码确认当前生产缺口：remote_cache.require_local_cache拒非POSIX、local_directory只选_PosixDirectory、limited_names只接受该类型；RunService默认Windows只走旧普通本地持久化，已有native coordinator/run tests都直接storage=WindowsDirectory注入。故这是真实原产品缺口，不是另造外围任务，不等待数据/外部SSH才推进。
+
+本阶段：内部WINDOWS_NATIVE_CACHE_VERIFIED=False（无env/API/renderer开启入口）保持产品门。新增windows_cache_enabled检查gate+nt+x64；local_directory在门允许后才lazy导入并创建真实WindowsDirectory，绝无POSIX替代。RunService在native门允许时使用同一默认selector，SshRunCoordinator默认原本就是该selector；local_workspace.bind_remote/remote_runs.prepare原require门自然接通。limited_names只允许实际WindowsDirectory的限量native枚举，仍验证前后身份，POSIX路径保持。
+
+NativeWindowsApi.names现在固定64KiB缓冲、limit1..4096、最多limit+3调用、结果最多limit（limited_names1..1024）；记录解析校验长度/offset/UTF16/component，拒casefold重复和重复dot、不一致end receipt/结束携payload，越限明确拒绝，非等待枚举完整后再截断。已有ACL/reparse/volume/held identity/kernel locks/nativeflush/不覆盖publication逻辑未改。不是路径os.listdir替代或Windows权限修复。
+
+匹配测试：Linux enum合同覆盖精确limit+真实end receipt/first restart、超限/重复dot/大小写别名/短record/奇UTF16长度/越界name；默认门关闭仍先拒绝。新增native集成文件只在Windows执行，临时开启内部gate，不注入storage factory/API：实际local_directory与limited_names+TransferSource inventory/open，默认RunService native ledger/shared journal/cancel/recovery，默认SshRunCoordinator lostACK→unknown→inspect恢复且start/stage只1次。SSH为固定内存synthetic transport，socket连接禁用，无外部认证/主机/训练；真实本地NTFS才是该测试证明对象。默认门仅待这些真实native集成通过后再审是否开启，不把测试注入当产品ready。
+
+实际命令 cwd /workspace/Easy-AI：
+- PASS：services/backend/.venv/bin/pytest -q services/backend/tests/test_windows_cache_selector.py services/backend/tests/test_windows_storage_contract.py services/backend/tests/test_run_storage.py services/backend/tests/test_windows_cache_integration.py，68PASS/3nativeSKIP（Linux，不作Windows通过）。
+- PASS：同pytest追加test_ssh_run_coordinator.py/test_run_service.py的合同与回归集合，120PASS/5.70s。
+- PASS：pytest -q test_data_transfers.py test_data_transfer_recovery.py test_remote_artifacts.py（路径均services/backend/tests/），103PASS/9.38s。
+- PASS：workspace XDG/UV_OFFLINE=1 pnpm check，TypeScript/ruff/mypy66源文件/真实fixtures/format通过；git diff --check。
+- PASS：独立只读48PASS/3nativeSKIP，无新增明确P1/P2，认可bounded enum/selector gate，未改/联网/构建；明确native acceptance仍待CI。
+
+本阶段CI在原native NTFS步骤追加两测试文件，不删原测试、不启用产品门。下一步一次正常开发分支自然有界免费CI；若实际native集成失败，需新正文定位，不猜改/重复旧run；若通过再对下一阶段默认门/其它WindowsSSH路径做有证据的集成，不声明全部WindowsSSH已就绪。HostKeyStore等调用链还需后续系统核对，外部SSH/正式数据、训练环境、硬件和TST33仍独立未验收条件，不阻止当前代码推进。原计划/规格/README/锁hash保持、main仍5323f86232529efcfb52131168ad049f01b219f3；不改教师环境、下载/安装、main/force/发布/PR/权限/凭据/付费。
+
+- `/tmp/easyai-windows-selector-targeted-20261019.log`：SHA256 `23e28de86117343db8ff3bcbdf563c97f93a533db3e6ab65896329f0e09ee322`。
+- `/tmp/easyai-windows-selector-regression-20261019.log`：SHA256 `b2fca707d167ee60ab4daaa2165be809f73e5f7648e46b5ef1ec63a8b5ae528a`。
+- `/tmp/easyai-windows-selector-consumers-20261019.log`：SHA256 `836cc82727a6c96d074cd14028b54d3952b1b75e5708309b27bf892498cb068d`。
+- `/tmp/easyai-windows-selector-check-20261019.log`：SHA256 `7bb5b9eb40318a727256c7414127c5ca33b23bf440aa4e4841edbfc9e05a4201`。
+- `/tmp/easyai-windows-selector-independent-JNkecT.log`：SHA256 `1451c283a421a17e8aa3e0ec493adeb2b1827ba77706f4e0ba77b0821c59afc3`。
