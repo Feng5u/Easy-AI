@@ -2,8 +2,13 @@ import { test, expect, type ElectronApplication } from "@playwright/test";
 import { mkdtemp, mkdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { Canvas } from "./canvas.js";
-import { launchDesktop, projectPicker } from "./desktop.js";
+import { Canvas, interaction } from "./canvas.js";
+import {
+  launchDesktop,
+  projectPicker,
+  closeTemporaryDesktop,
+  observeTemporaryDesktop,
+} from "./desktop.js";
 import type * as Blockly from "blockly/core";
 import type { ProjectDocument } from "../../apps/desktop/electron/bridge.js";
 
@@ -23,6 +28,8 @@ test("build a CNN from the toolbox, diagnose shape and restore the saved graph",
   let app: ElectronApplication | undefined =
     await launchDesktop(stateDirectory);
   const failures: string[] = [];
+  let failed = false;
+  let shutdownUnconfirmed = false;
   try {
     expect(await app.evaluate(({ app }) => app.getPath("userData"))).toBe(
       stateDirectory,
@@ -30,8 +37,11 @@ test("build a CNN from the toolbox, diagnose shape and restore the saved graph",
     expect(await app.evaluate(({ app }) => app.isPackaged)).toBe(
       Boolean(process.env.EASYAI_E2E_PACKAGE),
     );
+    await observeTemporaryDesktop(app);
     await projectPicker(app, projectDirectory);
     const page = await app.firstWindow();
+    page.setDefaultTimeout(8000);
+    page.setDefaultNavigationTimeout(8000);
     page.on("pageerror", (error) => failures.push(error.name));
     page.on("console", (message) => {
       if (
@@ -77,28 +87,60 @@ test("build a CNN from the toolbox, diagnose shape and restore the saved graph",
       trainLoader = "",
       testLoader = "";
     await test.step("drag and connect preprocessing, register datasets and choose stable references", async () => {
-      preprocess = await data.drag("预处理流水线", "数据处理", { row: 0 });
-      await data.drag("转为张量", "数据处理", {
-        parent: preprocess,
-        kind: "input",
-      });
-      await data.register(preprocess, "Prep");
-      trainData = await data.drag("加载内置数据集", "数据处理", { row: 1 });
-      await data.option(trainData, "TRANSFORM_REF", "Prep");
-      await data.register(trainData, "TrainData");
-      testData = await data.drag("加载内置数据集", "数据处理", { row: 2 });
-      await data.option(testData, "SPLIT", "test");
-      await data.option(testData, "TRANSFORM_REF", "Prep");
-      await data.register(testData, "TestData");
-      trainLoader = await data.drag("创建 DataLoader", "数据处理", { row: 3 });
-      await data.option(trainLoader, "DATASET_REF", "TrainData");
-      await data.register(trainLoader, "TrainBatches");
-      testLoader = await data.drag("创建 DataLoader", "数据处理", { row: 4 });
-      await data.option(testLoader, "DATASET_REF", "TestData");
+      preprocess = await interaction("data.drag 预处理流水线", () =>
+        data.drag("预处理流水线", "数据处理", { row: 0 }),
+      );
+      await interaction("data.drag 转为张量", () =>
+        data.drag("转为张量", "数据处理", {
+          parent: preprocess,
+          kind: "input",
+        }),
+      );
+      await interaction("data.register preprocess Prep", () =>
+        data.register(preprocess, "Prep"),
+      );
+      trainData = await interaction("data.drag 加载内置数据集", () =>
+        data.drag("加载内置数据集", "数据处理", { row: 1 }),
+      );
+      await interaction("data.option trainData TRANSFORM_REF", () =>
+        data.option(trainData, "TRANSFORM_REF", "Prep"),
+      );
+      await interaction("data.register trainData TrainData", () =>
+        data.register(trainData, "TrainData"),
+      );
+      testData = await interaction("data.drag 加载内置数据集", () =>
+        data.drag("加载内置数据集", "数据处理", { row: 2 }),
+      );
+      await interaction("data.option testData SPLIT", () =>
+        data.option(testData, "SPLIT", "test"),
+      );
+      await interaction("data.option testData TRANSFORM_REF", () =>
+        data.option(testData, "TRANSFORM_REF", "Prep"),
+      );
+      await interaction("data.register testData TestData", () =>
+        data.register(testData, "TestData"),
+      );
+      trainLoader = await interaction("data.drag 创建 DataLoader", () =>
+        data.drag("创建 DataLoader", "数据处理", { row: 3 }),
+      );
+      await interaction("data.option trainLoader DATASET_REF", () =>
+        data.option(trainLoader, "DATASET_REF", "TrainData"),
+      );
+      await interaction("data.register trainLoader TrainBatches", () =>
+        data.register(trainLoader, "TrainBatches"),
+      );
+      testLoader = await interaction("data.drag 创建 DataLoader", () =>
+        data.drag("创建 DataLoader", "数据处理", { row: 4 }),
+      );
+      await interaction("data.option testLoader DATASET_REF", () =>
+        data.option(testLoader, "DATASET_REF", "TestData"),
+      );
       const shuffle = data.field(testLoader, "SHUFFLE");
-      await data.reveal(shuffle);
-      await shuffle.click();
-      await data.register(testLoader, "TestBatches");
+      await interaction("data.reveal", () => data.reveal(shuffle));
+      await interaction("toggle test loader SHUFFLE", () => shuffle.click());
+      await interaction("data.register testLoader TestBatches", () =>
+        data.register(testLoader, "TestBatches"),
+      );
       await saved();
     });
     let definition = "",
@@ -106,39 +148,65 @@ test("build a CNN from the toolbox, diagnose shape and restore the saved graph",
       linear = "";
     await test.step("drag CNN layers into the model and connect their real notches", async () => {
       await page.getByRole("tab", { name: "模型结构", exact: true }).click();
-      definition = await model.drag("定义模型类", "模型结构", { row: 0 });
-      convolution = await model.drag("卷积层", "模型结构", {
-        parent: definition,
-        kind: "input",
-      });
-      const relu = await model.drag("ReLU", "模型结构", {
-        parent: convolution,
-        kind: "next",
-      });
-      const pool = await model.drag("最大池化", "模型结构", {
-        parent: relu,
-        kind: "next",
-      });
-      const flatten = await model.drag("展平", "模型结构", {
-        parent: pool,
-        kind: "next",
-      });
-      linear = await model.drag("全连接层", "模型结构", {
-        parent: flatten,
-        kind: "next",
-      });
-      await model.number(linear, "IN_FEATURES", "3136");
-      await model.number(linear, "OUT_FEATURES", "10");
-      await model.register(definition, "ToolboxCNN");
+      definition = await interaction("model.drag 定义模型类", () =>
+        model.drag("定义模型类", "模型结构", { row: 0 }),
+      );
+      convolution = await interaction("model.drag 卷积层", () =>
+        model.drag("卷积层", "模型结构", {
+          parent: definition,
+          kind: "input",
+        }),
+      );
+      const relu = await interaction("model.drag ReLU", () =>
+        model.drag("ReLU", "模型结构", {
+          parent: convolution,
+          kind: "next",
+        }),
+      );
+      const pool = await interaction("model.drag 最大池化", () =>
+        model.drag("最大池化", "模型结构", {
+          parent: relu,
+          kind: "next",
+        }),
+      );
+      const flatten = await interaction("model.drag 展平", () =>
+        model.drag("展平", "模型结构", {
+          parent: pool,
+          kind: "next",
+        }),
+      );
+      linear = await interaction("model.drag 全连接层", () =>
+        model.drag("全连接层", "模型结构", {
+          parent: flatten,
+          kind: "next",
+        }),
+      );
+      await interaction("model.number linear IN_FEATURES", () =>
+        model.number(linear, "IN_FEATURES", "3136"),
+      );
+      await interaction("model.number linear OUT_FEATURES", () =>
+        model.number(linear, "OUT_FEATURES", "10"),
+      );
+      await interaction("model.register definition ToolboxCNN", () =>
+        model.register(definition, "ToolboxCNN"),
+      );
       await saved();
     });
     let loop = "";
     await test.step("choose the registered CNN and train/test loader references", async () => {
       await page.getByRole("tab", { name: "训练管线", exact: true }).click();
-      loop = await training.drag("训练模型", "训练管线", { row: 0 });
-      await training.option(loop, "MODEL_REF", "ToolboxCNN");
-      await training.option(loop, "TRAIN_LOADER_REF", "TrainBatches");
-      await training.option(loop, "TEST_LOADER_REF", "TestBatches");
+      loop = await interaction("training.drag 训练模型", () =>
+        training.drag("训练模型", "训练管线", { row: 0 }),
+      );
+      await interaction("training.option loop MODEL_REF", () =>
+        training.option(loop, "MODEL_REF", "ToolboxCNN"),
+      );
+      await interaction("training.option loop TRAIN_LOADER_REF", () =>
+        training.option(loop, "TRAIN_LOADER_REF", "TrainBatches"),
+      );
+      await interaction("training.option loop TEST_LOADER_REF", () =>
+        training.option(loop, "TEST_LOADER_REF", "TestBatches"),
+      );
       await saved();
     });
     await compile.click();
@@ -157,7 +225,9 @@ test("build a CNN from the toolbox, diagnose shape and restore the saved graph",
     expect(code.join("\n")).toContain("nn.Linear(3136, 10)");
     await test.step("an actual layer edit reports the precise shape and its block, then repair it", async () => {
       await page.getByRole("tab", { name: "模型结构", exact: true }).click();
-      await model.number(linear, "IN_FEATURES", "3135");
+      await interaction("model.number linear IN_FEATURES", () =>
+        model.number(linear, "IN_FEATURES", "3135"),
+      );
       await saved();
       await compile.click();
       const mismatch = page
@@ -177,7 +247,9 @@ test("build a CNN from the toolbox, diagnose shape and restore the saved graph",
           .getByRole("complementary", { name: "对象注册与引用" })
           .locator(":scope > small"),
       ).toHaveText(linear);
-      await model.number(linear, "IN_FEATURES", "3136");
+      await interaction("model.number linear IN_FEATURES", () =>
+        model.number(linear, "IN_FEATURES", "3136"),
+      );
       await saved();
       await compile.click();
       await expect(
@@ -223,10 +295,18 @@ test("build a CNN from the toolbox, diagnose shape and restore the saved graph",
       TEST_LOADER_REF: testLoader,
     });
     expect(failures).toEqual([]);
-    await app.close();
+    const previous = app;
     app = undefined;
+    shutdownUnconfirmed = true;
+    await interaction("normal saved desktop shutdown", () =>
+      closeTemporaryDesktop(previous, false),
+    );
+    shutdownUnconfirmed = false;
     app = await launchDesktop(stateDirectory);
+    await observeTemporaryDesktop(app);
     const reopened = await app.firstWindow();
+    reopened.setDefaultTimeout(8000);
+    reopened.setDefaultNavigationTimeout(8000);
     await expect(reopened.getByTestId("backend-status")).toHaveText(
       "本地服务已就绪。",
     );
@@ -249,13 +329,31 @@ test("build a CNN from the toolbox, diagnose shape and restore the saved graph",
       reopened.getByRole("button", { name: "开始本次运行", exact: true }),
     ).toBeDisabled();
   } catch (error) {
+    failed = true;
     console.error(
       "EASYAI_TOOLBOX_RENDERER_FAILURES",
       JSON.stringify([...new Set(failures)]),
     );
     throw error;
   } finally {
-    await app?.close();
-    await rm(directory, { recursive: true });
+    let closed = !app && !shutdownUnconfirmed;
+    if (app) {
+      try {
+        await closeTemporaryDesktop(app, failed);
+        closed = true;
+      } catch (error) {
+        console.error("EASYAI_TOOLBOX_CLOSE_FAILED");
+        if (!failed) throw error;
+        // Retain temporary files when shutdown was not confirmed.
+      }
+    }
+    if (closed) {
+      try {
+        await rm(directory, { recursive: true });
+      } catch (error) {
+        console.error("EASYAI_TOOLBOX_TEMP_CLEANUP_FAILED");
+        if (!failed) throw error;
+      }
+    }
   }
 });

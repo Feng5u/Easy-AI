@@ -3226,3 +3226,27 @@ PASS：固定workspace XDG/UV_OFFLINE=1 pnpm check（/tmp/easyai-toolbox-check-f
 当前准确阻塞：需要父级在已登录GitHub页面读取该run/job/step14的首个失败测试名、test.step、Expected/Received、call log/源码行及若存在的EASYAI_TOOLBOX_RENDERER_FAILURES。已通过异步问题请求；该读取待父级，未取得结果。本执行器既有日志/artifact/browser API限制保持，未重试被拒操作、未绕过、未盲重跑CI、未修改测试门或禁用本地sandbox。未完成的实际包内操作不标PASS；独审无确定P1/P2及本地静态PASS不能代替WindowsGUI。
 
 只读复核远端main仍5323f86232529efcfb52131168ad049f01b219f3，dev同d7451d75f29b63dfac8bafb42b6667e8f2b7e16b，原plan/规格/README及pnpm/backend uv依赖锁hash均与既有记录一致；后续只有本地docs证据提交，不为证据额外触发CI。下一项取得首条错误并按证据修复，再做一次正常开发提交的自然CI。真实SSH/MNIST/TST33/许可、完整M4/M7/A/B继续分别未完成。
+
+
+### 空白CNN首错已取证，逐交互有界诊断
+
+父级已登录云浏览器读取CI39243887949/job118030991821 step14：blank-cnn.spec.ts:16:1在“drag and connect preprocessing, register datasets and choose stable references”总180000ms超时，随后worker teardown30000ms超时；EASYAI_TOOLBOX_RENDERER_FAILURES []；1failed/1passed(3.7m)，另1error不属于test。无Expected/Received/locator栈。不是已定位的字段/拖拽产品缺陷，也不是旧Monaco失败。原FAIL与退出失败记录保留，父级继续浏览器取证，不要求用户搬日志，不重试既有受限接口。
+
+先源审再做唯一一次正常提交的有界验证：本测试page默认交互/导航8s；Canvas每个外层动作及菜单打开、选项选择、名称提交、注册、实际mouse gesture各有15s test.step和BEGIN/PASS/FAIL固定标签，输出本临时fixture的实际SVG源/目标/scale/viewport几何。全场景180s不增，原场景和runner不削减。真实拖入/连接/字段编辑/权威编译与重开断言原样保留，没有图注入/模拟运行或训练。当前源审未找到可断言的具体拖拽/field/menu挂点，因此本轮是明确增加可观测性的诊断验证，不宣称修好产品操作。
+
+源码明确普通action此前没有默认timeout，可能耗尽整个测试；Main正常退出遇dirty草稿会等待原生showMessageBox，原finally无界app.close可能掩盖首错，但尚不能认定上次实际发生了该dialog。现在观察native dialog仅输出dirty/active-run/shutdown-error/other固定类别并保留正常行为；仅已失败的测试cleanup精确匹配自身临时dirty标题+按钮才返回放弃草稿，正常成功关闭不替换确认。一次close链(含Main evaluate)12s有界，记录本测试创建的实际Electron PID/exit code/signal；只有实际code0且无signal才确认正常退出后删除自己的temp。失败cleanup不吞掉原错误，目录rm失败也不得覆盖原首错。正常close超时不再finally重复close；未确认退出则保留temp、不杀未知进程。
+
+注意test.step/Promise.race超时本身不取消已派发CDP/退出请求：各interaction共享测试级AbortController，失败后禁止后续新交互，组合鼠标/输入提交之间检查abort，鼠标finally仅释放。close在超时abort后禁止晚返回evaluate再派新close。仍必须等待真实进程退出证据，FAIL日志不等于已静止，不启动并行/替代实例。
+
+独立只读审查发现rm异常覆盖首错P2，已修；初审其余无确定挂点，修复后复核待返回。PASS：pnpm check（完整TS/ruff/mypy/contracts/fixtures/format），playwright test --list仍2场景，git diff --check。本机GUI仍NOT RUN，不绕过已知OS sandbox条件；Windows新诊断待本次正常CI，不盲重跑旧run。早先root tsc --noEmit缺项目只打印help exit1，已改用仓库pnpm check；观察dialog的TS overload初版失败，已用兼容真实重载的unknown[]转发修正并通过，所有本地失败日志保留。没有生产/安全门/依赖/原件/main/训练/SSH/权限/发布变化。
+
+- /tmp/easyai-toolbox-bounds-tsc-20261019.log SHA256 `7ce8b2c5d6d32fae4a2f569194854eb61d6abef9344be8ef4494e21a525fac43`。
+- /tmp/easyai-toolbox-bounds-check-20261019.log SHA256 `e284105680d2fcd4b8314e25bdc70fbcf92ef3e01bbc018434611fe556cbc6c0`。
+- /tmp/easyai-toolbox-bounds-check-final-20261019.log SHA256 `e284105680d2fcd4b8314e25bdc70fbcf92ef3e01bbc018434611fe556cbc6c0`。
+- /tmp/easyai-toolbox-bounds-check-verified-20261019.log SHA256 `e580f738fb6f2a6bfe01cc5daae5d3e702f5220b2ad112eafff67fad6afa0a95`。
+- /tmp/easyai-toolbox-bounds-check-pass-20261019.log SHA256 `e580f738fb6f2a6bfe01cc5daae5d3e702f5220b2ad112eafff67fad6afa0a95`。
+- /tmp/easyai-toolbox-bounds-list-20261019.log SHA256 `cba0ef52b51ecb00ca1372443c7837a9ba76c3ea9923b6f8a677baf99dd95eca`。
+
+最终复核：独审指出平移/滚动迟返回需abort防线；当前scrollIntoView、mouse.move、wheel派发前均检查共享signal，已逐点复核，rm首错覆盖与此遗漏全部关闭，无剩余明确P1/P2。最后新增guard后tsc -p tsconfig.tests.json PASS；此前完整pnpm check PASS。仅本任务一个集成者，没有并行GUI/CI实例；下一次自然CI为诊断验证，结果仍待实际执行。
+
+- /tmp/easyai-toolbox-bounds-abort-tsc-20261019.log SHA256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`。

@@ -1,4 +1,34 @@
-import { expect, type Locator, type Page } from "@playwright/test";
+import { test, expect, type Locator, type Page } from "@playwright/test";
+
+const sessions = new WeakMap<object, AbortController>();
+function interactionSignal() {
+  const info = test.info();
+  let session = sessions.get(info);
+  if (!session) sessions.set(info, (session = new AbortController()));
+  session.signal.throwIfAborted();
+  return session;
+}
+
+export async function interaction<T>(
+  label: string,
+  body: (signal: AbortSignal) => Promise<T>,
+) {
+  const session = interactionSignal();
+  console.info(`EASYAI_TOOLBOX_ACTION BEGIN ${label}`);
+  try {
+    const result = await test.step(label, () => body(session.signal), {
+      timeout: 15000,
+    });
+    console.info(`EASYAI_TOOLBOX_ACTION PASS ${label}`);
+    return result;
+  } catch (error) {
+    // A timeout cannot cancel an already dispatched CDP operation. Stop any
+    // subsequent gestures when it returns; shutdown must still confirm exit.
+    session.abort(error);
+    console.error(`EASYAI_TOOLBOX_ACTION FAIL ${label}`);
+    throw error;
+  }
+}
 
 export class Canvas {
   readonly panel: Locator;
@@ -24,6 +54,7 @@ export class Canvas {
     );
   }
   async bounds() {
+    interactionSignal();
     await this.panel.scrollIntoViewIfNeeded();
     const background = (await this.panel
       .locator(".blocklyMainBackground")
@@ -58,10 +89,12 @@ export class Canvas {
             ? box.y + box.height - area.y - area.height + 24
             : 0;
       if (!dx && !dy) return;
+      interactionSignal();
       await this.page.mouse.move(
         area.x + area.width / 2,
         area.y + area.height - 12,
       );
+      interactionSignal();
       await this.page.mouse.wheel(dx, dy);
       await this.frame();
     }
@@ -117,9 +150,9 @@ export class Canvas {
       .evaluateAll((nodes) =>
         nodes.map((node) => node.getAttribute("data-id")),
       );
-    await this.panel
-      .getByRole("treeitem", { name: category, exact: true })
-      .click();
+    await interaction(`toolbox category ${category} for ${label}`, () =>
+      this.panel.getByRole("treeitem", { name: category, exact: true }).click(),
+    );
     const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const source = this.panel
       .locator(".blocklyFlyout .blocklyBlockCanvas > g[data-id]")
@@ -133,15 +166,34 @@ export class Canvas {
     const scale = await source
       .locator(":scope > path.blocklyPath")
       .evaluate((path) => Math.abs((path as SVGPathElement).getScreenCTM()!.a));
-    await this.page.mouse.move(start.x, start.y);
-    await this.page.mouse.down();
-    await this.page.mouse.move(start.x + 12, start.y + 4, { steps: 5 });
-    await this.page.mouse.move(
-      target.x + 8 - ("parent" in destination ? 15 * scale : 0),
-      target.y + 10,
-      { steps: 20 },
+    console.info(
+      "EASYAI_TOOLBOX_DRAG_GEOMETRY",
+      JSON.stringify({
+        label,
+        area,
+        target,
+        source: box,
+        scale,
+        existingBlocks: before.length,
+      }),
     );
-    await this.page.mouse.up();
+    await interaction(`physical drag ${label}`, async (signal) => {
+      await this.page.mouse.move(start.x, start.y);
+      signal.throwIfAborted();
+      await this.page.mouse.down();
+      try {
+        signal.throwIfAborted();
+        await this.page.mouse.move(start.x + 12, start.y + 4, { steps: 5 });
+        signal.throwIfAborted();
+        await this.page.mouse.move(
+          target.x + 8 - ("parent" in destination ? 15 * scale : 0),
+          target.y + 10,
+          { steps: 20 },
+        );
+      } finally {
+        await this.page.mouse.up();
+      }
+    });
     await expect(this.blocks.locator(".blocklyInsertionMarker")).toHaveCount(0);
     await expect(this.blocks.locator("g[data-id]")).toHaveCount(
       before.length + 1,
@@ -169,24 +221,31 @@ export class Canvas {
   async option(id: string, field: string, value: string) {
     const control = this.field(id, field);
     await this.reveal(control);
-    await control.click();
-    await this.page.getByRole("option", { name: value, exact: true }).click();
+    await interaction(`open reference or enum ${field}`, () => control.click());
+    await interaction(`choose reference or enum ${field}`, () =>
+      this.page.getByRole("option", { name: value, exact: true }).click(),
+    );
     await expect(control).toContainText(value);
   }
   async number(id: string, field: string, value: string) {
     const control = this.field(id, field);
     await this.reveal(control);
-    await control.click();
+    await interaction(`open number ${field}`, () => control.click());
     const input = this.page.locator("input.blocklyHtmlInput");
     await expect(input).toBeVisible();
-    await input.fill(value);
-    await input.press("Enter");
+    await interaction(`edit number ${field}`, async (signal) => {
+      await input.fill(value);
+      signal.throwIfAborted();
+      await input.press("Enter");
+    });
     await expect(control).toContainText(value);
   }
   async register(id: string, name: string) {
     const header = this.block(id).locator(":scope > g.blocklyField").first();
     await this.reveal(header);
-    await header.click();
+    await interaction(`select object for registration ${name}`, () =>
+      header.click(),
+    );
     const inspector = this.page.getByRole("complementary", {
       name: "对象注册与引用",
     });
@@ -194,9 +253,14 @@ export class Canvas {
     const input = inspector.getByRole("textbox", {
       name: "用于生成代码的名称",
     });
-    await input.fill(name);
-    await input.press("Enter");
-    await inspector.getByRole("checkbox", { name: "供本项目引用" }).check();
+    await interaction(`rename object ${name}`, async (signal) => {
+      await input.fill(name);
+      signal.throwIfAborted();
+      await input.press("Enter");
+    });
+    await interaction(`register object ${name}`, () =>
+      inspector.getByRole("checkbox", { name: "供本项目引用" }).check(),
+    );
     await expect(
       inspector.getByRole("button", { name: new RegExp(`^${name}`) }),
     ).toBeVisible();
