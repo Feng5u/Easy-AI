@@ -24,6 +24,15 @@ const req = createRequire(import.meta.url);
 const builder = createRequire(req.resolve("electron-builder"));
 const dependency = createRequire(builder.resolve("app-builder-lib"));
 const asar = dependency("@electron/asar");
+function windowsMemberQueryNormalizer(hostPath) {
+  // On Windows the default path API IS path.win32. Capture both functions
+  // before replacing anything, otherwise the test shim recurses into itself.
+  const hostNormalize = hostPath.normalize;
+  const windowsNormalize = hostPath.win32.normalize;
+  return (name) =>
+    hostPath.isAbsolute(name) ? hostNormalize(name) : windowsNormalize(name);
+}
+
 async function fixture(t, extra, platform = "linux") {
   const layout = builderLayout(platform);
   const root = await mkdtemp(join(tmpdir(), "easyai-builder-verifier-"));
@@ -374,10 +383,7 @@ test("Windows nested ASAR members use native stat and read queries while policy 
     originals.list(...args).map((name) => name.replaceAll("/", "\\"));
   asar.statFile = windowsQuery("stat", originals.stat);
   asar.extractFile = windowsQuery("read", originals.read);
-  path.normalize = (name) =>
-    path.isAbsolute(name)
-      ? originals.normalize(name)
-      : path.win32.normalize(name);
+  path.normalize = windowsMemberQueryNormalizer(path);
   try {
     assert.equal(
       (await verifyBuilder(valid.root)).sourceCommit,
@@ -409,5 +415,24 @@ test("Windows nested ASAR members use native stat and read queries while policy 
     asar.statFile = originals.stat;
     asar.extractFile = originals.read;
     path.normalize = originals.normalize;
+  }
+});
+
+test("Windows member fixture remains valid when default path and win32 share one object", () => {
+  const windows = path.win32;
+  const original = windows.normalize;
+  const normalize = windowsMemberQueryNormalizer(windows);
+  try {
+    windows.normalize = normalize;
+    assert.equal(
+      windows.normalize("dist/assets/file.css"),
+      "dist\\assets\\file.css",
+    );
+    assert.equal(
+      windows.normalize("C:/candidate/app.asar"),
+      "C:\\candidate\\app.asar",
+    );
+  } finally {
+    windows.normalize = original;
   }
 });

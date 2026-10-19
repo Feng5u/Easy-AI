@@ -2785,3 +2785,15 @@ PASS补记：`node scripts/package-builder.mjs --verify dist/easyai-builder-a4de
 - `/tmp/easyai-asar-native-query-linux-verify-20261019.log`：`2bcb392594d0486dfbe8cda08816af01c90eb71da8c6c17f80e1f27a4390e864`。
 - `/tmp/easyai-asar-native-query-format-check-20261019.log`：`cbe9f0d2d90255e8d0e75efb8b65eb31c9f56a6a2fd881e2245b07403e38967f`。
 - `/tmp/easyai-asar-reader-independent-tcpe16.log`：`b11d27d3044f8b5774b159720e0a91ee9aaac2d0fdf838c2d46e13889db8d65f`。
+
+
+## 2026-10-19 Windows 同对象 path 别名的测试模拟器修复
+
+产品reader修复已推 `4c60e0554f7132ea833dbd3e6a9a63e8b9d47e63`，[run39225391404](https://github.com/T1doo/Easy-AI/actions/runs/39225391404) Linux SUCCESS，Windows在Packaging input and archive guards FAIL，尚未到构建。没有新首错正文，不宣称unique根因；本线程没有读被拒logs接口。
+
+发现我新增模拟器的确定Windows-only缺陷：默认path对象即path.win32，覆盖path.normalize后再调用path.win32.normalize会递归。用实际path.win32同一对象在Linux独立复现旧shim RangeError（不把它冒充CI正文）。只改测试helper：覆盖前capture两个原函数，实体绝对路径用原hostNormalize，相对member用captured windowsNormalize；新增default/win32同对象回归，既核relative nested路径，也核绝对C:路径。产品candidateAsar代码、所有正负测试含缺失/private/bytes、PE/归档和sandbox门均不变，不跳测试，也不针对某个CSS特殊处理。
+
+PASS：工作区XDG环境 `pnpm test:package`，34项/1.74s；独立直接四文件Node同34PASS，复核Windowsalias及stat/read代理原宿主normalize，未发现新增明确P1/P2。Prettier、git diff --check PASS。没有本地构建/GUI/Windows实机/数据/训练/SSH/依赖变更。该真实平台模拟器修复后正常新提交/自然CI一次，非重跑旧run或盲重试；实际Windows候选与packaged smoke仍须新结果。旧FAIL继续保留。
+- `/tmp/easyai-asar-fixture-alias-before-20261019.log`：`b71e42736d2e9f6e9def7369d2af2ebd0a0e5679f3cf7ec749ebed35de3d6d1a`。
+- `/tmp/easyai-asar-fixture-alias-after-20261019.log`：`1bf21ecfb69a68324712eb20548c45304e829cf7529de146678742246c59e749`。
+- `/tmp/easyai-win-shim-independent-yga8mS.log`：`9f337c98e01a633ed972f75accb370efccf0631855df21023f7b678f8f610117`。
