@@ -3103,3 +3103,12 @@ PASS（cwd /workspace/Easy-AI）：`services/backend/.venv/bin/pytest -q service
 PASS：固定workspace XDG/UV_OFFLINE=1 pnpm check（/tmp/easyai-ui-check-20261019.log）；后续更新tsc -p tsconfig.tests.json PASS；playwright test --list发现原文件唯一扩展场景；git diff --check PASS。本地GUI NOT RUN：当前执行器没有显示服务或Xvfb，未安装或关闭sandbox。实际Windows开发态和打包态待本次正常提交自然CI，零自动重试。已有HostKeyStore证据e400随该正常开发push保留。
 
 安全与范围：没有点击运行、选择训练环境/数据/SSH或凭据，不下载/训练，不改CSP/IPC/sandbox/编译器或产品边界。两个顺序实例/锁测试不冒充跨进程真实SSH；冻结模块清单只证明存在。真实SSH、正式MNIST、TST33与法律审核各自NOT RUN，完整A/B未完成，但不阻塞独立UI验证。
+
+
+### M4/M7 首轮实际Windows FAIL（首错正文待父级，未盲重跑）
+
+源码/remote `3e7a4c49d854578e657a1bccb6afe52b0e06dcc6`，[CI39237904291](https://github.com/T1doo/Easy-AI/actions/runs/39237904291)：Linux job118011369013 check/test/build完整SUCCESS；Windows job118011368851 step14 `Run pnpm test:e2e` FAIL，候选构建/ZIP审计/包内E2E/上传SKIPPED，因此本轮没有新Windows候选。此前原native cache/trust与冻结门仍SUCCESS。根因UNKNOWN：只有run/jobs状态，没有首失败断言/expected/received/traceback；已请父级从已登录浏览器读取该step。未重试原日志/下载/browser被拒接口，没有把一般继续推进当新授权。
+
+独立只读复审发现可直接证明的测试P2（不宣称为上述CI首错）：锁定Monaco0.57.0 `esm/vs/editor/browser/controller/editContext/textArea/textAreaEditContext.js:536` 对domReadOnly&&readOnly明确setAttribute('readonly','true')，原测试要求空串。现保留只读门改检查DOM `readOnly===true`，产品无修改；固定环境 `pnpm exec tsc -p tsconfig.tests.json` 与prettier、git diff --check PASS。该确定修正先本地保留，未以未知首错盲触发新CI；父级补首错后继续有据修复与自然CI。原3e7a失败事实保全，不降低Monaco/CSP、完整恢复/编译、安全断言。
+
+独审进入首轮前未发现明确产品P1/P2；根数组顺序误断言在push前已改为仅根按ID排序完整比较，不改产品。当前UI开发态未通过，实际打包UI NOT RUN；不复用c28e旧绿色声称此新链成功。最新可用旧候选仍docs/candidate-windows-c28e955.md。原件SHA保持、main不变，未执行训练/下载/SSH/凭据/发布。

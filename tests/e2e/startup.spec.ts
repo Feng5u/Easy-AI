@@ -125,9 +125,9 @@ test("secure desktop, Dataset error repair, Monaco and saved project reopen", as
       .getByLabel("Monaco 只读代码视图")
       .locator(".monaco-editor");
     await expect(monaco).toBeVisible();
-    await expect(monaco.locator("textarea.inputarea")).toHaveAttribute(
-      "readonly",
-      "",
+    await expect(monaco.locator("textarea.inputarea")).toHaveJSProperty(
+      "readOnly",
+      true,
     );
     await expect(
       page.getByText(/代码编辑器无法加载|代码编辑器缺少/),
