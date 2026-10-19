@@ -3374,3 +3374,16 @@ PASS命令（CI=true，XDG_DATA_HOME=/workspace/.local/share，XDG_CACHE_HOME=/w
 - 独立10项 `/tmp/easyai-inspector-focus-independent-IUQW64.log` SHA256 `704b3c58c7bc9ab09de7bdfd091b1796129fdce7aa2a98188b8c608d156f2a51`。
 - 最终check `/tmp/easyai-inspector-selection-check-final-20261019.log` SHA256 `e580f738fb6f2a6bfe01cc5daae5d3e702f5220b2ad112eafff67fad6afa0a95`。
 - 完整test `/tmp/easyai-inspector-selection-regression-20261019.log` SHA256 `826982dfff9e3e73668e0d2ee7885550aaba6edca05280a8903c766e7919dd98`。
+
+
+### Inspector焦点修复提交与单次CI：Linux成功，Windows待实际首错
+
+源码与remote dev为`fef98b5ee46a1e2fa796ae6faa5f5915149e6f0b`，[CI39252719456](https://github.com/T1doo/Easy-AI/actions/runs/39252719456)。Linux job118060232079 check/test/build全部SUCCESS；Windows job118060231722前置native安全合同、冻结后端、HTTP/资源、桌面build与venv隔离成功，step14 `pnpm test:e2e` FAIL，后续打包/包内E2E/审计上传未完成，无新候选。只在明确源码缺陷、实际事件红绿、完整回归与独立审查后推送这一次自然CI，旧run未重跑。
+
+已通过待答请求请父级在已登录页面读取该Windows step14的首个错误/调用栈、最后ACTION、前后新增SELECTION（inspected/active/targetBlock）、REVEAL_GEOMETRY及PROCESS_EXIT/CLOSE_CONFIRMED/CLOSE_FAILED。状态为待读取；元数据不足以说明Prep是否越过、本轮是否正常退出或新阻塞位置，不以旧轮exit0借作本轮证据。受限日志/artifact/browser API未重试或绕过；取得准确新首错前停止依赖它的修改/CI。新trace是观察，不代替点击与真实图/编译断言。
+
+本地最终`pnpm build` PASS（既有应用依赖与PyInstaller，没有torch/训练/下载），类型声明修正后相关`pnpm exec vitest run packages/block-library/selection-focus.test.mts packages/block-library/workspace-manager.test.mts`10PASS；`pnpm exec playwright test --list`准确列出两个场景，不代表GUI执行。本地完整check/test结论见上条。原件/README/原规格/依赖锁与main保持；本地GUI仍NOT RUN，完整空白CNN/M4/M7/SSH/MNIST/TST33/许可/A/B均未验收。此处仅本地docs证据提交，不为报告触发第二次CI。
+
+- build `/tmp/easyai-inspector-selection-build-20261019.log` SHA256 `b342221fdd317318757bb3f2b8dc872cf964af08231319b6499a1dfe1b8f8c72`。
+- 最终10项 `/tmp/easyai-inspector-selection-final-targeted-20261019.log` SHA256 `ff57a03f47747456de3146c7a0343d85509466bdcc276b178b980532b89488d5`。
+- 场景发现 `/tmp/easyai-inspector-selection-e2e-list-20261019.log` SHA256 `cba0ef52b51ecb00ca1372443c7837a9ba76c3ea9923b6f8a677baf99dd95eca`。
