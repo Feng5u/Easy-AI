@@ -2306,3 +2306,66 @@ NOT RUN：真实 SSH/安装/上传/下载/依赖 import/ABI/tensor/训练、真�
 - `/tmp/easyai-existing-ready-20261019-protocol-final1.log` SHA256 `b7f8336f049bf5c200bf2bd7d571241e78b1a0d0214b388833883d38af823e1b`。
 - `/tmp/easyai-existing-ready-20261019-red1.log` SHA256 `f154a77d30264cd443812e526cf52e3d681f2efaad882d5cc177edf451202b1e`。
 - `/tmp/easyai-existing-ready-review-tNx0IT.log` SHA256 `e9f1f2b5598cb26d49c4fd46238f9dc6a79e55cf9dc7e86fb9895c04b19b5e75`。
+
+
+## 2026-10-19：原14.3 NLP有限固定来源、闭包计划与复检
+
+父侧已有限签收 fcf5e4db724adec2d49f8a96f3d02f51c144187b（55与独审9重叠不累加）；真实M6.3/B未验。本轮基线即该完整SHA，开始工作区clean，开发分支codex/demo-v0.0.0；原计划baseline仍5323f86232529efcfb52131168ad049f01b219f3，沿用已有实现，无覆盖/回退用户工作。源码完整SHA **`0f8e675dbaf35f5025dc1965565e76855e935838`**。单一集成者；独审仅只读核查/测试。
+
+### 官方元数据裁决与实际接线
+
+24次有界只读请求仅为pypi.org发行JSON/Simple JSON与files.pythonhosted.org的.whl.metadata，逐一核固定版本JSON SHA、索引声明PEP658 SHA、wheel URL/文件名/SHA/注册表字节/yanked、Python/完整Requires-Dist与当次漏洞投影。未请求任何wheel/archive本体。原始响应、requests.json和raw-sha256.json在`/tmp/easyai-nlp-metadata-20261019`，捕获脚本`/tmp/easyai_nlp_metadata_20261019.py`及`/tmp/easyai_nlp_capture_20261019.py`保留；源码仅保留来源字段与拒绝裁决，不搬入无关发行描述或漏洞PoC。
+
+- **sentencepiece 0.2.2**：cp311 Linux x86_64 manylinux_2_27/2_28 wheel，注册表1394242字节，SHA256 `1416b92f2f010333786fe6306ed2631121d5ea492219b0841e967b6765e64107`；默认Requires-Dist为空，不启用numpy/protobuf/test extras。只可说明元数据适合固定Python/CPU profile，不声称native ABI实测。解包体积未知、installedBytes=null。核心21加本包为22个去重来源。
+- **nltk 3.10.3**：[固定JSON](https://pypi.org/pypi/nltk/3.10.3/json)当次返回未撤回`GHSA-8mgp-746c-j5xp`（aliases含CVE-2026-81726/PYSEC-2026-3740），fixed_in空；明确`INSTALL_KNOWN_PACKAGE_VULNERABILITY`，本片不擅自豁免/选旧版。未宣称所有历史NLTK版本已审查。
+- **spacy 3.8.16、transformers 5.20.1、gensim 4.4.0、hanlp 2.1.5**：已核顶层JSON/PEP658及固定Python；已出现的核心NumPy/SciPy/CPU torch约束接受既有pins，没有证实相应直接冲突。完整传递闭包（thinc等、hub/tokenizers等、smart-open等、downloader/transformers等）尚未核完，保持`INSTALL_NLP_CLOSURE_UNREVIEWED`，不冒称版本不兼容。模型/语料与未选extras均不获取。
+
+新增`easyai-nlp-sources.json`/`easyai-nlp-linux-cp311.lock`只有SentencePiece进入packages与可执行闭包，另五候选仅在rejectedCandidates保留证据。NLP_ROOTS→原wheels去重/lock_bytes→constraintsHash（原八文件加NLP两文件）→planHash与过期重核→按选择来源/缺失/hash/字节预算→原唯一OfflineWheelInstaller及共享远端适配→选中sentencepiece import/精确版本/原CPU tensor复检全部接线；不是仅卡片文字。全NLP组选含不支持卡即blocked、总体体积unknown，单选支持子集才可解析。
+
+SourceSelection按具体拒绝code返回，避免把NLTK或闭包未核误报OpenCV native；UI有对应阻止说明。来源确认仍落executionAuthorized=false，默认executionEnabled=false；不新建解析器/安装器，不改核心锁或开门。PyInstaller资源/原包资源清单纳入NLP两文件；冻结测试核十文件hash、22包计划与NLP整组拒绝。许可声明仅元数据，legalReviewComplete/distributionReady未变。
+
+当前17卡为**11卡元数据闭包/6卡unsupported**：OpenCV native+NLP五卡。install-nlp-sources.md、原安装合同/当前清单/critical-path已更新，历史DL文档明确其当时状态；实际安装及完整B仍NOT RUN。
+
+### 实际命令与证据
+
+在`/workspace/Easy-AI`执行；唯一输出日志/noclobber保存，失败不删除不覆盖：
+
+- PASS：`services/backend/.venv/bin/python /tmp/easyai_nlp_metadata_20261019.py`（六latest发行只读发现）及`services/backend/.venv/bin/python /tmp/easyai_nlp_capture_20261019.py`（六pinnedJSON+Simple+PEP658）；metadata两日志，WHEEL_REQUESTS=0。
+- FAIL（中间实现/fixture，不伪称产品首轮全绿）：首个inline编辑脚本在查找python-task.mjs add-data缩进时ValueError，先核准已完成源码/目录改动及尚未执行的资源改动才补缺失部分；`edit-failure1.log`明确为工具输出转录而非原始重定向。新NLP测试首轮3 failed/30 passed：未注入runtime却测preview、引用不存在download_bytes字段、未mkdir app；独审首轮也6PASS/3FAIL。均为测试fixture错误，未降低生产门或断言；原日志保留。独审另指出冻结hash预期遗漏NLP两文件，在运行最终冻结测试前补十文件及NLP HTTP断言。
+- PASS：`services/backend/.venv/bin/pytest -q services/backend/tests/test_install_nlp.py services/backend/tests/test_install_ml.py services/backend/tests/test_install_cv.py services/backend/tests/test_install_dl.py`，**33 passed /0.69s**（targeted2）。含6候选markers/已知pin兼容、单选/混组/整组blocked、来源缺失/预算/登记禁授权、源/锁漂移使计划过期、同一固定离线命令/精确lock、选中import捕获、版本/import/tensor失败门。所有NLP测试Popen/socket均拒绝，合成inventory不是训练证据。
+- PASS：`services/backend/.venv/bin/pytest -q services/backend/tests/test_install_service.py services/backend/tests/test_install_source_selection.py services/backend/tests/test_install_history.py services/backend/tests/test_remote_install.py services/backend/tests/test_remote_install_protocol.py services/backend/tests/test_remote_install_owner.py services/backend/tests/test_install_transport.py`，**99 passed /4.72s**（regression1）。远端仅合成SDK/标准库子进程，不真实SSH/依赖执行。上述33/99与独审重叠部分不累加为独立能力证据。
+- PASS：`pnpm exec vitest run apps/desktop/src/PackageManager.test.mts`，**13 passed**；`pnpm test:package`，**20 passed**。只原包装保护回归，无新electron-builder产物。
+- PASS：`UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache pnpm check`（check2最终），TS/合同/fixtures、Ruff/格式、mypy66源文件、Prettier通过。
+- PASS：`UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache XDG_CACHE_HOME=/workspace/.cache pnpm build`；`node scripts/test-frozen.mjs`（frozen1），实际冻结sidecar资源原文、十文件constraintsHash、NLP单卡计划与组blocked、默认禁执行登记/取消、认证黄金编译/临时cwd/EOF退出0通过。未启动Electron或依赖安装。
+- PASS：独立只读核六候选原始JSON/PEP658与所有来源字段、24请求无wheel；64可选组合无重复/核心替换。失败三fixture修后独立重跑**3 passed/6 deselected**，确认新freeze逻辑/脚本语法，无剩余明确P1/P2；测试与本轮回归重叠，不累加。独审不联网、不安装、不代改。
+- PASS：git diff --check；原plan仍116185字节/hash dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43，README/原v0.0.0与core/ML/CV/DL八来源锁hash均未改；pnpm-lock、uv.lock、CI配置未改。NLP来源SHA256 `85ad6c5f96947b502d5c85949983358e69f8440642c265f0a9dc43c8a6137227`，NLP锁SHA256 `d05b0c5316934a9a363c2da5e2b7844eceb3893bd92aa4526ef89827dd27663c`。
+
+### 远端、阻塞与下一项
+
+源提交后工作区clean；预推送只读ls-remote确认origin开发分支仍fcf5e4db724adec2d49f8a96f3d02f51c144187b、main仍5323f86232529efcfb52131168ad049f01b219f3。证据提交后仅正常push开发分支并核最终完整SHA/clean/main，最终回报为准。未写main/Feng原仓库、无强推/PR/Release/部署/新凭据/权限/条款。
+
+NOT RUN：wheel/语料/模型/训练数据下载，训练环境安装、真实NLP或训练import/ABI/tensor/训练，真实SSH/上传/安装故障矩阵、桌面/native picker/干净目标机/Windows/macOS、新CI日志查询或主动重跑。真实执行最小条件仍须具体隔离owned目标/已备可信来源、平台/launcher、许可/预算/窗口与认证身份后另核；本轮没有发出这些外部写入。
+
+CI准确安装错误正文/根因仍UNKNOWN：最新已知父侧证据e454f97044f84f20347b10f3807220727f2dac1f/run39181255841和3616826e28cef2d2ce4fd874f1bb81a6fcf17d94/run39180535293在pnpm install --frozen-lockfile步骤双失败。本轮source/证据SHA的云CI结果未知；既有Actions日志访问拒绝未重试/绕路，需要准确正文才可进一步定位，不按步骤名假修锁。Electron sandbox拒绝同样未重试。旧226PASS/1FAIL raw丢失根因UNKNOWN及其他原计划缺口不回溯关闭。
+
+下一项由父侧复核此有限NLP子集；剩余四卡完整固定闭包、NLTK候选安全裁决、OpenCV native以及原M6.3/M7/M8代码/真实验收门继续保持未完成，不承诺六卡全开或仅差环境。
+
+本轮日志与元数据审计SHA256（含FAIL原样/明确转录标识）：
+- `/tmp/easyai-nlp-20261019-build1.log` SHA256 `887f795e5d3cbc1f173fbd7a7be4909fb4c2eee3059703b6beddbeb2e97c8f5a`。
+- `/tmp/easyai-nlp-20261019-check1.log` SHA256 `33d638c44f61709c5fea38251066696a5a89ca3d3d4d8bf8ffb532d282f23af2`。
+- `/tmp/easyai-nlp-20261019-check2.log` SHA256 `33d638c44f61709c5fea38251066696a5a89ca3d3d4d8bf8ffb532d282f23af2`。
+- `/tmp/easyai-nlp-20261019-edit-failure1.log` SHA256 `81a2c9615d513e8843ceb96a2f6832c178f94e6fe267d0255944eff6130ce66f`。
+- `/tmp/easyai-nlp-20261019-frozen1.log` SHA256 `598e651d8bfd55009c56cd315d848d8185d98d8ae4eb67c6d0dd2d14af4ed0c3`。
+- `/tmp/easyai-nlp-20261019-package1.log` SHA256 `63bf8c270ed8af045a69294c1e506c5cdf8c47c41dfeb34e1de108b5a6114ecd`。
+- `/tmp/easyai-nlp-20261019-regression1.log` SHA256 `348157e7b9b20b105bd5ee89e8374dbc6f2f3d6f4a536d836e309e5265805084`。
+- `/tmp/easyai-nlp-20261019-targeted1.log` SHA256 `6e0f2e3191d5e1985365e77c30ce05de912279339e5e914016352111a435b0f3`。
+- `/tmp/easyai-nlp-20261019-targeted2.log` SHA256 `12c5944a5b6972773f1ef0adaaf3d73cfcac9059f4b8c693e093373ed61b2995`。
+- `/tmp/easyai-nlp-20261019-ui1.log` SHA256 `70710e06bf250913deef59418caadeb878cef69fe696a56992149ece5ff17d04`。
+- `/tmp/easyai-nlp-metadata-20261019-capture1.log` SHA256 `94bc45b866762e719b72c36030f79d33e3a6549bf17cfa5ee6fbbd285bf2e332`。
+- `/tmp/easyai-nlp-metadata-20261019-discovery1.log` SHA256 `078cf22797c676ced7cb55dc65434d65367fe596180d6fdb598e650107f274e5`。
+- `/tmp/easyai-nlp-review-Y6Rwks.log` SHA256 `22419ad2aee6eb4f547945e0dd6af48487762af0089c7970863f2345c3ffd71e`。
+- `/tmp/easyai-nlp-fixed-review-BUmplQ.log` SHA256 `af78d42bcd3e878c33a59d206755284f6e3eb054295e645f1cd8b6894a770bed`。
+- `/tmp/easyai-nlp-metadata-20261019/requests.json` SHA256 `0750244f832d41acba03d27a6019067785c2bfc395867f64d9b3031bf4bd2190`。
+- `/tmp/easyai-nlp-metadata-20261019/raw-sha256.json` SHA256 `a3a4f96191fef335e8fa7a4173b7644c225e05c547b08d7aacc718562f30fcb8`。
+- `/tmp/easyai_nlp_metadata_20261019.py` SHA256 `81d74cc3bd8c3159dff00553e471b4710ee5ed7ab383d5b0af90a2bbdda4f2be`。
+- `/tmp/easyai_nlp_capture_20261019.py` SHA256 `98434a06b6b769744295624d120564d25717e0fb6901863c5a8722564431a1c2`。
