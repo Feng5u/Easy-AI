@@ -16,10 +16,9 @@ pytestmark = pytest.mark.skipif(os.name != "nt", reason="Requires native Windows
 
 
 @pytest.fixture(autouse=True)
-def native_trust_acceptance(monkeypatch):
-    # Separate trust acceptance; cache acceptance alone must not enable TOFU.
-    assert host_keys.WINDOWS_NATIVE_TRUST_VERIFIED is False
-    monkeypatch.setattr(host_keys, "WINDOWS_NATIVE_TRUST_VERIFIED", True)
+def native_trust_default(monkeypatch):
+    # Actual default path: no platform/storage/TOFU/gate injection.
+    assert host_keys.WINDOWS_NATIVE_TRUST_VERIFIED is True
 
     def forbidden(*args, **kwargs):
         pytest.fail("Synthetic handshake must never dial an external endpoint")

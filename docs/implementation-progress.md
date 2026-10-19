@@ -3072,3 +3072,12 @@ Linux job117994084895 pnpm check SUCCESS但pnpm test FAILURE，后续build SKIPP
 - `/tmp/easyai-native-trust-independent-jRTorb.log`：SHA256 `4425df8cae543967634a87a52089d85ab88f71822f6ac0660e1774cc345a5492`。
 - `/tmp/easyai-trust-cleanup-independent-156WKn.log`：SHA256 `cdf8d13a3f141b449c7d92c9b86d6fd681de17445a1d661236b92f93860eafac`。
 - `/tmp/easyai-trust-cleanup-final-independent-uVPhWk.log`：SHA256 `ebd938888ffaa2af3581cec946b9b58fbc84d3d34af429b416dd4a0ad79f1a12`。
+
+
+## 2026-10-19 原生信任第一阶段接受与默认路径复验
+
+第一阶段源码/remote `0254cce4b38f16843e8ecd070d1d52f4c96333b0`，CI39235525773 Linux job118003539047、Windows job118003538503均完整SUCCESS。8项实际NTFS信任测试及原cache/security门通过，四个模块入实际冻结sidecar的只读检查、包内backend与Electron原smoke均通过。实际ZIP435171846字节，audit SHA256 `a7ea1c527cff68dd08fcb76bc3eb50d732b6a50ad3ffcd7aeecdbfa43990097b`；上传成功、一天留存。未下载/本地重验ZIP；仅使用允许的run/jobs元数据。
+
+独审确认本地信任门启用条件已满足，无新明确阻塞。第二阶段只把独立trust门置True，native8测试改为断言真实default True，移除临时gate注入；closed gate/before-dial/错误指纹/changed key/不确定cleanup拒绝均保留。原CI完整步骤保留。
+
+PASS（cwd /workspace/Easy-AI）：`services/backend/.venv/bin/pytest -q services/backend/tests/test_windows_host_key_gate.py services/backend/tests/test_windows_trust_cleanup.py services/backend/tests/test_ssh_identity.py services/backend/tests/test_connection_manager.py services/backend/tests/test_windows_host_keys.py`，68PASS8nativeSKIP/1.21s；Linux不冒充NTFS接受。`CI=true XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/.cache UV_CACHE_DIR=/workspace/.uv-cache UV_OFFLINE=1 pnpm check` 全PASS；日志 `/tmp/easyai-native-trust-default-20261019.log`、`/tmp/easyai-native-trust-default-check-20261019.log`。下一项一次自然CI复验实际默认值。无外部SSH/真实信任或凭据写入/训练或数据下载/发布；完整SSH与A/B未完成。

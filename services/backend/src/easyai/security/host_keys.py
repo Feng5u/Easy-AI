@@ -20,9 +20,9 @@ from easyai.domain.ssh import HostKeyObservation, SshEndpoint
 if TYPE_CHECKING:
     from easyai.security.windows_host_keys import WindowsTrustStore, WindowsTrustTransaction
 
-# Native trust transactions remain unavailable until their own Windows acceptance.
-# Cache acceptance alone cannot enable host-key trust.
-WINDOWS_NATIVE_TRUST_VERIFIED = False
+# Native trust transactions passed their own Windows acceptance in CI39235525773.
+# Cache acceptance alone is insufficient; all TOFU and native safety gates remain.
+WINDOWS_NATIVE_TRUST_VERIFIED = True
 
 MAX_STORE_BYTES = 1024 * 1024
 MAX_PUBLIC_BYTES = 16384
