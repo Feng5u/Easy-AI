@@ -1,5 +1,7 @@
 # v0.0.0 发布验收清单
 
+2026-10-19 Windows sidecar身份修复：父侧确认 [run39211585475](https://github.com/T1doo/Easy-AI/actions/runs/39211585475) Linux SUCCESS，Windows launch/firstWindow已成功，后续ready显示“本地服务启动协议不匹配。”。固定应用venv的CPython redirector可能使launcher PID与服务PID不同，现按CPython自身venv语义直接启动固定基础解释器，严格PID/协议/鉴权/EOF门保留。原错误无类别，不宣称唯一实测根因。新增Windows非GUI身份检查；本轮Windows E2E待自然CI，完整A/B仍未通过。见[windows-application-python.md](windows-application-python.md)。
+
 2026-10-19 启动/恢复等待边界修复：用户已提供Windows launch超时和Linux lost-ACK fresh-resume BUSY正文（Windows片段runId未附，不擅自归属）。锁定版本源码确认Main ESM ready等待环，已改入口非阻塞异步启动；显式resume在锁外有界等旧worker并重核scope/auth，原安全门保留。详见[startup-ready-and-resume-fences.md](startup-ready-and-resume-fences.md)。新修复Windows E2E尚未实测，不能把VM或本地Linux结果当通过。
 
 2026-10-19 run39198400814增量：父侧已确认Linux pnpm test PASS（build当时运行中），Windows安装/后端前置及desktop build全部PASS，当前pnpm test:e2e FAIL。真实桌面阶段仍未通过。已准备旧bridge键名断言的确定本地修复，未推送；该问题未确认是本次首个错误，等待首错误块/expect差异或call log，见implementation-progress末节。未重试浏览器/日志接口或降低sandbox。

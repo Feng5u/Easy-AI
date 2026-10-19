@@ -2619,3 +2619,35 @@ PASS：原plan116185字节及SHA256 dade1fcaadac319e130de415b48154601254dcae9b14
 - `scripts/main-bootstrap-probe.mjs`：`25bd9f6f73941df568746963b10f7a1365d1b9d579c9371f60a31aaf7d5b6115`。
 
 所有检查后正常提交并仅push codex/demo-v0.0.0一次；自然CI及完整最终SHA由最终回报提供。新Windows实际launch/正常关闭及云Linux结果待CI，不由VM/本地PASS替代。无未授权外部调用、main/原仓库/强推/PR/Release/部署。
+
+
+## 2026-10-19 Windows 应用 venv 严格 ready 身份修复
+
+起始本地/远端开发分支均 `fb7ddb632aab5635c02bc609b46d335af5f32f6a`，工作区clean；main仍 `5323f86232529efcfb52131168ad049f01b219f3`。单一集成写入者，现有独审worker只读复核，没有覆盖用户工作。父侧新正文对应 [run39211585475](https://github.com/T1doo/Easy-AI/actions/runs/39211585475)：Linux完整SUCCESS；Windows launch/firstWindow已经成功，startup.spec.ts:12期望“本地服务已就绪。”，5000ms内13次观测为“本地服务启动协议不匹配。”。旧FAIL保留；该错误未附ready字段或类别，不把源码发现当唯一实测根因。
+
+固定uv0.12.23/CPython3.11.14源码确认Windows venv redirector会创建继承stdio的真实解释器并等待；严格child.pid与os.getpid可能不同。详见[windows-application-python.md](windows-application-python.md)及官方源码链接。只对Main固定应用venv/-m easyai.main直接使用pyvenv.cfg home/python.exe，并以CPython的__PYVENV_LAUNCHER__保留应用venv语义；有界读取配置，要求3.11 CPython/system-site=false/绝对home，去除继承Python路径覆盖，拒绝配置异常，不回退PATH、不改训练环境。冻结--onedir入口不变。ready验证提取为可独测函数，仍精确三字段/端口/版本/实际child PID，不接纳转发PID/BOM/额外stdout；只增加固定错误类别，不输出原始stdout、路径或令牌。health鉴权、EOF清理、安全窗口/IPC门均保留。
+
+新增实际应用prefix/base_prefix/import/PID/变量消费测试与真实继承stdio转发进程负例；Windows CI在build后E2E前执行同样非GUI测试。冻结普通及SSH smoke补上精确三字段/端口/PID断言。没有安装/下载依赖、真实训练、SSH或修改教师环境；本轮PyInstaller是现有应用依赖的独立临时--onedir后端构建，不是发布包或部署。
+
+实际命令（cwd /workspace/Easy-AI）：
+- PASS：`CI=true XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/.cache UV_CACHE_DIR=/workspace/.uv-cache UV_OFFLINE=1 pnpm exec vitest run apps/desktop/electron/backend.test.mts apps/desktop/electron/application-python.test.mts apps/desktop/electron/backend-ready.test.mts`，最终25PASS/2.17s。Linux真实后端health/EOF与转发PID负例通过，Windows配置语义用纯函数固定输入验证，不冒充Windows实机。
+- PASS：同上环境 `pnpm check`，TS/Ruff/mypy/合同/fixtures/Prettier全部通过。
+- PASS：`CI=true XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/.cache pnpm --filter @easyai/desktop build`，exit0，842ms，保留已有大chunk警告。
+- PASS：`node scripts/python-task.mjs build /workspace/easyai-app-python-frozen-l4x6yi61`，16.39s，独立临时目录；随后 `node scripts/test-frozen.mjs /workspace/easyai-app-python-frozen-l4x6yi61/dist/easyai-sidecar` exit0，严格ready PID/schema/端口、鉴权、资源、工程创建/编译、离线安装计划门及EOF退出通过。Linux冻结结果不等于Windows通过，也未执行安装。
+- 完整 `pnpm test` 在相同XDG/UV离线环境执行，最终结果见下补记；定向25项包含在完整前端计数中，不重复相加。
+
+独立只读审查完成：无明确剩余P1/P2；固定应用venv选择、有界配置、case-insensitive环境清理、严格PID/鉴权/EOF、转发负例和冻结门均保留。信任已准备应用venv配置，不宣称验证任意Python。实际Windows非GUI与E2E仍须本次自然CI，Linux结果不能替代。前轮App DOM一次失败仍根因UNKNOWN，后续通过不抹除。
+
+PASS：原plan116185字节/SHA256 dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43；旧规格21815字节/SHA256 5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190；README3629字节/SHA256 befb23b8349800a6ca578e74029b6fbbf7f038bff9672e718b848117d432d852，均未改变。锁文件/依赖/版本/生产storage门未变，git diff --check PASS。
+
+NOT RUN：本地GUI/浏览器、Windows实机、真实SSH/训练/数据/安装、完整A/B、新builder发布包。未访问被拒Actions logs/artifacts或浏览器路径，未新增权限/费用/凭据/主分支/上游写入，无PR/Release/部署。本轮只有正常开发分支push一次及自然免费CI；最终完整提交SHA/远端一致性和新CI元数据由最终回报提供。
+
+最终完整 `pnpm test` exit0：前端358PASS/2skip；后端927PASS/8skip/1warning（最终时长见原日志）；Node包保护20PASS。没有新增失败，不叠加定向25项。当前Windows实测结果仍NOT RUN/待CI。
+
+本轮日志SHA256（本地证据，未提交日志内容）：
+- `/tmp/easyai-app-python-target2-20261019.log`：`8c089917857eedc89e9cd7a87c2cc32a583510360f71d661c55d7a6b52c66d11`。
+- `/tmp/easyai-app-python-check-20261019.log`：`33d638c44f61709c5fea38251066696a5a89ca3d3d4d8bf8ffb532d282f23af2`。
+- `/tmp/easyai-app-python-build-20261019.log`：`2b7aab8b8f5f95725cef7839532eab845be2494783bcd600bf2a2eb3160c8f9f`。
+- `/tmp/easyai-app-python-test-20261019.log`：`33a97a0a60c8e49eff3c4b11a40a6b22514789397a3d420bedc547d4f1b72d8a`。
+- `/tmp/easyai-app-python-frozen-build-20261019.log`：`140bbeaf0d42b87696eddcc77a37bcd03c03e825bf5c7a0df9ceae7f15f04295`。
+- `/tmp/easyai-app-python-frozen-test-20261019.log`：`598e651d8bfd55009c56cd315d848d8185d98d8ae4eb67c6d0dd2d14af4ed0c3`。

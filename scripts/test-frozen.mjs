@@ -69,6 +69,16 @@ try {
       JSON.stringify({ token, storageRoot: join(root, "state") }) + "\n",
     );
   });
+  assert.deepEqual(Object.keys(ready).sort(), [
+    "pid",
+    "port",
+    "protocolVersion",
+  ]);
+  assert.equal(ready.pid, child.pid);
+  assert.equal(
+    Number.isInteger(ready.port) && ready.port >= 1 && ready.port <= 65535,
+    true,
+  );
   assert.equal(ready.protocolVersion, 1);
   async function request(method, path, body, authorized = true) {
     const response = await fetch(

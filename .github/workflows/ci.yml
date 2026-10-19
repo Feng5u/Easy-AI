@@ -56,4 +56,6 @@ jobs:
         timeout-minutes: 2
         run: node scripts/test-frozen-ssh.mjs
       - run: pnpm --filter @easyai/desktop build
+      - name: Application venv startup PID and isolation (no GUI)
+        run: pnpm exec vitest run apps/desktop/electron/backend.test.mts apps/desktop/electron/application-python.test.mts apps/desktop/electron/backend-ready.test.mts
       - run: pnpm test:e2e

@@ -4,6 +4,8 @@ import { createInterface } from "node:readline";
 import { setTimeout as delay } from "node:timers/promises";
 import { consumeEvents, EventProtocolError } from "./events.mjs";
 import type { Event, ConnectionState } from "./bridge.js";
+import { applicationPythonLaunch } from "./application-python.mjs";
+import { backendReady, BackendReadyError } from "./backend-ready.mjs";
 
 export interface Backend {
   process: ChildProcessWithoutNullStreams;
@@ -30,8 +32,10 @@ export async function startBackend(
   storageRoot?: string,
   args: string[] = ["-m", "easyai.main"],
 ): Promise<Backend> {
+  const launch = await applicationPythonLaunch(python, cwd, args);
   const token = randomBytes(32).toString("hex");
-  const child = spawn(python, args, {
+  const child = spawn(launch.executable, args, {
+    env: launch.env,
     cwd,
     shell: false,
     stdio: "pipe",
@@ -94,27 +98,10 @@ export async function startBackend(
       child.once("exit", onExit);
       lines.once("line", (line) => {
         try {
-          const value: unknown = JSON.parse(line);
-          if (!value || typeof value !== "object") throw new Error();
-          const v = value as Record<string, unknown>;
-          if (
-            Object.keys(v).sort().join(",") !== "pid,port,protocolVersion" ||
-            !Number.isInteger(v.port) ||
-            Number(v.port) < 1 ||
-            Number(v.port) > 65535 ||
-            v.protocolVersion !== 1 ||
-            v.pid !== child.pid
-          )
-            throw new Error();
-          finish(
-            undefined,
-            v as unknown as {
-              port: number;
-              protocolVersion: number;
-              pid: number;
-            },
-          );
-        } catch {
+          finish(undefined, backendReady(line, child.pid));
+        } catch (error) {
+          if (error instanceof BackendReadyError)
+            console.error(`EASYAI_BACKEND_READY:${error.code}`);
           finish(new Error("本地服务启动协议不匹配。"));
         }
       });
