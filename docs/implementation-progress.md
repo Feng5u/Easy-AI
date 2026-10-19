@@ -2945,3 +2945,16 @@ PASS：工作区XDG环境 `pnpm test:package`，34项/1.74s；独立直接四文
 - `/tmp/easyai-win-durability-check-final-20261019.log`：SHA256 `007402ac25bb13866eac8671350b82013fe398484ae377f28365535c9d66eebb`。
 - `/tmp/easyai-win-durability-final-build-20261019.log`：SHA256 `2a8a93991cf1b19f6e52ccd5c368c14eab214fd2f70d5b808df8adea8ed664f8`。
 - `/tmp/easyai-win-durability-final-smoke-20261019.log`：SHA256 `598e651d8bfd55009c56cd315d848d8185d98d8ae4eb67c6d0dd2d14af4ed0c3`。
+
+
+### 本轮实际验收：Windows候选构建、包内backend/Electron与短期留存全部通过
+
+修复源码与远端 `d4ddd7e02ead22d54ac4fea32c3706a733551fc4`，唯一自然新 [run39230592065](https://github.com/T1doo/Easy-AI/actions/runs/39230592065)。2026-10-19T09:33:34Z同实例只读命令exit0确认HEAD/remote同SHA、工作区clean、main仍5323f86232529efcfb52131168ad049f01b219f3。没有重启/换写入者。
+
+Linux check job117987315485 SUCCESS：pnpm check/test/build全部SUCCESS。Windows job117987314931 SUCCESS：step8所有原持久化/锁/metadata与新增golden/compile/durability回归SUCCESS，原3个失败已在真实Windows验证关闭；9NTFS、10freeze、11frozenHTTP/resources、12desktopbuild、13applicationvenv PID/isolation、14devE2E、15packageguards、16实际unsignedcandidate build、17ZIP audit、18packagedbackend PID/auth/resources/编译/EOF、19packagedElectron sandbox/ASAR/normalshutdown、20artifact留存全SUCCESS。
+
+实际产物easyai-0.0.0-win-x64.zip，435166382字节，SHA256 e0e96bf48beccc78c96c866a9be0f1a57ba589f8fe1c6372d477df1a9ce5a860，来自审计step名实际输出。Artifacts名称easyai-unsigned-win-x64-d4ddd7e02ead22d54ac4fea32c3706a733551fc4，步骤20确认上传成功，保留一天；含ZIP+builder manifest/provenance/audit。完整获取/证据范围/后续条件已写docs/candidate-windows-d4ddd7e.md。执行器仅访问允许run/jobs元数据，无被拒logs/artifacts/browser重试；没有在本地下载重验该包，不假称读取收据或TST33。上传是短期验证artifact，不是Release/发布。
+
+当前目标“Windows实际候选、ZIP审计、包内后端与Electron smoke”已完成；旧失败证据全部保全，仍不等于完整v0.0.0 gateA/B。下一项TST33干净Windows11x64普通用户桌面和真实课堂UI（先下载核大小/hash、解压启动/退出/编译），当前执行器无该桌面，NOT RUN；不需torch/数据/SSH即可先做此项。正式MNIST十轮效果、真实SSH/断线取消重连/硬件矩阵/法律审核仍未完成，需相应隔离训练环境、数据、主机与明确授权条件，不自动下载安装或改教师共享环境。Windows production storage仍off，distributionReady/legalReviewComplete仍false。
+
+本收据及最终进度仅本地docs证据提交，不push额外CI；remote产品保持d4。原README/计划/规格/依赖锁/golden与旧Linux候选保持。无main/force/PR/Release/部署/付费/新凭据/权限变化。下一阶段由父级统一监督排定，当前无代码故障日志阻塞，剩余为明确未验收条件。

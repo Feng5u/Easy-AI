@@ -1,5 +1,7 @@
 # Windows 未签名候选
 
+**最新通过候选**：源码 `d4ddd7e02ead22d54ac4fea32c3706a733551fc4` / [run39230592065](https://github.com/T1doo/Easy-AI/actions/runs/39230592065) Linux/Windows 全部 SUCCESS。实际 ZIP 构建、审计、包内 backend HTTP/编译/EOF、packaged Electron sandbox/ASAR/正常退出、上传留存均 SUCCESS。ZIP 435166382 字节，SHA256 `e0e96bf48beccc78c96c866a9be0f1a57ba589f8fe1c6372d477df1a9ce5a860`。获取位置与证据边界见 [候选收据](candidate-windows-d4ddd7e.md)，Artifacts 仅保留一天。不是正式发布；完整 A/B、TST33、正式训练/真实SSH/法律审核仍未完成。以下历史 FAIL 均保留。
+
 父级补齐7b step8三个失败：两项实际图表边界写入在atomic_target的rb句柄fsync Windows Errno9，一项managed core导出LF与checkout源CRLF不同。现atomic_target仅改不截断的r+b句柄同步，保留fsync→排他hardlink→finally清理；五类成功/失败/竞争回归验证。系统核对全部fsync/sync_file来源，其余普通文件为writer/update句柄，目录同步属POSIX或native平台合同，未加fallback。将明确导出/冻结原bytes比较的runtime helpers、managed.py和四JSON资产固定LF，真实Git checkout十一资产与导出text bytes统一，不动其他原件。57项匹配测试、36项打包保护和独审通过，真实Windows新CI待核。
 
 最新golden修复源码 `7b095e72e8eb411bebbc21d8208d49899bf8b87c` / [run39229460721](https://github.com/T1doo/Easy-AI/actions/runs/39229460721)：Windows step8（含新增golden checkout/compilation测试）FAIL；NTFS/冻结后端/冻结HTTP资源SUCCESS，其后候选build及包内smoke/上传SKIPPED。当前无首失败nodeid/stack，不沿用旧golden LF归因；需父级浏览器读取本次step8。未重跑或放宽测试。
