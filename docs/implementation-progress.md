@@ -3250,3 +3250,16 @@ PASS：固定workspace XDG/UV_OFFLINE=1 pnpm check（/tmp/easyai-toolbox-check-f
 最终复核：独审指出平移/滚动迟返回需abort防线；当前scrollIntoView、mouse.move、wheel派发前均检查共享signal，已逐点复核，rm首错覆盖与此遗漏全部关闭，无剩余明确P1/P2。最后新增guard后tsc -p tsconfig.tests.json PASS；此前完整pnpm check PASS。仅本任务一个集成者，没有并行GUI/CI实例；下一次自然CI为诊断验证，结果仍待实际执行。
 
 - /tmp/easyai-toolbox-bounds-abort-tsc-20261019.log SHA256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`。
+
+
+### 有界交互诊断CI结果：Linux/Windows FAIL，待页面首错
+
+源码/remote `51b88075476f122966c8f685ad15a26dac78daf9`，[CI39245489686](https://github.com/T1doo/Easy-AI/actions/runs/39245489686)。Linux job118036273527 step8 pnpm check SUCCESS、step9 pnpm test FAIL，step10 build SKIPPED。Windows job118036273714 step8项目持久化、step9原生信任/NTFS安全、step10冻结后端、step11HTTP资源、step12build、step13应用venv隔离均SUCCESS，step14 pnpm test:e2e FAIL，step15—20打包/审计/包内验收/上传全部SKIPPED。没有新候选，没有将新增空白构建UI闭环标PASS。
+
+准确待办/阻塞：父级已通过异步问题收到请求，在已登录页面读取上述Linux step9首条测试错误，以及Windows step14首个具体失败和最后EASYAI_TOOLBOX_ACTION BEGIN/PASS/FAIL、DRAG_GEOMETRY、native-dialog、PROCESS_EXIT/CLOSE证据。读取动作待父级结果；现有元数据不能证明新失败的测试名、行号、实际挂点或退出是否正常，不用运行时间推断修复有效。未重新请求受限日志/artifact API、未绕过、未盲重跑；当前不再发写入/GUI实例。
+
+因出现新的Linux测试FAIL，授权范围内本地执行一次完整pnpm test以判定可复现性：exit0，Vitest43files PASS/1file SKIP、362tests PASS/2SKIP；Python950PASS/19SKIP/1warning；Node打包/归档36PASS。跳过项为原配置，未改测试/超时或用本地PASS覆盖CI FAIL。此前pnpm check、最后abort补丁tsc、2场景发现与diff-check均PASS；本机GUI仍NOT RUN。没有训练/数据下载/SSH/新权限/发布变化。
+
+下一项仅按父级实际首错继续源证据诊断与修复，保持唯一集成者；旧失败/原退出超时保全，原main、文档、锁和已接受示例编辑候选保持。完整M4/M7、真实SSH/MNIST/TST33/许可与A/B继续未完成。本条证据仅本地docs提交，不为报告额外触发CI。
+
+- /tmp/easyai-toolbox-bounds-local-test-20261019.log SHA256 `a05fb97a12eaa484523ad5f5ec4fd0555ffaaf5a06ea20c56027d1a502bc9243`。
