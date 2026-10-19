@@ -3161,3 +3161,25 @@ PASS：固定workspace XDG/UV_OFFLINE=1 pnpm check（/tmp/easyai-ui-check-202610
 已请求父级已登录浏览器读取本轮step14首断言、行号、Expected/Received与完整调用日志，状态pending；既有日志接口拒绝限制保持，未重试/绕过/盲重跑。锁定版本源码证明两EditContext公共textbox/ARIA路径，实际键盘行为仍待该首错进一步核验，完整编辑闭环未验收，packaged UI NOT RUN。独立审查本次diff无明确P1/P2，本地pnpm check PASS不替代Windows结果。
 
 本地与remote产品源码一致、工作区clean；此证据单独本地提交不push额外CI，main仍5323f86232529efcfb52131168ad049f01b219f3。原件、旧候选和两轮失败保持。真实SSH/MNIST/TST33/许可未完成；未执行训练/数据下载/凭据/发布或改安全权限。
+
+
+## 2026-10-19 收敛Monaco几何绘制与语义映射验收
+
+父级已登录浏览器补CI39239859806/job118017764526 step14首错：startup.spec.ts:187，semantic装饰first() 14次解析到div.cdr.monaco-source-selected-semantic但hidden，5000ms；不再是输入textarea。来源https://github.com/T1doo/Easy-AI/actions/runs/39239859806/job/118017764526。本轮只读ARIA、真实输入/删除保持代码、nonce标签检查均已经越过，但完整流仍FAIL，旧结果保留。
+
+统一源码审查发现确定的CSP渲染冲突：锁定Monaco decorations.js把whole-line的left:0;width:100%拼入HTML style，.cdr CSS只有absolute/height，style-src不允许属性式内联样式时空背景无宽；viewOverlays行高/位置、选择区、行号等也经同一viewLayer HTML入口，不能只给selected类补width并忽略其余CSP日志。规范依据https://www.w3.org/TR/CSP3/#directive-style-src-attr。
+
+一次本地真实headless Chromium（已有系统二进制，Playwright chromiumSandbox:true）诊断未能启动：系统SUID sandbox helper配置不满足而SIGABRT；日志/tmp/easyai-csp-decoration-diagnostic-20261019.log。没有关闭sandbox、chmod/setuid/安装浏览器或重试替代安全选项；不能称本地真实浏览器验证通过，此为本地环境阻断、不阻现有Windows CI。
+
+最小受控适配集中在已有style-nonce-adapter：固定viewLayer.js SHA256c0ce32a0030014328b6f9045e96a0163ae85bda0317c3db2e4e32c881e54e485及三个精确唯一sink，build源漂移拒绝。导入monaco-geometry只供该锁定renderer：在HTML解析前按opening tag/quoted attribute识别style并转私有索引，仅接受有限布局数值(px或0，width100%，幅度≤1e7)、固定absolute/isolate；拒任意背景/颜色/URL/重要性/未知属性/非法数值/marker/重复或非支持属性形式；parse时不存在style属性，再CSSOM写入同一布局值。保留替换/追加/失效行语义，失败前不替换旧内容。此函数不是通用HTML/CSS授权或清洗API，未暴露IPC；原CSP/nonce/bridge/sandbox与私有状态门不变，无unsafe-inline/eval。
+
+E2E仍要求真实可见paint，并加强：由真实编译map消费的selected文本取得Dataset声明；真实Monaco行与非零背景矩形位于viewport，Y对齐、实际颜色正确；先选loader再点该代码行，反向导航必须回原Dataset ID。不是class存在代替映射，未删只读/源码/定位门。统一审查后续诊断、同data页Undo、根顺序规范化后的全部字段/位置/连接、保存重启，暂未发现新的确定误断言，保留严格检查。失败时立即附固定错误类别/CSP标志（不输出原异常/路径/凭据），避免首断言隐藏先前渲染错误。重启失败不再finally重复close已经关闭的旧app。
+
+PASS（固定workspace XDG/UV_OFFLINE=1）：pnpm check；pnpm --filter @easyai/desktop build（真实Vite已命中三个受审sink）；pnpm exec vitest run apps/desktop/src/monaco-geometry.test.mts apps/desktop/src/monaco-controller.test.mts apps/desktop/src/monaco-mapping.test.mts apps/desktop/electron/style-nonce.test.mts packages/block-library/workspace-manager.test.mts packages/block-library/symbols.test.mts（25PASS，分别验证受限样式转换/失败原DOM不变、三sink/hash漂移、映射/生命周期与真实SVG/稳定引用，不冒充GUI）；git diff --check。独立只读安全审查未见P1/P2，另5PASS验证适配/几何合同（不相加刷总数）。当前实际Windows及packaged UI仍待一次正常CI，不改测试等待或屏蔽CSP。无训练/数据/SSH/凭据/OS权限/发布变化。
+
+- /tmp/easyai-csp-decoration-diagnostic-20261019.log SHA256 `822be89ef62f06d8ee67810dbc8ad6875dd48623a47ca99048ca14f63fc9a3ba`。
+- /tmp/easyai-monaco-geometry-unit-20261019.log SHA256 `46156a2278b006de1df27f24472b3ff0c0bc3b7496e1e3723b5da0d3bedec40d`。
+- /tmp/easyai-monaco-geometry-check-20261019.log SHA256 `e580f738fb6f2a6bfe01cc5daae5d3e702f5220b2ad112eafff67fad6afa0a95`。
+- /tmp/easyai-monaco-geometry-build-20261019.log SHA256 `5094bb6f9f558a7544c17857159356826ce2d87539d0764322b7186ae017eb6a`。
+- /tmp/easyai-monaco-geometry-final-tests-20261019.log SHA256 `c61bcae2c1dd1715f322d7a59613cc7c374720cd0997e6e92300a0f8540b0e81`。
+- /tmp/easyai-monaco-geometry-independent-d2s1U2.log SHA256 `4777309fb90dd5e448c873cd7a9ac82fc0f2764e571e3cb94e26c3e48f50180d`。

@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 // Audited, pinned creation sites only. A dependency update must re-audit these.
 const targets = [
@@ -16,7 +17,44 @@ const targets = [
     count: 1,
   },
 ];
+// HTML-generated layout styles need CSSOM, not a nonce on style attributes.
+const viewLayer = {
+  suffix: "/monaco-editor/esm/vs/editor/browser/view/viewLayer.js",
+  sha: "c0ce32a0030014328b6f9045e96a0163ae85bda0317c3db2e4e32c881e54e485",
+  replacements: [
+    [
+      "this._domNode.innerHTML = newLinesHTML;",
+      "insertMonacoGeometry(this._domNode, newLinesHTML, true);",
+    ],
+    [
+      "lastChild.insertAdjacentHTML('afterend', newLinesHTML);",
+      "insertMonacoGeometry(this._domNode, newLinesHTML, false);",
+    ],
+    [
+      "hugeDomNode.innerHTML = invalidLinesHTML;",
+      "insertMonacoGeometry(hugeDomNode, invalidLinesHTML, true);",
+    ],
+  ],
+};
 export function adaptStyleNonce(code, id) {
+  if (id.replaceAll("\\", "/").endsWith(viewLayer.suffix)) {
+    if (
+      createHash("sha256").update(code).digest("hex") !== viewLayer.sha ||
+      viewLayer.replacements.some(
+        ([needle]) => code.split(needle).length - 1 !== 1,
+      )
+    )
+      throw new Error(
+        "Monaco view renderer drift; audit pinned dependency before building.",
+      );
+    let result = code;
+    for (const [needle, replacement] of viewLayer.replacements)
+      result = result.replace(needle, replacement);
+    const helper = fileURLToPath(
+      new URL("../apps/desktop/src/monaco-geometry.ts", import.meta.url),
+    );
+    return `import { insertMonacoGeometry } from ${JSON.stringify(helper)};\n${result}`;
+  }
   const target = targets.find((t) =>
     id.replaceAll("\\", "/").endsWith(t.suffix),
   );
@@ -42,7 +80,7 @@ export function styleNoncePlugin() {
       seen.clear();
     },
     generateBundle() {
-      for (const target of targets)
+      for (const target of [...targets, viewLayer])
         if (!seen.has(target.suffix))
           throw new Error(
             `Missing audited style creation module: ${target.suffix}`,
@@ -70,7 +108,7 @@ export function styleNoncePlugin() {
       const adapted = adaptStyleNonce(code, id);
       if (adapted !== null)
         seen.add(
-          targets.find((target) =>
+          [...targets, viewLayer].find((target) =>
             id.replaceAll("\\", "/").endsWith(target.suffix),
           ).suffix,
         );

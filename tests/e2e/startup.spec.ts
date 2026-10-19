@@ -1,4 +1,9 @@
-import { test, expect, _electron as electron } from "@playwright/test";
+import {
+  test,
+  expect,
+  _electron as electron,
+  type ElectronApplication,
+} from "@playwright/test";
 import path from "node:path";
 import { mkdtemp, mkdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -27,7 +32,8 @@ test("secure desktop, Dataset error repair, Monaco and saved project reopen", as
       chromiumSandbox: true,
       timeout: 15000,
     });
-  let app = await launch();
+  const failures: string[] = [];
+  let app: ElectronApplication | undefined = await launch();
   try {
     expect(await app.evaluate(({ app }) => app.getPath("userData"))).toBe(
       stateDirectory,
@@ -94,7 +100,6 @@ test("secure desktop, Dataset error repair, Monaco and saved project reopen", as
         return { canceled: false, filePaths: [root] };
       };
     }, projectDirectory);
-    const failures: string[] = [];
     page.on("pageerror", (error) => failures.push(error.name));
     page.on("console", (message) => {
       if (
@@ -182,9 +187,42 @@ test("secure desktop, Dataset error repair, Monaco and saved project reopen", as
     await symbols.getByRole("button", { name: /^train_data/ }).click();
     const datasetId = (await symbols.locator(":scope > small").textContent())!;
     await expect(symbols.locator("strong")).toHaveText("data.dataset_builtin");
-    await expect(
-      monaco.locator(".monaco-source-selected-semantic").first(),
-    ).toBeVisible();
+    // Dataset has one semantic declaration. Derive its expected text from the
+    // actual compiler map, then verify the rendered line and painted background.
+    const mappedSource = page.locator(".code-view > ol > li.code-selected");
+    await expect(mappedSource).toHaveCount(1);
+    await expect(mappedSource.locator("button")).toHaveAttribute(
+      "aria-label",
+      new RegExp(`源积木 ${datasetId}$`),
+    );
+    const expectedSourceText = (await mappedSource
+      .locator("code")
+      .textContent())!.trim();
+    const mappedLine = renderedLines.filter({ hasText: expectedSourceText });
+    const semanticPaint = monaco.locator(".monaco-source-selected-semantic");
+    await monaco.scrollIntoViewIfNeeded();
+    await expect(mappedLine).toHaveCount(1);
+    await expect(mappedLine).toBeInViewport();
+    await expect(semanticPaint).toHaveCount(1);
+    await expect(semanticPaint).toBeVisible();
+    await expect(semanticPaint).toBeInViewport();
+    const paintBox = (await semanticPaint.boundingBox())!;
+    const lineBox = (await mappedLine.boundingBox())!;
+    expect(paintBox.width).toBeGreaterThan(0);
+    expect(paintBox.height).toBeGreaterThan(0);
+    expect(Math.abs(paintBox.y - lineBox.y)).toBeLessThan(2);
+    expect(
+      await semanticPaint.evaluate(
+        (element) => getComputedStyle(element).backgroundColor,
+      ),
+    ).toBe("rgba(114, 160, 76, 0.28)");
+    // Reverse navigation must select this declaration's actual source, not just
+    // leave an already-selected Dataset unchanged.
+    await symbols.getByRole("button", { name: /^train_batches/ }).click();
+    await expect(symbols.locator("strong")).toHaveText("data.dataloader");
+    await mappedLine.click({ position: { x: 4, y: 4 } });
+    await expect(symbols.locator(":scope > small")).toHaveText(datasetId);
+    await expect(symbols.locator("strong")).toHaveText("data.dataset_builtin");
     await expect(compile).toBeEnabled();
     const before = JSON.parse(
       await readFile(
@@ -270,6 +308,7 @@ test("secure desktop, Dataset error repair, Monaco and saved project reopen", as
     expect(restored.revision).toBeGreaterThan(before.revision);
     expect(failures).toEqual([]);
     await app.close();
+    app = undefined;
     app = await launch();
     const reopened = await app.firstWindow();
     await expect(reopened.getByTestId("backend-status")).toHaveText(
@@ -300,8 +339,14 @@ test("secure desktop, Dataset error repair, Monaco and saved project reopen", as
     await expect(
       reopened.getByRole("button", { name: "开始本次运行", exact: true }),
     ).toBeDisabled();
+  } catch (error) {
+    console.error(
+      "EASYAI_E2E_RENDERER_FAILURES",
+      JSON.stringify([...new Set(failures)]),
+    );
+    throw error;
   } finally {
-    await app.close();
+    await app?.close();
     await rm(directory, { recursive: true });
   }
 });

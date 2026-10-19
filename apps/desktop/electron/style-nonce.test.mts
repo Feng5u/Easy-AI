@@ -39,3 +39,27 @@ it("adapts only audited style creation sites and fails closed on source drift", 
     adaptStyleNonce("document.createElement('style')", "/untrusted.js"),
   ).toBeNull();
 });
+it("adapts only the pinned Monaco view insertion sinks to bounded geometry CSSOM", async () => {
+  const path = fileURLToPath(
+    new URL(
+      "../node_modules/monaco-editor/esm/vs/editor/browser/view/viewLayer.js",
+      import.meta.url,
+    ),
+  );
+  const source = await readFile(path, "utf8");
+  const result = adaptStyleNonce(source, path)!;
+  expect(result).toContain("import { insertMonacoGeometry }");
+  expect(result).toContain(
+    "insertMonacoGeometry(this._domNode, newLinesHTML, true)",
+  );
+  expect(result).toContain(
+    "insertMonacoGeometry(this._domNode, newLinesHTML, false)",
+  );
+  expect(result).toContain(
+    "insertMonacoGeometry(hugeDomNode, invalidLinesHTML, true)",
+  );
+  expect(result).not.toContain("this._domNode.innerHTML = newLinesHTML");
+  expect(result).not.toContain("insertAdjacentHTML('afterend', newLinesHTML)");
+  expect(result).not.toMatch(/unsafe-inline|unsafe-eval/);
+  expect(() => adaptStyleNonce(source + "\n", path)).toThrow("drift");
+});
