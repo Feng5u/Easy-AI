@@ -1,4 +1,4 @@
-// Real electron-builder API. Same-host local unsigned artifacts only; never publish.
+// Real electron-builder API. Same-host unsigned candidates only; never publish.
 import { build, Platform, Arch } from "electron-builder";
 import baseConfiguration from "../electron-builder.json" with { type: "json" };
 import { createRequire } from "node:module";
@@ -10,9 +10,19 @@ import {
   INPUT_GROUPS,
 } from "./package-inputs.mjs";
 import { execFileSync } from "node:child_process";
-import { mkdir, readFile, writeFile, readdir, lstat } from "node:fs/promises";
+import {
+  mkdir,
+  readFile,
+  writeFile,
+  readdir,
+  lstat,
+  mkdtemp,
+  copyFile,
+  rm,
+} from "node:fs/promises";
 import { join, resolve, isAbsolute } from "node:path";
 import { fileURLToPath } from "node:url";
+import { tmpdir } from "node:os";
 import { hash, resourcePairs, OFFLINE_DOCS } from "./package.mjs";
 
 const repository = resolve(import.meta.dirname, "..");
@@ -23,6 +33,28 @@ const dependencyRequire = createRequire(
 );
 const asar = dependencyRequire("@electron/asar");
 const manifestName = "builder-manifest.json";
+export function builderLayout(platform, arch = "x64") {
+  if (arch !== "x64" || !["linux", "win32"].includes(platform))
+    throw Error("BUILDER_PLATFORM_NOT_VALIDATED");
+  return platform === "win32"
+    ? {
+        unpacked: "win-unpacked",
+        executable: "easyai.exe",
+        vendorExecutable: "electron.exe",
+        sidecar: "easyai-sidecar.exe",
+        extension: ".zip",
+        targets: ["dir", "zip"],
+      }
+    : {
+        unpacked: "linux-unpacked",
+        executable: "easyai",
+        vendorExecutable: "electron",
+        sidecar: "easyai-sidecar",
+        extension: ".tar.gz",
+        targets: ["dir", "tar.gz"],
+      };
+}
+
 export function builderConfiguration(stage, output, electronDist, version) {
   return {
     ...baseConfiguration,
@@ -69,12 +101,13 @@ export async function verifyBuilder(output) {
     manifest.distributionReady !== false ||
     manifest.legalReviewComplete !== false ||
     manifest.builderVersion !== "26.15.3" ||
-    manifest.platform !== "linux" ||
+    !["linux", "win32"].includes(manifest.platform) ||
     manifest.arch !== "x64" ||
     !/^[0-9a-f]{40}$/.test(manifest.sourceCommit) ||
     !Array.isArray(manifest.records)
   )
     throw Error("BUILDER_MANIFEST_INVALID");
+  const layout = builderLayout(manifest.platform, manifest.arch);
   for (const record of manifest.records) {
     if (
       typeof record.path !== "string" ||
@@ -89,19 +122,26 @@ export async function verifyBuilder(output) {
     throw Error("BUILDER_CONTENT_MISMATCH");
   const names = new Set(actual.map((r) => r.path));
   for (const name of [
-    "linux-unpacked/easyai",
-    "linux-unpacked/LICENSE",
-    "linux-unpacked/LICENSES.chromium.html",
-    "linux-unpacked/resources/app.asar",
-    "linux-unpacked/resources/backend/easyai-sidecar",
-    "linux-unpacked/resources/notices/NOTICE.txt",
-    "linux-unpacked/resources/notices/inventory.json",
-    ...OFFLINE_DOCS.map((x) => `linux-unpacked/resources/offline/docs/${x}`),
+    `${layout.unpacked}/${layout.executable}`,
+    `${layout.unpacked}/LICENSE`,
+    `${layout.unpacked}/LICENSES.chromium.html`,
+    `${layout.unpacked}/resources/app.asar`,
+    `${layout.unpacked}/resources/backend/${layout.sidecar}`,
+    `${layout.unpacked}/resources/notices/NOTICE.txt`,
+    `${layout.unpacked}/resources/notices/inventory.json`,
+    ...OFFLINE_DOCS.map(
+      (x) => `${layout.unpacked}/resources/offline/docs/${x}`,
+    ),
   ])
     if (!names.has(name)) throw Error(`BUILDER_RESOURCE_MISSING: ${name}`);
-  const archives = actual.filter((r) => r.path.endsWith(".tar.gz"));
+  const archives = actual.filter((r) => r.path.endsWith(layout.extension));
   if (archives.length !== 1) throw Error("BUILDER_ARCHIVE_MISSING");
-  const archive = join(output, "artifacts/linux-unpacked/resources/app.asar");
+  const archive = join(
+    output,
+    "artifacts",
+    layout.unpacked,
+    "resources/app.asar",
+  );
   const entries = asar.listPackage(archive);
   if (
     entries.some((name) =>
@@ -128,7 +168,11 @@ export async function verifyBuilder(output) {
     throw Error("BUILDER_APP_METADATA_INVALID");
   if (manifest.approvedInputs?.sourceCommit !== manifest.sourceCommit)
     throw Error("BUILDER_APPROVAL_SOURCE_MISMATCH");
-  await verifyApprovedOutput(output, manifest.approvedInputs);
+  await verifyApprovedOutput(
+    output,
+    manifest.approvedInputs,
+    manifest.platform,
+  );
   return {
     files: actual.length,
     archive: archives[0],
@@ -137,7 +181,12 @@ export async function verifyBuilder(output) {
     legalReviewComplete: false,
   };
 }
-export async function verifyApprovedOutput(output, approved) {
+export async function verifyApprovedOutput(
+  output,
+  approved,
+  platform = "linux",
+) {
+  const layout = builderLayout(platform);
   if (
     !approved ||
     approved.origin !== "exclusive-clean-build" ||
@@ -145,7 +194,7 @@ export async function verifyApprovedOutput(output, approved) {
       JSON.stringify(INPUT_GROUPS)
   )
     throw Error("BUILDER_APPROVED_INPUTS_REQUIRED");
-  const unpacked = join(output, "artifacts/linux-unpacked");
+  const unpacked = join(output, "artifacts", layout.unpacked);
   for (const group of ["backend", "offline", "notices"]) {
     if (
       JSON.stringify(await treeRecords(join(unpacked, "resources", group))) !==
@@ -153,9 +202,14 @@ export async function verifyApprovedOutput(output, approved) {
     )
       throw Error(`BUILDER_UNAPPROVED_RESOURCE: ${group}`);
   }
+  const transformed =
+    platform === "win32"
+      ? await expectedWindowsExecutable(output, approved, unpacked)
+      : undefined;
   const expectedVendor = approved.groups.vendor
     .flatMap((record) => {
-      if (record.path === "electron") return [{ ...record, path: "easyai" }];
+      if (record.path === layout.vendorExecutable)
+        return [transformed ?? { ...record, path: layout.executable }];
       if (record.path === "LICENSE")
         return [record, { ...record, path: "LICENSE.electron.txt" }];
       return [record];
@@ -201,9 +255,49 @@ export async function verifyApprovedOutput(output, approved) {
       throw Error("BUILDER_UNAPPROVED_APP_BYTES");
   }
 }
+async function expectedWindowsExecutable(output, approved, unpacked) {
+  const record = approved.groups.vendor.find((r) => r.path === "electron.exe");
+  if (!record) throw Error("BUILDER_APPROVED_VENDOR_EXECUTABLE_MISSING");
+  const original = join(output, "input/vendor/electron.exe");
+  const info = await lstat(original);
+  if (
+    !info.isFile() ||
+    info.isSymbolicLink() ||
+    info.size !== record.bytes ||
+    (info.mode & 0o777) !== record.mode ||
+    (await hash(original)) !== record.sha256
+  )
+    throw Error("BUILDER_APPROVED_VENDOR_EXECUTABLE_CHANGED");
+  const scratch = await mkdtemp(join(tmpdir(), "easyai-pe-verification-"));
+  try {
+    const expected = join(scratch, "expected.exe");
+    await copyFile(original, expected, 1);
+    // Keep builder's default integrity resource. Reproduce only that declared
+    // transform from the sealed original and ASARs, never from output EXE bytes.
+    const { computeData } = dependencyRequire("./asar/integrity.js");
+    const { addWinAsarIntegrity } = dependencyRequire(
+      "./electron/electronWin.js",
+    );
+    const resources = join(unpacked, "resources");
+    const integrity = await computeData({
+      resourcesPath: resources,
+      resourcesRelativePath: "resources",
+      resourcesDestinationPath: resources,
+      extraResourceMatchers: [],
+    });
+    await addWinAsarIntegrity(expected, integrity);
+    return {
+      ...record,
+      path: "easyai.exe",
+      bytes: (await lstat(expected)).size,
+      sha256: await hash(expected),
+    };
+  } finally {
+    await rm(scratch, { recursive: true, force: true });
+  }
+}
 export async function packageBuilder(root = repository) {
-  if (process.platform !== "linux" || process.arch !== "x64")
-    throw Error("BUILDER_PLATFORM_NOT_VALIDATED");
+  const layout = builderLayout(process.platform, process.arch);
   const sourceCommit = execFileSync("git", ["rev-parse", "HEAD"], {
     cwd: root,
     encoding: "utf8",
@@ -211,7 +305,7 @@ export async function packageBuilder(root = repository) {
   const output = join(
     root,
     "dist",
-    `easyai-builder-${sourceCommit.slice(0, 12)}-${Date.now()}-linux-x64`,
+    `easyai-builder-${sourceCommit.slice(0, 12)}-${Date.now()}-${process.platform}-x64`,
   );
   await mkdir(join(root, "dist"), { recursive: true });
   await mkdir(output); // Exclusive: keep existing or failed evidence, never overwrite.
@@ -230,7 +324,10 @@ export async function packageBuilder(root = repository) {
   );
   await build({
     projectDir: join(stage, "resources/app"),
-    targets: Platform.LINUX.createTarget(["dir", "tar.gz"], Arch.x64),
+    targets: (process.platform === "win32"
+      ? Platform.WINDOWS
+      : Platform.LINUX
+    ).createTarget(layout.targets, Arch.x64),
     publish: "never",
     config: configuration,
   });
@@ -245,7 +342,7 @@ export async function packageBuilder(root = repository) {
     )
       throw Error("BUILDER_STAGE_CHANGED");
   }
-  const unpacked = join(output, "artifacts/linux-unpacked/resources");
+  const unpacked = join(output, "artifacts", layout.unpacked, "resources");
   const appArchive = join(unpacked, "app.asar");
   // Prove exact inputs survived ASAR and extraResources independently of builder logs.
   for (const name of [

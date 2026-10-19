@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import {
   sourceSnapshot,
+  buildPnpmCommand,
   newApplicationEnvironment,
   TUTORIAL_FILES,
   INPUT_GROUPS,
@@ -168,4 +169,37 @@ test("application build overrides an inherited external uv target and refuses an
     /PACKAGE_BUILD_ENVIRONMENT_EXISTS/,
   );
   assert.equal(await readFile(marker, "utf8"), "synthetic existing target");
+});
+
+test("Windows build runs only the pinned pnpm JS entry through Node", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "easyai pnpm entry "));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const home = join(root, "node_modules/.bin");
+  const pkg = join(root, "node_modules/pnpm");
+  await mkdir(join(pkg, "bin"), { recursive: true });
+  await writeFile(join(pkg, "bin/pnpm.mjs"), "// synthetic pinned tool");
+  const metadata = {
+    name: "pnpm",
+    version: "11.25.0",
+    bin: { pnpm: "bin/pnpm.mjs" },
+  };
+  const path = join(pkg, "package.json");
+  await writeFile(path, JSON.stringify(metadata));
+  assert.deepEqual(await buildPnpmCommand("win32", home), {
+    executable: process.execPath,
+    prefix: [join(pkg, "bin/pnpm.mjs")],
+  });
+  metadata.bin.pnpm = "../arbitrary.cmd";
+  await writeFile(path, JSON.stringify(metadata));
+  await assert.rejects(
+    buildPnpmCommand("win32", home),
+    /PINNED_PNPM_UNAVAILABLE/,
+  );
+  metadata.bin.pnpm = "bin/pnpm.mjs";
+  metadata.version = "different";
+  await writeFile(path, JSON.stringify(metadata));
+  await assert.rejects(
+    buildPnpmCommand("win32", home),
+    /PINNED_PNPM_UNAVAILABLE/,
+  );
 });

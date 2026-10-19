@@ -12,29 +12,35 @@ import {
 } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
-import { verifyBuilder } from "./package-builder.mjs";
+import {
+  verifyBuilder,
+  builderLayout,
+  builderConfiguration,
+} from "./package-builder.mjs";
 import { treeRecords } from "./package-inputs.mjs";
 import { OFFLINE_DOCS, hash } from "./package.mjs";
 const req = createRequire(import.meta.url);
 const builder = createRequire(req.resolve("electron-builder"));
-const asar = createRequire(builder.resolve("app-builder-lib"))(
-  "@electron/asar",
-);
-async function fixture(t, extra) {
+const dependency = createRequire(builder.resolve("app-builder-lib"));
+const asar = dependency("@electron/asar");
+async function fixture(t, extra, platform = "linux") {
+  const layout = builderLayout(platform);
   const root = await mkdtemp(join(tmpdir(), "easyai-builder-verifier-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const app = join(root, "app-input");
   const files = [
-    "linux-unpacked/easyai",
-    "linux-unpacked/LICENSE",
-    "linux-unpacked/LICENSE.electron.txt",
-    "linux-unpacked/LICENSES.chromium.html",
-    "linux-unpacked/resources/app.asar",
-    "linux-unpacked/resources/backend/easyai-sidecar",
-    "linux-unpacked/resources/notices/NOTICE.txt",
-    "linux-unpacked/resources/notices/inventory.json",
-    ...OFFLINE_DOCS.map((x) => `linux-unpacked/resources/offline/docs/${x}`),
-    "fixture.tar.gz",
+    `${layout.unpacked}/${layout.executable}`,
+    `${layout.unpacked}/LICENSE`,
+    `${layout.unpacked}/LICENSE.electron.txt`,
+    `${layout.unpacked}/LICENSES.chromium.html`,
+    `${layout.unpacked}/resources/app.asar`,
+    `${layout.unpacked}/resources/backend/${layout.sidecar}`,
+    `${layout.unpacked}/resources/notices/NOTICE.txt`,
+    `${layout.unpacked}/resources/notices/inventory.json`,
+    ...OFFLINE_DOCS.map(
+      (x) => `${layout.unpacked}/resources/offline/docs/${x}`,
+    ),
+    `fixture${layout.extension}`,
   ].sort();
   for (const file of files) {
     await mkdir(dirname(join(root, "artifacts", file)), { recursive: true });
@@ -57,8 +63,41 @@ async function fixture(t, extra) {
   }
   await asar.createPackage(
     app,
-    join(root, "artifacts/linux-unpacked/resources/app.asar"),
+    join(root, "artifacts", layout.unpacked, "resources/app.asar"),
   );
+  let originalPe;
+  if (platform === "win32") {
+    const { NtExecutable, NtExecutableResource, Resource } =
+      dependency("resedit");
+    const exe = NtExecutable.createEmpty(false);
+    const resources = NtExecutableResource.from(exe);
+    const version = Resource.VersionInfo.createEmpty();
+    version.setStringValues(
+      { lang: 1033, codepage: 1200 },
+      { FileVersion: "1.0.0", ProductName: "Synthetic fixture" },
+    );
+    version.outputToResourceEntries(resources.entries);
+    resources.outputResource(exe);
+    originalPe = Buffer.from(exe.generate());
+    const original = join(root, "input/vendor/electron.exe");
+    await mkdir(dirname(original), { recursive: true });
+    await writeFile(original, originalPe);
+    await chmod(original, 0o644);
+    const target = join(root, "artifacts", layout.unpacked, layout.executable);
+    await writeFile(target, originalPe);
+    const resourcePath = join(root, "artifacts", layout.unpacked, "resources");
+    const { computeData } = dependency("./asar/integrity.js");
+    const integrity = await computeData({
+      resourcesPath: resourcePath,
+      resourcesRelativePath: "resources",
+      resourcesDestinationPath: resourcePath,
+      extraResourceMatchers: [],
+    });
+    await dependency("./electron/electronWin.js").addWinAsarIntegrity(
+      target,
+      integrity,
+    );
+  }
   const records = [];
   for (const file of files)
     records.push({
@@ -67,20 +106,28 @@ async function fixture(t, extra) {
       mode: (await lstat(join(root, "artifacts", file))).mode & 0o777,
       sha256: await hash(join(root, "artifacts", file)),
     });
-  const base = join(root, "artifacts/linux-unpacked");
+  const base = join(root, "artifacts", layout.unpacked);
   const vendor = (await treeRecords(base))
     .filter(
       (r) =>
         !r.path.startsWith("resources/") && r.path !== "LICENSE.electron.txt",
     )
-    .map((r) => ({ ...r, path: r.path === "easyai" ? "electron" : r.path }));
+    .map((r) => ({
+      ...r,
+      path: r.path === layout.executable ? layout.vendorExecutable : r.path,
+    }));
+  if (originalPe) {
+    const record = vendor.find((r) => r.path === "electron.exe");
+    record.bytes = originalPe.length;
+    record.sha256 = await hash(join(root, "input/vendor/electron.exe"));
+  }
   const manifest = {
     schemaVersion: 2,
     kind: "unsigned-electron-builder-local",
     sourceCommit: "a".repeat(40),
     builderVersion: "26.15.3",
     version: "0.0.0",
-    platform: "linux",
+    platform,
     arch: "x64",
     distributionReady: false,
     legalReviewComplete: false,
@@ -154,5 +201,40 @@ test("output inventory cannot approve an extra resource with an ordinary name", 
   await assert.rejects(
     verifyBuilder(root),
     /BUILDER_UNAPPROVED_RESOURCE: offline/,
+  );
+});
+
+test("same-host candidate layout rejects unimplemented OS and architectures", () => {
+  assert.throws(() => builderLayout("darwin"), /PLATFORM_NOT_VALIDATED/);
+  assert.throws(
+    () => builderLayout("win32", "arm64"),
+    /PLATFORM_NOT_VALIDATED/,
+  );
+  const config = builderConfiguration("stage", "output", "vendor", "44.9.0");
+  assert.equal(config.publish, null);
+  assert.equal(config.win.signAndEditExecutable, false);
+  assert.equal(config.disableAsarIntegrity, undefined);
+  assert.deepEqual(config.win.target, ["dir", "zip"]);
+});
+
+test("Windows verifier accepts only the declared ASAR integrity PE transformation", async (t) => {
+  const { root, manifest, save } = await fixture(t, undefined, "win32");
+  assert.equal((await verifyBuilder(root)).sourceCommit, "a".repeat(40));
+  // Even updating the output inventory cannot approve an arbitrary EXE change.
+  await writeFile(
+    join(root, "artifacts/win-unpacked/easyai.exe"),
+    "arbitrary exe",
+  );
+  manifest.records = await treeRecords(join(root, "artifacts"));
+  await save();
+  await assert.rejects(verifyBuilder(root), /BUILDER_UNAPPROVED_VENDOR_OUTPUT/);
+});
+
+test("Windows verifier rejects an altered sealed original before replaying PE changes", async (t) => {
+  const { root } = await fixture(t, undefined, "win32");
+  await writeFile(join(root, "input/vendor/electron.exe"), "altered original");
+  await assert.rejects(
+    verifyBuilder(root),
+    /APPROVED_VENDOR_EXECUTABLE_CHANGED/,
   );
 });

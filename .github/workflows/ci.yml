@@ -59,3 +59,33 @@ jobs:
       - name: Application venv startup PID and isolation (no GUI)
         run: pnpm exec vitest run apps/desktop/electron/backend.test.mts apps/desktop/electron/application-python.test.mts apps/desktop/electron/backend-ready.test.mts
       - run: pnpm test:e2e
+      - name: Packaging input and archive guards
+        run: pnpm test:package
+      - name: Build unsigned Windows candidate (never publish)
+        id: candidate
+        timeout-minutes: 5
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          UV_OFFLINE: "1"
+        run: node scripts/build-candidate.mjs
+      - name: Audit ZIP ${{ steps.candidate.outputs.sha256 }} (${{ steps.candidate.outputs.bytes }} bytes)
+        run: '& services/backend/.venv/Scripts/python.exe -I scripts/verify-candidate-archive.py "${{ steps.candidate.outputs.directory }}"'
+      - name: Packaged backend PID, auth, resources and EOF
+        timeout-minutes: 2
+        run: node scripts/test-frozen.mjs "${{ steps.candidate.outputs.backend }}"
+      - name: Packaged Electron sandbox, ASAR identity and normal shutdown
+        env:
+          EASYAI_E2E_PACKAGE: ${{ steps.candidate.outputs.executable }}
+        run: pnpm test:e2e
+      - name: Retain unsigned candidate and provenance (one day)
+        uses: actions/upload-artifact@v4
+        with:
+          name: easyai-unsigned-win-x64-${{ github.sha }}
+          retention-days: 1
+          compression-level: 0
+          if-no-files-found: error
+          path: |
+            ${{ steps.candidate.outputs.archive }}
+            ${{ steps.candidate.outputs.directory }}/builder-manifest.json
+            ${{ steps.candidate.outputs.directory }}/candidate-provenance.json
+            ${{ steps.candidate.outputs.directory }}/candidate-audit.json

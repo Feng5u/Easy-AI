@@ -2,13 +2,22 @@ import { test, expect, _electron as electron } from "@playwright/test";
 import path from "node:path";
 
 test("secure desktop startup and normal shutdown", async () => {
+  const packaged = process.env.EASYAI_E2E_PACKAGE;
   const app = await electron.launch({
-    args: [path.resolve("apps/desktop")],
+    ...(packaged
+      ? { executablePath: path.resolve(packaged), args: [] }
+      : { args: [path.resolve("apps/desktop")] }),
     chromiumSandbox: true,
     timeout: 15000,
   });
   try {
     const page = await app.firstWindow();
+    const identity = await app.evaluate(({ app }) => ({
+      packaged: app.isPackaged,
+      appPath: app.getAppPath(),
+    }));
+    expect(identity.packaged).toBe(Boolean(packaged));
+    if (packaged) expect(identity.appPath.endsWith("app.asar")).toBe(true);
     await expect(page.getByTestId("backend-status")).toHaveText(
       "本地服务已就绪。",
     );

@@ -1,5 +1,7 @@
 # v0.0.0 发布验收清单
 
+2026-10-19 原计划独立欠项继续：Windows x64 dir/ZIP候选接入原封闭输入流程，默认PE ASAR完整性保留并独立重放验证，新增包内sidecar/packaged Electron CI；真实结果尚待本轮CI，Linux候选a4de782及b05证据保留。见[windows-candidate.md](windows-candidate.md)。不以训练/SSH缺资源停止独立开发，也不据本项通过宣称A/B。
+
 2026-10-19 最新真实候选已更新至源码 `a4de782a5efa717868d7180eee18d60e71dfb16a`：Linux x64未签名dir/tar.gz、v2封闭输入/输出、归档逐项核验、包内sidecar及独审PASS；原开发CI两平台SUCCESS。详见[candidate-a4de782.md](candidate-a4de782.md)。包内Electron GUI/干净机TST33/正式训练/SSH仍NOT RUN，distributionReady/legalReviewComplete仍false；不是正式发布或完整A/B。下方旧“最新源码包未生成”描述属于历史状态，以本增量为准。
 
 2026-10-19 Windows sidecar身份修复：父侧确认 [run39211585475](https://github.com/T1doo/Easy-AI/actions/runs/39211585475) Linux SUCCESS，Windows launch/firstWindow已成功，后续ready显示“本地服务启动协议不匹配。”。固定应用venv的CPython redirector可能使launcher PID与服务PID不同，现按CPython自身venv语义直接启动固定基础解释器，严格PID/协议/鉴权/EOF门保留。原错误无类别，不宣称唯一实测根因。新增Windows非GUI身份检查；本轮Windows E2E待自然CI，完整A/B仍未通过。见[windows-application-python.md](windows-application-python.md)。

@@ -200,6 +200,29 @@ export async function sourceSnapshot(root, destination, sourceCommit) {
   );
   run("tar", ["-xf", archive, "-C", destination], root);
 }
+export async function buildPnpmCommand(
+  platform = process.platform,
+  pnpmHome = process.env.PNPM_HOME,
+) {
+  if (platform !== "win32") return { executable: "pnpm", prefix: [] };
+  // pnpm/action-setup v4 registers dest/node_modules/.bin as PNPM_HOME.
+  // Execute its pinned JS entry with Node; never launch a .cmd via a shell.
+  if (!pnpmHome) throw Error("PACKAGE_PINNED_PNPM_UNAVAILABLE");
+  const packageRoot = resolve(pnpmHome, "../pnpm");
+  const metadata = JSON.parse(
+    await readFile(join(packageRoot, "package.json"), "utf8"),
+  );
+  if (
+    metadata.name !== "pnpm" ||
+    metadata.version !== "11.25.0" ||
+    metadata.bin?.pnpm !== "bin/pnpm.mjs"
+  )
+    throw Error("PACKAGE_PINNED_PNPM_UNAVAILABLE");
+  const cli = join(packageRoot, metadata.bin.pnpm);
+  if (!(await lstat(cli)).isFile())
+    throw Error("PACKAGE_PINNED_PNPM_UNAVAILABLE");
+  return { executable: process.execPath, prefix: [cli] };
+}
 export async function cleanBuildInputs(root, sourceCommit) {
   await validateTutorials(root); // Reject arbitrary manual additions before any build.
   requireSource(root, sourceCommit);
@@ -211,6 +234,7 @@ export async function cleanBuildInputs(root, sourceCommit) {
   );
   await mkdir(input);
   const source = join(input, "source");
+  const pnpm = await buildPnpmCommand();
   await sourceSnapshot(root, source, sourceCommit);
   // Install the same registered development dependencies into a REAL directory.
   // pnpm correctly refuses a symlink as its task-state node_modules root.
@@ -219,8 +243,9 @@ export async function cleanBuildInputs(root, sourceCommit) {
   );
   const store = dirname(installed.storeDir);
   run(
-    "pnpm",
+    pnpm.executable,
     [
+      ...pnpm.prefix,
       "install",
       "--frozen-lockfile",
       "--offline",
@@ -267,8 +292,9 @@ export async function cleanBuildInputs(root, sourceCommit) {
   const app = join(payload, "app");
   await mkdir(app);
   run(
-    "pnpm",
+    pnpm.executable,
     [
+      ...pnpm.prefix,
       "--filter",
       "@easyai/desktop",
       "exec",
@@ -281,8 +307,9 @@ export async function cleanBuildInputs(root, sourceCommit) {
     source,
   );
   run(
-    "pnpm",
+    pnpm.executable,
     [
+      ...pnpm.prefix,
       "--filter",
       "@easyai/desktop",
       "exec",
@@ -348,8 +375,8 @@ export async function cleanBuildInputs(root, sourceCommit) {
   const zip = await downloadArtifact({
     version: metadata.devDependencies.electron,
     artifactName: "electron",
-    platform: "linux",
-    arch: "x64",
+    platform: process.platform,
+    arch: process.arch,
     checksums,
     cacheRoot: join(
       process.env.XDG_CACHE_HOME || join(source, "dist/tool-cache"),

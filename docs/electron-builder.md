@@ -1,5 +1,7 @@
 # M8.2 electron-builder 本地打包合同
 
+2026-10-19 增量：同主机Windows x64候选接入原流程，目标dir+ZIP（非安装器）。Windows实际构建/包内启动尚待本轮CI，不能用下述Linux历史PASS替代。完整开发记录见仓库 `docs/windows-candidate.md`（该记录不随包复制）。Linux原dir/tar.gz路线及已有候选保留；以下原“仅Linux”描述为本增量之前的范围。
+
 精确开发依赖electron-builder26.15.3及完整npm integrity在pnpm-lock.yaml。仅同主机Linux x64、unsigned dir+tar.gz，publish=never与配置null，不签名、不部署、不修改sandbox。原appId io.easyai.desktop保留。distributionReady和legalReviewComplete恒false。
 
 `pnpm package:builder` 现在自动在独占新目录执行干净构建，不再采用现有apps/desktop/dist、dist-electron、services/backend/dist或已安装Electron dist树。tsc、Vite、PyInstaller均输出到新建的dist/builder-inputs-<SHA>-<UUID>；Python的dist/work/spec路径分离，资源路径绝对绑定原仓库。Vite关闭ambient publicDir复制，应用资源只来自构建的明确import。生成目录不覆盖旧构建或用户文件。构建源码从固定完整commit的Git archive导出，只允许普通tracked文件，拒source symlink/submodule；忽略文件或未跟踪文件不会被tsc或PyInstaller读取。Node开发依赖按原frozen lock从现有store离线安装到快照内真实node_modules目录（ignore-scripts，不链接任务状态根）；应用构建venv也用原frozen应用锁在快照中新建并offline同步，避免原editable .pth回退工作区源码；只用现有Python基线，同步目标用绝对UV_PROJECT_ENVIRONMENT固定在快照内新.venv，覆盖继承变量、忽略VIRTUAL_ENV；运行前要求路径不存在，运行后核真实目录非symlink，原venv不作为同步目标、不装训练包。编译器/标准库/系统库仍是独立信任边界，不能称完全hermetic构建；隔离Python的PYTHONPATH指向快照。原工作区构建前/封存前再次核HEAD与源码clean，发现修改拒绝而不重置用户工作。

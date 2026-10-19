@@ -31,5 +31,13 @@
       "tar.gz"
     ]
   },
-  "compression": "store"
+  "compression": "store",
+  "win": {
+    "executableName": "easyai",
+    "target": [
+      "dir",
+      "zip"
+    ],
+    "signAndEditExecutable": false
+  }
 }

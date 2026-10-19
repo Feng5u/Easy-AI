@@ -2675,3 +2675,30 @@ NOT RUN：本包真实Electron/干净机TST33/平台安装包、正式MNIST十�
 - `/tmp/easyai-candidate-a4de782-independent-verify-gKAuKP.log`：`2bcb392594d0486dfbe8cda08816af01c90eb71da8c6c17f80e1f27a4390e864`。
 
 本轮证据本地提交，不push：候选产品源码/远端保持a4de782a5efa717868d7180eee18d60e71dfb16a；证据HEAD完整SHA和clean核对由最终回报给出。后续可随实质工作统一推送，不额外触发CI。
+
+
+## 2026-10-19 接续原计划：Windows x64 未签名候选与包内安全启动
+
+父级要求实际接续，不把真实数据/SSH/干净机缺失当全部开发终点。恢复指定环境后起始HEAD `b05a375eb490c6c69828cbbb03fca3a5cc34b3f4`，远端 `a4de782a5efa717868d7180eee18d60e71dfb16a`，工作区clean；原a4de782 Linux真实候选及b05证据保留，main仍 `5323f86232529efcfb52131168ad049f01b219f3`。核原plan§4/§18 M8.2与真实代码发现builder仅Linux，Windows CI只有开发态启动，尚无Windows候选。因此承接该明确原产品欠项，不新增外围需求，不宣称训练验收通过。
+
+实现见[windows-candidate.md](windows-candidate.md)：原same-host Git archive/clean/HEAD、offline/frozen依赖、新应用venv/PyInstaller --onedir和五组批准输入不变，Windows x64新增dir+ZIP，无安装器。Windows pnpm使用官方action已登记PNPM_HOME下固定11.25.0 JS入口和Node argv/shell:false；错版本或入口拒绝。保留默认ASAR integrity：发现锁定builder即使signAndEditExecutable=false仍先写PE；不关完整性，而从封存原始input/vendor/electron.exe核bytes/mode/hash后在独立temp重放唯一已知integrity变换，严格比较EXE全字节与其余vendor闭集，拒绝输出inventory自行批准。Linux原路线/模式门保留。
+
+ZIP/tar标准库审计只读精确集合/大小/hash，Windows核readonly而非伪称POSIX exec位；拒绝盘符/ADS/反斜杠/越界/设备名/末尾点空格/大小写别名/重复/links/special/加密/额外目录。有限秘密特征零命中不等于任意秘密/PYZ/native安全。CI原Windows开发检查保留，新增包保护→实际打包→ZIP审计→包内PID/auth/resource/EOF→同sandbox/原timeout的packaged Electron E2E（严格app.isPackaged+ASAR），再只上传ZIP与三收据、retention1day/450MiB上限、不上传source/input/venv/数据。完整PE verifier所需原始vendor不在短期上传中，此限制明确披露。发布/许可ready均false，不接受新条款/付费/签名材料。
+
+实际命令（cwd /workspace/Easy-AI；没有为数字重跑完整套件）：
+- PASS：`CI=true XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/.cache node --test scripts/package-builder.test.mjs`，8项/1.10s，实际合成PE保留默认integrity、严格接受唯一重放/拒任意EXE变化和篡改原始vendor；不是Windows实机。
+- PASS：同XDG环境 `pnpm test:package` 第一轮25项/1.03s，最终ZIP设备名/目录类型门和输出cap补充后第二轮25项/1.08s；其中一个Node入口运行6组Python标准库ZIP负例，不重复累加为总数。Windows已有Linux-only portable旧测试仍按原scope，不跳过新候选关键门。
+- PASS：`CI=true XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/.cache UV_CACHE_DIR=/workspace/.uv-cache UV_OFFLINE=1 pnpm check`，TS/Ruff/mypy66/合同/fixtures/Prettier。新增脚本另做`ruff check/format --config services/backend/pyproject.toml scripts/verify-candidate-archive.py scripts/test-candidate-archive.py`，无错误；Node语法与既有js-yaml实际解析workflow均通过。
+- PASS：`services/backend/.venv/bin/python -I -` 加runpy只读加载新audit函数核旧a4de782候选，294文件及归档SHA256 `4733c8bd71f1b32836069fa0670843c0db8b98411200feb5ce42f2306b3ee0b9`保持。未提取/重建/覆盖旧包。
+- PASS：独立只读四组包保护25项（与上述重叠不累加），复核PE、固定pnpm、ZIP、CI上传、packaged sandbox/timeout，无本范围明确剩余P1/P2。未联网/同步依赖/构建/Windows/GUI/训练/SSH。
+
+本地NOT RUN：新的Windows实际包、packaged GUI；必须等自然CI的实际结果。未重试此前拒绝的日志/浏览器接口；父级现可自行读取新CI正文，本线程仅允许的run/jobs元数据观察。没有数据/模型下载、训练环境/教师共享环境改动、真实SSH/训练、发布/上架/签名/PR/Release/主分支写入。完整A/B仍未通过；主路径正式训练与SSH所缺最小条件仍在release-checklist，独立M8候选工作不冒充它们。
+
+本轮日志SHA256：
+- `/tmp/easyai-win-candidate-builder-test-20261019.log`：`8333a4249a7918b6684597b2981f8ca2347fea196aaa0bfc35c52215315a8c44`。
+- `/tmp/easyai-win-candidate-package-test-20261019.log`：`8820924ec3e52d3420f99dc3d3a4634b0e5f47983dea8f98fcf032d1865426ee`。
+- `/tmp/easyai-win-candidate-package-test2-20261019.log`：`282a1c0dcebaaea3b5083e6d3d0e1ca677303f00f69694bf34400a63f574c0c4`。
+- `/tmp/easyai-win-candidate-check-20261019.log`：`33d638c44f61709c5fea38251066696a5a89ca3d3d4d8bf8ffb532d282f23af2`。
+- `/tmp/easyai-win-candidate-review-cDGEKB.log`：`8705dcbd50d05b5fa63284cd8f8141a31850f34fc23ea97190a6fc13df7c5f66`。
+
+最终完整SHA、正常dev push和自然免费CI/真实候选结果由最终回报补记；仅一次本实质功能CI，不主动dispatch/重跑。
