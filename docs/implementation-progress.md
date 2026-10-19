@@ -3285,3 +3285,12 @@ PASS：App组件/实际Main sidecar字节原样导出与真实SVG两文件34test
 - /tmp/easyai-toolbox-pan-restore-tests-final-20261019.log SHA256 `a5c0b1190fa9fda2e3a8d88567c962e08911a4ce8a8e522e1d3612224ba053fd`。
 - /tmp/easyai-toolbox-pan-restore-check-20261019.log SHA256 `e580f738fb6f2a6bfe01cc5daae5d3e702f5220b2ad112eafff67fad6afa0a95`。
 - /tmp/easyai-toolbox-pan-restore-regression-20261019.log SHA256 `46724e3295f59fbcee3b5c707cb78d25344f44785416788565a6d9d6cc967257`。
+
+
+### 画布/IPC/退出修复CI：Linux全通过，Windows首错待取
+
+源码与remote `3660c544e4a6a2cbbd928a9e07a60113a413f8ef`，[CI39246877327](https://github.com/T1doo/Easy-AI/actions/runs/39246877327)。Linux job118040832261 check/test/build全部SUCCESS，原可见性与字节原样导出断言保留；不将单次成功称绝对消除全部异步风险。Windows job118040831757前置native安全/冻结backend/HTTP资源/build/venv隔离门均SUCCESS，step14 E2E FAIL，后续打包、审计、包内验收与上传未执行，仍无新候选。
+
+已请求父级在已登录页面读取该Windows step14最后ACTION/REVEAL_GEOMETRY/DRAG_GEOMETRY、首错调用栈、PROCESS_EXIT/CLOSE_CONFIRMED/CLOSE_FAILED。当前读取待返回，准确挂点未知：不能从step失败推断Prep注册已过或仍失败，不能将source修复当真实GUI通过，也不能将旧已确认exit0借给新轮。未重试受限日志/artifact接口、未绕过、未盲重跑CI，停止依赖首错的修补。
+
+工作区提交前复核dev remote同源码，main仍5323f86232529efcfb52131168ad049f01b219f3；原plan/原规格/README/pnpm与backend uv锁SHA全部与基线记录一致。当前仅本地docs证据提交，不触发另一次CI，旧失败与所有本地日志保留。下一项取得实际新首错并按源码证据修复。真实空白构建闭环、完整M4/M7、SSH/MNIST/TST33/许可/A/B仍未完成；本轮没有训练、下载、真实SSH、权限/凭据/共享环境/main/发布操作。
