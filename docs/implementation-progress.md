@@ -2172,3 +2172,47 @@ NOT RUN：真实SSH连接/安装包或数据上传、wheel/语料/模型下载�
 - `/tmp/easyai-remote-install-ui-20261019-unique1.log` SHA256 `e4f11f44db66c3a8a749bf05ba5c186535ef92d77167696cca8ce2c9f2d4ac22`。
 - `/tmp/easyai-remote-install-wal-20261019-unique1.log` SHA256 `58e99ac9b1f322176945f5e93f4030ebb22f5ecf25bf579e8e866a44af7d531b`。
 - `/tmp/easyai-remote-install-recovery-20261019-0001/preserved-files.json` SHA256 `6988123dac38d834f61f92da99732ea342dcf5661dceaa7c956d86e97cb18be7`。
+
+
+## 2026-10-19：远端 owned 安装三项 P2 修复（代码与合成验证）
+
+本节更正上一片的收口状态：父级复核发现三个具体 P2，故 `ba395c7cfe38ce023f67e64bd50cffbc50d3442f` / 证据 `3616826e28cef2d2ce4fd874f1bb81a6fcf17d94` 尚未签收；此前独审未发现问题不等于这三项不存在。原 FAIL 与历史记录保留。本轮源码完整 SHA：`b691f141fc4a8e3071cbcf82dd4c4903eb9ccd85`，基于上述证据提交；没有重做计划或改变 D01–D14。
+
+### 修复与确定性证据
+
+1. writer 交接：父 RPC 在仍持有 writer flock 时用 pass_fds 传递同一 open-file description；子 owner 验证 FD 权限及锁文件 inode，父子只关闭各自 FD，不 LOCK_UN、不重新竞争、不重试未知启动。RED1 用真实标准库子 helper 的退出 barrier 强制子先执行且父仍持锁，旧实现稳定 INSTALL_WRITER_BUSY/unknown；修复后实际子退出码0、完成事件与静止收据通过，相同 phase 仍只启动一次。另核错 inode 拒绝及子 FD close 不解父锁。
+2. 已落盘取消：serve 在实际 ManagedProcess.start 前核对同 job/plan/phase 的取消。独占 serve claim + writer 所有权下未派发才记 dispatched=false、cancelled、quiescent=true、events=[]；不虚构进程退出。RED2 的哨兵证明旧代码实际启动了本不应运行的标准库子命令；修复后哨兵不存在。运行中取消先于 done 判断，未知停止仍隔离。
+3. cleanup 生命周期：认证 lease 按 launcher 保存实际 InstallSshTransport，Registry 重建 target 不丢原 SDK cleanup owner。重取 adapter、切换 launcher 与 retiring 都可非阻塞 reap；必须 cleanup thread done 且真实 channel.closed 才释放本 owner 的 I/O gate。RED4 经过真实 Registry→ConnectionManager→transport、合成 SDK 延迟 close，旧实现下一次 reconcile 稳定 INSTALL_REMOTE_BUSY；修复后自动核验取消并 needsReprobe。原操作并发回归及终态 reconcile 回归保留，另核 retiring 自动 reap 不释放其他操作持有的 gate。
+
+### 实际验证命令与结果
+
+所有命令在 `/workspace/Easy-AI` 执行，输出经 `set -o noclobber` 保留到唯一日志；未删除/覆盖失败日志。
+
+- FAIL（修前预期复现）：`services/backend/.venv/bin/pytest -q services/backend/tests/test_remote_install_owner.py -k detached_child_finishes`，RED1 1 failed；`... -k persisted_cancel_before_serve`，RED2 1 failed。准确命令选择同名测试；均为标准库合成子进程。
+- FAIL（fixture 错误）：RED3 首次 Registry 测试缺少 threading 导入而 NameError；补导入后 RED4 才证明真实 P2，不把 RED3 当 P2 证据。RED4 实际命令：`services/backend/.venv/bin/pytest -q services/backend/tests/test_remote_install.py -k reuses_session_cleanup`，1 failed/6 deselected。
+- PASS：`services/backend/.venv/bin/pytest -q services/backend/tests/test_remote_install_owner.py services/backend/tests/test_install_transport.py services/backend/tests/test_remote_install.py`，首轮 40 passed。
+- PASS：`services/backend/.venv/bin/pytest -q services/backend/tests/test_remote_install_owner.py services/backend/tests/test_install_transport.py services/backend/tests/test_remote_install.py services/backend/tests/test_remote_install_protocol.py services/backend/tests/test_connection_manager.py services/backend/tests/test_install_service.py services/backend/tests/test_install_process.py services/backend/tests/test_install_runtime.py services/backend/tests/test_install_history.py services/backend/tests/test_install_source_selection.py services/backend/tests/test_install_ml.py services/backend/tests/test_install_cv.py services/backend/tests/test_install_dl.py services/backend/tests/test_install_probe_ownership.py`，164 passed /15.32s，1 条已有 Starlette anyio alias 弃用 warning。
+- PASS：`UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache pnpm check`；包含 Ruff、100列格式、严格 mypy 66源文件、TS/合同/真实 Blockly fixtures 一致性及 Prettier。
+- PASS：`UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache XDG_CACHE_HOME=/workspace/.cache pnpm build`，冻结 sidecar 重建；`node scripts/test-frozen.mjs`，更新 helper 资源原文、默认禁执行计划、认证黄金编译/临时 cwd、EOF exit0 通过。helper SHA256 `65dc8805cdfb3285f558c15a07ffa62304543f1b8dae964d441eed85040657cd`。没有生成新 electron-builder 包。
+- PASS：独立只读 reviewer 相关四文件 41 passed /2.42s，加 FD/retiring 三项 3 passed /33 deselected；未发现明确阻断 P1/P2。仅本地合成 SDK/标准库子进程，没有依赖命令、SSH 或源码代改。
+- PASS：`git diff --check`；plan 仍116185字节、SHA256 `dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43`；README、原规格及 core/ML/CV/DL 八个来源/锁 SHA 均与上一片相同。
+
+### 工作区、远端与未完成门
+
+开始 checkout 为 `codex/demo-v0.0.0`、HEAD `3616826e28cef2d2ce4fd874f1bb81a6fcf17d94`，仅已有两份新增 P2 测试 WIP，均保留并纳入修复。origin 为 `https://github.com/T1doo/Easy-AI.git`；只读 ls-remote 确认开发分支同 HEAD、main 仍 `5323f86232529efcfb52131168ad049f01b219f3`。本地不存在 origin/codex/demo-v0.0.0 追踪 ref，未把它误报为远端差异；随后以 ls-remote 直接核准。源码提交后工作区 clean、远端仍旧证据 SHA；本证据提交后正常推送开发分支并再核最终完整 SHA/clean/main，结果见最终回报。
+
+NOT RUN：真实 SSH/安装/wheel 下载/数据上传、真实 import/ABI/tensor/训练、桌面/native picker/干净目标机、Windows/macOS、新 CI 查询或重跑、发布/Release/PR。默认执行门保持关闭，无新凭据/权限/付费、无教师共享环境写入。此前 Actions/Electron sandbox 拒绝没有重试或绕过。当前 HEAD 的云 CI 结果仍 UNKNOWN，不以本地通过宣称云 CI 通过。既有 7 卡未支持、CIFAR 裁决、Windows、未知停止安全解除等原计划缺口仍在，B 验收未完成。下一项：父级复核本三项 P2 后接原 M6.3 剩余代码与验收；真实远端正向门须先明确隔离目标、已准备来源、可信 launcher、许可/预算/窗口与认证指纹。
+
+本轮日志 SHA256（包括失败与 fixture 错误）：
+- `/tmp/easyai-owner-handoff-20261019-build1.log` SHA256 `e1fd233b3973f2a4e864b04aeb3c63a412486d30637b27c491b4fc765eb9f6a0`。
+- `/tmp/easyai-owner-handoff-20261019-check1.log` SHA256 `c42bd4df1916148541e1f0f0341c6c525fc308786650e029608cdf52c46e75fc`。
+- `/tmp/easyai-owner-handoff-20261019-diff1.log` SHA256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`。
+- `/tmp/easyai-owner-handoff-20261019-frozen1.log` SHA256 `598e651d8bfd55009c56cd315d848d8185d98d8ae4eb67c6d0dd2d14af4ed0c3`。
+- `/tmp/easyai-owner-handoff-20261019-green1.log` SHA256 `5b6198b1c0cee4ad2ac9c8f7ff1eee4e39365d5a3f14386031c0924f13c182c8`。
+- `/tmp/easyai-owner-handoff-20261019-red1.log` SHA256 `914a1cdbf693c0dccdb7ee50f34235e26358d979ca8acb699e77f342867aad2b`。
+- `/tmp/easyai-owner-handoff-20261019-red2.log` SHA256 `d800d670128996f52b26605da70a7d77b27e1a5b2c62f3e5452b4cf5f3725ba4`。
+- `/tmp/easyai-owner-handoff-20261019-red3.log` SHA256 `308d4dc55c71d2a2be12c3f26f61ae360ae3b4a2487b3c9a20831833ba628f15`。
+- `/tmp/easyai-owner-handoff-20261019-red4.log` SHA256 `542b30f5f582eae73a3e350cbcb430c554d5e5bd4b151f7c971c738af95051d7`。
+- `/tmp/easyai-owner-handoff-20261019-regression1.log` SHA256 `0715a852add139b656c0a414a426c3873adb7e9b0b47c1537e78673b8142b052`。
+- `/tmp/easyai-owner-handoff-review-CWLKO1.log` SHA256 `2972e2d48c593979cda048564306c1717f86a90219cdcc7529f2bf8057853e73`。
+- `/tmp/easyai-owner-fd-extra-review-5nYOUb.log` SHA256 `f3e61ab22787d76858807cfaf77577f577d38e9833bf7d3bd189df5efcd5c00d`。
