@@ -3526,3 +3526,18 @@ ZIP435255629B，SHA256 74f3522825f4e3f9106319f6af65515ab539304e708bd31e572ad60cc
 本地最终pnpm check/test/desktop build PASS（399 TS/950 Python/36 Node，skip见前条）；首次Python离线fixture teardown FAIL与单节点/全套再PASS如实保留，本轮Linux全套亦PASS，不声称具体时序原因已修复。独立导航/生命周期审查无新增明确P1/P2，React技能复核完成；本地实际GUI仍NOT RUN，由Windows真实两种模式提供GUI证据。
 
 当前仅本地收据/docs提交，避免报告额外CI；c7ca38d证据已随正常源码推送保全，remote源码精确对应3c53280b16fc63f30567520951b3fe3055624863。main5323f86232529efcfb52131168ad049f01b219f3、原计划/规格/README/锁未改。此次仅关闭原计划内重复同目标源定位缺口；下一项仍按原计划核剩余M4/M7与发布验收，完整M4/M7、真实SSH/MNIST训练/效果、TST33/硬件/许可/A/B未验边界不变。无真实训练/SSH/下载/权限/凭据/共享环境/main/PR/Release/部署行为。
+
+
+### TST32 实际桌面教程算术验收补证（提交前）
+
+基线本地HEAD e85e64dd88f2321363610fde06212ebe64b07023、remote dev3c53280b16fc63f30567520951b3fe3055624863，工作区起始干净；保全既有e85文档提交，随本次必要测试开发正常推送。main5323f86232529efcfb52131168ad049f01b219f3及原计划/规格/README/两个依赖锁SHA再次保持。
+
+先核原计划§16.5/TST32：要求React本地固定5×5矩阵/可编辑3×3核的真实交互，不要求Python算术运行器或新工作区；全1输入/核每窗9明确属于unit。现有函数+React与App测试不是Electron GUI证据，已有两个实际E2E未打开教程。本轮仅新增第三个tutorial-convolution真实Electron场景，不改产品。真实入口→卷积主题→固定输入1..25、九个窗口具体高亮值/九项乘积/位置/和/输出选择状态→核首项2使右下184且全网格各自增加对应窗口首值→点击第一行第二列得74→非法11/空值均隐藏旧结果→填回2恢复74→重置全部核1及首窗63。全程无工程/解释器/数据选择或编译训练；保留原两个E2E所有门与sandbox，同场景自然用于开发态和包内。
+
+独审发现测试finally清理可能覆盖原首错的P2，已按既有blank场景策略修复：确认正常退出才删除临时目录，未知退出保留证据；已有主失败时清理失败仅固定分类记录，成功场景清理失败仍FAIL。独立最终复核无其他明确P1/P2；独立22相关unit PASS不与主执行重复加总。
+
+实际命令（既有CI/XDG/UV_OFFLINE工作区缓存环境）：pnpm check PASS；pnpm exec tsc -p tsconfig.tests.json PASS；pnpm exec vitest run apps/desktop/src/convolution.test.mts apps/desktop/src/TutorialPanel.test.mts →22PASS；pnpm test:e2e --list →3场景发现PASS（不是执行通过）；git diff --check PASS。产品源码/后端/依赖未改，不为测试声明重复全套本地训练或build；下一自然CI仍执行完整检查/普通测试/build及Windows dev+packaged三场景。当前本机GUI NOT RUN（既有sandbox/无DISPLAY条件不足，无重试/降安全），实际桌面结果等待本轮唯一自然CI。
+
+日志：/tmp/easyai-tutorial-check-final-20261019.log SHA256 e580f738fb6f2a6bfe01cc5daae5d3e702f5220b2ad112eafff67fad6afa0a95；/tmp/easyai-tutorial-unit-20261019.log a6c05502a7fb54fced08fa4fbc3a35ca448198c2ffb204ae81524a8bba6c39cb；/tmp/easyai-tutorial-e2e-list-20261019.log 6db5c728529df9cf0ac3da4af8e373d627015052de27c186b440bc7d88f7f458。
+
+另完成只读独立CPU依赖元数据核对：Python3.11.17、torch2.10.0+cpu、torchvision0.25.0+cpu、Matplotlib3.10.8、NumPy2.4.2、Pillow13.0.0及integration005回执存在；不import训练库/探硬件/训练。分别列明真实MNIST、SSH、TST34、TST33条件于acceptance-prerequisites-20261019.md，不让SSH阻塞所有本地项。旧总览Windows门关闭段落属历史，不重新当作当前代码欠账。TST34可复用已有独立环境，不需新增训练依赖；当前仅允许安全算术补证，未运行外部Bundle训练。真实MNIST数据未提供且未下载；SSH目标/指纹/凭据/窗口未提供；干净图形机未提供。以上待输入/范围为NOTRUN，非新工具拒绝或执行未知。完整M4/M7/M5/TST33/34/许可/硬件/A/B保持未整体验收；无安装/下载/SSH/权限/凭据/共享环境/main/PR/Release/部署操作。
