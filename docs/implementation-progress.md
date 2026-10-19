@@ -3294,3 +3294,23 @@ PASS：App组件/实际Main sidecar字节原样导出与真实SVG两文件34test
 已请求父级在已登录页面读取该Windows step14最后ACTION/REVEAL_GEOMETRY/DRAG_GEOMETRY、首错调用栈、PROCESS_EXIT/CLOSE_CONFIRMED/CLOSE_FAILED。当前读取待返回，准确挂点未知：不能从step失败推断Prep注册已过或仍失败，不能将source修复当真实GUI通过，也不能将旧已确认exit0借给新轮。未重试受限日志/artifact接口、未绕过、未盲重跑CI，停止依赖首错的修补。
 
 工作区提交前复核dev remote同源码，main仍5323f86232529efcfb52131168ad049f01b219f3；原plan/原规格/README/pnpm与backend uv锁SHA全部与基线记录一致。当前仅本地docs证据提交，不触发另一次CI，旧失败与所有本地日志保留。下一项取得实际新首错并按源码证据修复。真实空白构建闭环、完整M4/M7、SSH/MNIST/TST33/许可/A/B仍未完成；本轮没有训练、下载、真实SSH、权限/凭据/共享环境/main/发布操作。
+
+
+### 空白画布区域计算统一审查与本地真实SVG DOM回归
+
+父级已登录页面取得CI39246877327/job118040831757 step14新首错：首个data.drag预处理流水线在Canvas.bounds抛“Canvas has no usable visible interaction area”（evaluate59→drag173→interaction19→blank90/89），尚无DRAG_GEOMETRY。renderer[]、pid2836/code0/signalnull、CLOSE_CONFIRMED；1failed/1passed15.5s。故退出句柄修复已有真实执行证据，而新区域算法回退到第一步，不能说注册已过。上次bounds在异常前没输出各原始矩形，哪个读数实际折叠区域未取得，不编造Windows scrollbar坐标。该旧FAIL保全。
+
+本轮先统一源审而非再单点盲试：错误算法把horizontal/vertical scrollbar根SVG的top/left当成整块遮挡边界，并把无overflow裁剪语义的panel盒当强clip。锁定Blockly13.4 css明确scrollbar background opacity0/pointer-events:none，实际paint仅handle部分；根SVG viewport不是不可穿透的整个屏障，因此它的边界没有资格直接截断整个主工作区。新独立、只读且原样serialize进renderer的inspectCanvasGeometry测量main SVG/background/browser viewport/toolbox，保留48px最小区域门；scrollbar根与实际handle、transform/display、flyout、panel全部先输出为EASYAI_TOOLBOX_CANVAS_GEOMETRY再判断。缺main/toolbox/零尺寸仍拒绝，没有回退硬编码可用区域。
+
+bounds在DOM滚动后等2rAF实际layout/ResizeObserver，不用固定sleep/放宽总时限。实际wheel仍只在elementFromPoint命中主workspace的点派发，drop目标在打开flyout前也必须实际命中同workspace；source必须visible，field点击仍受原Playwright接收事件门约束，不force。不能把粗frame矩形当作每一点可点击，实际hittest/动作/新增连接图门共同验证。保留4次wheel/8s动作/15s步骤/180s场景/12s关闭与abort/首错保全，原保存重开/图字段/ID/引用/权威编译/shape诊断/沙盒门未削减。
+
+本地现有browserWorkspaceFactory真实3页SVG DOM场景回归PASS：未提供布局引擎的原JSDOM仍无可用区域；在实际DOM节点上提供受控getBoundingClientRect输入，父级此前main/toolbox矩形+根scrollbar viewport在原点(0,0)的计算不再把area折叠，viewport缩到80时仍仅27.75高（会被48px门拒绝）。这些屏幕矩形是明确的受控计算输入，并不是声称Windows旧bar实际坐标或本地GUI像素布局。真实WheelEvent路由回归继续证明兄弟scrollbar不触发workspace.scroll、main背景触发一次。
+
+统一独立只读复核覆盖bounds/reveal/drag/field与后续完整路径：Geras notch/15偏移与screenCTM、drop后2rAF、flyout分类manifest顺序/各源单行默认高度、对象注册/名字blur与稳定引用、模型6块合法3136shape、3135精确诊断定位/修复与保存重开；未发现新的确定P1/P2或错误强约束。真实Windows拖拽、平移与可达性仍待CI，受控矩形测试不冒充实际GUI。没有调用程序化图/注册/参数注入。
+
+PASS：完整pnpm check；真实SVG DOM/计算回归9tests；最后tsc -p tsconfig.tests.json/格式/diff-check。前次3660 CI Linux完整check/test/build已SUCCESS，后端/产品均无本轮改动，不额外重复950个未变Python测试。本机无Xvfb/DISPLAY、已有Chromium sandbox条件不满足，仅读本机工具/权限状态，未启动新GUI、禁用sandbox、改setuid或增加权限；本地实际GUI仍NOT RUN。下一次仅本轮明确修正非法几何假设、完整审查与回归后的单次自然CI；原run不重跑，原件/依赖/main/真实训练数据/SSH/发布边界保持。
+
+- /tmp/easyai-toolbox-viewport-local-20261019.log SHA256 `bfd440de4bbd22c711398c49f3d4b16d393407d73e123e9c262b9f4e41005b9b`。
+- /tmp/easyai-toolbox-viewport-check-20261019.log SHA256 `e580f738fb6f2a6bfe01cc5daae5d3e702f5220b2ad112eafff67fad6afa0a95`。
+- /tmp/easyai-toolbox-viewport-regression-20261019.log SHA256 `922af7fe6c5ba3a51f1373c8eb129dce76bc104d2b9ef70baa2f767495e6801d`。
+- /tmp/easyai-toolbox-viewport-final-tsc-20261019.log SHA256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`。

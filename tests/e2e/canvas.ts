@@ -1,4 +1,8 @@
 import { test, expect, type Locator, type Page } from "@playwright/test";
+import {
+  inspectCanvasGeometry,
+  mainWorkspaceOwnsPoint,
+} from "./canvas-geometry.js";
 
 const sessions = new WeakMap<object, AbortController>();
 function interactionSignal() {
@@ -56,39 +60,14 @@ export class Canvas {
   async bounds() {
     interactionSignal();
     await this.panel.scrollIntoViewIfNeeded();
-    return this.panel.evaluate((panel) => {
-      const background = panel
-        .querySelector(".blocklyMainBackground")!
-        .getBoundingClientRect();
-      const toolbox = panel
-        .querySelector(".blocklyToolbox")!
-        .getBoundingClientRect();
-      const clip = panel.getBoundingClientRect();
-      const horizontal = panel
-        .querySelector(".injectionDiv > .blocklyScrollbarHorizontal")
-        ?.getBoundingClientRect();
-      const vertical = panel
-        .querySelector(".injectionDiv > .blocklyScrollbarVertical")
-        ?.getBoundingClientRect();
-      const left = Math.max(0, background.left, clip.left, toolbox.right);
-      const top = Math.max(0, background.top, clip.top);
-      const right = Math.min(
-        window.innerWidth,
-        background.right,
-        clip.right,
-        vertical?.width ? vertical.left : Infinity,
-      );
-      const bottom = Math.min(
-        window.innerHeight,
-        background.bottom,
-        clip.bottom,
-        horizontal?.height ? horizontal.top : Infinity,
-      );
-      if (right - left < 48 || bottom - top < 48)
-        throw new Error("Canvas has no usable visible interaction area");
-      return { x: left, y: top, width: right - left, height: bottom - top };
-    });
+    await this.frame();
+    const snapshot = await this.panel.evaluate(inspectCanvasGeometry);
+    console.info("EASYAI_TOOLBOX_CANVAS_GEOMETRY", JSON.stringify(snapshot));
+    if (snapshot.area.width < 48 || snapshot.area.height < 48)
+      throw new Error("Canvas has no usable visible interaction area");
+    return snapshot.area;
   }
+
   async reveal(element: Locator) {
     // Blockly scrollbars transform the SVG; ordinary DOM scrolling does not pan it.
     for (let attempt = 0; attempt <= 4; attempt++) {
@@ -184,6 +163,10 @@ export class Canvas {
       "parent" in destination
         ? await this.connection(destination.parent, destination.kind)
         : { x: area.x + 50, y: area.y + 40 + destination.row * 85 };
+    expect(
+      await this.panel.evaluate(mainWorkspaceOwnsPoint, target),
+      "The measured drop destination must hit the actual main workspace before opening the flyout",
+    ).toBe(true);
     const before = await this.blocks
       .locator("g[data-id]")
       .evaluateAll((nodes) =>
@@ -197,6 +180,7 @@ export class Canvas {
       .locator(".blocklyFlyout .blocklyBlockCanvas > g[data-id]")
       .filter({ hasText: new RegExp(`^${escaped}`) });
     await expect(source).toHaveCount(1);
+    await expect(source).toBeVisible();
     const box = (await source
       .locator(":scope > path.blocklyPath")
       .boundingBox())!;

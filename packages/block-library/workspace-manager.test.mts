@@ -12,6 +12,7 @@ import {
 } from "../../apps/desktop/src/WorkspaceManager.js";
 import type { ProjectDocument } from "../../apps/desktop/electron/bridge.js";
 import { FieldSymbolRef } from "./symbols.mjs";
+import { inspectCanvasGeometry } from "../../tests/e2e/canvas-geometry.js";
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
 function fixture(): ProjectDocument {
@@ -332,6 +333,57 @@ it("initializes actual SVG canvases with local workspace accessibility messages"
       background.dispatchEvent(wheel());
       expect(scroll).toHaveBeenCalledTimes(1);
       scroll.mockRestore();
+      // JSDOM has no layout engine: use controlled screen rectangles on this
+      // actual SVG DOM to regress the calculation, not to claim GUI proof.
+      expect(inspectCanvasGeometry(host).area.width).toBeLessThan(48);
+      const svg = background.closest("svg")!;
+      const toolbox = host.querySelector(".blocklyToolbox")!;
+      const vertical = host.querySelector(
+        ".injectionDiv > .blocklyScrollbarVertical",
+      )!;
+      const rectangles = [
+        vi
+          .spyOn(background, "getBoundingClientRect")
+          .mockReturnValue(new dom.window.DOMRect(0, 52.25, 697.5, 551)),
+        vi
+          .spyOn(svg, "getBoundingClientRect")
+          .mockReturnValue(new dom.window.DOMRect(0, 52.25, 697.5, 551)),
+        vi
+          .spyOn(toolbox, "getBoundingClientRect")
+          .mockReturnValue(new dom.window.DOMRect(0, 52.25, 158, 551)),
+        // Root SVG viewports must not be mistaken for painted edge barriers.
+        vi
+          .spyOn(horizontal, "getBoundingClientRect")
+          .mockReturnValue(new dom.window.DOMRect(0, 0, 697.5, 15)),
+        vi
+          .spyOn(vertical, "getBoundingClientRect")
+          .mockReturnValue(new dom.window.DOMRect(0, 0, 15, 551)),
+      ];
+      const previousHeight = dom.window.innerHeight;
+      try {
+        const snapshot = inspectCanvasGeometry(host);
+        expect(snapshot.area).toEqual({
+          x: 158,
+          y: 52.25,
+          width: 539.5,
+          height: 551,
+        });
+        expect(snapshot.geometry.horizontal.viewport?.top).toBe(0);
+        expect(snapshot.geometry.vertical.viewport?.left).toBe(0);
+        // The real browser viewport still clips the workspace; zero/small
+        // visible space never gets made interactable by an artificial fallback.
+        Object.defineProperty(dom.window, "innerHeight", {
+          configurable: true,
+          value: 80,
+        });
+        expect(inspectCanvasGeometry(host).area.height).toBe(27.75);
+      } finally {
+        Object.defineProperty(dom.window, "innerHeight", {
+          configurable: true,
+          value: previousHeight,
+        });
+        rectangles.forEach((mock) => mock.mockRestore());
+      }
     }
   } finally {
     handles.forEach((handle) => handle.dispose());
