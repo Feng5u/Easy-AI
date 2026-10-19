@@ -2369,3 +2369,79 @@ CI准确安装错误正文/根因仍UNKNOWN：最新已知父侧证据e454f97044
 - `/tmp/easyai-nlp-metadata-20261019/raw-sha256.json` SHA256 `a3a4f96191fef335e8fa7a4173b7644c225e05c547b08d7aacc718562f30fcb8`。
 - `/tmp/easyai_nlp_metadata_20261019.py` SHA256 `81d74cc3bd8c3159dff00553e471b4710ee5ed7ab383d5b0af90a2bbdda4f2be`。
 - `/tmp/easyai_nlp_capture_20261019.py` SHA256 `98434a06b6b769744295624d120564d25717e0fb6901863c5a8722564431a1c2`。
+
+
+## 2026-10-19：原14.3剩余四NLP卡默认闭包整批裁决与原链交付
+
+父侧有限接受0f8e675dbaf35f5025dc1965565e76855e935838/5cb7757859dc3c4bfa7c2a083de9aa7e679b0c99的SentencePiece元数据接线。本轮按要求一次完整裁决spaCy/Transformers/Gensim/HanLP，不拆统计小片。开始HEAD/远端开发分支均`5cb7757859dc3c4bfa7c2a083de9aa7e679b0c99`、工作区clean，单一集成者；原计划baseline/main仍5323f86232529efcfb52131168ad049f01b219f3。源码完整SHA **`467a2018194ae131789f45cd62a56ffdc0783950`**。
+
+### 批次结论、预算与能力边界
+
+- **spaCy3.8.16**：43可达节点（止于既有固定闭包锚点），无当前声明约束冲突；新thinc8.3.13/blis等默认闭包完整。复用原DL的tqdm/idna，实际原planner计划60wheel，核心21以外59656447字节，总300429146字节。
+- **Transformers5.20.1**：27可达节点，无当前声明约束冲突；hub2.2.0/tokenizers0.23.3/safetensors0.8.0/hf-xet等默认闭包完整，无其他extras。复用固定pyyaml/tqdm/idna，实际计划43wheel，核心外25866254字节，总266638953字节。
+- **Gensim4.4.0**：完整5节点=本包/NumPy/原SciPy/smart-open8.0.4/wrapt2.5.1。实际计划25wheel，核心外63473279字节（包括不在核心21里的既有可选SciPy），总304245978字节。不能把新候选3wheel的28123979字节冒充整个计划增量。
+- **HanLP2.1.5**：明确`INSTALL_BINARY_WHEEL_UNAVAILABLE`。直接依赖hanlp-common0.0.23、hanlp-downloader0.0.25、hanlp-trie0.0.5固定JSON的全部artifact只有sdist，没有目标wheel；原安装器仅binary，不下载/构建源码或换版本。已核可达33记录加3个二进制阻断节点，阻断之后没有伪称完整可安装闭包；总体download/installed体积仍未知。不是CPU/NumPy约束冲突。
+
+三新库联合实际计划72wheel/387209225字节；加原SentencePiece为73wheel/388603467字节。所有数据为可信注册表wheel下载元数据，未下载本体，不含bootstrap/完整环境占用，解包量及installedBytes均null。核心NumPy2.4.2、torch2.10.0+cpu与原core/ML/CV/DL八来源锁完全不改。NLP源48package（SentencePiece+47新增）保留完整默认Requires-Dist、markers、pinnedJSON/PEP658/文件hash/字节、当次yanked/漏洞与许可投影；97184字节，保留原100000上限。
+
+NLTK3.10.3安全阻断不变（父侧已核PyPI/OSV last_affected3.10.3；不降级绕过、不声称逐版复现）。当前**14/17卡仅为元数据闭包/计划能力**；OpenCV native、NLTK与HanLP仍unsupported，不签实际安装或B。
+
+### 实际实现与离线行为裁决
+
+三根进入NLP_ROOTS/显式distribution→import映射/原wheels闭包、NLP hash lock、原constraintsHash/planHash过期门、选择来源/预算、同一OfflineWheelInstaller与共享远端lock生成器、精确版本/选中imports/原CPU tensor复检。未新建运行时resolver或安装器。Gensim按选择加载既有ML provider；spaCy/Transformers加载DL provider复用少量固定pin。只选Lightning才展开core fsspec[http]；Transformers普通fsspec依赖不额外引入aiohttp。512个可选根组合核去重、核心不替换、闭包可达与该extra门。
+
+来源登记仍executionAuthorized=false；默认执行门关闭。原--no-index/--only-binary=:all:/--require-hashes、固定本地来源与清PIP配置未改变。HanLP具体code映射及UI阻止文案替代旧“闭包尚未核完”，全NLP组含NLTK/HanLP仍blocked/总量unknown。源/锁漂移会使已确认计划失效。API合同/应用依赖/核心锁不变。
+
+发行PEP658描述证据：spaCy模型通过独立download命令或模型包安装、随后spacy.load；Transformers明确指定模型pipeline会下载/缓存；HanLP示例将import与hanlp.load(pretrained)分开且依赖downloader；Gensim元数据未保证plain import零联网。这些不能反推plain import必下载，也不能证明其零联网。固定probe只做选中普通imports、版本与tensor，AST测试无pipeline/from_pretrained/load/download调用；未新增模型选择、加载、下载、服务、语料或预训练API能力，未接受新条款或权限。
+
+**没有网络隔离声明。** pip离线参数不约束第三方import中的native/网络行为，私有HOME/超时/取消也不等于封网。独审最初建议OFFLINE_IMPORT_UNVERIFIED时已澄清：这是“不能保证零egress”的真实执行门，不能把未import本身当作元数据闭包不成立（SentencePiece同样未import）。本片三包只签元数据/计划能力，实际import/native ABI/无下载行为一律NOT RUN；未来执行须在具体来源/目标/许可/预算/窗口内另验。未靠环境变量伪造隔离，也未开放系统权限。
+
+### 元数据读取、原文保全与中间错误
+
+本批共**214**个有界官方JSON/PEP658请求（210主图+4补充JSON）；只允许pypi.org JSON/Simple与files.pythonhosted.org的.whl.metadata，未请求wheel/sdist/模型/语料。开发审计脚本不进入应用运行时。`/tmp/easyai-nlp-four-20261019`保留112个文件的清单（随后生成preserved-files.json），包括pinnedJSON/PEP658原文、48条来源对应记录（SentencePiece原件另见上一批目录）、最终默认图、3个sdist-only原JSON与审计记录。latest/Simple响应在捕获时核对并保留请求hash，未把未存全文的索引响应宣称为完整原文备份。
+
+中间审计错误保留：Gensim单根候选扫描遇到smart-open历史16个发行artifact的非法Requires-Python `>=3.5.*`，这是开发工具解析错误，不是当前包冲突。联合图已获取并核验smart-open8.0.4及wrapt；后续仅离线从联合已核图提取Gensim完整5节点、逐边校验，另读4个JSON保存三个sdist-only证据和历史坏字段证据，没有降级/绕过拒绝。初版NLP测试只接受cp311而漏合法旧CPython abi3 tag，targeted1为1FAIL/44PASS；修为packaging.tags精确目标集合，仍明确拒绝cp312/Windows负例，原失败日志保留。
+
+### 实际命令与PASS/FAIL
+
+所有命令在/workspace/Easy-AI；唯一日志/noclobber，失败不覆盖：
+
+- PASS（含上述明确审计错误行）：`services/backend/.venv/bin/python /tmp/easyai_nlp_four_graph_20261019.py`，210 JSON/metadata，主图/联合结果保留；`services/backend/.venv/bin/python /tmp/easyai_nlp_four_finish_20261019.py`，4 JSON、最终三完整图与HanLP阻断证据。`services/backend/.venv/bin/python /tmp/easyai_nlp_four_integrate_20261019.py`仅把已核记录/边写入固定来源、锁与原链，未执行候选包。
+- FAIL（测试漏abi3）：`services/backend/.venv/bin/pytest -q services/backend/tests/test_install_nlp.py services/backend/tests/test_install_ml.py services/backend/tests/test_install_cv.py services/backend/tests/test_install_dl.py`，targeted1 **1 failed/44 passed**；targeted2修后45PASS，追加覆盖后targeted3 **50 passed/1.81s**。包括512组合、三根所需ML/DL来源缺失/预算/登记禁授权、同一精确锁/离线命令、plain-import-only AST、每根版本/import/tensor失败门。NLP测试拒绝Popen/socket真实调用，合成inventory不当真实ABI证据。
+- PASS：`services/backend/.venv/bin/pytest -q services/backend/tests/test_install_service.py services/backend/tests/test_install_source_selection.py services/backend/tests/test_install_history.py services/backend/tests/test_remote_install.py services/backend/tests/test_remote_install_protocol.py services/backend/tests/test_remote_install_owner.py services/backend/tests/test_install_transport.py`，**99 passed/5.41s**；仅合成SDK/标准库子进程，不真实SSH或包执行。
+- PASS：`pnpm exec vitest run apps/desktop/src/PackageManager.test.mts`，**13 passed**；`pnpm test:package`，**20 passed**，原保护回归，无新builder包。
+- PASS：`UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache pnpm check`，TS/合同/fixtures、Ruff/格式、严格mypy66源文件、Prettier；`UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache XDG_CACHE_HOME=/workspace/.cache pnpm build`。
+- PASS：源提交后`node scripts/test-frozen.mjs`，实际冻结sidecar原文资源/十文件constraintsHash、三根60/43/25的HTTP计划/正确预算与默认禁执行、NLP组拒绝、认证黄金编译/临时cwd/EOF退出0。未启动Electron或训练环境。
+- PASS：独立只读NLP **26 passed/1.35s**（与50定向重叠，不累加）；48条来源原始pinnedJSON/PEP658/文件hash/大小/完整Requires-Dist、三sdist-only证据核对，三库联合pins一致，无剩余明确P1/P2；未联网/import/安装/代改。当前NLP合同/清单旧“仅SentencePiece/11卡/四卡未核”已统一更正。
+- PASS：git diff --check；原plan116185字节/hash dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43、README/旧规格与core/ML/CV/DL八来源锁hash均未改；pnpm-lock/uv.lock/CI配置未改。NLP来源SHA256 `3a781aa307fa9e3a934752887321445c51f7de514c8b722a9342aca7887e024e`，NLP锁SHA256 `061e82c755d932675f1359f26dbea69bdc3a27fcd5ca7e5135a1ac52fd73ee29`。
+
+### 远端差异、真实门与下一项
+
+源提交后工作区clean；预推送ls-remote开发分支仍5cb7757859dc3c4bfa7c2a083de9aa7e679b0c99，origin仍https://github.com/T1doo/Easy-AI.git，main仍5323f86232529efcfb52131168ad049f01b219f3。本证据提交后仅正常推codex/demo-v0.0.0并核完整最终SHA/clean/main，最终回报为准；无main/Feng写入、强推、PR、Release或部署。
+
+NOT RUN：wheel/sdist/模型/语料/数据下载、安装/源码构建/真实NLP或训练import/ABI/tensor/训练、零egress实测、真实SSH/上传/服务器故障/桌面/native picker/干净目标机/Windows/macOS、新CI日志读取或主动重跑。没有新增凭据/收费/权限/条款，未改教师共享环境或执行门。下一项父侧复核本整批裁决后继续原M6.3/M7/M8剩余项；OpenCV native、NLTK候选安全与HanLP二进制来源保持具体unsupported，真实M6.3/B未验，不称全部仅差环境。
+
+CI准确安装错误正文/根因仍独立UNKNOWN：最新已知e454f97044f84f20347b10f3807220727f2dac1f/run39181255841及3616826e28cef2d2ce4fd874f1bb81a6fcf17d94/run39180535293同pnpm install --frozen-lockfile步骤双失败。本轮源码/证据SHA云CI结果未知。对错误正文的既有Actions访问拒绝未重试/换路，需父侧提供准确正文，不按步骤名猜lock修复；既有Electron sandbox拒绝也未重试。旧226PASS/1FAIL raw丢失根因UNKNOWN不回溯关闭。
+
+本批日志/脚本/元数据清单SHA256（FAIL及纠正均保留）：
+- `/tmp/easyai-nlp-four-20261019-build1.log` SHA256 `eb838303b667491af70dc3518537497cd539b6b2a33d1582485470b0cb56b3e2`。
+- `/tmp/easyai-nlp-four-20261019-check1.log` SHA256 `33d638c44f61709c5fea38251066696a5a89ca3d3d4d8bf8ffb532d282f23af2`。
+- `/tmp/easyai-nlp-four-20261019-discovery1.log` SHA256 `fbabbd9de1daa803a6191f595194aead7e5261c12fb665bbd59b2b5b0db25ae8`。
+- `/tmp/easyai-nlp-four-20261019-finish1.log` SHA256 `37fa7a7c42fb96caab0b73972fb36516c71dde6766d6b2b336eba8b1349d0ae5`。
+- `/tmp/easyai-nlp-four-20261019-frozen1.log` SHA256 `598e651d8bfd55009c56cd315d848d8185d98d8ae4eb67c6d0dd2d14af4ed0c3`。
+- `/tmp/easyai-nlp-four-20261019-integrate1.log` SHA256 `3bffe6802698afe299a577e9601d20418a68b4f946a7ce1056307decc1b68b4b`。
+- `/tmp/easyai-nlp-four-20261019-package1.log` SHA256 `96025f674b59712162499bdc075f2027d719082bcdae289b39124160705aa715`。
+- `/tmp/easyai-nlp-four-20261019-regression1.log` SHA256 `a03e9410918581e1ccd6022f81dceb413683cd2d1cf3259f8d491786bf167669`。
+- `/tmp/easyai-nlp-four-20261019-targeted1.log` SHA256 `e50b47abffe95328d8057b3beeca4a1d25bbd5674314b3bf599d065e6debfa8b`。
+- `/tmp/easyai-nlp-four-20261019-targeted2.log` SHA256 `e658bc78ab8dc3ad20432fd0c5f191521be56af24c467f74a19523911bb6477d`。
+- `/tmp/easyai-nlp-four-20261019-targeted3.log` SHA256 `eca99486b913c06a4ff2da7b9018a51e98a9ccb3039f8bc272ff16f9865ffc37`。
+- `/tmp/easyai-nlp-four-20261019-ui1.log` SHA256 `d980540120b720eed0f2a3f9a6723613ff22d8a3152489aae29cfeb98dddd4cf`。
+- `/tmp/easyai-nlp-expanded-review-cqNPbl.log` SHA256 `1b62398230dbae646cdebb2b3778443ebceb0e9dff086a5ec08d675f2a524cde`。
+- `/tmp/easyai_nlp_four_graph_20261019.py` SHA256 `08a0a3c8aaf85294e5d0ad57a4f7fbaf03cc64efbbc34c626608541ee16c6a51`。
+- `/tmp/easyai_nlp_four_finish_20261019.py` SHA256 `0b46bd73991e082d8baa39f653549e34c8f59b6406075f78e6f605425fdcf8e1`。
+- `/tmp/easyai_nlp_four_integrate_20261019.py` SHA256 `cd5a1b37b3fad7543dc6ca44c8296f13da3dbdb89120d395eef2b4f6c6f37898`。
+- `/tmp/easyai-nlp-four-20261019/requests.json` SHA256 `d1f0ebe12e257ffd540e6223bcff580ab7d0981cdd70ac32bfa5f987cf1a7129`。
+- `/tmp/easyai-nlp-four-20261019/additional-requests.json` SHA256 `61cc186e25ff48e51220c14f8c6dd2bdff3041e85a621c2712e6ba113373468c`。
+- `/tmp/easyai-nlp-four-20261019/final-decisions.json` SHA256 `7c87494e3fcec039c792b3382c44b5a3ff82b358f2de7fb4d8db5a32614223e2`。
+- `/tmp/easyai-nlp-four-20261019/invalid-historical-requires-python.json` SHA256 `1cbd2d837115a0ad60a5324c1b19f5426189ceb0dc5510876a419a7cdc6f796a`。
+- `/tmp/easyai-nlp-four-20261019/preserved-files.json` SHA256 `00054a629e46330a5eefa5bccf71435ce641e20caf46634220ea1a67f2788d31`。
