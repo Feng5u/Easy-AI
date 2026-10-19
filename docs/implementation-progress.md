@@ -3344,3 +3344,12 @@ PASS：完整pnpm check、现有SVG/geometry/命中9tests、diff-check；独立�
 - /tmp/easyai-toolbox-occlusion-check-20261019.log SHA256 `88a4326969cfae90aa6526cd8ad03eca9f029faf19b8e3159c253cef10e2aecc`。
 - /tmp/easyai-toolbox-occlusion-check-final-20261019.log SHA256 `e580f738fb6f2a6bfe01cc5daae5d3e702f5220b2ad112eafff67fad6afa0a95`。
 - /tmp/easyai-field-hit-independent-OUUlgg.log SHA256 `2e8f4fc1c92e8c1215ad78a96f0d385f9588be9a7d0ac17c153a91818a91f2f5`。
+
+
+### 统一字段命中修复CI结果与取证边界
+
+源码/remote `df1434114a470ef1d23e49459c5e96c772aaad5d`，[CI39249659748](https://github.com/T1doo/Easy-AI/actions/runs/39249659748)。Linux job118050049666 check/test/build完整SUCCESS；Windows job118050050131 step14真实开发态E2E FAIL，前置native安全/冻结/backend/资源/build/venv隔离成功，后续打包验收未执行，无新候选。
+
+已请求父级在已登录页面读取该step首个错误、最后ACTION、REVEAL_GEOMETRY的hit/point与canvas几何、退出标志。动作待父级完成；现有元数据不能判断Prep/引用/数字/checkbox的哪个步骤失败或哪个门已通过，不能把源修复或旧轮CLOSE_CONFIRMED借为本轮证据。停止进一步修补和CI，先核此轮真实失败；没有盲重跑或重试受限日志/artifact/browserAPI。旧原始FAIL与本地红绿/独立日志均保留。
+
+本轮统一实际命中修复、9项本地与独立回归以及完整check通过不冒充GUI成功。后续仍保留真实click/注册/引用/权威编译/shape/重开门，不以放宽测试换通过。当前只有本地docs证据提交，工作区提交后clean、领先remote一条，main/原件/依赖不变。完整空白CNN/M4/M7/A/B、真实SSH/MNIST/TST33/许可仍未完成；没有训练/下载/权限/凭据/共享环境/main/发布或付费变化。
