@@ -1,3 +1,9 @@
+import {
+  fieldLabels,
+  adjacentField,
+  fieldLabelPattern,
+  blockLabelPrefix,
+} from "./canvas-fields.js";
 import { test, expect, type Locator, type Page } from "@playwright/test";
 import {
   inspectCanvasGeometry,
@@ -177,9 +183,7 @@ export class Canvas {
       // Selecting a block through the inspector is not needed: pan the actual
       // canvas to its header before measuring the physical connection.
       await this.reveal(
-        this.block(destination.parent)
-          .locator(":scope > g.blocklyField")
-          .first(),
+        this.block(destination.parent).locator(fieldLabels).first(),
         true,
       );
     }
@@ -199,10 +203,9 @@ export class Canvas {
     await interaction(`toolbox category ${category} for ${label}`, () =>
       this.panel.getByRole("treeitem", { name: category, exact: true }).click(),
     );
-    const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const source = this.panel
       .locator(".blocklyFlyout .blocklyBlockCanvas > g[data-id]")
-      .filter({ hasText: new RegExp(`^${escaped}`) });
+      .filter({ hasText: blockLabelPrefix(label) });
     await expect(source).toHaveCount(1);
     await expect(source).toBeVisible();
     const box = (await source
@@ -262,9 +265,9 @@ export class Canvas {
   }
   field(id: string, name: string) {
     return this.block(id)
-      .locator(":scope > g.blocklyField")
-      .filter({ hasText: new RegExp(`^${name}$`) })
-      .locator("xpath=following-sibling::*[1]");
+      .locator(fieldLabels)
+      .filter({ hasText: fieldLabelPattern(name) })
+      .locator(adjacentField);
   }
   async option(id: string, field: string, value: string) {
     const control = this.field(id, field);
@@ -287,7 +290,7 @@ export class Canvas {
     await expect(control).toContainText(value);
   }
   async register(id: string, name: string) {
-    const header = this.block(id).locator(":scope > g.blocklyField").first();
+    const header = this.block(id).locator(fieldLabels).first();
     await this.clickField(
       header,
       `select object for registration ${name}`,

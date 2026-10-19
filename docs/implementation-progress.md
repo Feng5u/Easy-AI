@@ -3420,3 +3420,25 @@ PASS（CI=true、XDG_DATA_HOME=/workspace/.local/share、XDG_CACHE_HOME=/workspa
 已请求父级在已登录页面读取该step首错/调用栈、最后ACTION/SELECTION/REVEAL_GEOMETRY/DRAG_GEOMETRY及PROCESS_EXIT/CLOSE_CONFIRMED。此动作待返回；尚不能确认本轮Prep注册是否越过、后续挂点或退出状态，不借上轮pid2432/code0充当本轮证据。取得实际错误前停止依赖它的修补与CI，没有重试受限日志/artifact接口或盲重跑旧run。本轮实际React/Blockly6项RED→GREEN、事务10项/联合47项/独立审查/完整本地回归均保留，不替代真实GUI验收。
 
 当前仅本地docs证据提交，避免报告另触发CI；main5323f86232529efcfb52131168ad049f01b219f3、原件/README/规格/依赖锁保持。完整空白CNN/M4/M7/SSH/MNIST/TST33/许可/A/B仍未验收。未执行训练安装、下载、真实SSH、权限/凭据/共享环境更改或发布。
+
+
+### 真实SVG字段语义统一修复：21种积木/39字段及React覆盖后再验证
+
+父级读取CI39253943530/job118064390904 step14：select object/rename object Prep均PASS，但还未BEGIN register object；新增canvas.ts310的NAME真实文本断言locator空（5000ms），并非checkbox再失败。pid3668/code0/CLOSE_CONFIRMED，renderer failures[]；上条“待首错”至此已解决，不把尚未执行的checkbox称成功或失败。旧FAIL保留。
+
+统一锁定源码并实证：Blockly13.4 FieldLabel.initView创建blocklyLabelField，Field/Dropdown/Checkbox才创建blocklyField。register.mjs明确appendField(spec.label)，再每个key appendField(key)→appendField(input,key)；内部键不是editable文本标签，只有这段真实构造与实际DOM共同证明了“静态key label→紧邻editable”的对应。旧field helper错误在editable中找NAME/其它key；旧header.first也取editable而非积木标题，对无字段ReLU/to_tensor/Flatten等必空。改为共享canvas-fields.ts：静态label精确文本匹配，再取严格紧邻且class为blocklyField的元素；没有扩大到任意后续兄弟或模糊字段。register、drag-parent reveal统一取首静态label；NAME断言、引用/枚举、number、SHUFFLE全部走该共同映射。真实Geras路径/命中/物理操作/身份/注册/保存/shape/编译门未减少。
+
+本地真实browserWorkspaceFactory/WorkspaceSvg/BlockSvg.initSvg与field.getSize覆盖全部21种积木、39个manifest字段：首label必须等于真实首FieldLabel.getSvgRoot；每个字段通过同一静态selector/精确正则/紧邻XPath，必须是block.getField(name).getSvgRoot，核对checkbox/dropdown/number/text类型。旧selector有效21RED（取到MyObject/数字/checkbox或空），修复后21GREEN。另1项真实SVG字段更新，故意将NAME值改成NAME证明不误匹配editable文本；引用/数值/enum/checkbox更新后仍同一root，目标改名后REF仍同ID，显示名称真实更新，missing标签必须拒绝。单元中直接字段变更仅验证实际DOM更新/身份，不冒充E2E操作；E2E继续仅实际input/menu/click。
+
+实际SVG还显示普通空格被转NBSP，工具箱标题prefix统一使用严格字面转义+空白等价正则；所有21个真实root.textContent均验证，避免创建DataLoader等带空格标签后续再漏。独立源码审查dropdown实际OPTION角色与文字accessible name、number实际inline HTML input、checkbox实际SVG class/aria-checked符合消费者；没有按内部名继续猜其它DOM。独立复核无新增明确P1/P2，独立SVG22+React10共32PASS。相关SVG/React/focus/manager/symbols联合47PASS（与独立不重复相加），全部TypeScript395PASS/2skip，完整pnpm check PASS，git diff --check PASS。
+
+JSDOM无canvas布局，本地只提供明确受控measureText宽度，所有节点/class/text/field顺序都由真实Blockly创建，没有伪造SVG/替换字段函数；不宣称像素布局/命中/拖拽/Windows通过。早期测试遗漏registerBlocks导致invalid block的探针不是有效RED；注册后才得到有效旧selector RED。JSDOM XPath的local-name实现报错，去掉不必需tag谓词而保留严格class门后实际XPath可执行。负missing断言初稿与拒绝型helper不符，改为明确expect抛错；原日志均保留。产品/后端未改变，前轮Linux完整950 Python/36 Node/build已SUCCESS，本轮只改测试helper与回归，不为未变后端重复本地全跑，下一自然CI仍完整执行。
+
+提交前HEADbc82c22454887998f261a2a545f1ae5b7f454584，remote dev0ff20b9b31fa7cfd3c34750a56792910fe3ec233；本地证据提交保留。main5323f86232529efcfb52131168ad049f01b219f3及原plan/原规格/README/两锁SHA再次完全相同。仅在统一结构实证/全TS/check/独立审查后提交一次自然CI，旧run不重跑；本机真实GUI仍NOT RUN，完整空白CNN/M4/M7/SSH/MNIST/TST33/许可/A/B未验收。无训练安装/数据下载/真实SSH/权限/凭据/共享环境/main/发布操作。
+
+- 有效21RED `/tmp/easyai-svg-field-labels-actual-red-20261019.log` SHA256 `56691c8e20dc6fef0c838b61f070909bd5e83f36f9744f89f86d1075e7c975ec`。
+- 21GREEN `/tmp/easyai-svg-field-labels-green2-20261019.log` SHA256 `eeb588453bf429e4ed7d9825ba808e370fc3ad04f0c2c97dfe76448617584459`。
+- 最终联合47 `/tmp/easyai-svg-field-transaction-final-20261019.log` SHA256 `803fb33324948957e91522678cb8d31ceeca4586e7119d49ca34907c213f0496`。
+- 独立32 `/tmp/easyai-svg-fields-independent-BERQMT.log` SHA256 `1f319f2ed62d6cc885f8e05ac0ad74cdeaf003d7e3df4fadf6a268f3a82fc809`。
+- check `/tmp/easyai-svg-field-check-20261019.log` SHA256 `e580f738fb6f2a6bfe01cc5daae5d3e702f5220b2ad112eafff67fad6afa0a95`。
+- 全部TS `/tmp/easyai-svg-field-all-ts-20261019.log` SHA256 `d8efdac6a5160c0b0d174d96508aeabaf5f3c2fcdffccbf1dd31f03e46d530c6`。
