@@ -3183,3 +3183,16 @@ PASS（固定workspace XDG/UV_OFFLINE=1）：pnpm check；pnpm --filter @easyai/
 - /tmp/easyai-monaco-geometry-build-20261019.log SHA256 `5094bb6f9f558a7544c17857159356826ce2d87539d0764322b7186ae017eb6a`。
 - /tmp/easyai-monaco-geometry-final-tests-20261019.log SHA256 `c61bcae2c1dd1715f322d7a59613cc7c374720cd0997e6e92300a0f8540b0e81`。
 - /tmp/easyai-monaco-geometry-independent-d2s1U2.log SHA256 `4777309fb90dd5e448c873cd7a9ac82fc0f2764e571e3cb94e26c3e48f50180d`。
+
+
+### M4/M7 指定真实编辑与错误修复切片最终接受证据
+
+产品HEAD/remote `6e2be20efa54eb0c8253dc3f13bb37a29592f6b1`，[CI39241524644](https://github.com/T1doo/Easy-AI/actions/runs/39241524644) Windows job118023240831、Linux job118023241242全SUCCESS。Windows step14开发态完整E2E PASS，step19实际candidate executable设置EASYAI_E2E_PACKAGE后的同一完整E2E PASS；app.isPackaged/ASAR/沙盒/bridge、真实后端权威编译/持久化均验证。step17实际ZIP435253885字节、SHA25669c358da9e0db34efd67893e926b78112de3910b2a1115a6596e75d45e113e00，step18包内backend、step20上传留存SUCCESS；原项目/native cache+trust/冻结/保护门全保留SUCCESS。Linux pnpm check/test/build全SUCCESS。没有下载/本地独立重验ZIP，仅读允许run/jobs元数据与实际audit输出。
+
+操作闭环：新建并打开示例副本→真实编译→本地Monaco只读ARIA/键盘插入+全选删除保持代码/nonce/CSP→Dataset真实语义行/paint尺寸颜色viewport对齐与代码点击反向定位→删Dataset→实际自动保存后编译REF_NOT_FOUND/DATASET_REF、阻止运行→点击源积木到DataLoader→Undo恢复原ID→再编译→完整code相同→切模型页保存→正常退出重启→三工作区块字段/坐标/连接/引用、tab/codeVisible/revision恢复再编译code相同。仅根数组按ID排序，无字段/位置忽略，无硬编码编译结果，无训练或数据。具体命令/路径/证据边界见docs/candidate-windows-6e2be20.md。
+
+独立审查集中修复无P1/P2，实际25项本地针对性测试和独立5项不冒充WindowsGUI。此前Blockly缺locale、textarea私有假设与CSP装饰失败记录全保全；本轮实际两模式通过才标此切片闭环，非所有M4/M7或完整v0.0.0。冻结trust模块存在仍只证明入包，顺序key竞争/锁合同仍不是完整跨进程SSH验收。
+
+环境断连通知后的真实恢复证据：2026-10-19T11:01:29Z同/workspace/Easy-AI执行date/git status/完整HEAD/日志SHA/git ls-remote exit0；HEAD与remote同6e2，工作区clean，既有本地check/build/测试命令在通知前已返回exit0，日志SHA不变。未另开写入实例、杀未知进程/删锁或重跑CI；CI状态没有被当作环境恢复证明。
+
+main仍5323f86232529efcfb52131168ad049f01b219f3；原plan116185字节SHA256dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43、原规格/README/依赖锁保持。最终证据仅本地docs正常提交，领先remote产品一条，避免专为证据多跑CI，提交后工作区clean。下一项真实SSH/MNIST/硬件/TST33/许可各自NOT RUN，须各自最小目标/条件/授权，不以这些阻塞独立UI工作；完整A/B未完成。没有真实训练、下载、外部SSH、凭据/权限/共享环境改变或main/force/PR/Release/部署/付费。
