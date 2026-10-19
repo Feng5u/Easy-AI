@@ -2760,3 +2760,28 @@ PASS补记：`node scripts/package-builder.mjs --verify dist/easyai-builder-a4de
 实际新CI补记：修复提交/远端 `a5a958657e60fe14ac6150d6b568e0c45479c3e9`，[run39223971924](https://github.com/T1doo/Easy-AI/actions/runs/39223971924) Linux check SUCCESS、Windows Packaging input and archive guards SUCCESS，但Build unsigned Windows candidate (never publish)仍FAIL；ZIP审计/包内sidecar/packaged Electron/上传SKIPPED。本地/独审32项与实际Windows保护通过不证明候选构建成功，仍无已验证可下载Windows候选。
 
 本执行器只读取允许的run/jobs元数据，无本次异常正文，不能沿用上一轮BUILDER_ARCHIVE_MISSING或宣称同因。父级需在其已登录GitHub浏览器读取该新run构建步骤的首error/cause/stack、前约20行阶段输出及新增EASYAI_BUILDER_REPORTED_ARTIFACTS真实返回路径。没有重试被拒logs/artifacts接口，也不再猜测修复或触发CI。先前已保留a3证据；本补记仅本地提交不push，remote仍a5a9586，main/原件/旧Linux候选和所有路径/私密文件/精确内容门不变。实际构建失败已确认，根因UNKNOWN，不是待授权/不确定执行；Windows候选与包内smoke均未标完成。下一步据新正文继续最小修复。
+
+
+## 2026-10-19 父级新正文后：统一 ASAR native query 边界
+
+起始HEAD `ae1df8ed80ecb2f0a36e7217088c0e96656ca8f5`（本地证据提交保全），远端 `a5a958657e60fe14ac6150d6b568e0c45479c3e9`，工作区clean。父级从已登录浏览器取得本轮首错：https://github.com/T1doo/Easy-AI/actions/runs/39223971924/job/117965651073#step:16:248 ：builder实际返回唯一ZIP路径easyai-0.0.0-win-x64.zip，PE临时expected.exe完整性更新后，statFile('dist/assets/ProjectEditor-BMohPCML.css') not found at verifyApprovedOutput:263。已越过旧ZIP选择，不能再归因归档缺失；本执行器未读被拒日志接口。
+
+固定ASAR3.4.1源码确认statFile/extractFile直接调用getFile，不先normalize。Filesystem.getNode用native dirname，然后按path.sep切目录；Windows dirname('dist/assets/file.css')保留'/'，split('\\')把dist/assets当成单个键。旧fixture只有dist/index.html单层目录，未暴露查找语义。新增真实ASAR内nested CSS/worker夹具，并模拟锁定库native list/dirname/split查询（实际字节仍由库读取）。旧产品确定15PASS/1FAIL，nested worker not found at同一stat/closure调用。初版模拟全局normalize把绝对实体路径变成Windows路径而夹具ENOENT；已保留其日志，修模拟仅relative member queries、用captured原normalize保持实体路径在宿主可读，再取得上述有效旧代码复现，不冒充产品错误。
+
+实现为一处小reader：list输出规范/供隐私/入口/集合策略；stat/read调用前用native path.normalize，显式followLinks:false，实体archive路径不变。全部六处用途（两次列表、元数据、闭集stat、批准字节、stale-app读）统一走该边界；不针对某个CSS路径补丁、不先失败再兜底查找、不忽略缺文件，也不改PE、ZIP命名/成员/hash/私密路径/readonly及其他保护。
+
+实际命令（cwd /workspace/Easy-AI）：
+- FAIL（有效旧产品复现）：`CI=true XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/.cache node --test scripts/package-builder.test.mjs` before2，15PASS/1FAIL，精确nested-member not found；before1为上述夹具绝对路径错误，单独保留。
+- PASS：同XDG环境 `pnpm test:package`，33PASS/1.89s，含真实nested读取、private拒绝、真实缺失成员拒绝、重建ASAR且刷新outer inventory仍拒绝CSS bytes篡改；断言stat/read均使用native member且followLinks:false。Python8组由其中一个Node入口运行，不重复累加。
+- PASS：独立四组Node保护33项，review确认全部六处读统一、实体路径无变化，Windows模拟保留host normalize；无新增明确阻断P1/P2。未构建/联网/GUI/改文件。
+- PASS：`node scripts/package-builder.mjs --verify dist/easyai-builder-a4de782a5efa-1792393988003-linux-x64`，296记录，原Linux候选archive SHA256 4733c8bd71f1b32836069fa0670843c0db8b98411200feb5ce42f2306b3ee0b9 保持。`pnpm format:check`、git diff --check PASS。
+
+旧两次Windows FAIL保留；真实Windows候选和packaged smoke必须等本修复正常开发分支push一次自然免费CI。没有重跑旧run/全套数字测试，无main/force/发布/权限/凭据/许可/费用变更，无训练环境/数据模型/SSH/教师环境操作。旧Linux候选及所有未推证据保全，完整A/B不通过。最终SHA/remote/CI结果由回报补记。
+
+本轮日志SHA256：
+- `/tmp/easyai-asar-native-query-before-20261019.log`：`116b3142fdcd3bfd3d6ac5b652cc9267aed7f1c0131bb5d51254a330bc0ab1e6`。
+- `/tmp/easyai-asar-native-query-before2-20261019.log`：`5a1d6709aa09130be5051ce26146ae774b3e6bb565189925d8c00c68458ae686`。
+- `/tmp/easyai-asar-native-query-after-20261019.log`：`24c42d5b0cec9bb352f6095ce012890a052f7a2cad0da6e86a33370270b8b8e0`。
+- `/tmp/easyai-asar-native-query-linux-verify-20261019.log`：`2bcb392594d0486dfbe8cda08816af01c90eb71da8c6c17f80e1f27a4390e864`。
+- `/tmp/easyai-asar-native-query-format-check-20261019.log`：`cbe9f0d2d90255e8d0e75efb8b65eb31c9f56a6a2fd881e2245b07403e38967f`。
+- `/tmp/easyai-asar-reader-independent-tcpe16.log`：`b11d27d3044f8b5774b159720e0a91ee9aaac2d0fdf838c2d46e13889db8d65f`。

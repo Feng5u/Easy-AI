@@ -20,7 +20,7 @@ import {
   copyFile,
   rm,
 } from "node:fs/promises";
-import { join, resolve, isAbsolute } from "node:path";
+import nativePath, { join, resolve, isAbsolute } from "node:path";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { hash, resourcePairs, OFFLINE_DOCS } from "./package.mjs";
@@ -32,6 +32,19 @@ const dependencyRequire = createRequire(
   builderRequire.resolve("app-builder-lib"),
 );
 const asar = dependencyRequire("@electron/asar");
+// Policy/manifest member names use '/', while ASAR 3.4.1 stat/extract
+// require the host's separators. Keep this boundary identical for every read.
+function candidateAsar(archive) {
+  return {
+    entries: () =>
+      asar.listPackage(archive).map((name) => name.replaceAll("\\", "/")),
+    stat: (member) =>
+      asar.statFile(archive, nativePath.normalize(member), false),
+    read: (member) =>
+      asar.extractFile(archive, nativePath.normalize(member), false),
+  };
+}
+
 const manifestName = "builder-manifest.json";
 export function builderLayout(platform, arch = "x64") {
   if (arch !== "x64" || !["linux", "win32"].includes(platform))
@@ -167,11 +180,8 @@ export async function verifyBuilder(output) {
     layout.unpacked,
     "resources/app.asar",
   );
-  // ASAR 3.4.1 lists paths with native separators. Canonicalize at this
-  // boundary before entry/privacy/sealed-set checks on every host.
-  const entries = asar
-    .listPackage(archive)
-    .map((name) => name.replaceAll("\\", "/"));
+  const reader = candidateAsar(archive);
+  const entries = reader.entries();
   if (
     entries.some((name) =>
       /(?:^|\/)(?:node_modules|src|\.env[^/]*|\.git|machine\.local\.json)(?:\/|$)|\.map$|\.test\.[^/]+$/.test(
@@ -188,7 +198,7 @@ export async function verifyBuilder(output) {
   ])
     if (!entries.includes(`/${name}`))
       throw Error("BUILDER_ASAR_ENTRY_MISSING");
-  const pkg = JSON.parse(asar.extractFile(archive, "package.json").toString());
+  const pkg = JSON.parse(reader.read("package.json").toString());
   if (
     pkg.main !== "dist-electron/main.mjs" ||
     pkg.type !== "module" ||
@@ -256,11 +266,11 @@ export async function verifyApprovedOutput(
   if (JSON.stringify(actualVendor) !== JSON.stringify(expectedVendor))
     throw Error("BUILDER_UNAPPROVED_VENDOR_OUTPUT");
   const archive = join(unpacked, "resources/app.asar");
-  const entries = asar
-    .listPackage(archive)
-    .map((name) => name.replaceAll("\\", "/"))
+  const reader = candidateAsar(archive);
+  const entries = reader
+    .entries()
     .filter((name) => {
-      const info = asar.statFile(archive, name.slice(1), false);
+      const info = reader.stat(name.slice(1));
       if (info.link || info.unpacked)
         throw Error("BUILDER_ASAR_SPECIAL_FORBIDDEN");
       return !info.files;
@@ -273,7 +283,7 @@ export async function verifyApprovedOutput(
   )
     throw Error("BUILDER_UNAPPROVED_APP_ENTRY");
   for (const record of approved.groups.app) {
-    const bytes = asar.extractFile(archive, record.path);
+    const bytes = reader.read(record.path);
     if (record.path === "package.json") {
       // builder reserializes metadata. Compare its approved semantic content.
       if (JSON.stringify(JSON.parse(bytes.toString())) !== approved.appMetadata)
@@ -375,6 +385,7 @@ export async function packageBuilder(root = repository) {
   }
   const unpacked = join(output, "artifacts", layout.unpacked, "resources");
   const appArchive = join(unpacked, "app.asar");
+  const packagedApp = candidateAsar(appArchive);
   // Prove exact inputs survived ASAR and extraResources independently of builder logs.
   for (const name of [
     "dist/index.html",
@@ -382,8 +393,8 @@ export async function packageBuilder(root = repository) {
     "dist-electron/preload.cjs",
   ])
     if (
-      !asar
-        .extractFile(appArchive, name)
+      !packagedApp
+        .read(name)
         .equals(await readFile(join(stage, "resources/app", name)))
     )
       throw Error("BUILDER_STALE_APP");

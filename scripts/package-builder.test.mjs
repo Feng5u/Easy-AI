@@ -10,7 +10,7 @@ import {
   chmod,
   lstat,
 } from "node:fs/promises";
-import { join, dirname } from "node:path";
+import path, { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import {
   verifyBuilder,
@@ -58,6 +58,8 @@ async function fixture(t, extra, platform = "linux") {
       main: "dist-electron/main.mjs",
     }),
     "dist/index.html": "fixture",
+    "dist/assets/ProjectEditor-fixture.css": ".fixture { color: red; }",
+    "dist/assets/Editor-worker-fixture.js": "// synthetic nested worker",
     "dist-electron/main.mjs": "fixture",
     "dist-electron/preload.cjs": "fixture",
     ...(extra || {}),
@@ -319,4 +321,93 @@ test("nested library ZIP still requires approved bytes even if output inventory 
     verifyBuilder(root),
     /BUILDER_UNAPPROVED_RESOURCE: backend/,
   );
+});
+
+test("Windows nested ASAR members use native stat and read queries while policy stays canonical", async (t) => {
+  const valid = await fixture(t);
+  const privateInput = await fixture(t, {
+    "dist/assets/.env.local": "SYNTHETIC_SECRET_ONLY",
+  });
+  const missing = await fixture(t);
+  await rm(
+    join(missing.root, "app-input/dist/assets/ProjectEditor-fixture.css"),
+  );
+  await asar.createPackage(
+    join(missing.root, "app-input"),
+    join(missing.root, "artifacts/linux-unpacked/resources/app.asar"),
+  );
+  missing.manifest.records = await treeRecords(join(missing.root, "artifacts"));
+  await missing.save();
+  const tampered = await fixture(t);
+  await writeFile(
+    join(tampered.root, "app-input/dist/assets/ProjectEditor-fixture.css"),
+    "unapproved CSS bytes",
+  );
+  await asar.createPackage(
+    join(tampered.root, "app-input"),
+    join(tampered.root, "artifacts/linux-unpacked/resources/app.asar"),
+  );
+  tampered.manifest.records = await treeRecords(
+    join(tampered.root, "artifacts"),
+  );
+  await tampered.save();
+  const originals = {
+    list: asar.listPackage,
+    stat: asar.statFile,
+    read: asar.extractFile,
+    normalize: path.normalize,
+  };
+  const queries = [];
+  // Reproduce the locked library's actual Windows dirname/split contract,
+  // including its lack of input normalization. Read real ASAR bytes on Linux.
+  const windowsQuery = (method, original) => (archive, name, followLinks) => {
+    if (path.win32.dirname(name).includes("/"))
+      throw Error(`"${name}" was not found in this archive`);
+    queries.push({ method, name, followLinks });
+    return original(
+      archive,
+      originals.normalize(name.replaceAll("\\", "/")),
+      followLinks,
+    );
+  };
+  asar.listPackage = (...args) =>
+    originals.list(...args).map((name) => name.replaceAll("/", "\\"));
+  asar.statFile = windowsQuery("stat", originals.stat);
+  asar.extractFile = windowsQuery("read", originals.read);
+  path.normalize = (name) =>
+    path.isAbsolute(name)
+      ? originals.normalize(name)
+      : path.win32.normalize(name);
+  try {
+    assert.equal(
+      (await verifyBuilder(valid.root)).sourceCommit,
+      "a".repeat(40),
+    );
+    await assert.rejects(
+      verifyBuilder(privateInput.root),
+      /BUILDER_ASAR_UNEXPECTED_INPUT/,
+    );
+    await assert.rejects(
+      verifyBuilder(missing.root),
+      /BUILDER_UNAPPROVED_APP_ENTRY/,
+    );
+    await assert.rejects(
+      verifyBuilder(tampered.root),
+      /BUILDER_UNAPPROVED_APP_BYTES/,
+    );
+    for (const method of ["stat", "read"])
+      assert.ok(
+        queries.some(
+          (q) =>
+            q.method === method &&
+            q.name === "dist\\assets\\ProjectEditor-fixture.css" &&
+            q.followLinks === false,
+        ),
+      );
+  } finally {
+    asar.listPackage = originals.list;
+    asar.statFile = originals.stat;
+    asar.extractFile = originals.read;
+    path.normalize = originals.normalize;
+  }
 });
