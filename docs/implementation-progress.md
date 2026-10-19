@@ -3196,3 +3196,24 @@ PASS（固定workspace XDG/UV_OFFLINE=1）：pnpm check；pnpm --filter @easyai/
 环境断连通知后的真实恢复证据：2026-10-19T11:01:29Z同/workspace/Easy-AI执行date/git status/完整HEAD/日志SHA/git ls-remote exit0；HEAD与remote同6e2，工作区clean，既有本地check/build/测试命令在通知前已返回exit0，日志SHA不变。未另开写入实例、杀未知进程/删锁或重跑CI；CI状态没有被当作环境恢复证明。
 
 main仍5323f86232529efcfb52131168ad049f01b219f3；原plan116185字节SHA256dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43、原规格/README/依赖锁保持。最终证据仅本地docs正常提交，领先remote产品一条，避免专为证据多跑CI，提交后工作区clean。下一项真实SSH/MNIST/硬件/TST33/许可各自NOT RUN，须各自最小目标/条件/授权，不以这些阻塞独立UI工作；完整A/B未完成。没有真实训练、下载、外部SSH、凭据/权限/共享环境改变或main/force/PR/Release/部署/付费。
+
+
+## 2026-10-19 M4/DoD 从空白工程用真实工具箱构建CNN
+
+父级接受6e2be20efa54eb0c8253dc3f13bb37a29592f6b1与CI39241524644有界编辑切片，无P1/P2；本地证据4b159e4d293bcd7fb729a8e955ea9f9d9c201c9c保留，remote原6e2、main不变。新指定目标是从空白工程真实工具箱拖入/连接/注册/引用→合法编译→层参数shape诊断→修复→保存重开，不等于已有示例修改流或全部M4/M7。已有editor-workflow.integration用newBlock/setFieldValue构图，属于真实backend但headless路径，不算鼠标UI，故不重复该程序构图当作本目标。
+
+扩展现有Playwright runner（原CI dev/package均执行，无新runner）：新增blank-cnn场景，从backend“新建空白工程”并确认三页初始全空；通过实际treeitem工具箱、鼠标拖拽与Geras连接口，创建6data块/6model块/1train块，名称Prep/TrainData/TestData/TrainBatches/TestBatches/ToolboxCNN，通过原注册面板改名并注册，真实下拉选择对象引用与train/test角色。构建Conv(1→16,3,pad1)→ReLU→Pool2→Flatten→Linear3136→10，实际字段弹窗设数值，训练loop选该模型和两个loader但不启动训练。合法编译后验证实际代码含自建名称/Conv/3136→10，改变Linear IN_FEATURES=3135要求精确SHAPE_MISMATCH和原Linear ID定位，修复3136再编译code全等，保存正常关闭/重开后完整workspaces与code全等。
+
+Canvas helper仅观察实际SVG DOM/路径/矩阵并发送mouse/wheel/keyboard/menu动作；没有调用Blockly创建/加载/设置字段/连接方法，没有给renderer注入最终图/模板/编译结果。物理连接坐标由锁定Geras实际notch path前缀和screenCTM读取，detached SVG path只测前缀长度，不挂入工作区；源码确认notch宽15、对应左右path，检查drop后新真实ID/连接层级，最终只读持久化JSON核对type/连接/字段和引用。使用滚轮实际平移SVG，未用JS强设workspace位置。
+
+提取现有Electron launch/项目picker为共享夹具，旧示例编辑/Monaco/CSP/恢复场景全部断言保留；chromiumSandbox:true、15s启动超时、测试隔离userData与仅项目openDirectory选择保持。原生系统对话框由测试限定返回临时目录，没有验证真实OS dialog可操作，边界继续明确；不以它阻止其他UI验证。没有生产改动（当前未发现新产品缺陷）；新测试180s有界，原场景120s/runner workers1/retries0/原15min CI保留，无新增下载或云资源。
+
+PASS：固定workspace XDG/UV_OFFLINE=1 pnpm check（/tmp/easyai-toolbox-check-final-20261019.log），playwright test --list确认现有2个场景，git diff --check。初始只读JSON的opaque contract类型导致TS错误，改用验证id/type后的官方Blockly序列化类型用于观察断言，未修改产品合同或编译器。独立只读审查3helper/test与夹具提取无明确P1/P2；静态与源码几何不能证明实际拖拽吸附/滚轮与SVG层次，待本次一次自然Windowsdev/package CI。已知本机系统sandbox不满足，未重试Chromium或禁用沙盒；GUI本地NOT RUN。
+
+没有真实训练、torch安装、数据/模型下载、SSH或凭据配置；没有修改CSP/权限/主分支/原方案/共享环境或创建Release/PR/部署。M4空白CNN切片待实测，完整M4/M7、真实SSH/MNIST/TST33/许可及A/B继续分别未完成。
+
+- /tmp/easyai-toolbox-tsc-20261019.log SHA256 `5cdfe869e9d6d14bd9e6c087c45c285ea6c100c6fb9af2542caedd61efacf49d`。
+- /tmp/easyai-toolbox-tsc-final-20261019.log SHA256 `4c72d3435b13b80fad9c26990004eb020bed034ba91e7a8e941650bec367cb16`。
+- /tmp/easyai-toolbox-check-20261019.log SHA256 `ab863fb4dce885f657836e4e6e9d3ddd3e81e626e0b1b77002999c1f9987f674`。
+- /tmp/easyai-toolbox-check-final-20261019.log SHA256 `e580f738fb6f2a6bfe01cc5daae5d3e702f5220b2ad112eafff67fad6afa0a95`。
+- /tmp/easyai-toolbox-list-20261019.log SHA256 `717c39f89010828fb59c9cce535f47b2c07edc6e2dda62209b6cfef445165164`。

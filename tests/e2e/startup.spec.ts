@@ -1,12 +1,8 @@
-import {
-  test,
-  expect,
-  _electron as electron,
-  type ElectronApplication,
-} from "@playwright/test";
+import { test, expect, type ElectronApplication } from "@playwright/test";
 import path from "node:path";
 import { mkdtemp, mkdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
+import { launchDesktop, projectPicker } from "./desktop.js";
 
 test("secure desktop, Dataset error repair, Monaco and saved project reopen", async () => {
   test.setTimeout(120000);
@@ -16,22 +12,7 @@ test("secure desktop, Dataset error repair, Monaco and saved project reopen", as
   await mkdir(projectDirectory);
   await mkdir(stateDirectory);
   const packaged = process.env.EASYAI_E2E_PACKAGE;
-  const launch = () =>
-    electron.launch({
-      ...(packaged
-        ? {
-            executablePath: path.resolve(packaged),
-            args: [`--user-data-dir=${stateDirectory}`],
-          }
-        : {
-            args: [
-              path.resolve("apps/desktop"),
-              `--user-data-dir=${stateDirectory}`,
-            ],
-          }),
-      chromiumSandbox: true,
-      timeout: 15000,
-    });
+  const launch = () => launchDesktop(stateDirectory);
   const failures: string[] = [];
   let app: ElectronApplication | undefined = await launch();
   try {
@@ -84,22 +65,7 @@ test("secure desktop, Dataset error repair, Monaco and saved project reopen", as
       await app.evaluate(() => process.argv.includes("--no-sandbox")),
     ).toBe(false);
     // Only replace the OS directory picker; real IPC, backend, Blockly and compiler remain.
-    await app.evaluate(({ dialog }, root) => {
-      dialog.showOpenDialog = async (...args: unknown[]) => {
-        const options = args.at(-1) as {
-          title?: string;
-          properties?: string[];
-        };
-        if (
-          options.title !== "选择项目目录" ||
-          options.properties?.join() !== "openDirectory"
-        )
-          throw new Error(
-            "Unexpected dialog: editor scenario must not select training, data or credentials",
-          );
-        return { canceled: false, filePaths: [root] };
-      };
-    }, projectDirectory);
+    await projectPicker(app, projectDirectory);
     page.on("pageerror", (error) => failures.push(error.name));
     page.on("console", (message) => {
       if (
