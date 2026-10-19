@@ -323,6 +323,38 @@ try {
       ) + 1394242,
     );
   }
+  const nlpMetadata = JSON.parse(expectedNlpSources);
+  for (const [packageId, version, expectedCount] of [
+    ["spacy", "3.8.16", 60],
+    ["transformers", "5.20.1", 43],
+    ["gensim", "4.4.0", 25],
+  ]) {
+    const candidate = await request("POST", "/environments/install-plan", {
+      targetId: "local",
+      profileId: "easyai-cpu",
+      packageIds: [packageId],
+      newEnvironmentSpec: { name: "frozen_nlp_default" },
+    });
+    assert.equal(candidate.response.status, 200);
+    assert.equal(candidate.value.executionEnabled, false);
+    assert.equal(candidate.value.installedBytes, null);
+    assert.equal(
+      candidate.value.packageChanges.find((c) => c.packageId === packageId)
+        .targetVersion,
+      version,
+    );
+    if (process.platform === "linux" && process.arch === "x64") {
+      assert.deepEqual(candidate.value.blockers, []);
+      assert.equal(candidate.value.packageChanges.length, expectedCount);
+      assert.equal(
+        candidate.value.downloadBytes,
+        JSON.parse(expectedSources).packages.reduce(
+          (sum, p) => sum + p.downloadBytes,
+          0,
+        ) + nlpMetadata.defaultClosures[packageId].addedToCoreBytes,
+      );
+    }
+  }
   const rejectedNlp = await request("POST", "/environments/install-plan", {
     targetId: "local",
     profileId: "easyai-cpu",
@@ -342,7 +374,9 @@ try {
   assert(
     rejectedNlp.value.blockers.includes("INSTALL_KNOWN_PACKAGE_VULNERABILITY"),
   );
-  assert(rejectedNlp.value.blockers.includes("INSTALL_NLP_CLOSURE_UNREVIEWED"));
+  assert(
+    rejectedNlp.value.blockers.includes("INSTALL_BINARY_WHEEL_UNAVAILABLE"),
+  );
   const opencv = await request("POST", "/environments/install-plan", {
     targetId: "local",
     profileId: "easyai-cpu",

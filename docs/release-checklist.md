@@ -14,7 +14,7 @@
 | 至少一个干净目标机包 | NOT RUN | 无Node/开发Python/本机torch，能启动编辑并连接已准备环境 |
 | 真实MNIST正式10轮 | NOT RUN | 机器/环境/数据来源、seed/模式、实际指标与截图，非合成曲线 |
 | SSH取消/断线/接续/重启/日志与产物映射 | NOT RUN | 授权隔离目标及真实生命周期记录；不以接受请求代替退出 |
-| 受控安装 | 受控验证PASS／真实NOT RUN（默认禁用） | 四项生产接线、ML、scikit-image、Lightning与SentencePiece元数据闭包已有，11卡可解析/6卡未支持（OpenCV native未核）；Main原生来源清单选择/预算预览/明确登记已接，真实对话框未验；实际可信来源/许可/owned目标授权、conda兼容/真实安装/退出/import/tensor仍未验；不以合成inventory代替 |
+| 受控安装 | 受控验证PASS／真实NOT RUN（默认禁用） | 四项生产接线、ML、scikit-image、Lightning与NLP四库元数据闭包已有，14卡可解析/3卡未支持（OpenCV native未核）；Main原生来源清单选择/预算预览/明确登记已接，真实对话框未验；实际可信来源/许可/owned目标授权、conda兼容/真实安装/退出/import/tensor仍未验；不以合成inventory代替 |
 | 私钥正常入口 | PASS（合成/受控代码链），真实NOT RUN | 明确选择、秘密不持久、pin/取消；真实私钥/SSH/native picker仍需授权目标机验证 |
 | 完整代码Bundle桌面导出 | PASS（定向Main/HTTP/文件链）／TST34 NOT RUN | 已保存编译快照、新目录/辅助文件/hash；真实独立训练运行/原生picker/Windows仍缺，见code-bundle-export.md |
 | 显式本地数据上传 | PASS（合成SFTP/协议/组件）／真实NOT RUN | source/target/预算确认、owned任务、取消和回读已接；新增私有持久历史、重选源/认证、只读核验与同slot缺失补传合成链；真实服务器仍未验，见data-upload.md |
@@ -37,8 +37,8 @@
 | 明确授权的隔离Linux SSH目标/账号、可信渠道核验的host fingerprint、已准备训练Python/torch等兼容环境、真实数据路径、预算和测试窗口 | 当前没有本片可用目标/这些条件与执行授权；凭据经私密会话/原生入口提供，不进仓库/公开日志。先验证连接和环境只读检查，再按明确授权进行远端运行、停止、断线接续及产物回读；不默认下载安装、不触碰老师共享环境。 |
 | 不依赖客户端开发Node/Python/本机torch的真实远端运行证据 | 包内sidecar直接运行/黄金编译已能定向验证，但无干净机桌面启动/编辑/原生picker/远端运行的完整证据，仍NOT RUN。 |
 
-代码缺口也仍存在：Windows host storage生产门尚未开放，Windows原生失败正文/后续修复与目标机包仍须推进；17包中6卡无支持闭包（opencv-python、nltk、spacy、transformers、gensim、hanlp），其中OpenCV native要求未核，不能换headless。包卡要补兼容版本/许可/依赖闭包、hash/预算/安装与复检合同及真实验证；NLP语料/模型另需明确条件，不能自动下载。
+代码缺口也仍存在：Windows host storage生产门尚未开放，Windows原生失败正文/后续修复与目标机包仍须推进；17包中3卡无支持闭包（opencv-python、nltk、hanlp），其中OpenCV native要求未核，不能换headless。包卡要补兼容版本/许可/依赖闭包、hash/预算/安装与复检合同及真实验证；NLP语料/模型另需明确条件，不能自动下载。
 
-远端受控安装已新增同一InstallService的owned目标适配、来源预算/身份绑定、预留WAL、唯一owner、取消与断线隔离、只核验收口、最终固定真实复检接口及UI状态，见[remote-install.md](remote-install.md)。目前只有受控合成协议证据，真实远端来源/许可/目标/预算执行授权、安装/ABI/故障/跨进程重启/课堂流仍NOT RUN。恢复不重放安装；未知停止保留锁。其余6卡、本地历史保留管理与未知停止安全解除等代码缺口仍存在；不能称全部仅待环境。本片停止包装外围开发，无新分发包、Release或PR。
+远端受控安装已新增同一InstallService的owned目标适配、来源预算/身份绑定、预留WAL、唯一owner、取消与断线隔离、只核验收口、最终固定真实复检接口及UI状态，见[remote-install.md](remote-install.md)。目前只有受控合成协议证据，真实远端来源/许可/目标/预算执行授权、安装/ABI/故障/跨进程重启/课堂流仍NOT RUN。恢复不重放安装；未知停止保留锁。其余3卡、本地历史保留管理与未知停止安全解除等代码缺口仍存在；不能称全部仅待环境。本片停止包装外围开发，无新分发包、Release或PR。
 
-NLP 本片仅固定 SentencePiece 0.2.2 的来源、默认闭包、预算、同一安装器及选中 import 复检；NLTK 当前候选有未修复漏洞响应，其余四卡闭包尚未核完，具体裁决见[install-nlp-sources.md](install-nlp-sources.md)。11/17卡的元数据能力不代表真实安装或 B 验收。
+NLP 整批默认闭包裁决已接SentencePiece、spaCy、Transformers、Gensim的来源/预算/原安装器与选中import复检；NLTK候选安全阻断，HanLP三个依赖仅sdist而不支持。模型/语料API不提供，普通import零联网与ABI仍未验，详见[install-nlp-sources.md](install-nlp-sources.md)。14/17卡仅为元数据能力，非实际安装或B验收。

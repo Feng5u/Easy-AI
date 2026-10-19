@@ -50,8 +50,8 @@ const blockerLabels: Record<string, string> = {
   INSTALL_DEPENDENCIES_UNRESOLVED: "可选包尚未完成受控依赖解析，不能确认执行。",
   INSTALL_KNOWN_PACKAGE_VULNERABILITY:
     "当前候选发行元数据列有尚未修复的漏洞，暂不提供该固定来源。",
-  INSTALL_NLP_CLOSURE_UNREVIEWED:
-    "此NLP包的完整固定依赖闭包尚未核实，暂不支持安装。",
+  INSTALL_BINARY_WHEEL_UNAVAILABLE:
+    "所需固定依赖没有匹配目标平台的二进制wheel，不能执行源码构建或安装。",
   INSTALL_VERSION_CONFLICT:
     "已有包版本与核心锁定约束冲突；请另用独立环境，不自动升级或降级。",
 };

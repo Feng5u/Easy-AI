@@ -1,26 +1,39 @@
-# NLP 固定来源与有限能力
+# NLP 默认闭包与整批裁决
 
-本片只读取官方 PyPI 固定发行 JSON、Simple JSON 索引及 PEP 658 wheel 元数据，不下载 wheel、模型、语料，不安装或执行 NLP/训练 import。固定目标为 Linux x86_64 / CPython 3.11.17，沿用 NumPy 2.4.2、torch 2.10.0+cpu 与原 core/ML/CV/DL 锁；元数据相容不等于真实 ABI 验收。
+本轮一次裁决剩余 spaCy、Transformers、Gensim、HanLP，沿用已核 SentencePiece 与 NLTK 决定。只读官方 PyPI JSON、Simple JSON 与 PEP 658 元数据；不下载 wheel/sdist、模型或语料，不安装、不执行 NLP import。目标固定 Linux x86_64 / CPython 3.11.17，核心 NumPy 2.4.2、torch 2.10.0+cpu 和全部既有 core/ML/CV/DL pins 不改。元数据闭包与计划能力不是实际 ABI/安装通过。
 
-| 目录卡 | 本次候选 | 裁决 |
+| 卡片及固定候选 | 默认闭包裁决 | 相对核心21的计划 |
 | --- | --- | --- |
-| sentencepiece | 0.2.2 | 固定 Linux cp311 wheel；默认 Requires-Dist 闭包为空，不启用 numpy/protobuf/test extras；接入原安装链 |
-| nltk | 3.10.3 | 官方 JSON 有未撤回 GHSA-8mgp-746c-j5xp，fixed_in 为空，暂不提供来源；不未经裁决回退旧版 |
-| spacy | 3.8.16 | 顶层 NumPy 约束接受既有 pin；thinc 等完整依赖闭包尚未核完，unsupported |
-| transformers | 5.20.1 | 顶层未发现核心 pin 冲突；hub/tokenizers/safetensors 等闭包尚未核完，unsupported |
-| gensim | 4.4.0 | 顶层 NumPy/SciPy 约束接受既有 pin；smart-open 等完整闭包及原生 ABI 未验，unsupported |
-| hanlp | 2.1.5 | 顶层 torch 约束接受既有 CPU pin；downloader/transformers 等闭包与离线模型行为未核，unsupported |
+| sentencepiece 0.2.2 | 默认依赖为空；不启用 numpy/protobuf/test extras | 22文件；新增1394242字节 |
+| spacy 3.8.16 | 43个可达节点（止于既有固定闭包锚点）；thinc/blis等新依赖完整核约束，复用DL的tqdm/idna | 60文件；新增59656447字节 |
+| transformers 5.20.1 | 27个可达节点；hub/tokenizers/safetensors/hf-xet等默认闭包完整，复用原pyyaml/tqdm/idna，不选其他extras | 43文件；新增25866254字节 |
+| gensim 4.4.0 | 5节点：本包、NumPy、既有SciPy、smart-open8.0.4、wrapt2.5.1 | 25文件；新增63473279字节（包含未在核心中的SciPy） |
+| hanlp 2.1.5 | unsupported：直接依赖hanlp-common0.0.23、hanlp-downloader0.0.25、hanlp-trie0.0.5只有sdist，无目标wheel | 无完整可安装闭包；总体下载/解包体积未知 |
+| nltk 3.10.3 | unsupported：官方固定JSON列有未撤回GHSA-8mgp-746c-j5xp，fixed_in为空；不降级绕过 | 不进入安装来源 |
 
-没有把后四项“尚未完成核验”冒称为已证实版本冲突。NLTK 的拒绝依据是本次候选的已知漏洞响应，不宣称所有历史版本已逐一审查，也不自行豁免风险或选择旧 pin。其余候选仅用于保留准确裁决，未进入可执行 wheels。
+三包联合计划为72个去重文件、注册表下载量387209225字节；加SentencePiece为73文件、388603467字节。这里是wheel下载估计，不含bootstrap/完整环境占用；所有解包量仍未知、installedBytes=null。表中可达节点止于此前已核的固定锚点，不冒充重新读取CPU torch wheel元数据。原ML SciPy为新增计划来源之一，不因已存在可选锁就隐瞒其下载预算。
 
-`easyai-nlp-sources.json` 保存六候选的精确 wheel 文件名/URL/SHA256/注册表字节、Requires-Python/Requires-Dist、固定 JSON 与 PEP658 URL/hash、许可声明、当次 yanked/漏洞投影。`packages` 仅含 sentencepiece，`rejectedCandidates` 不作为安装来源。漏洞/许可响应不是持续保证或许可批准，legalReviewComplete/distributionReady 未改变。
+`easyai-nlp-sources.json` 有48个可执行元数据记录（原SentencePiece加47个新wheel）、默认依赖边、四项批次裁决与两项拒绝记录；HanLP缺失wheel的JSON hash和sdist清单保留在blockedDependencies。来源文件97184字节，仍在原100000字节限制内。记录各精确URL/SHA256/注册表字节、Requires-Python/Requires-Dist、PEP658/pinnedJSON hash、yanked/漏洞与许可声明；不是持续安全保证或许可批准，legalReviewComplete/distributionReady未改。
 
-SentencePiece 固定文件为 `sentencepiece-0.2.2-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl`，注册表 **1394242 字节**，SHA256 `1416b92f2f010333786fe6306ed2631121d5ea492219b0841e967b6765e64107`。只记录元数据，解包占用未知；installedBytes=null。单选该卡需要核心21加该包，共22个去重文件，下载预算取实际注册表字节之和；混选 ML/CV/DL 复用同一闭包去重。
+三个HanLP依赖的源码包仅记元数据，未下载、构建或换用其他版本。没有把这一二进制来源限制冒称CPU/NumPy冲突。NLTK保留候选3.10.3安全阻断，不声称逐版本复现。开发审计曾在smart-open旧发行的非法Requires-Python `>=3.5.*` 字段停止单根候选选择；最终从已核联合图提取精确8.0.4完整Gensim闭包并逐边校验，不把审计工具错误冒称包不兼容。
 
-新增来源与 hash lock 均进入 constraintsHash，因此影响 planHash，源/锁改变会使已确认计划失效。来源选择只核选中闭包、精确 hash/字节、缺失文件和预算；明确登记仍强制 executionAuthorized=false。全 NLP 组选中未支持卡时保留 blocked/未知总体体积，不把 SentencePiece 子集当六卡完成。
+## 原链与真实执行门
 
-固定离线命令继续由原 OfflineWheelInstaller/远端目标适配使用同一 lock_bytes 生成器提供，保持 --no-index/--require-hashes，无新解析器/安装器。最终版本清单、选中 sentencepiece import 和原 CPU tensor 门缺一不可，失败不得 verified；未选择时不增加 sentencepiece import。未引入任何模型/语料下载入口。
+四个可解析NLP根均走同一NLP_ROOTS→wheels→lock_bytes→constraintsHash/planHash→来源选择/预算→原OfflineWheelInstaller/远端适配→版本、选中imports、原CPU tensor复检。没有新的运行时网络resolver或安装器。Gensim按需要加载既有ML provider；spaCy/Transformers加载DL provider重用固定依赖。只有选中Lightning才激活fsspec[http]，Transformer的普通fsspec依赖不引入aiohttp。
 
-当前17卡中11卡具备元数据闭包，6卡仍 unsupported（OpenCV native 与 NLP 五卡）。默认执行门关闭，真实安装、ABI、正式训练、原生来源对话框及真实 SSH 验收仍 NOT RUN，不能签 M6.3/B。
+来源预览核精确hash/字节、缺失文件及选择预算；明确登记仍强制executionAuthorized=false。默认执行关闭。安装仍固定--no-index/--only-binary=:all:/--require-hashes、本地来源并清PIP配置，不执行源码构建。计划来源/锁变化使已确认计划过期。全NLP组选含NLTK/HanLP即blocked，无法可靠汇总体积时仍null。
 
-依据：[SentencePiece 固定 JSON](https://pypi.org/pypi/sentencepiece/0.2.2/json)、[NLTK 固定 JSON](https://pypi.org/pypi/nltk/3.10.3/json)、[spaCy 固定 JSON](https://pypi.org/pypi/spacy/3.8.16/json)、[Transformers 固定 JSON](https://pypi.org/pypi/transformers/5.20.1/json)、[Gensim 固定 JSON](https://pypi.org/pypi/gensim/4.4.0/json)、[HanLP 固定 JSON](https://pypi.org/pypi/hanlp/2.1.5/json)。各 wheel 的 PEP658 URL/hash 见来源文件；原始响应与24请求审计位于本轮进度记录所列本地证据目录。
+## 模型、离线行为与能力限制
+
+| 包 | 官方发行元数据能证明的行为 | 本应用能力边界 |
+| --- | --- | --- |
+| spaCy | 描述独立模型download命令/模型包安装，随后spacy.load加载模型 | 不调用download/load，不提供模型选择、下载或预训练pipeline入口 |
+| Transformers | quickstart明确在实例化指定模型pipeline时下载并缓存 | 不调用pipeline/from_pretrained，不启用模型、服务、vision/audio等extras |
+| Gensim | 元数据描述语料/API，默认含smart-open；未保证plain import零联网 | 不调用downloader或远端语料API，不因HTTP依赖存在就声称import会下载 |
+| HanLP | 示例把import与hanlp.load(pretrained)分开，且默认含downloader组件 | 包本身blocked；不调用加载器、不获取预训练模型 |
+
+probe源码仅对选中闭包作普通import与版本/tensor检查，不调用上述模型API。**这不是网络隔离。** pip离线参数只约束pip，私有HOME/超时/取消不证明第三方import零联网；不通过环境变量或未执行测试宣称封网。普通import是否有隐式副作用、实际native ABI与无下载行为仍NOT RUN，未来真实执行须在已明确来源/目标/许可/预算/窗口内另验，不能把元数据能力签成零egress或课堂模型功能。模型/语料功能保持不支持，没有新增条款接受或系统权限。
+
+当前14/17卡具备元数据闭包；OpenCV native、NLTK安全候选与HanLP二进制来源仍unsupported。真实M6.3/B、正式训练/桌面/目标机/SSH门未验。
+
+依据：[spaCy固定JSON](https://pypi.org/pypi/spacy/3.8.16/json)、[Transformers固定JSON](https://pypi.org/pypi/transformers/5.20.1/json)、[Gensim固定JSON](https://pypi.org/pypi/gensim/4.4.0/json)、[HanLP固定JSON](https://pypi.org/pypi/hanlp/2.1.5/json)、[SentencePiece固定JSON](https://pypi.org/pypi/sentencepiece/0.2.2/json)、[NLTK固定JSON](https://pypi.org/pypi/nltk/3.10.3/json)。各PEP658 URL/hash见来源文件；本批214次JSON/metadata读取及原始响应清单见进度证据，无wheel/sdist下载。

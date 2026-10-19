@@ -10,6 +10,7 @@ from packaging.markers import default_environment
 from packaging.requirements import Requirement
 from packaging.specifiers import SpecifierSet
 from packaging.utils import canonicalize_name, parse_wheel_filename
+from packaging.tags import cpython_tags, compatible_tags
 from easyai.domain.install import (
     InstallPlanRequest,
     InstallSourceRequest,
@@ -56,8 +57,12 @@ def test_nlp_pep658_closure_and_rejections_match_fixed_cpu():
     selected = wheels(PROFILE_ROOT, {"sentencepiece"})
     versions = {w["name"]: w["version"] for w in selected}
     assert len(selected) == len(wheels(PROFILE_ROOT)) + 1 == 22
-    assert data["dependencies"] == {"sentencepiece": []}
-    assert len(data["packages"]) == 1 and data["packages"][0]["downloadBytes"] == 1394242
+    assert data["dependencies"]["sentencepiece"] == []
+    assert len(data["packages"]) == 48
+    assert (
+        next(w for w in data["packages"] if w["name"] == "sentencepiece")["downloadBytes"]
+        == 1394242
+    )
     env = default_environment()
     env.update(
         python_version="3.11",
@@ -70,15 +75,26 @@ def test_nlp_pep658_closure_and_rejections_match_fixed_cpu():
         implementation_name="cpython",
         extra="",
     )
-    known = {w["name"]: w["version"] for w in wheels(PROFILE_ROOT, {"scipy", "pytorch-lightning"})}
+    known = {
+        w["name"]: w["version"]
+        for w in wheels(
+            PROFILE_ROOT, {"scipy", "pytorch-lightning", "spacy", "transformers", "gensim"}
+        )
+    }
+    platforms = [f"manylinux_2_{n}_x86_64" for n in range(28, 4, -1)] + [
+        "manylinux2014_x86_64",
+        "manylinux2010_x86_64",
+        "manylinux1_x86_64",
+    ]
+    target_tags = set(cpython_tags((3, 11), abis=["cp311"], platforms=platforms)) | set(
+        compatible_tags((3, 11), interpreter="cp311", platforms=platforms)
+    )
+    assert not (parse_wheel_filename("invalid-1.0-cp312-cp312-win_amd64.whl")[3] & target_tags)
     for package in data["packages"] + data["rejectedCandidates"]:
         assert SpecifierSet(package["requiresPython"]).contains("3.11.17")
         name, version, _, tags = parse_wheel_filename(package["filename"])
         assert name == canonicalize_name(package["name"]) and str(version) == package["version"]
-        assert any(
-            t.platform == "any" or t.interpreter == "cp311" and t.platform.endswith("x86_64")
-            for t in tags
-        )
+        assert tags & target_tags
         assert package["unpackedBytes"] is None and not package["yanked"]
         assert package["metadataUrl"] == package["url"] + ".metadata"
         assert (
@@ -99,6 +115,10 @@ def test_nlp_pep658_closure_and_rejections_match_fixed_cpu():
         if package["name"] == "sentencepiece":
             assert not active and not package["knownVulnerabilitiesAtCapture"]
             assert versions[package["name"]] == "0.2.2"
+        elif "reason" not in package:
+            assert not package["knownVulnerabilitiesAtCapture"]
+            assert known[package["name"]] == package["version"]
+            assert set(active) == set(data["dependencies"][package["name"]])
         else:
             assert active and package["reason"] == UNSUPPORTED[package["name"]]
     nltk = next(x for x in data["rejectedCandidates"] if x["name"] == "nltk")
@@ -118,6 +138,17 @@ def test_single_mixed_and_whole_nlp_group_share_plan_and_budget(tmp_path):
             ["sentencepiece"],
             ["torch", "sentencepiece"],
             ["sentencepiece", "scikit-image", "pytorch-lightning"],
+            ["spacy"],
+            ["transformers"],
+            ["gensim"],
+            [
+                "sentencepiece",
+                "spacy",
+                "transformers",
+                "gensim",
+                "pytorch-lightning",
+                "scikit-image",
+            ],
         ]:
             plan = service.plan(request(ids))
             records = wheels(PROFILE_ROOT, set(ids))
@@ -131,8 +162,8 @@ def test_single_mixed_and_whole_nlp_group_share_plan_and_budget(tmp_path):
             assert plan.plan_hash == digest(plan.model_dump(exclude={"plan_hash"}))
         cards = {c.package_id: c for c in service.catalog().packages}
         assert cards["sentencepiece"].target_version == "0.2.2"
-        assert sum(c.target_version is not None for c in cards.values()) == 11
-        for name in ["nltk", "spacy", "transformers", "gensim", "hanlp"]:
+        assert sum(c.target_version is not None for c in cards.values()) == 14
+        for name in ["nltk", "hanlp"]:
             plan = service.plan(request([name]))
             assert cards[name].target_version is None and UNSUPPORTED[name] in plan.blockers
             assert (
@@ -284,12 +315,13 @@ def test_same_installer_consumes_nlp_lock_and_selected_probe_only(tmp_path):
         service.close()
 
 
+@pytest.mark.parametrize("root", ["sentencepiece", "spacy", "transformers", "gensim"])
 @pytest.mark.parametrize("failure", [None, "import", "version", "tensor"])
-def test_nlp_final_import_version_and_tensor_fail_closed(owned, failure):
+def test_nlp_final_import_version_and_tensor_fail_closed(owned, failure, root):
     service, _, old, _, inventory, original = owned
     service.cancel(old.job_id)
     raw = original.model_dump()
-    raw["package_ids"] = ["sentencepiece"]
+    raw["package_ids"] = [root]
     plan = service.plan(InstallPlanRequest(**raw))
     job = service.confirm(confirmation(plan))
 
@@ -298,9 +330,9 @@ def test_nlp_final_import_version_and_tensor_fail_closed(owned, failure):
             versions = {c.package_id: c.target_version for c in plan.package_changes}
             imports = dict.fromkeys(required_imports(set(versions)), True)
             if failure == "import":
-                imports["sentencepiece"] = False
+                imports[root] = False
             if failure == "version":
-                versions["sentencepiece"] = "0.0.1"
+                versions[root] = "0.0.1"
             inventory.write_text(
                 json.dumps(
                     {"versions": versions, "imports": imports, "tensor_ok": failure != "tensor"}
@@ -312,3 +344,194 @@ def test_nlp_final_import_version_and_tensor_fail_closed(owned, failure):
     assert result.state == ("SUCCEEDED" if failure is None else "FAILED")
     assert result.verified is (failure is None) and result.needs_reprobe is (failure is not None)
     assert job.job_id not in service._leases
+
+
+def test_all_default_closures_and_provider_pins_are_exact_without_unselected_http():
+    from itertools import combinations
+    from easyai.services.install_sources import OPTIONAL_ROOTS
+
+    data = json.loads((PROFILE_ROOT / "easyai-nlp-sources.json").read_bytes())
+    assert (PROFILE_ROOT / "easyai-nlp-sources.json").stat().st_size < 100000
+    base = {r["name"]: r for r in wheels(PROFILE_ROOT)}
+    for root, count in [("spacy", 60), ("transformers", 43), ("gensim", 25)]:
+        records = wheels(PROFILE_ROOT, {root})
+        assert len(records) == data["defaultClosures"][root]["plannedWheelCount"] == count
+        assert (
+            sum(r["downloadBytes"] for r in records if r["name"] not in base)
+            == data["defaultClosures"][root]["addedToCoreBytes"]
+        )
+        assert not any(r["name"] == "aiohttp" for r in records)
+        assert not data["defaultClosures"][root]["modelApisEnabled"]
+        assert not data["defaultClosures"][root]["offlineImportVerified"]
+    roots = sorted(OPTIONAL_ROOTS)
+    for size in range(len(roots) + 1):
+        for choice in combinations(roots, size):
+            selected = set(choice)
+            records = wheels(PROFILE_ROOT, selected)
+            observed = {r["name"]: r for r in records}
+            assert len(records) == len(observed)
+            assert all(observed[n] == r for n, r in base.items())
+            assert selected <= observed.keys()
+            assert ("aiohttp" in observed) is ("pytorch-lightning" in selected)
+            for r in data["packages"]:
+                if r["name"] in observed:
+                    assert set(data["dependencies"][r["name"]]) <= observed.keys()
+    missing = data["blockedDependencies"]
+    assert set(missing) == {"hanlp-common", "hanlp-downloader", "hanlp-trie"}
+    assert not data["defaultClosures"]["hanlp"]["closureVerified"]
+    assert data["defaultClosures"]["hanlp"]["plannedWheelCount"] is None
+    assert data["defaultClosures"]["hanlp"]["addedToCoreBytes"] is None
+    for evidence in missing.values():
+        assert len(evidence["releaseJsonSha256"]) == 64
+        assert evidence["reason"] == "INSTALL_BINARY_WHEEL_UNAVAILABLE"
+        assert evidence["artifacts"] and all(
+            a["packagetype"] == "sdist" for a in evidence["artifacts"]
+        )
+
+
+def test_extended_nlp_selected_sources_use_provider_closure_and_preserve_execution_gate(
+    configured, monkeypatch
+):
+    from easyai.services.install_sources import ML_HEADER, CV_HEADER, DL_HEADER
+
+    app, sources, config = configured
+    profiles, wheelhouse = sources / "profile", sources / "wheels"
+    for group, header in [
+        ("cpu", ""),
+        ("ml", ML_HEADER),
+        ("cv", CV_HEADER),
+        ("dl", DL_HEADER),
+        ("nlp", NLP_HEADER),
+    ]:
+        value = json.loads((PROFILE_ROOT / f"easyai-{group}-sources.json").read_bytes())
+        synthetic = []
+        for record in value["packages"]:
+            path = wheelhouse / (record["name"] + "-fixture.whl")
+            path.write_bytes(b"synthetic non-executable source inventory")
+            synthetic.append(
+                {
+                    "name": record["name"],
+                    "version": record["version"],
+                    "filename": path.name,
+                    "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                    "downloadBytes": path.stat().st_size,
+                }
+            )
+        value["packages"] = synthetic
+        (profiles / f"easyai-{group}-sources.json").write_text(json.dumps(value))
+        lock = "".join(
+            f"{r['name']}=={r['version']} \\\n    --hash=sha256:{r['sha256']}\n"
+            for r in sorted(synthetic, key=lambda r: r["name"])
+        )
+        (profiles / f"easyai-{group}-linux-cp311.lock").write_text(header + lock)
+    runtime = InstallRuntime(app)
+    baseline = runtime.snapshot()
+    monkeypatch.setattr(source_module, "PROFILE_ROOT", profiles)
+    source = sources / "all-nlp.json"
+    source.write_text(json.dumps(config))
+    source.chmod(0o600)
+    service = InstallService(app, runtime=runtime)
+    try:
+        for root, count in [("spacy", 60), ("transformers", 43), ("gensim", 25)]:
+            assert runtime.snapshot({root}).enabled
+            preview = service.preview_sources(
+                InstallSourceRequest(manifest_path=str(source), package_ids=[root])
+            )
+            assert len(preview.wheels) == count and not preview.execution_enabled
+            assert preview.source_bytes == sum(w.bytes for w in preview.wheels + preview.bootstrap)
+            path = wheelhouse / (root + "-fixture.whl")
+            raw = path.read_bytes()
+            path.unlink()
+            with pytest.raises(FileNotFoundError):
+                runtime.snapshot({root})
+            assert runtime.snapshot().fingerprint == baseline.fingerprint
+            path.write_bytes(raw)
+        preview = service.preview_sources(
+            InstallSourceRequest(
+                manifest_path=str(source), package_ids=["spacy", "transformers", "gensim"]
+            )
+        )
+        result = service.confirm_sources(
+            InstallSourceConfirmation(
+                preview_id=preview.preview_id, preview_hash=preview.preview_hash, confirmed=True
+            )
+        )
+        assert not result.execution_enabled
+        assert not json.loads(runtime.configuration_path.read_bytes())["executionAuthorized"]
+        assert not runtime.snapshot({"spacy", "transformers", "gensim"}).enabled
+    finally:
+        service.close()
+    core = json.loads((profiles / "easyai-cpu-sources.json").read_bytes())["packages"]
+    config["diskBudgetBytes"] = sum(w["downloadBytes"] for w in core) + sum(
+        a["bytes"] for a in config["bootstrap"]
+    )
+    runtime.configuration_path.write_text(json.dumps(config))
+    assert runtime.snapshot().enabled
+    for root in ["spacy", "transformers", "gensim"]:
+        with pytest.raises(ValueError, match="INSTALL_DISK_BUDGET_EXCEEDED"):
+            runtime.snapshot({root})
+
+
+@pytest.mark.parametrize(
+    "root,module", [("spacy", "spacy"), ("transformers", "transformers"), ("gensim", "gensim")]
+)
+def test_extended_nlp_fixed_commands_probe_only_selected_imports_not_model_apis(
+    tmp_path, root, module
+):
+    service = InstallService(tmp_path)
+    try:
+        plan = service.plan(request([root]))
+        prefix = service.root / plan.environment_id
+        (prefix / "bin").mkdir(parents=True)
+        (prefix / "bin/python").write_text("not executed")
+        (prefix / ".easyai-owned.json").write_text(
+            json.dumps({"ownedByEasyAI": True, "environmentId": plan.environment_id})
+        )
+        command_root = tmp_path / "captured"
+        command_root.mkdir()
+        calls = []
+
+        class Commands:
+            root = command_root
+
+            def run(self, argv, *args):
+                calls.append(argv[-1])
+                compile(argv[-1], "<captured-nlp>", "exec")
+                return "completed", []
+
+        assert (
+            OfflineWheelInstaller(Commands(), tmp_path, authorized=True).install(
+                prefix, plan, threading.Event(), lambda: None
+            )
+            == "completed"
+        )
+        assert next(command_root.glob("*.lock")).read_bytes() == lock_bytes(PROFILE_ROOT, {root})
+        assert (
+            "--no-index" in calls[0]
+            and "--only-binary=:all:" in calls[0]
+            and "--require-hashes" in calls[0]
+        )
+        names = {w["name"] for w in wheels(PROFILE_ROOT, {root})}
+        source = inspection_source("nonce", required_imports(names))
+        tree = ast.parse(source)
+        loops = [n for n in tree.body if isinstance(n, ast.For)]
+        imports = ast.literal_eval(loops[1].iter)
+        assert module in imports and set(imports) == set(required_imports(names))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                assert not isinstance(node.func, ast.Attribute) or node.func.attr not in {
+                    "load",
+                    "download",
+                    "from_pretrained",
+                    "pipeline",
+                }
+                assert not isinstance(node.func, ast.Name) or node.func.id not in {
+                    "pipeline",
+                    "from_pretrained",
+                }
+        unselected = inspection_source("nonce", required_imports({"torch"}))
+        tree = ast.parse(unselected)
+        loops = [n for n in tree.body if isinstance(n, ast.For)]
+        assert not {"spacy", "transformers", "gensim"}.intersection(ast.literal_eval(loops[1].iter))
+    finally:
+        service.close()

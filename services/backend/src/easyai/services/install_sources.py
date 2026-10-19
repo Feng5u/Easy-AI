@@ -21,12 +21,12 @@ class Wheel(TypedDict):
 ML_ROOTS = frozenset({"scipy", "pandas", "scikit-learn"})
 CV_ROOTS = frozenset({"scikit-image"})
 DL_ROOTS = frozenset({"pytorch-lightning"})
-NLP_ROOTS = frozenset({"sentencepiece"})
+NLP_ROOTS = frozenset({"sentencepiece", "spacy", "transformers", "gensim"})
 OPTIONAL_ROOTS = ML_ROOTS | CV_ROOTS | DL_ROOTS | NLP_ROOTS
 UNSUPPORTED = {
     "opencv-python": "INSTALL_NATIVE_REQUIREMENTS_UNVERIFIED",
     "nltk": "INSTALL_KNOWN_PACKAGE_VULNERABILITY",
-    **dict.fromkeys(("spacy", "transformers", "gensim", "hanlp"), "INSTALL_NLP_CLOSURE_UNREVIEWED"),
+    "hanlp": "INSTALL_BINARY_WHEEL_UNAVAILABLE",
 }
 IMPORTS = {
     "torch": "torch",
@@ -57,6 +57,53 @@ IMPORTS = {
     "yarl": "yarl",
     "idna": "idna",
     "sentencepiece": "sentencepiece",
+    "annotated-doc": "annotated_doc",
+    "annotated-types": "annotated_types",
+    "anyio": "anyio",
+    "blis": "blis",
+    "catalogue": "catalogue",
+    "certifi": "certifi",
+    "charset-normalizer": "charset_normalizer",
+    "click": "click",
+    "cloudpathlib": "cloudpathlib",
+    "confection": "confection",
+    "cymem": "cymem",
+    "gensim": "gensim",
+    "h11": "h11",
+    "hf-xet": "hf_xet",
+    "httpcore": "httpcore",
+    "httpcore2": "httpcore2",
+    "httpx": "httpx",
+    "httpx2": "httpx2",
+    "huggingface-hub": "huggingface_hub",
+    "markdown-it-py": "markdown_it",
+    "mdurl": "mdurl",
+    "murmurhash": "murmurhash",
+    "preshed": "preshed",
+    "pydantic": "pydantic",
+    "pydantic-core": "pydantic_core",
+    "pygments": "pygments",
+    "regex": "regex",
+    "requests": "requests",
+    "rich": "rich",
+    "safetensors": "safetensors",
+    "setuptools": "setuptools",
+    "shellingham": "shellingham",
+    "smart-open": "smart_open",
+    "spacy": "spacy",
+    "spacy-legacy": "spacy_legacy",
+    "spacy-loggers": "spacy_loggers",
+    "srsly": "srsly",
+    "thinc": "thinc",
+    "tokenizers": "tokenizers",
+    "transformers": "transformers",
+    "truststore": "truststore",
+    "typer": "typer",
+    "typing-inspection": "typing_inspection",
+    "urllib3": "urllib3",
+    "wasabi": "wasabi",
+    "weasel": "weasel",
+    "wrapt": "wrapt",
 }
 CORE_SOURCES = "easyai-cpu-sources.json"
 CORE_LOCK = "easyai-cpu-linux-cp311.lock"
@@ -95,11 +142,11 @@ def wheels(root: Path, selected: set[str] | None = None) -> list[Wheel]:
     if not selected or not selected.intersection(OPTIONAL_ROOTS):
         return base
     groups = []
-    if selected.intersection(ML_ROOTS | CV_ROOTS):
+    if selected.intersection(ML_ROOTS | CV_ROOTS | {"gensim"}):
         groups.append((ML_SOURCES, ML_LOCK, ML_HEADER))
     if selected.intersection(CV_ROOTS):
         groups.append((CV_SOURCES, CV_LOCK, CV_HEADER))
-    if selected.intersection(DL_ROOTS):
+    if selected.intersection(DL_ROOTS | {"spacy", "transformers"}):
         groups.append((DL_SOURCES, DL_LOCK, DL_HEADER))
     if selected.intersection(NLP_ROOTS):
         groups.append((NLP_SOURCES, NLP_LOCK, NLP_HEADER))
@@ -131,7 +178,8 @@ def wheels(root: Path, selected: set[str] | None = None) -> list[Wheel]:
         if name in known:
             # The reviewed DL graph activates the existing core fsspec[http]
             # extra. Expand its dependencies without adding or upgrading fsspec.
-            pending.extend(dependencies.get(name, []))
+            if selected.intersection(DL_ROOTS):
+                pending.extend(dependencies.get(name, []))
             continue
         if name not in dependencies or not any(w["name"] == name for w in extra):
             raise ValueError("INSTALL_DEPENDENCIES_UNRESOLVED")

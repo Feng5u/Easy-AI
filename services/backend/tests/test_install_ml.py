@@ -102,13 +102,13 @@ def test_single_and_full_ml_plans_use_only_their_reviewed_closure(tmp_path):
             )
             assert value.installed_bytes is None  # No invented extraction size.
             assert value.plan_hash == digest(value.model_dump(exclude={"plan_hash"}))
-        blocked = plan(["scipy", "spacy"])
+        blocked = plan(["scipy", "hanlp"])
         assert "INSTALL_DEPENDENCIES_UNRESOLVED" in blocked.blockers
         assert blocked.download_bytes is blocked.installed_bytes is None
         assert not blocked.execution_enabled
         catalog = {c.package_id: c for c in service.catalog().packages}
         assert catalog["scikit-learn"].import_name == "sklearn"
-        assert len([c for c in catalog.values() if c.target_version]) == 11
+        assert len([c for c in catalog.values() if c.target_version]) == 14
     finally:
         service.close()
 
