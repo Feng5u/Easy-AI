@@ -2216,3 +2216,61 @@ NOT RUN：真实 SSH/安装/wheel 下载/数据上传、真实 import/ABI/tensor
 - `/tmp/easyai-owner-handoff-20261019-regression1.log` SHA256 `0715a852add139b656c0a414a426c3873adb7e9b0b47c1537e78673b8142b052`。
 - `/tmp/easyai-owner-handoff-review-CWLKO1.log` SHA256 `2972e2d48c593979cda048564306c1717f86a90219cdcc7529f2bf8057853e73`。
 - `/tmp/easyai-owner-fd-extra-review-5nYOUb.log` SHA256 `f3e61ab22787d76858807cfaf77577f577d38e9833bf7d3bd189df5efcd5c00d`。
+
+
+## 2026-10-19：终态原子发布 P2、同 phase 收口与最新 CI 双失败
+
+父侧已只读签收前三项 P2（源码 b691f141fc4a8e3071cbcf82dd4c4903eb9ccd85）；本轮按新增指示修独立的 status.json 并发发布 P2，并覆盖完整收据已可见、serve 尚持 writer 锁的正常收口窗口。基线 HEAD/远端开发分支均 `e454f97044f84f20347b10f3807220727f2dac1f`，工作区开始 clean；本轮源码完整 SHA `ac0e0a460c39da7a575e378605d0811a75986498`。单一 writer，无真实 SSH/安装或新 CI 日志请求。
+
+### 行为与确定性证据
+
+- 原 status 经 O_EXCL 创建最终名字后再写入；RED1 在 open 返回写入前用 Event 屏障暂停 serve，并发 inspect 稳定 JSONDecodeError。失败日志保留，未用 sleep 猜概率。
+- 现两个 status 发布路径（预取消未派发、实际子进程收口）共用 publish_status：同目录随机私有临时文件完整写入、flush/fsync，Linux libc renameat2(RENAME_NOREPLACE) 一次原子发布，再 fsync 父目录。不覆盖已有未知/损坏收据或符号链接，没有普通 rename 覆盖 fallback。不支持该能力则 fail closed；仅移除本次随机临时名字。原 owner/private/nlink/stamp 读取约束未放宽。helper SHA256 `e0d242c72a3a5f64c641cad17a6a0f84cca066b9b8afcf13638072e42ede3b13`。
+- 两个确定性屏障覆盖文件尚空、512 KiB 合成收据已 flush 但尚未 fsync。publish 前 inspect 均 unknown/non-quiescent，不暴露空/部分 JSON 或过早终态；发布后才得到完整收据。另保留先前真实标准库子命令的退出、取消与同 phase 不重复启动回归；合成大事件不当真实训练指标。
+- 收据已完整可见但 serve 尚持 writer FD 时，verify/release 仅在同 job/plan/phase 已有静止收据条件下最多等2秒获取原 flock，每次等待及实际获锁后重验 claim、last-phase、intent；通过实际 flock 后才操作。Event 屏障强制正常窗口，两个动作均有界等待后成功。另强制最后一次验证后/获锁前意图变化，必须 INSTALL_PHASE_MISMATCH，不进入受保护操作。unknown phase 不启用等待，不生成静止或 release 证据；超时仍拒绝，不重新执行、不删锁。
+
+### 实际命令与结果
+
+在 `/workspace/Easy-AI`，所有日志使用唯一名称、noclobber 保留：
+
+- FAIL（修前真实复现）：`services/backend/.venv/bin/pytest -q services/backend/tests/test_remote_install_owner.py -k inspect_during_status_creation`，1 failed /32 deselected，JSONDecodeError；RED1。
+- PASS：`services/backend/.venv/bin/pytest -q services/backend/tests/test_remote_install_owner.py services/backend/tests/test_remote_install_protocol.py services/backend/tests/test_install_transport.py services/backend/tests/test_remote_install.py`，最终 **53 passed /2.66s**；finaltests2。范围包括新发布/等待门及原远端 helper/client/transport 回归，没有扩展真实平台矩阵。
+- PASS：`UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache pnpm check`；后续最终 runtime/test 新增通过 `services/backend/.venv/bin/ruff check --config services/backend/pyproject.toml runtime/install_owner.py services/backend/tests/test_remote_install_owner.py`（finalruff2）与相同配置格式化。后端合同/TS/锁文件未改。
+- PASS：`UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache XDG_CACHE_HOME=/workspace/.cache pnpm build`（build1）；最终 source 后端以 `UV_OFFLINE=1 UV_CACHE_DIR=/workspace/.uv-cache XDG_CACHE_HOME=/workspace/.cache node scripts/python-task.mjs build`（build3）重建；`node scripts/test-frozen.mjs`（frozen3）核资源原文、默认禁执行登记/取消、认证黄金编译/临时 cwd、EOF exit0 通过。
+- FAIL（中间保留）：frozen1 检出构建期间更新 helper 文件头说明导致资源原文不一致；不是安装/ABI 错误。build2 后 frozen2 曾通过；随后新增成功获锁后意图重验，故又以 build3/frozen3 验最终 source，没有把旧构建冒充最终构建。未生成新 electron-builder 包。
+- PASS：独立只读审查，第一次专项6 passed /30 deselected；最终加强后6 passed /35 deselected。确认原子不覆盖/unsupported failclosed、等待重验及 unknown 保留，无明确阻断 P1/P2。两次均本地合成、未代改源码/执行 SSH/安装/Actions。
+- PASS：`git diff --check`，原 plan 仍116185字节、SHA256 dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43；README/原规格/core、ML、CV、DL八个来源锁 hash 仍与上一节相同。
+
+### 最新 CI 实证与独立只读初核
+
+父侧提供：`e454f97044f84f20347b10f3807220727f2dac1f` / [run39181255841](https://github.com/T1doo/Easy-AI/actions/runs/39181255841)，2026-10-19 **00:34:06 UTC**，check 和 desktop 均在 `pnpm install --frozen-lockfile` 失败；前 `3616826e28cef2d2ce4fd874f1bb81a6fcf17d94` / [run39180535293](https://github.com/T1doo/Easy-AI/actions/runs/39180535293)，**00:24:34 UTC**，也同安装步骤双失败。d2ac2bf/check SUCCESS、desktop FAIL 已是历史；release-checklist 与 remaining-critical-path 已更正，不能仍称最新只有 desktop 红。
+
+只读源码/本地已有日志核对（`node --input-type=module` 的逐 importer specifier 审计、cat/rg/git diff、pnpm --version/node --version）：工作流、root packageManager/engines 和本地元数据均 Node24.19.0、pnpm11.25.0；root/desktop 共16项直接依赖 specifier 与源 lock importer 相同，源 lockfileVersion9.0、本地 installed lock 与源 lock 同 SHA256 `886aa7c3d4943909de165f313ac3eaae1260e0b4cd2849995cd960ddc40e046c`。两失败 SHA 之间 package.json、desktop manifest、lock、workspace、.npmrc、workflow 无差异，本轮也未改这些输入。工作流是 ubuntu-latest/windows-latest clean runner，本地是 warm Linux workspace；本地 pnpm fallback wrapper 另设 pnpm_config_pm_on_fail=ignore，CI workflow 未声明该变量。仅记录差异，不推测其为根因。既有本地日志 ERR_PNPM_NO_OFFLINE_TARBALL 属于另一次离线 builder 输入检查，不冒充 CI 错误正文。
+
+**准确 CI 安装错误正文/根因仍 UNKNOWN。** 对上述 Actions run 获取安装错误日志这一动作受既有访问拒绝约束，本轮未重试接口、换路、扩大权限、联网安装或盲重跑；不是一个待确认已经发出的新请求。若要进一步修 CI，需要父侧提供这两次准确安装错误正文；不凭步骤名假修 lock mismatch。当前 source/最终证据 SHA 的 CI 结果尚未知，本地 check/build PASS 不替代云 CI。
+
+### 工作区、远端与下一项
+
+源提交后工作区 clean；只读 ls-remote 显示远端开发分支仍基线 e454f97044f84f20347b10f3807220727f2dac1f，main 仍 `5323f86232529efcfb52131168ad049f01b219f3`。本证据提交后仅正常 push 到 origin 的 codex/demo-v0.0.0，再核最终完整 SHA/clean/main，最终回报为准。未写 main/Feng 原仓库、无强推、PR、Release 或部署。
+
+NOT RUN：真实 SSH/安装/下载/数据上传、训练环境 import/ABI/tensor/正式训练、真实桌面/原生 picker/干净目标机、Windows/macOS 实机、CI 日志读取或主动重跑。无新增凭据/权限/付费。默认执行门与此前 Actions/Electron sandbox 拒绝保持；7卡/CIFAR/Windows等原缺口仍在，B 未完成。下一项：父侧复核本发布及收口 P2，再继续原 M6.3；CI 修复待准确错误正文。真实正向远端门仍须隔离目标、可信 launcher/预备来源、许可/预算/窗口与认证指纹的具体授权。
+
+本轮日志 SHA256（中间 FAIL 原样保留）：
+- `/tmp/easyai-status-publication-20261019-build1.log` SHA256 `02ac2115186317df05cf42ffcb77dacd9c1cb8dd8d6ad634794d8bdc1be97c5f`。
+- `/tmp/easyai-status-publication-20261019-build2.log` SHA256 `f918eac67b19120a0996506146d4551659b36ab6dcf3f42bf43f926d3de5d3e1`。
+- `/tmp/easyai-status-publication-20261019-build3.log` SHA256 `77dce3242f69a26ea7bf9b783f307c0b2d69280f2d3b221690ff764e81d0a8e3`。
+- `/tmp/easyai-status-publication-20261019-check1.log` SHA256 `c42bd4df1916148541e1f0f0341c6c525fc308786650e029608cdf52c46e75fc`。
+- `/tmp/easyai-status-publication-20261019-ci-source-audit1.log` SHA256 `e4d093d73d8daa39ee22646921a95c48901a6e51c1fe7fa8b5c1d819add1505f`。
+- `/tmp/easyai-status-publication-20261019-finalruff1.log` SHA256 `82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18`。
+- `/tmp/easyai-status-publication-20261019-finalruff2.log` SHA256 `82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18`。
+- `/tmp/easyai-status-publication-20261019-finaltests1.log` SHA256 `ccd7b535d71b867ae0a5ae3b584ec8c7ca8811d4c8e0c0e63516893dcd3eeeca`。
+- `/tmp/easyai-status-publication-20261019-finaltests2.log` SHA256 `1a7ad76ccce124e5512311191543964683987ec553691baa16659c907c39fd86`。
+- `/tmp/easyai-status-publication-20261019-frozen1.log` SHA256 `499b57ad292aaae9305fdb0b52339e50fcdd8d3735ca879df489b2e38baca0f0`。
+- `/tmp/easyai-status-publication-20261019-frozen2.log` SHA256 `598e651d8bfd55009c56cd315d848d8185d98d8ae4eb67c6d0dd2d14af4ed0c3`。
+- `/tmp/easyai-status-publication-20261019-frozen3.log` SHA256 `598e651d8bfd55009c56cd315d848d8185d98d8ae4eb67c6d0dd2d14af4ed0c3`。
+- `/tmp/easyai-status-publication-20261019-green1.log` SHA256 `7b711c4d0208685ff6f99ae699d22f356a56d1c643de7e7d260b2f150080bb81`。
+- `/tmp/easyai-status-publication-20261019-green2.log` SHA256 `beb266fcc9eef9623f0a4927b2d6e44f71076cec2a6a847a4e2ab38d0f96e108`。
+- `/tmp/easyai-status-publication-20261019-green3.log` SHA256 `34ede81a169a7dbbbc1d87342c0eca427479b1b63a955349ce2d498eee6e2a99`。
+- `/tmp/easyai-status-publication-20261019-red1.log` SHA256 `e16c755193ae6719c149dc98b9a034184f1c918a14c7ec942be66d792ed498a6`。
+- `/tmp/easyai-status-publication-review-ZsgNcg.log` SHA256 `804802130b505cdc042f4c825e00c68da8841919e0bb711eab8fd3e811fbe92f`。
+- `/tmp/easyai-final-lock-revalidation-review-yviUys.log` SHA256 `1ae7b6c3c9ffac75206a11a478dfef45290dcbc685d93e689f09e66657fb6d27`。
