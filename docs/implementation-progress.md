@@ -2828,3 +2828,16 @@ PASS：工作区XDG环境 `pnpm test:package`，34项/1.74s；独立直接四文
 - `/tmp/easyai-win-metadata-frozen-smoke-20261019.log`：`598e651d8bfd55009c56cd315d848d8185d98d8ae4eb67c6d0dd2d14af4ed0c3`。
 - `/tmp/easyai-platform-metadata-review-20261019-unique1.log`：`b49bf5ffe8231ff7a04ad4f1c97ae4e3bad92b8a04fcf82d8facb7365dd33610`。
 - `/tmp/easyai-frozen-diag-review-20261019-unique1.log`：`59b9a6bde9b3593336c993f2d870835a1523e91d10b8aa281457a2feeab7f02e`。
+
+
+### 本次自然 CI 的实际结果与剩余阻塞
+
+产品修复已提交并正常push `e8efb040650acde8d5e6e422bd549991281d25cf`，远端同SHA。一次自然 [run39227538152](https://github.com/T1doo/Easy-AI/actions/runs/39227538152) Linux job117977380853 SUCCESS（pnpm check/test/build全部通过）；Windows job117977380233 FAILURE。step8 Project persistence, native locks and install metadata FAIL；step9 NTFS、step10冻结后端、step11冻结HTTP/resources均SUCCESS。step12–20全部SKIPPED，没有新候选构建或新ZIP。新增Windows元数据回归尚未证实通过，旧500未宣称关闭。
+
+中间播报曾依据最后已完成step9而误报step8通过，随后逐项元数据核对发现step8FAIL，已立即更正；本记录以逐项结果为准。独审追加只读核对新测试在真实Windows的模块替换/Path/关闭/无runtime路径，未发现可源码证明的新P1/P2；step8同时跑既有test_project_persistence，不能仅按step名称归因。实际首异常仍UNKNOWN。
+
+准确阻塞：读取目标 https://github.com/T1doo/Easy-AI/actions/runs/39227538152/job/117977380233#step:8:1 的首失败pytest nodeid、expected/actual、traceback及FAIL/teardown ERROR区别。父级已登录浏览器可读取，已通过异步问题请求提供；该证据pending。本执行器未尝试此前被拒logs/artifacts/browser接口，仅读允许的run/jobs元数据；没有重跑CI或猜测产品改动。当前Windows这次FAIL已确认，非不确定执行或等待安装授权。
+
+独立只读边界实验：把training-profile副本换成CRLF后，wheels(optional roots)确定拒绝INSTALL_DEPENDENCIES_UNRESOLVED，因为锁文件bytes必须等于批准的LF pins。实际本次Windows checkout EOL未知，此实验不等于CI根因，尚未改变Git EOL策略/任何锁bytes，也未因此新推CI。需要本次正文后决定最小修复。
+
+工作区本补记前clean；main远端仍5323f86232529efcfb52131168ad049f01b219f3。保存本次证据仅本地docs提交，不push，避免无实质修复再耗CI。原README/计划/规格/锁hash、旧Linux包均保留。下一步是据该新正文定位最小修复，复核对应测试/独审后再一次自然CI；候选必须通过Windows包内backend与Electron启停再留存，完整A/B与发布门仍未通过。

@@ -1,5 +1,7 @@
 # Windows 未签名候选
 
+2026-10-19 最新修复源码 `e8efb040650acde8d5e6e422bd549991281d25cf` / [run39227538152](https://github.com/T1doo/Easy-AI/actions/runs/39227538152)：Linux 全套 SUCCESS；Windows 步骤8（项目持久化、native locks、新增安装元数据测试）FAIL，原NTFS/冻结构建/冻结资源检查 SUCCESS，后续候选构建/ZIP审计/包内smoke/上传 SKIPPED。暂缺步骤8首个pytest失败正文，不能归因新增测试或宣称旧500已在Windows验证关闭。本轮没有新Windows ZIP，下面9f的ZIP是旧失败证据。父级需从已登录浏览器读取首失败nodeid、expected/actual和traceback；不重试旧run或被拒日志接口。
+
 最新实测：`9f2da69ad4741038f71b2c1c4eb2316fbc26cdb1` / [run39225887922](https://github.com/T1doo/Easy-AI/actions/runs/39225887922) Linux SUCCESS，Windows 打包保护、实际构建与 ZIP 审计 SUCCESS。ZIP 435175301 字节，SHA256 `140c2acaa6a4dea3537ebd85ac62134874c2621fa1720d7f7b88a050c0a870da`。包内后端 smoke FAIL（HTTP 非 JSON 500），Electron/上传 SKIPPED，因此仍无通过全部门且可下载的 Windows 候选。
 
 父级提供该步骤正文后，源码与旧产品红绿回归确定包目录在 Windows 无条件初始化 POSIX 安装 runtime，触发 UID API 边界。现只允许 Linux x64 创建本地安装执行器；Windows 保留目录与被阻止计划元数据，来源执行拒绝，未放宽所有权/安装门。新 smoke 保留至多64KiB stderr，仅输出固定端点/状态码、文件标签/行号和异常类别，不输出正文/路径/token；500 与非 JSON 仍失败，EOF/退出/鉴权/资源检查不变。本地47项针对性后端测试、36项打包保护、静态检查、新源码冻结后端完整 smoke 及独审通过；真实 Windows 新构建/包内 smoke 待本修复正常 CI，不冒充已通过。
