@@ -2538,3 +2538,34 @@ NOT RUN：Windows新CI/原生桌面、Squirrel安装器、hook执行、候选包
 - `/tmp/easyai-dual-ci-fulltest-20261019.log`：`58239ec7aad70ce548bd1a1ccbf4da69949b796a5b632e8c89ca8128ad15fdda`。
 
 预提交原件校验PASS：plan仍116185字节/SHA256 dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43；README与旧规格未改。仅正常提交推送codex/demo-v0.0.0，最终完整SHA/远端clean/main核对由最终回报提供；新CI由父侧既有合法渠道核实，本线程不读取被拒接口。
+
+## 2026-10-19 Windows E2E入口有界排查（本地证据与确定断言修正，未推送）
+
+父侧已通过允许的run/jobs元数据核实run39198400814：Windows安装、后端前置、desktop build全部PASS；pnpm test:e2e FAIL。Linux pnpm test PASS，build当时运行中，最终结果本线程未知。旧两处确定问题已解，不将新E2E FAIL归因于旧窗口或模块解析；完整B仍未验。
+
+起始HEAD/远端均`62c0b4cc137201b3b6b791474bb5c7e100d61731`，工作区clean，单一写入者，main仍`5323f86232529efcfb52131168ad049f01b219f3`。只读检查playwright.config.ts、startup.spec、preload、Main/backend/backendLocation、setup和CI入口。E2E无globalSetup/webServer/fixed-port；backend绑定127.0.0.1:0，Main开发路径按here解析仓库、Windows使用.venv/Scripts/python.exe；真实启动必须保留sandbox、受控协议、Main stdin token及EOF关闭。未找到可确定的端口或Windows路径缺陷，不凭推测改动。
+
+确定独立问题：`tests/e2e/startup.spec.ts`精确桥接键名仍是旧7项，真实preload已含dataTransfers/packages共9项。仅期望数组增加这两项，保留精确toEqual、node=require不可见、sandbox=true、无--no-sandbox和正常关闭；不扩大产品权限或放宽断言。当前Windows首次失败是否在此处仍UNKNOWN，可能更早；不声称修复已使E2E通过。
+
+实际非GUI验证（cwd /workspace/Easy-AI）：
+- 首审计工具FAIL：`node /tmp/easyai-e2e-bridge-audit-20261019.cjs`尝试旧TypeScript API绝对目录require，TypeScript7包无该入口，MODULE_NOT_FOUND；工具错误日志保留，未下载/换依赖。改用已有实际tsc输出preload.cjs，不再依赖此API。
+- 确定基线FAIL：`node /tmp/easyai-e2e-bridge-audit-v2-20261019.cjs baseline`，VM执行实际编译preload，只模拟contextBridge注册；所有IPC调用立即抛错，未调用IPC。git show HEAD取旧断言，实际9项/期望7项，exit1。
+- PASS：同脚本无baseline参数，当前精确9项期望与实际9项顺序相同；没有启动Electron/浏览器，不能代替真实contextIsolation/sandbox断言。
+- PASS：`CI=true XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/.cache pnpm exec playwright test --list`，仅枚举1项测试，无launch；`node node_modules/typescript/bin/tsc --noEmit -p tsconfig.tests.json`，exit0。
+- PASS：`CI=true XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/.cache UV_CACHE_DIR=/workspace/.uv-cache UV_OFFLINE=1 pnpm exec vitest run apps/desktop/electron/backend.test.mts apps/desktop/electron/backend-location.test.mts apps/desktop/electron/security.test.mts`，14PASS/1.05s，仅既有非GUI准备测试；真实Python后端stdio/health/EOF，平台路径单元及安全配置，不代表Windows。
+- PASS：`git diff --check`；独立只读review无新增P1/P2，确认真实9项及安全断言保留，建议待首错误后再决定push。
+
+NOT RUN：Electron/浏览器GUI、pnpm test:e2e实际执行、Windows本地复现、Actions日志接口/替代路径/重跑、新CI、新包、训练/SSH/安装。此前浏览器/sandbox与日志读取拒绝继续有效，本轮未尝试，不关闭安全门。CIFAR及真实资源授权不变。最小缺失证据为该测试首个错误块、文件/行号、expect差异或Playwright call log；若启动超时，只需launch/firstWindow/backend-status对应错误段，不要求全部日志或新权限。
+
+将这项确定修正及证据本地提交，暂不push，避免尚无本次首错误依据时触发CI。下一项按新正文确定剩余失败位置，保留修复接续同一开发分支；最终回报列本地SHA与未推送差异。
+
+本轮审计脚本/日志SHA256：
+- `/tmp/easyai-e2e-bridge-after-20261019.log`：`2aea6024e358a2d95abb1127a0588c2e0078da215beb11e1dfcce32d248d83bc`。
+- `/tmp/easyai-e2e-bridge-after-v2-20261019.log`：`0bbbbc28f3cd6df9ad71404980e7281753a42116a958e9bcb0cd95c6712e5dc2`。
+- `/tmp/easyai-e2e-bridge-before-20261019.log`：`2aea6024e358a2d95abb1127a0588c2e0078da215beb11e1dfcce32d248d83bc`。
+- `/tmp/easyai-e2e-bridge-before-v2-20261019.log`：`1364bb8aee3d451f0dc0cd2f56f35a9b5fb510a14973b688c9d7cc8418a57801`。
+- `/tmp/easyai-e2e-list-20261019.log`：`aacdfced54ed9c95893c2f0e21f8051496396435bacea53735758249369a0cb1`。
+- `/tmp/easyai-e2e-preparation-20261019.log`：`432353d7e5b517268e2728b00a48aae0739752427bf2ee0526c14847fe11c6d7`。
+- `/tmp/easyai-e2e-tscheck-20261019.log`：`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`。
+- `/tmp/easyai-e2e-bridge-audit-20261019.cjs`：`1296f08835399f6f357c021c23b837857e2ac68420376db9ddc373e7cabef0ae`。
+- `/tmp/easyai-e2e-bridge-audit-v2-20261019.cjs`：`56b3e04e475aee5ecfbf789993e641ffdf2dee2d9ff4adf29b42f96d55d9a8ac`。
