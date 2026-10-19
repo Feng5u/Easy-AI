@@ -3411,3 +3411,12 @@ PASS（CI=true、XDG_DATA_HOME=/workspace/.local/share、XDG_CACHE_HOME=/workspa
 - check `/tmp/easyai-registration-check-final2-20261019.log` SHA256 `e580f738fb6f2a6bfe01cc5daae5d3e702f5220b2ad112eafff67fad6afa0a95`。
 - test `/tmp/easyai-registration-full-test-20261019.log` SHA256 `3f7e6f39955a39eebcfdd12fad03ae7aff9badc2fa7edbeae1248a5a92be8c46`。
 - desktop build `/tmp/easyai-registration-build-20261019.log` SHA256 `edf17c425104724e31ab68f1d9a4261e9d941974fcfc7e4a6ff83231d122dd05`。
+
+
+### 注册同步快照修复单次CI：Linux全成功，Windows新首错待核
+
+源码与remote dev为`0ff20b9b31fa7cfd3c34750a56792910fe3ec233`，[CI39253943530](https://github.com/T1doo/Easy-AI/actions/runs/39253943530)。Linux job118064390046完整check/test/build SUCCESS；Windows job118064390904前置持久化/native安全/冻结后端/HTTP资源/桌面build/venv隔离全部通过，step14 `pnpm test:e2e` FAIL；step15–20全部SKIPPED，无本轮打包候选或包内GUI通过证据。
+
+已请求父级在已登录页面读取该step首错/调用栈、最后ACTION/SELECTION/REVEAL_GEOMETRY/DRAG_GEOMETRY及PROCESS_EXIT/CLOSE_CONFIRMED。此动作待返回；尚不能确认本轮Prep注册是否越过、后续挂点或退出状态，不借上轮pid2432/code0充当本轮证据。取得实际错误前停止依赖它的修补与CI，没有重试受限日志/artifact接口或盲重跑旧run。本轮实际React/Blockly6项RED→GREEN、事务10项/联合47项/独立审查/完整本地回归均保留，不替代真实GUI验收。
+
+当前仅本地docs证据提交，避免报告另触发CI；main5323f86232529efcfb52131168ad049f01b219f3、原件/README/规格/依赖锁保持。完整空白CNN/M4/M7/SSH/MNIST/TST33/许可/A/B仍未验收。未执行训练安装、下载、真实SSH、权限/凭据/共享环境更改或发布。
