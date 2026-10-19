@@ -1,5 +1,7 @@
 # v0.0.0 发布验收清单
 
+2026-10-19 实测增量：源码 `ca184beffeb5850adea499e08fb50619d6b01bc7` 的 [run39221894722](https://github.com/T1doo/Easy-AI/actions/runs/39221894722) Linux SUCCESS；Windows原开发E2E成功，新增Packaging input and archive guards（pnpm test:package）FAIL，后续实际打包/包内E2E/上传SKIPPED，尚无Windows候选。首错误正文待父级已登录浏览器读取，根因UNKNOWN；保护不跳过、不猜测同因。下文“待本轮CI”为提交时状态，现以此结果为准。
+
 2026-10-19 原计划独立欠项继续：Windows x64 dir/ZIP候选接入原封闭输入流程，默认PE ASAR完整性保留并独立重放验证，新增包内sidecar/packaged Electron CI；真实结果尚待本轮CI，Linux候选a4de782及b05证据保留。见[windows-candidate.md](windows-candidate.md)。不以训练/SSH缺资源停止独立开发，也不据本项通过宣称A/B。
 
 2026-10-19 最新真实候选已更新至源码 `a4de782a5efa717868d7180eee18d60e71dfb16a`：Linux x64未签名dir/tar.gz、v2封闭输入/输出、归档逐项核验、包内sidecar及独审PASS；原开发CI两平台SUCCESS。详见[candidate-a4de782.md](candidate-a4de782.md)。包内Electron GUI/干净机TST33/正式训练/SSH仍NOT RUN，distributionReady/legalReviewComplete仍false；不是正式发布或完整A/B。下方旧“最新源码包未生成”描述属于历史状态，以本增量为准。

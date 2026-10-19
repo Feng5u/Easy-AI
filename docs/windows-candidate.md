@@ -1,5 +1,7 @@
 # Windows 未签名候选
 
+2026-10-19 实测增量：源码 `ca184beffeb5850adea499e08fb50619d6b01bc7` 的 [run39221894722](https://github.com/T1doo/Easy-AI/actions/runs/39221894722) Linux SUCCESS；Windows原开发E2E成功，新增Packaging input and archive guards（pnpm test:package）FAIL，后续实际打包/包内E2E/上传SKIPPED，尚无Windows候选。首错误正文待父级已登录浏览器读取，根因UNKNOWN；保护不跳过、不猜测同因。下文“待本轮CI”为提交时状态，现以此结果为准。
+
 原计划 §4/§18 M8.2 优先 Windows 11 x64 客户端，但此前 builder 只接受 Linux。开发态 Windows E2E 成功不证明学生能使用包。本轮扩展原有同主机固定 Git 快照、offline/frozen 应用依赖、PyInstaller --onedir、electron-builder26.15.3 流程，生成 Windows x64 `win-unpacked/easyai.exe` 与 ZIP，不增加安装器、签名、发布或训练环境。
 
 已有 Linux 候选 `a4de782a5efa717868d7180eee18d60e71dfb16a` 及其证据提交 `b05a375eb490c6c69828cbbb03fca3a5cc34b3f4` 保留；新候选绑定本次实际构建提交，不冒用旧包。源码、原计划与 D01–D14 不变。

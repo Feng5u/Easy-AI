@@ -2702,3 +2702,8 @@ ZIP/tar标准库审计只读精确集合/大小/hash，Windows核readonly而非�
 - `/tmp/easyai-win-candidate-review-cDGEKB.log`：`8705dcbd50d05b5fa63284cd8f8141a31850f34fc23ea97190a6fc13df7c5f66`。
 
 最终完整SHA、正常dev push和自然免费CI/真实候选结果由最终回报补记；仅一次本实质功能CI，不主动dispatch/重跑。
+
+
+本轮真实CI结果补记：正常提交/推送产品 `ca184beffeb5850adea499e08fb50619d6b01bc7`（含保留的b05证据），[run39221894722](https://github.com/T1doo/Easy-AI/actions/runs/39221894722) **Linux check SUCCESS / Windows desktop FAIL**。Windows原开发态startup E2E及前置native/frozen/venv检查成功；新增 `Packaging input and archive guards`（实际 `pnpm test:package`）FAIL，随后Windows实际构建、ZIP审计、包内sidecar、packaged Electron及artifact上传均SKIPPED。因此本轮尚无Windows候选，不能把已接线或本地25PASS当产物成功；原Linux a4de候选继续有效保留。
+
+准确阻断：需要父级在已登录GitHub浏览器读取该步骤首个失败测试名、error/cause和首个堆栈（包括是否hookFailed/EPERM/EBUSY）。当前仅run/jobs元数据，无正文，根因UNKNOWN。独审再次只读复核无可从源码确定的Windows-only问题；ASAR读取try/finally关闭fd，没有证据归因句柄缓存；旧Linux-only六项按原scope跳过，不跳新Windows门。没有猜测修复、放宽/跳过保护或重跑CI，也不访问此前被拒logs/artifacts接口；父级可读正文，无需用户再搬。该阻断是实际Windows保护失败，不是真实训练/SSH缺资源；正文到达后接续精确修复并验证。此补记仅本地证据提交不再push触发CI，最终SHA/remote/clean由回报给出。
