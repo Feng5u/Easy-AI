@@ -298,7 +298,9 @@ class RunContext:
         try:
             yield Path(temporary)
             self._artifact_path(relative)
-            with open(temporary, "rb") as stream:
+            # Windows FlushFileBuffers requires a writable handle; r+b
+            # preserves the serializer bytes and never truncates the file.
+            with open(temporary, "r+b") as stream:
                 os.fsync(stream.fileno())
             # Hard-link publishes complete bytes without replacing an existing artifact.
             os.link(temporary, destination)

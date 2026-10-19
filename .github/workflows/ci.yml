@@ -40,7 +40,7 @@ jobs:
       - run: pnpm setup
       - name: Project persistence, native locks and install metadata
         working-directory: services/backend
-        run: uv run --frozen pytest -q tests/test_project_persistence.py tests/test_install_platform_metadata.py tests/test_golden_checkout.py tests/test_compilation.py
+        run: uv run --frozen pytest -q tests/test_project_persistence.py tests/test_install_platform_metadata.py tests/test_golden_checkout.py tests/test_compilation.py tests/test_atomic_artifact_durability.py
       - name: Experimental NTFS storage readiness (production gate remains off)
         if: ${{ !cancelled() }}
         timeout-minutes: 3

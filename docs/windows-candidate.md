@@ -1,5 +1,7 @@
 # Windows 未签名候选
 
+父级补齐7b step8三个失败：两项实际图表边界写入在atomic_target的rb句柄fsync Windows Errno9，一项managed core导出LF与checkout源CRLF不同。现atomic_target仅改不截断的r+b句柄同步，保留fsync→排他hardlink→finally清理；五类成功/失败/竞争回归验证。系统核对全部fsync/sync_file来源，其余普通文件为writer/update句柄，目录同步属POSIX或native平台合同，未加fallback。将明确导出/冻结原bytes比较的runtime helpers、managed.py和四JSON资产固定LF，真实Git checkout十一资产与导出text bytes统一，不动其他原件。57项匹配测试、36项打包保护和独审通过，真实Windows新CI待核。
+
 最新golden修复源码 `7b095e72e8eb411bebbc21d8208d49899bf8b87c` / [run39229460721](https://github.com/T1doo/Easy-AI/actions/runs/39229460721)：Windows step8（含新增golden checkout/compilation测试）FAIL；NTFS/冻结后端/冻结HTTP资源SUCCESS，其后候选build及包内smoke/上传SKIPPED。当前无首失败nodeid/stack，不沿用旧golden LF归因；需父级浏览器读取本次step8。未重跑或放宽测试。
 
 父级补齐4304 step18正文：offline package plan先PASS，编译HTTP200、stderr0；strictEqual在test-frozen.mjs:506失败，actual生成Python为LF、expected checkout golden为CRLF，已不是500。现仅为三份compiler golden声明LF，刷新工具写UTF-8 bytes，原Python测试加强为raw bytes对照；不normalize断言、不改编译器内容/哈希或golden正文。真实Git autocrlf红绿、39项匹配测试、36项打包保护通过，实际Windows新包内/Electron结果待核。

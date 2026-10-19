@@ -2913,3 +2913,35 @@ PASS：工作区XDG环境 `pnpm test:package`，34项/1.74s；独立直接四文
 剩余准确阻塞：需父级浏览器读取 https://github.com/T1doo/Easy-AI/actions/runs/39229460721/job/117983628622#step:8:1 首失败pytest nodeid、expected/actual、traceback及FAIL/teardown ERROR区别，已异步请求，证据pending。本执行器只读允许run/jobs元数据，未重试此前被拒logs/artifacts/browser接口；当前失败具体原因UNKNOWN，不因整模块新增测试猜作symlink权限/编码/路径或继续归因旧LF/CRLF，也不删新测试使后续构建运行。等待新正文后最小修复，无重跑CI/松门/新增权限/发布操作。
 
 最终逐项元数据复核：Linux check job117983628196已SUCCESS，pnpm check/test/build全部通过；Windows仍step8 FAILURE，其后候选SKIP。此失败证据仅本地docs提交不push，避免无修复再耗CI；远端产品7b保持，工作区提交后clean。原件/锁/旧Linux候选未改，完整A/B和发布验收未通过。下一步取得本次step8首失败正文，保留现有测试门逐根因修复并独审，再有界自然CI。
+
+
+## 2026-10-19 Windows写入持久化与受管源码LF合同系统核对
+
+起始HEAD bd0fffb1d809d095a0ba94c64c91408f7cd819e8，工作区clean，remote7b095e72e8eb411bebbc21d8208d49899bf8b87c。父级新正文 https://github.com/T1doo/Easy-AI/actions/runs/39229460721/job/117983628622#step:8:53 ：test_final_figure_component_boundary_really_writes_files两个参数x*220/中*73+'a'在atomic_target rb重开→fsync Windows Errno9 Badfiledescriptor；test_bundle_can_export_managed_core_from_frozen_resource_layout导出managed.py LF vs预期源CRLF，index90。3FAIL36PASS/6.73s，desktop1m30s；golden不是本轮首错，不删除新增全compilation测试。
+
+修复：runtime/easyai_runtime.py只将临时文件同步重开模式rb改r+b（不截断），仍序列化关闭后校验路径→fsync成功→hardlink排他发布，finally清临时文件。不跳fsync、不改原子/排他发布或物理边界、不吞异常。新增5case真实文件回归：Windows式可写sync合同（旧代码success确定EBADF红例）+实际os.fsync，成功字节完全保留且同步先于link；fsync EIO、link EIO、serializer异常均无目的产物且无temp；竞争者先创建目的文件则拒绝且保留对方bytes，临时文件清理。
+
+系统审计范围：rg fsync/fdatasync遍历runtime与全部backend源，并追踪sync_file调用的descriptor来源。普通文件来源：runtime atomic_json、install_owner.write_file、supervisor、managed log/cancel、host_keys、project_lock、event_journal、workspace export/create、owned_creation、install_source_selection、remote_install/install_process、project_service及bundle/run_store/SSH checkpoint/stream/artifact/transfer cache均是w/x/xb/wb/w+b或O_WRONLY/O_RDWR（exclusive/update）；仅atomic_target为rb重开。目录fsync属于原POSIX目录保护或WindowsDirectory native flush合同，保持平台门/权限，无unsupported fallback，也未启用Windows production storage。此为源码审计，不冒充Windows硬件断电耐久性验证。
+
+确定字节资产：runtime_sources导出四helper+managed源码会以UTF8/LF写出；freeze还逐字节校验runtime/probe/install_owner。新增LF属性只覆盖runtime/*.py（六个）、managed.py、packages/block-library/manifest.json、packages/package-groups/catalog.json、examples/mnist-cnn/project.easyai.json、packages/contracts/fixtures/blank.json；训练profile十份/golden三份原规则保留，不全仓库normalize或动用户原件。新增第二个真实Git core.autocrlf=true checkout回归，旧规则确定runtime CRLF vs原LF失败；新规则十一资产与源bytes一致，runtime_sources输出UTF8bytes与各自源码完全一致。所有原golden/资源/编译器字节断言保持，无normalize读取结果。
+
+实际命令 cwd /workspace/Easy-AI：
+- FAIL红例：services/backend/.venv/bin/pytest -q services/backend/tests/test_atomic_artifact_durability.py -k success，1FAIL4deselected，准确OSError EBADF；旧LF policy的test_golden_checkout.py -k packaged，1FAIL1deselected、byte81 CRvsLF。
+- PASS：services/backend/.venv/bin/pytest -q services/backend/tests/test_atomic_artifact_durability.py services/backend/tests/test_golden_checkout.py services/backend/tests/test_compilation.py services/backend/tests/test_emission.py services/backend/tests/test_install_platform_metadata.py services/backend/tests/test_project_persistence.py，57PASS/1.25s，仅既有Starlette warning。
+- PASS：workspace XDG/UV_OFFLINE=1 pnpm test:package，36PASS；所有既有ASAR/ZIP/private/hash等门保持。Windows step8只追加durability新测试，旧全部compilation保留。
+- PASS：只读独审定向34PASS，无新增明确P1/P2，确认r+b不truncate、sync后排他发布与cleanup、asset范围准确。未改/联网/构建。
+- 格式校验真实记录：首次ruff format runtime漏带backend配置，默认88列重排，pnpm check在仓库100列检查FAIL；用ruff format --config services/backend/pyproject.toml runtime/easyai_runtime.py恢复全部无关格式，最终runtime diff仅两注释和rb→r+b。该失败日志保留，正确配置后的check和最终独占freeze/smoke结果稍后补。
+
+无训练环境/torch/数据/模型下载/SSH/教师共享环境操作，无main/force/PR/Release/部署/付费/凭据/新权限。main原基线、README/原计划/规格/依赖锁/原golden和旧Linux候选保持；runtime合法修复只进入新候选，不覆盖旧包。下一步最终检查后正常分支一次有界自然CI，实际Windows packaged backend/Electron/上传未通过前不记候选完成，完整A/B与发布门仍未完成。
+
+- `/tmp/easyai-win-durability-before-20261019.log`：SHA256 `21e86e853032b41ae81153ef3e256354dcbf822d4f63b2516693b7339f24a09f`。
+- `/tmp/easyai-runtime-assets-before-20261019.log`：SHA256 `80acacc92c83ab96f009b17ba05db0f9232177b5b07885eab7ce29b04960d77e`。
+- `/tmp/easyai-win-durability-after-20261019.log`：SHA256 `7aac5826b710458601445a9330c1465e6934767622c483cf6343999578886d82`。
+- `/tmp/easyai-artifact-sync-independent-xUsMcq.log`：SHA256 `fc8011a7055119a4a7adf9fbfd54a45c6341f471d7c65ff58351e0f199bbf42f`。
+- `/tmp/easyai-win-durability-check-20261019.log`：SHA256 `72d9e2af13f6020279ea9ff151f0cf6dc53f0e0dffa447f78a550ac25dc68a0c`。
+- `/tmp/easyai-win-durability-package-20261019.log`：SHA256 `f1ea8cf3b0e7b9420d7aeec0b624851e2cc12cbcfd7608adf283d8f60ff1ed9d`。
+
+最终源码复核PASS：同workspace XDG环境pnpm check，TypeScript/ruff/mypy66源文件/真实fixtures/格式全通过。node scripts/python-task.mjs build /tmp/easyai-win-durability-final-Htyykw 与 node scripts/test-frozen.mjs /tmp/easyai-win-durability-final-Htyykw/dist/easyai-sidecar均exit0，最终bytes真实冻结后端完整资源/HTTP/项目/golden compile/EOF0通过。未覆盖旧artifact。README/两原件/两个锁和三golden复核原hash均一致，git diff --check PASS。
+- `/tmp/easyai-win-durability-check-final-20261019.log`：SHA256 `007402ac25bb13866eac8671350b82013fe398484ae377f28365535c9d66eebb`。
+- `/tmp/easyai-win-durability-final-build-20261019.log`：SHA256 `2a8a93991cf1b19f6e52ccd5c368c14eab214fd2f70d5b808df8adea8ed664f8`。
+- `/tmp/easyai-win-durability-final-smoke-20261019.log`：SHA256 `598e651d8bfd55009c56cd315d848d8185d98d8ae4eb67c6d0dd2d14af4ed0c3`。

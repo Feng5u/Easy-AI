@@ -6,3 +6,12 @@
 # Generated Python, IR and source-map snapshots are canonical UTF-8/LF bytes.
 /services/backend/tests/fixtures/golden/*.txt text eol=lf
 /services/backend/tests/fixtures/golden/*.json text eol=lf
+
+# These text assets are copied into frozen resources or exported as UTF-8/LF
+# and checked byte for byte against the tracked source.
+/runtime/*.py text eol=lf
+/services/backend/src/easyai/runtime/managed.py text eol=lf
+/packages/block-library/manifest.json text eol=lf
+/packages/package-groups/catalog.json text eol=lf
+/examples/mnist-cnn/project.easyai.json text eol=lf
+/packages/contracts/fixtures/blank.json text eol=lf
