@@ -3217,3 +3217,12 @@ PASS：固定workspace XDG/UV_OFFLINE=1 pnpm check（/tmp/easyai-toolbox-check-f
 - /tmp/easyai-toolbox-check-20261019.log SHA256 `ab863fb4dce885f657836e4e6e9d3ddd3e81e626e0b1b77002999c1f9987f674`。
 - /tmp/easyai-toolbox-check-final-20261019.log SHA256 `e580f738fb6f2a6bfe01cc5daae5d3e702f5220b2ad112eafff67fad6afa0a95`。
 - /tmp/easyai-toolbox-list-20261019.log SHA256 `717c39f89010828fb59c9cce535f47b2c07edc6e2dda62209b6cfef445165164`。
+
+
+### 空白CNN首次Windows实测：FAIL，等待首条断言证据
+
+源码/remote `d7451d75f29b63dfac8bafb42b6667e8f2b7e16b`，保留上一证据提交4b159e4d293bcd7fb729a8e955ea9f9d9c201c9c。[CI39243887949](https://github.com/T1doo/Easy-AI/actions/runs/39243887949) Linux job118030992186的pnpm check/test/build全部SUCCESS；Windows job118030991821 step14 pnpm test:e2e为FAIL。前置项目持久化/native cache与trust安全/冻结backend/HTTP资源/desktop build/应用venv隔离门均SUCCESS，step15以后未完成，故本次无可接受新候选，空白CNN真实操作链仍未验收。不能仅凭此元数据推断失败场景、断言或产品缺陷；此前示例切片接受证据保持，不用本轮失败覆盖历史。
+
+当前准确阻塞：需要父级在已登录GitHub页面读取该run/job/step14的首个失败测试名、test.step、Expected/Received、call log/源码行及若存在的EASYAI_TOOLBOX_RENDERER_FAILURES。已通过异步问题请求；该读取待父级，未取得结果。本执行器既有日志/artifact/browser API限制保持，未重试被拒操作、未绕过、未盲重跑CI、未修改测试门或禁用本地sandbox。未完成的实际包内操作不标PASS；独审无确定P1/P2及本地静态PASS不能代替WindowsGUI。
+
+只读复核远端main仍5323f86232529efcfb52131168ad049f01b219f3，dev同d7451d75f29b63dfac8bafb42b6667e8f2b7e16b，原plan/规格/README及pnpm/backend uv依赖锁hash均与既有记录一致；后续只有本地docs证据提交，不为证据额外触发CI。下一项取得首条错误并按证据修复，再做一次正常开发提交的自然CI。真实SSH/MNIST/TST33/许可、完整M4/M7/A/B继续分别未完成。
