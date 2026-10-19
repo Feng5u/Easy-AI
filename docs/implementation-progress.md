@@ -3092,3 +3092,14 @@ PASS（cwd /workspace/Easy-AI）：`services/backend/.venv/bin/pytest -q service
 本阶段指定HostKeyStore原生私有持久化缺口已实际闭环：独立关闭门→真实NTFS接受→独审→默认开启→真实default及包内验证。未知key只允许显式指纹确认，changed key硬拒且没有替换入口，关闭门/before-dial/cleanup未知拒绝门保留。测试仅合成public wire bytes和本地模拟transport；不宣称包内真实SSH或完整Windows SSH完成。
 
 下一项：实际Windows客户端到受控Linux SSH服务器的完整认证/取消/重连/路径安全验收仍NOT RUN，须先由父级明确最小授权目标、账户认证方式、主机指纹与私有state位置；正式MNIST/训练依赖/硬件/TST33/法律审查同样NOT RUN，不擅自下载或修改共享环境。源码与本地docs结案后正常差异仅docs证据提交领先remote，避免额外自然CI。main仍5323f86232529efcfb52131168ad049f01b219f3；原plan/规格/README/依赖锁/golden SHA保持。无main/force/PR/Release/部署/付费/新权限/真实凭据变化。
+
+
+## 2026-10-19 M4/M7 真实桌面编辑与错误修复闭环
+
+父级接受c28e默认信任接线后明确授权本UI切片。基线本地e400fd08974c6cf5f580cc317c01a562d8ddce62、remote c28e955b7787ba1986fc40cd7aa13316f32d7e51，工作区clean，main不变。已核现有ProjectEditor/WorkspaceManager/App/CodeView/Monaco加载/CSP和现有startup.spec.ts：产品已有删除、引用诊断定位、Undo、自动保存与恢复；原Playwright仅启动/沙盒/bridge/退出。没有凭空重做产品或另造runner。
+
+扩展同一个现有Playwright场景，由原Windows CI开发态及实际packaged executable两次执行。使用独立临时工程和Electron标准--user-data-dir并断言实际app.getPath隔离，仅用测试进程替换原生目录picker返回该临时目录，限制title/properties，其余真实Main IPC/私有后端/Python编译器/Blockly/Monaco不注入。路径：新建MNIST示例→实际编译通过→打开真实Monaco并验证nonce/readonly与积木语义装饰→选train_data并删除→自动保存后真实REF_NOT_FOUND/DATASET_REF阻断→诊断源按钮定位data.dataloader→Undo恢复原Dataset ID→自动保存再编译通过→切模型页保存→正常退出重启→恢复三页/引用/代码显示状态再编译。完整工作区仅根数组按稳定ID规范后比较，保留块/字段/连接/坐标全等；真实编译全文Undo前后和重启后全等，不把Monaco虚拟可见行当完整code。
+
+PASS：固定workspace XDG/UV_OFFLINE=1 pnpm check（/tmp/easyai-ui-check-20261019.log）；后续更新tsc -p tsconfig.tests.json PASS；playwright test --list发现原文件唯一扩展场景；git diff --check PASS。本地GUI NOT RUN：当前执行器没有显示服务或Xvfb，未安装或关闭sandbox。实际Windows开发态和打包态待本次正常提交自然CI，零自动重试。已有HostKeyStore证据e400随该正常开发push保留。
+
+安全与范围：没有点击运行、选择训练环境/数据/SSH或凭据，不下载/训练，不改CSP/IPC/sandbox/编译器或产品边界。两个顺序实例/锁测试不冒充跨进程真实SSH；冻结模块清单只证明存在。真实SSH、正式MNIST、TST33与法律审核各自NOT RUN，完整A/B未完成，但不阻塞独立UI验证。
