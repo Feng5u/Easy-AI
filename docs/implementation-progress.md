@@ -3130,3 +3130,12 @@ PASS：固定workspace XDG/UV_OFFLINE=1 pnpm check（/tmp/easyai-ui-check-202610
 - /tmp/easyai-svg-locale-final-tests-20261019.log SHA256 `c35e377978b7a8dbe11ea3c5a067795e96efff24c0974b60a9b1bf2da0ed10d7`。
 - /tmp/easyai-svg-locale-check-final-20261019.log SHA256 `e580f738fb6f2a6bfe01cc5daae5d3e702f5220b2ad112eafff67fad6afa0a95`。
 - /tmp/easyai-svg-locale-build-20261019.log SHA256 `de1f00a1c132cf8bdc8ed84df158a0cf14d59ece9c45e23fbb78d33da8756fff`。
+
+
+### locale修复后第二轮实际CI（仍待新首错）
+
+产品HEAD/remote `b71c8c7d8d85527e199517918b255f4d3ed5c3a1`，[CI39239060925](https://github.com/T1doo/Easy-AI/actions/runs/39239060925)：Linux job118015170294完整SUCCESS（含新增真实SVG regression、原check/test/build）；Windows job118015170748原项目/native cache+trust/冻结/backend/desktop build检查SUCCESS，step14开发E2E FAIL。实际候选构建/审计/包内E2E/上传SKIPPED，无新候选。旧首错不能替代本轮首错，不能假设仍train_data不存在或认定locale为旧CI唯一原因。
+
+已请父级已登录浏览器提供本轮step14首失败断言、行号、expected/received和调用日志；该读取状态pending，本执行器既有logs/artifacts/browser拒绝限制不变，未重试/绕过，未盲重跑workflow或降低UI断言。指定源修复已由本地真实inject红绿、独审无P1/P2、实际Vite build和LinuxCI验证；完整Windows编辑闭环仍FAIL/未验收，packaged UI NOT RUN。下一操作仅据本轮实际首错定位并继续正常修复。
+
+当前无真实训练/下载/SSH/凭据/发布变化；main/原件未动，工作区证据本地提交后clean，该结案证据不单独push触发CI。此前e108与e400已随正常源码push保留到远端。
