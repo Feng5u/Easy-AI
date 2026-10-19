@@ -1,0 +1,4 @@
+# Reviewed training profile bytes feed lock validation and constraints hashes.
+# Preserve their canonical LF bytes even with core.autocrlf=true on Windows.
+/packages/training-profiles/*.json text eol=lf
+/packages/training-profiles/*.lock text eol=lf

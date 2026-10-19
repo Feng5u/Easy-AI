@@ -2841,3 +2841,28 @@ PASS：工作区XDG环境 `pnpm test:package`，34项/1.74s；独立直接四文
 独立只读边界实验：把training-profile副本换成CRLF后，wheels(optional roots)确定拒绝INSTALL_DEPENDENCIES_UNRESOLVED，因为锁文件bytes必须等于批准的LF pins。实际本次Windows checkout EOL未知，此实验不等于CI根因，尚未改变Git EOL策略/任何锁bytes，也未因此新推CI。需要本次正文后决定最小修复。
 
 工作区本补记前clean；main远端仍5323f86232529efcfb52131168ad049f01b219f3。保存本次证据仅本地docs提交，不push，避免无实质修复再耗CI。原README/计划/规格/锁hash、旧Linux包均保留。下一步是据该新正文定位最小修复，复核对应测试/独审后再一次自然CI；候选必须通过Windows包内backend与Electron启停再留存，完整A/B与发布门仍未通过。
+
+
+## 2026-10-19 父级补齐422正文：固定受审profile字节的checkout EOL
+
+起始HEAD c4c5b606b7f1e0b8a5708b778a489ef0a74b1ef4，工作区clean，remote e8efb040650acde8d5e6e422bd549991281d25cf；c4证据保全。父级从已登录浏览器取得 https://github.com/T1doo/Easy-AI/actions/runs/39227538152/job/117977380233#step:8:29 ：test_install_platform_metadata.py:42，认证GET catalog/packages返回422 expected200；此前401正确，后续plan未执行。命令uv run --frozen pytest -q tests/test_project_persistence.py tests/test_install_platform_metadata.py，实际1FAIL9PASS/1.49s，尚无响应JSON或serverstack。不再把整step归因旧持久化测试。
+
+源码校验来源：InstallService.catalog总是wheels(OPTIONAL_ROOTS)，install_sources.wheels逐组比对锁file rawbytes == LF header+_pins；不等时抛INSTALL_DEPENDENCIES_UNRESOLVED，API ValueError handler把该固定码映射422。新增真实Git init/config core.autocrlf=true/add/checkout-index实验并调用同一HTTP入口，旧无attributes确定同样422且响应固定码INSTALL_DEPENDENCIES_UNRESOLVED（1FAIL2PASS）；区别于前轮纯byte实验，这次走真实Git checkout和生产catalog。实际CI自身EOL未取得，不声称该机唯一观察根因，但修复的是确定跨平台checkout缺陷。
+
+最小修复只有.gitattributes固定/packages/training-profiles/*.json与*.lock为text eol=lf。十个既有文件未改byte，不修改严格parser/constraints hash算法、owner、平台或执行授权，也不把422改为成功。正例使用新policy在autocrlf=true仓库checkout，要求真实HTTP200/17卡/executionEnabled=false及十文件与原bytes一致；负例故意改MLpin，必须HTTP422固定依赖错误，零install-processes。测试无网络/凭据/训练环境/数据/教师环境操作。
+
+实际命令 cwd /workspace/Easy-AI：
+- FAIL（旧policy红例）：services/backend/.venv/bin/pytest -q services/backend/tests/test_install_platform_metadata.py，1FAIL2PASS；真实HTTP422 codeINSTALL_DEPENDENCIES_UNRESOLVED。
+- PASS（与失败CI相同文件集合）：services/backend/.venv/bin/pytest -q services/backend/tests/test_install_platform_metadata.py services/backend/tests/test_project_persistence.py，11PASS/0.71s；仍不是Windows确认。
+- PASS：services/backend/.venv/bin/pytest -q services/backend/tests/test_install_platform_metadata.py services/backend/tests/test_install_ml.py services/backend/tests/test_install_cv.py services/backend/tests/test_install_dl.py services/backend/tests/test_install_nlp.py，53PASS/2.13s。
+- PASS：ruff check及format --check新测试文件；git diff --check；git check-attr显示两类文件text set、eol lf。
+- PASS：CI=true XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/.cache UV_CACHE_DIR=/workspace/.uv-cache UV_OFFLINE=1 pnpm test:package，36PASS/1.92s。
+- PASS：只读独审运行真实Git checkout定向回归1PASS，核Windows prefix.as_posix()+末尾/参数，无新增明确P1/P2；未改文件/联网/构建。pnpm check与真实Linux frozen全smoke上轮e8已通过，本次未改产品Python/TS，不为数字重复整套本地构建。
+
+原README/计划/规格/锁hash均相同；旧Linux候选保留；main仍5323f86232529efcfb52131168ad049f01b219f3。下一步一次正常开发分支push自然免费CI，实际Windows metadata/candidate/backend/Electron必须逐项核；当前均未假称通过，无Release/PR/main/force/部署/新权限/付费/凭据/安装。新状态待结果补记。
+
+- `/tmp/easyai-catalog-eol-before-20261019.log`：SHA256 `9689e180872bd8d5e4b3d1047f90ffe56f1c1f60954edc20fad374f652ca87ae`。
+- `/tmp/easyai-catalog-eol-after-20261019.log`：SHA256 `b44b4304bbef4fa72bc44e1569fa5789b0b4d692b95698a05bd8a5d7abdecab7`。
+- `/tmp/easyai-catalog-eol-profiles-20261019.log`：SHA256 `ead3add28371ee891b8e47f036ccc4b676709b1c4f248108c6c955199b8944f9`。
+- `/tmp/easyai-catalog-eol-package-20261019.log`：SHA256 `5a133717d9d08bdd15c2c98f59d94a382dc1c37d60ff26da4d6845ac29fa6dc9`。
+- `/tmp/easyai-profile-eol-independent-m3GAh7.log`：SHA256 `b14e0dcca43e975b46b35445307c28b4ae77cf9ef06ecb6e3fdb2e0b81fc3f50`。

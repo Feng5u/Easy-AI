@@ -1,5 +1,7 @@
 # Windows 未签名候选
 
+父级补齐上次step8首错：认证catalog返回422 expected200（该test:42），1FAIL9PASS，尚未进入plan。真实Git core.autocrlf=true checkout回归确定复现422 INSTALL_DEPENDENCIES_UNRESOLVED：optional lock严格比对LF header+pins，而未固定EOL的checkout可变成CRLF。现仅对training-profiles的JSON/lock增加text eol=lf，保持批准bytes，不修改parser/权限/平台门。新回归200/17卡/执行false/十文件原bytes，篡改ML pin仍422；53项profile、36项打包保护与独审通过。实际Windows新CI待核，不将本地复现冒充唯一观察根因或完成候选。
+
 2026-10-19 最新修复源码 `e8efb040650acde8d5e6e422bd549991281d25cf` / [run39227538152](https://github.com/T1doo/Easy-AI/actions/runs/39227538152)：Linux 全套 SUCCESS；Windows 步骤8（项目持久化、native locks、新增安装元数据测试）FAIL，原NTFS/冻结构建/冻结资源检查 SUCCESS，后续候选构建/ZIP审计/包内smoke/上传 SKIPPED。暂缺步骤8首个pytest失败正文，不能归因新增测试或宣称旧500已在Windows验证关闭。本轮没有新Windows ZIP，下面9f的ZIP是旧失败证据。父级需从已登录浏览器读取首失败nodeid、expected/actual和traceback；不重试旧run或被拒日志接口。
 
 最新实测：`9f2da69ad4741038f71b2c1c4eb2316fbc26cdb1` / [run39225887922](https://github.com/T1doo/Easy-AI/actions/runs/39225887922) Linux SUCCESS，Windows 打包保护、实际构建与 ZIP 审计 SUCCESS。ZIP 435175301 字节，SHA256 `140c2acaa6a4dea3537ebd85ac62134874c2621fa1720d7f7b88a050c0a870da`。包内后端 smoke FAIL（HTTP 非 JSON 500），Electron/上传 SKIPPED，因此仍无通过全部门且可下载的 Windows 候选。

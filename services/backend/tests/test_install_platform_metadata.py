@@ -92,3 +92,57 @@ def test_direct_unsupported_runtime_rejects_before_any_private_owner(
     with pytest.raises(ValueError, match="INSTALL_PROFILE_PLATFORM_UNSUPPORTED"):
         install_runtime.InstallRuntime(tmp_path)
     assert not (tmp_path / "install-processes").exists()
+
+
+def test_autocrlf_checkout_preserves_catalog_and_rejects_changed_lock(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Exercise real Git checkout conversion, not a permissive lock parser."""
+    import shutil
+    import subprocess
+
+    from easyai.domain.catalog import SOURCE_ROOT
+
+    repository = tmp_path / "git-input"
+    repository.mkdir()
+    profiles = Path("packages/training-profiles")
+    shutil.copytree(SOURCE_ROOT / profiles, repository / profiles)
+    attributes = SOURCE_ROOT / ".gitattributes"
+    if attributes.exists():
+        shutil.copyfile(attributes, repository / ".gitattributes")
+    for arguments in (
+        ["init", "--quiet"],
+        ["config", "core.autocrlf", "true"],
+        ["config", "core.safecrlf", "false"],
+        ["add", "."],
+    ):
+        subprocess.run(["git", *arguments], cwd=repository, check=True, capture_output=True)
+    checkout = tmp_path / "checkout"
+    subprocess.run(
+        ["git", "checkout-index", "--all", f"--prefix={checkout.as_posix()}/"],
+        cwd=repository,
+        check=True,
+        capture_output=True,
+    )
+    windows_policy(monkeypatch)
+    monkeypatch.setattr(install_service, "PROFILE_ROOT", checkout / profiles)
+    workspace = LocalWorkspace(tmp_path / "application")
+    try:
+        with TestClient(
+            create_app("a" * 64, workspace=workspace), raise_server_exceptions=False
+        ) as client:
+            headers = {"Authorization": f"Bearer {'a' * 64}"}
+            catalog = client.get("/api/v1/catalog/packages", headers=headers)
+            assert catalog.status_code == 200, catalog.json()
+            assert len(catalog.json()["packages"]) == 17
+            assert catalog.json()["executionEnabled"] is False
+            for source in (SOURCE_ROOT / profiles).iterdir():
+                assert (checkout / profiles / source.name).read_bytes() == source.read_bytes()
+            lock = checkout / profiles / "easyai-ml-linux-cp311.lock"
+            lock.write_bytes(lock.read_bytes().replace(b"scipy==", b"scipy==0", 1))
+            rejected = client.get("/api/v1/catalog/packages", headers=headers)
+            assert rejected.status_code == 422
+            assert rejected.json()["error"]["code"] == "INSTALL_DEPENDENCIES_UNRESOLVED"
+            assert not (workspace.root / "install-processes").exists()
+    finally:
+        workspace.close()
