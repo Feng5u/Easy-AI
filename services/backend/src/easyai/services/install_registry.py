@@ -61,10 +61,12 @@ def remote_target_unsettled(root: Path, target_id: str) -> bool:
 
 class InstallRegistry(InstallService):
     def __init__(self, root: Path, manager: Callable[[], Any]):
-        from easyai.services.install_runtime import InstallRuntime
+        from easyai.services.install_runtime import InstallRuntime, local_runtime_supported
 
-        runtime = InstallRuntime(root)
-        super().__init__(root, inspector=runtime.inspector, runtime=runtime)
+        # Metadata remains available on unsupported hosts. Never construct a
+        # POSIX execution owner or read its authorization there.
+        runtime = InstallRuntime(root) if local_runtime_supported() else None
+        super().__init__(root, inspector=runtime.inspector if runtime else None, runtime=runtime)
         self._manager = manager
         self._remotes: dict[str, InstallService] = {}
         self._registry_mutex = threading.RLock()

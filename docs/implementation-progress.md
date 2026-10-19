@@ -2797,3 +2797,34 @@ PASS：工作区XDG环境 `pnpm test:package`，34项/1.74s；独立直接四文
 - `/tmp/easyai-asar-fixture-alias-before-20261019.log`：`b71e42736d2e9f6e9def7369d2af2ebd0a0e5679f3cf7ec749ebed35de3d6d1a`。
 - `/tmp/easyai-asar-fixture-alias-after-20261019.log`：`1bf21ecfb69a68324712eb20548c45304e829cf7529de146678742246c59e749`。
 - `/tmp/easyai-win-shim-independent-yga8mS.log`：`9f337c98e01a633ed972f75accb370efccf0631855df21023f7b678f8f610117`。
+
+
+## 2026-10-19 Windows 包内后端500：保留元数据，执行器先做平台门
+
+起始工作区 clean，HEAD/远端均 `9f2da69ad4741038f71b2c1c4eb2316fbc26cdb1`。实际 [run39225887922](https://github.com/T1doo/Easy-AI/actions/runs/39225887922) Linux SUCCESS，Windows guards/build/ZIP audit SUCCESS；生成 easyai-0.0.0-win-x64.zip，435175301字节，SHA256 140c2acaa6a4dea3537ebd85ac62134874c2621fa1720d7f7b88a050c0a870da。但步骤18 packaged backend FAIL，Electron与上传SKIPPED，未取得可下载/全部门通过的Windows候选。父级提供 [step18正文](https://github.com/T1doo/Easy-AI/actions/runs/39225887922/job/117971948200#step:18:14)：Response.json解析 Internal Server Error 失败；旧smoke丢弃stderr，具体端点/服务端堆栈未知。本执行器仅读允许的run/jobs元数据，未重试被拒logs/artifacts/browser接口。
+
+独立审查找到确定P2：GET catalog/packages→LocalWorkspace.installs→InstallRegistry无条件构造InstallRuntime→protected→remote_cache目录所有权使用Windows不存在的geteuid。此源码和红绿证明确定缺陷，不声称短正文已唯一确定CI首错。新增实际FastAPI回归：模拟win32策略并禁止POSIX owner到达，旧产品目录500/直接构造AttributeError（2FAIL）；修复后目录401/200、17卡、executionEnabled=false，计划200且平台blocker，确认409 INSTALL_PLAN_BLOCKED，来源422 INSTALL_RUNTIME_NOT_AVAILABLE，零owner/config目录、零history。InstallRuntime本身也在文件操作前拒绝不支持平台。Linux x64原runtime所有权和配置保护不变；没有Windows安装启用或跨平台权限弱化。
+
+新增smoke脱敏诊断：有限64KiB stderr tail，失败后等待EOF退出与pipe close再汇总，最多24固定file标签/行号及12白名单异常类别；不记录消息、源代码、任意basename/函数名、原始正文、路径、header/token。lastRequest只输出固定HTTP方法/路由/状态；动态项目ID归一。非JSON和任何500均FAIL，原PID/readiness/auth/resources/编译/EOF/exit0断言不变。两项Node回归含JSON500/非JSON500、未知路径、敏感内容不输出与bounded retention。CI原native lock步骤追加实际Windows平台元数据回归，不删除任何测试。
+
+实际命令 cwd /workspace/Easy-AI：
+- FAIL（旧产品有效红例）：`services/backend/.venv/bin/pytest -q services/backend/tests/test_install_platform_metadata.py`，2FAIL；同命令修复后2PASS。
+- PASS：`services/backend/.venv/bin/pytest -q services/backend/tests/test_install_platform_metadata.py services/backend/tests/test_install_runtime.py services/backend/tests/test_install_source_selection.py services/backend/tests/test_install_service.py`，47PASS/10.09s，仅既有Starlette弃用warning。
+- PASS：`CI=true XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/.cache UV_CACHE_DIR=/workspace/.uv-cache UV_OFFLINE=1 pnpm test:package`，36PASS/1.94s。所有既有归档/ASAR/private/bytes/PE门保留。
+- PASS：同环境 `pnpm check`，TypeScript、ruff、mypy66文件、真实Blockly fixtures、格式全通过。
+- PASS：`node scripts/python-task.mjs build /tmp/easyai-win-metadata-frozen-mXMPxN`（新独占临时目录，无覆盖旧包）与 `node scripts/test-frozen.mjs /tmp/easyai-win-metadata-frozen-mXMPxN/dist/easyai-sidecar`，真实PyInstaller应用后端离checkout临时cwd完整HTTP/resources/golden compile/EOF exit0。无torch/训练环境/下载/SSH/GUI。
+- PASS：独审只读复核当前diff并独立运行Python2PASS与Node2PASS，Windows元数据P2关闭，无新增明确P1/P2。`git diff --check` PASS。
+- 环境命令记录：首次未带XDG的pnpm exec prettier在尝试创建不可写/home/agent/.local/share/pnpm时ENOENT；改用既有workspace XDG后成功，无权限提升/安装新增依赖。
+
+新Windows实际构建及packaged Electron尚NOT RUN，下一步仅一次正常开发分支提交push自然免费CI，不重跑旧run。README/两原件/依赖锁hash均与原值相同；旧Linux候选保留。main仍5323f86232529efcfb52131168ad049f01b219f3，未触碰Feng5u/发布/PR/权限/凭据。完整A/B、TST33、正式MNIST/真实SSH/硬件/法律审核仍未完成。
+
+本轮日志SHA256（私密本机路径不入候选）：
+- `/tmp/easyai-win-install-metadata-before-20261019.log`：`9bd9e833016fa6ac5198baf2061039787de6508cba4fb04b7184c1dbe804f3b6`。
+- `/tmp/easyai-win-install-metadata-after-20261019.log`：`637ffeef862a1602c5b30f71d20c1af54bc90b849e13c3e748cf136c5c7a0629`。
+- `/tmp/easyai-win-metadata-python-20261019.log`：`cfaa2df95a9ee15a0f550e32906d54b757dcab4f8e5fb66a802a1df5c6e9c732`。
+- `/tmp/easyai-win-metadata-package-20261019.log`：`0bba90d39933134d2f27c6bdd33806afd4a5393a986b7dc8d9a77b58622e72aa`。
+- `/tmp/easyai-win-metadata-check-20261019.log`：`3919a4f049028b0f3e104bd46428c4c7a5dedfc258cdb574f4dc446a4217e25d`。
+- `/tmp/easyai-win-metadata-frozen-build-20261019.log`：`ea708d8bb4b7e77186198d162498ddf0cdb752f6b6c7a34304411eb781aadb54`。
+- `/tmp/easyai-win-metadata-frozen-smoke-20261019.log`：`598e651d8bfd55009c56cd315d848d8185d98d8ae4eb67c6d0dd2d14af4ed0c3`。
+- `/tmp/easyai-platform-metadata-review-20261019-unique1.log`：`b49bf5ffe8231ff7a04ad4f1c97ae4e3bad92b8a04fcf82d8facb7365dd33610`。
+- `/tmp/easyai-frozen-diag-review-20261019-unique1.log`：`59b9a6bde9b3593336c993f2d870835a1523e91d10b8aa281457a2feeab7f02e`。

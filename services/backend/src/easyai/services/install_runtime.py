@@ -280,8 +280,14 @@ class CondaBootstrap:
         return outcome
 
 
+def local_runtime_supported() -> bool:
+    return sys.platform == "linux" and platform.machine().lower() in {"x86_64", "amd64"}
+
+
 class InstallRuntime:
     def __init__(self, root: Path):
+        if not local_runtime_supported():
+            raise ValueError("INSTALL_PROFILE_PLATFORM_UNSUPPORTED")
         self.root = root
         self.configuration_path = root / "install-runtime.json"
         commands = root / "install-processes"

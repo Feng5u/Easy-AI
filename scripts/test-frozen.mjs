@@ -7,6 +7,12 @@ import { tmpdir } from "node:os";
 import { createInterface } from "node:readline";
 import assert from "node:assert/strict";
 
+import {
+  safeRequest,
+  readSmokeResponse,
+  stderrDiagnostics,
+} from "./frozen-diagnostics.mjs";
+
 const repository = resolve(import.meta.dirname, "..");
 if (process.argv.length > 3)
   throw Error("Usage: node scripts/test-frozen.mjs [backend-directory]");
@@ -39,7 +45,11 @@ const child = spawn(
   [],
   { cwd: root, stdio: "pipe", shell: false },
 );
-child.stderr.resume();
+const stderr = stderrDiagnostics();
+child.stderr.on("data", (chunk) => stderr.append(chunk));
+const closed = new Promise((resolveClose) => child.once("close", resolveClose));
+let lastRequest = null;
+let failed = false;
 child.stdin.on("error", () => {});
 const exited = new Promise((resolveExit, reject) => {
   child.once("exit", resolveExit);
@@ -81,6 +91,7 @@ try {
   );
   assert.equal(ready.protocolVersion, 1);
   async function request(method, path, body, authorized = true) {
+    lastRequest = safeRequest(method, path);
     const response = await fetch(
       `http://127.0.0.1:${ready.port}/api/v1${path}`,
       {
@@ -94,7 +105,8 @@ try {
         redirect: "error",
       },
     );
-    return { response, value: await response.json() };
+    lastRequest = safeRequest(method, path, response.status);
+    return readSmokeResponse(response, lastRequest);
   }
   assert.equal(
     (await request("GET", "/local/session", undefined, false)).response.status,
@@ -524,12 +536,21 @@ try {
   console.log(
     "PASS frozen resources + native-selection API + project create + authenticated golden compile from temporary cwd",
   );
+} catch (error) {
+  failed = true;
+  throw error;
 } finally {
   child.stdin.end();
   const timer = setTimeout(() => child.kill("SIGKILL"), 20000);
   try {
     await exited;
+    await closed;
   } finally {
+    if (failed || child.exitCode !== 0)
+      console.error(
+        "FROZEN_SMOKE_DIAGNOSTIC",
+        JSON.stringify({ lastRequest, stderr: stderr.summary() }),
+      );
     clearTimeout(timer);
     lines.close();
     await rm(root, { recursive: true, force: true });

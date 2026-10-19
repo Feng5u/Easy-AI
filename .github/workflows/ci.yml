@@ -38,9 +38,9 @@ jobs:
           version: 0.12.23
       - run: pnpm install --frozen-lockfile
       - run: pnpm setup
-      - name: Project persistence and native lock lifecycle
+      - name: Project persistence, native locks and install metadata
         working-directory: services/backend
-        run: uv run --frozen pytest -q tests/test_project_persistence.py
+        run: uv run --frozen pytest -q tests/test_project_persistence.py tests/test_install_platform_metadata.py
       - name: Experimental NTFS storage readiness (production gate remains off)
         if: ${{ !cancelled() }}
         timeout-minutes: 3
