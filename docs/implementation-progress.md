@@ -3541,3 +3541,14 @@ ZIP435255629B，SHA256 74f3522825f4e3f9106319f6af65515ab539304e708bd31e572ad60cc
 日志：/tmp/easyai-tutorial-check-final-20261019.log SHA256 e580f738fb6f2a6bfe01cc5daae5d3e702f5220b2ad112eafff67fad6afa0a95；/tmp/easyai-tutorial-unit-20261019.log a6c05502a7fb54fced08fa4fbc3a35ca448198c2ffb204ae81524a8bba6c39cb；/tmp/easyai-tutorial-e2e-list-20261019.log 6db5c728529df9cf0ac3da4af8e373d627015052de27c186b440bc7d88f7f458。
 
 另完成只读独立CPU依赖元数据核对：Python3.11.17、torch2.10.0+cpu、torchvision0.25.0+cpu、Matplotlib3.10.8、NumPy2.4.2、Pillow13.0.0及integration005回执存在；不import训练库/探硬件/训练。分别列明真实MNIST、SSH、TST34、TST33条件于acceptance-prerequisites-20261019.md，不让SSH阻塞所有本地项。旧总览Windows门关闭段落属历史，不重新当作当前代码欠账。TST34可复用已有独立环境，不需新增训练依赖；当前仅允许安全算术补证，未运行外部Bundle训练。真实MNIST数据未提供且未下载；SSH目标/指纹/凭据/窗口未提供；干净图形机未提供。以上待输入/范围为NOTRUN，非新工具拒绝或执行未知。完整M4/M7/M5/TST33/34/许可/硬件/A/B保持未整体验收；无安装/下载/SSH/权限/凭据/共享环境/main/PR/Release/部署操作。
+
+
+### TST32 单次自然 CI：Windows 首错待取，未验收通过
+
+源码/remote dev `9165c6fe9416b8b456a5ba703f30c1329dc7f95b`，正常推送保全e85e64dd88f2321363610fde06212ebe64b07023旧收据；[CI39263027274](https://github.com/T1doo/Easy-AI/actions/runs/39263027274)。Linux job118095343531完整check/test/build SUCCESS；Windows job118095344258 step8持久化/锁、step9原生NTFS/host-trust、step10后端冻结、step11冻结HTTP资源、step12桌面build、step13应用venv/PID隔离均SUCCESS；step14开发态实际三场景E2E FAIL，后续打包与step19包内三场景SKIPPED。没有本轮新候选，最近已验Windows候选仍3c53280，不能借前轮SUCCESS称本轮或教程已通过。
+
+允许的run/jobs元数据无法说明三个场景各自结果、实际首错/调用栈或退出证据。已请求父级/已登录页面读取本次run job118095344258 step14：三个场景各自结果、首个失败断言/调用栈，以及EASYAI_TUTORIAL_CLOSE_FAILED/TEMP_CLEANUP_FAILED或实际退出行（如有）。状态待返回；不猜失败属于教程，不猜可访问名或启动/退出原因。既有日志/artifact接口拒绝仍有效，本轮未重试/换通道，也未重跑旧CI、未猜测修代码或降低断言。
+
+实际本地pnpm check/定向unit22/测试发现3项及独审结果仍如上，不能替代GUI。TST32新增实际桌面路径为FAIL（本次套件）/具体场景结果UNKNOWN；包内教程NOT RUN。完整M4/M7、真实MNIST/SSH/TST33/34/许可/硬件/A/B均未整体验收。剩余四项最小输入已独立列于acceptance-prerequisites-20261019.md；本轮无训练/安装/下载/SSH/权限/凭据/共享环境/main/PR/Release/部署行为。
+
+此条仅本地docs提交，避免报告额外触发CI。下一必要动作是核实上述实际首错并保留正常退出或未知清理状态，再按证据做最小修复；这是等待缺失诊断信息，不是新的操作拒绝或已知程序缺陷判定。main5323f86232529efcfb52131168ad049f01b219f3及原计划/规格/README/两个锁保持。
