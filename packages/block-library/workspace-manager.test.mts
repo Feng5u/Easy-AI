@@ -309,6 +309,29 @@ it("initializes actual SVG canvases with local workspace accessibility messages"
       expect(
         host.querySelector('[role="figure"]')?.getAttribute("aria-label"),
       ).toContain("0");
+      // Actual Blockly DOM routing: the scrollbar is outside the SVG workspace
+      // that listens for wheel panning. The E2E driver must hit the workspace.
+      const background = host.querySelector(".blocklyMainBackground")!;
+      const horizontal = host.querySelector(
+        ".injectionDiv > .blocklyScrollbarHorizontal",
+      )!;
+      expect(horizontal).not.toBeNull();
+      expect(background.parentElement!.contains(horizontal)).toBe(false);
+      const scroll = vi
+        .spyOn(handle.workspace as Blockly.WorkspaceSvg, "scroll")
+        .mockImplementation(() => {});
+      const wheel = () =>
+        new dom.window.WheelEvent("wheel", {
+          deltaX: 10,
+          deltaY: 10,
+          bubbles: true,
+          cancelable: true,
+        });
+      horizontal.dispatchEvent(wheel());
+      expect(scroll).not.toHaveBeenCalled();
+      background.dispatchEvent(wheel());
+      expect(scroll).toHaveBeenCalledTimes(1);
+      scroll.mockRestore();
     }
   } finally {
     handles.forEach((handle) => handle.dispose());

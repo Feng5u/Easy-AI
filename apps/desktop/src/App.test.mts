@@ -235,9 +235,22 @@ async function mount(api: DesktopAPI) {
   await import("./ProjectEditor.js");
   const { createRoot } = await import("react-dom/client");
   root = createRoot(container);
-  await act(async () => {
-    root!.render(createElement(App, { api }));
-  });
+  let restoration: ReturnType<DesktopAPI["projects"]["current"]> | undefined;
+  const current = api.projects.current;
+  api.projects.current = () => (restoration = current.call(api.projects));
+  try {
+    await act(async () => {
+      root!.render(createElement(App, { api }));
+    });
+    // Real Main/sidecar IPC runs on the real event loop, not the fake autosave
+    // clock. Wait for that actual request, preserving this fixture's live API.
+    expect(restoration).toBeDefined();
+    await act(async () => {
+      await restoration;
+    });
+  } finally {
+    api.projects.current = current;
+  }
   // Settle the actual lazy boundary, including React's deferred commit, within
   // a bounded fake-clock window before any edits or autosave assertions.
   for (let attempt = 0; attempt < 50; attempt++) {

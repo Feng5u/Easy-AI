@@ -56,24 +56,42 @@ export class Canvas {
   async bounds() {
     interactionSignal();
     await this.panel.scrollIntoViewIfNeeded();
-    const background = (await this.panel
-      .locator(".blocklyMainBackground")
-      .first()
-      .boundingBox())!;
-    const toolbox = (await this.panel
-      .locator(".blocklyToolbox")
-      .boundingBox())!;
-    const left = Math.max(background.x, toolbox.x + toolbox.width);
-    return {
-      x: left,
-      y: background.y,
-      width: background.x + background.width - left,
-      height: background.height,
-    };
+    return this.panel.evaluate((panel) => {
+      const background = panel
+        .querySelector(".blocklyMainBackground")!
+        .getBoundingClientRect();
+      const toolbox = panel
+        .querySelector(".blocklyToolbox")!
+        .getBoundingClientRect();
+      const clip = panel.getBoundingClientRect();
+      const horizontal = panel
+        .querySelector(".injectionDiv > .blocklyScrollbarHorizontal")
+        ?.getBoundingClientRect();
+      const vertical = panel
+        .querySelector(".injectionDiv > .blocklyScrollbarVertical")
+        ?.getBoundingClientRect();
+      const left = Math.max(0, background.left, clip.left, toolbox.right);
+      const top = Math.max(0, background.top, clip.top);
+      const right = Math.min(
+        window.innerWidth,
+        background.right,
+        clip.right,
+        vertical?.width ? vertical.left : Infinity,
+      );
+      const bottom = Math.min(
+        window.innerHeight,
+        background.bottom,
+        clip.bottom,
+        horizontal?.height ? horizontal.top : Infinity,
+      );
+      if (right - left < 48 || bottom - top < 48)
+        throw new Error("Canvas has no usable visible interaction area");
+      return { x: left, y: top, width: right - left, height: bottom - top };
+    });
   }
   async reveal(element: Locator) {
     // Blockly scrollbars transform the SVG; ordinary DOM scrolling does not pan it.
-    for (let attempt = 0; attempt < 4; attempt++) {
+    for (let attempt = 0; attempt <= 4; attempt++) {
       const area = await this.bounds();
       const box = (await element.boundingBox())!;
       const dx =
@@ -89,11 +107,32 @@ export class Canvas {
             ? box.y + box.height - area.y - area.height + 24
             : 0;
       if (!dx && !dy) return;
-      interactionSignal();
-      await this.page.mouse.move(
-        area.x + area.width / 2,
-        area.y + area.height - 12,
+      console.info(
+        "EASYAI_TOOLBOX_REVEAL_GEOMETRY",
+        JSON.stringify({ attempt, area, box, dx, dy }),
       );
+      if (attempt === 4) break;
+      // Scrollbars are siblings of the main SVG; their wheel events never
+      // reach the workspace listener. Hit-test a visible point inside it.
+      const pointer = await this.panel.evaluate((panel, area) => {
+        const workspace = panel.querySelector(
+          ".blocklyMainBackground",
+        )!.parentElement!;
+        for (const y of [0.5, 0.25, 0.75])
+          for (const x of [0.5, 0.25, 0.75]) {
+            const point = {
+              x: area.x + area.width * x,
+              y: area.y + area.height * y,
+            };
+            const hit = document.elementFromPoint(point.x, point.y);
+            if (hit && workspace.contains(hit)) return point;
+          }
+        throw new Error(
+          "No visible main-workspace target for a physical wheel gesture",
+        );
+      }, area);
+      interactionSignal();
+      await this.page.mouse.move(pointer.x, pointer.y);
       interactionSignal();
       await this.page.mouse.wheel(dx, dy);
       await this.frame();
@@ -194,6 +233,7 @@ export class Canvas {
         await this.page.mouse.up();
       }
     });
+    await this.frame();
     await expect(this.blocks.locator(".blocklyInsertionMarker")).toHaveCount(0);
     await expect(this.blocks.locator("g[data-id]")).toHaveCount(
       before.length + 1,

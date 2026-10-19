@@ -80,6 +80,9 @@ export async function closeTemporaryDesktop(
   app: ElectronApplication,
   failed: boolean,
 ) {
+  // The Electron channel is disposed during close; process() then resolves an
+  // already removed dispatcher. Keep the real ChildProcess before shutdown.
+  const process = app.process();
   const shutdown = new AbortController();
   async function closeOwnedProcess() {
     if (failed)
@@ -114,7 +117,6 @@ export async function closeTemporaryDesktop(
         }, 12000);
       }),
     ]);
-    const process = app.process();
     if (process.exitCode === null && process.signalCode === null)
       throw new Error(
         "Temporary desktop close returned without process exit evidence",

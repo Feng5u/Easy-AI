@@ -3263,3 +3263,25 @@ PASS：固定workspace XDG/UV_OFFLINE=1 pnpm check（/tmp/easyai-toolbox-check-f
 下一项仅按父级实际首错继续源证据诊断与修复，保持唯一集成者；旧失败/原退出超时保全，原main、文档、锁和已接受示例编辑候选保持。完整M4/M7、真实SSH/MNIST/TST33/许可与A/B继续未完成。本条证据仅本地docs提交，不为报告额外触发CI。
 
 - /tmp/easyai-toolbox-bounds-local-test-20261019.log SHA256 `a05fb97a12eaa484523ad5f5ec4fd0555ffaaf5a06ea20c56027d1a502bc9243`。
+
+
+### 实际首错闭合源码定位：画布wheel目标、退出句柄、真实IPC初始化
+
+父级浏览器补齐CI39245489686实际错误：Windows job118036273714 step14两次physical drag PASS后，data.register preprocess Prep在Canvas.reveal抛“Canvas field was not reachable with actual scrollbar gestures”（canvas.ts101→register245→interaction19→blank99/89）。renderer[]，dirty dialog，实际owned process pid6676/code0/signalnull，但CLOSE_FAILED；1failed/1passed16.0s，不再180s/worker30s超时。实际预处理drag几何area{x158,y52.25,w539.5,h551}、target{x208,y92.25}、source{x170.800003,y59.150002,w193.600021,h50.400002}、scale0.800000012；转张量target{x385.999998,y355.450001}、source{x170.800003,y129.550003,w63.199997,h26.400009}，existingBlocks分别0/1。真实新增/连接门已PASS，不把模板预置坐标当实际位置，也不推断后续注册或编译已通过。
+
+源码锁定Blockly13.4 core/scrollbar.ts：厚度15 CSS px，outerSvg通过insertAfter(workspace.getParentSvg())作为main SVG的兄弟，滚轮listener绑定main svgGroup。旧helper把wheel放background bottom-12，落在底部滚动条而非workspace，虽发送wheel却不进入onMouseWheel。方向已核：workspace.scrollX/Y减wheel delta，旧dx/dy正负方向正确，问题在事件目标。现在bounds交集实际panel/main background/browser viewport，排除真实.injectionDiv直属scrollbars和toolbox；reveal只在elementFromPoint命中实际main workspace的点发送真实mouse/wheel，仍最多4次手势，最后多测一次而非误判第4次结果；记录每次area/box/dx/dy，guard保留。drop后等待2rAF实际paint而非sleep。保持UI点击注册/字段编辑与所有图/ID/引用检查，没有Blockly程序注册/构图注入。
+
+新增实际browserWorkspaceFactory SVG DOM事件路由回归（现有Vitest同runner）：scrollbar确为workspace外节点，其真实WheelEvent不触发workspace.scroll；同事件发main background恰触发一次。仅spy观察handler路由，不是实际GUI平移验收。初版错误猜注入容器类blocklyInjectionDiv被此测试准确挡住，锁定core/inject.ts实际类injectionDiv后通过，未让错误选择器进入CI。
+
+退出报告源审：锁定Playwright1.64 ElectronApplication.process()经toImpl按guid查dispatcher，Close listener立即dispose，故close后再次app.process()可能在已移除对象lookup处抛错，与父级已确认code0后CLOSE_FAILED一致；未取得旧异常正文，不编造其message。现close前捕获同一真实ChildProcess，之后仅读它的exitCode/signal；exit0/无signal、单次12s关闭、failed dirty临时草稿边界、未确认退出保留目录、首错保全门保持，不把transport返回代替退出或额外kill进程。待真实CI确认报告。
+
+Linux父级确证：job118036273527 step9 App.test.mts“real App DOM persistence lifecycle > exports clean noncanonical JSON byte-exact through real App, Main workflow and sidecar”，mount250 visible-tab null、调用343，1failed/361passed/2skipped，42filesPASS/1FAIL/1SKIP，单test1140ms、全Vitest11.92s，后端pytest未执行。原mount仅50轮setImmediate+fake20ms推进lazy commit，真实current() IPC未await，负载下可先耗尽fake窗口。现在临时包装同一fixture api.projects.current捕获实际Promise，在act中await真实返回，finally恢复原方法，保留lazy循环与可见断言及原测试timeout，无固定sleep、无mock已恢复session。初版复制API被既有late-preflight/project-change测试挡住，修正为同一live API，保留该红记录。
+
+PASS：App组件/实际Main sidecar字节原样导出与真实SVG两文件34tests；完整pnpm check；git diff --check。独立只读复核4文件无明确P1/P2，真实DOM路由测试不冒充Windows操作通过。当前完整pnpm test仍运行，结束后记录；没有生产/合同/安全/CSP/依赖/原件修改。下一次仅本次有首因与本地回归支持的正常开发提交自然CI；旧run不盲重跑，真实空白CNN闭环仍待Windows dev/package，未完成M4/M7/A/B/SSH/MNIST/TST33/许可。
+
+完整pnpm test exit0：TS362PASS/2SKIP，Python950PASS/19SKIP，打包Node36PASS；与完整check/独审一起通过后提交，一次自然CI。
+
+- /tmp/easyai-toolbox-pan-restore-tests-20261019.log SHA256 `01cf09d93710ac039bae0a01125b6f0f6dfb88ab43b1a235c660278ecf0c6799`。
+- /tmp/easyai-toolbox-pan-restore-tests-final-20261019.log SHA256 `a5c0b1190fa9fda2e3a8d88567c962e08911a4ce8a8e522e1d3612224ba053fd`。
+- /tmp/easyai-toolbox-pan-restore-check-20261019.log SHA256 `e580f738fb6f2a6bfe01cc5daae5d3e702f5220b2ad112eafff67fad6afa0a95`。
+- /tmp/easyai-toolbox-pan-restore-regression-20261019.log SHA256 `46724e3295f59fbcee3b5c707cb78d25344f44785416788565a6d9d6cc967257`。
