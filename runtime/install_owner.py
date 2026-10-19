@@ -1115,7 +1115,11 @@ def dispatch(request):
                     )
             result = inspect_phase(context, job)
         else:
-            pending = settling_owner(context, job) if action in {"verify", "release"} else None
+            pending = (
+                settling_owner(context, job)
+                if action in {"verify", "release", "mark-ready"}
+                else None
+            )
             with lock(context.slot / ".writer.lock", pending=pending) as writer_fd:
                 if (job / "closed.json").exists() and action != "release":
                     fail("INSTALL_CLAIM_CLOSED")

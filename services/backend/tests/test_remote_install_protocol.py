@@ -12,6 +12,9 @@ import hashlib
 import json
 from pathlib import Path
 import sys
+import threading
+
+import pytest
 from uuid import uuid4
 
 from easyai.domain.connections import SessionControl
@@ -24,8 +27,11 @@ owner = owner_fixture
 payload = payload_fixture
 
 
+@pytest.mark.parametrize(
+    "hold_existing_final_probe", [False, True], ids=["normal", "existing-owned-closeout"]
+)
 def test_helper_and_client_share_creation_phases_and_real_stdlib_stop_proof(
-    owner, payload, tmp_path, monkeypatch
+    owner, payload, tmp_path, monkeypatch, hold_existing_final_probe
 ):
     import easyai.services.install_service as service_module
     import easyai.services.remote_install as target_module
@@ -66,10 +72,38 @@ def test_helper_and_client_share_creation_phases_and_real_stdlib_stop_proof(
     app = tmp_path / "application"
     app.mkdir()
     attempts = []
+    published, mark_ready_entered = threading.Event(), threading.Event()
+    waiting, finish_owner = threading.Event(), threading.Event()
+    held_phase, owner_threads, errors = [], [], []
+    active_rpc = threading.local()
+    original_publish, original_sleep = owner.publish_status, owner.time.sleep
+
+    def publish(path, value):
+        original_publish(path, value)
+        if held_phase and str(path.parent) == held_phase[0]:
+            published.set()  # Actual completed probe receipt, serve still owns writer FD.
+            assert finish_owner.wait(3)
+
+    def observe_wait(seconds):
+        if getattr(active_rpc, "action", None) == "mark-ready":
+            waiting.set()
+        original_sleep(seconds)
+
+    monkeypatch.setattr(owner, "publish_status", publish)
+    monkeypatch.setattr(owner.time, "sleep", observe_wait)
 
     def rpc(request):
         if request["action"] != "run":
-            return owner.dispatch(request)
+            active_rpc.action = request["action"]
+            if request["action"] == "mark-ready" and not request["newEnvironment"]:
+                mark_ready_entered.set()
+            try:
+                return owner.dispatch(request)
+            except BaseException as error:
+                errors.append((request["action"], str(error)))
+                raise
+            finally:
+                active_rpc.action = None
         # Substitute ONLY in this fixture. No package/probe script can execute.
         original_source = request["argv"][-1]
         attempts.append(original_source)
@@ -112,7 +146,25 @@ def test_helper_and_client_share_creation_phases_and_real_stdlib_stop_proof(
                 owner.subprocess, "Popen", lambda *a, **k: None
             )  # Capture detach; no ACK races.
             receipt = owner.dispatch(safe)
-        owner.serve(receipt["phaseRoot"])  # Real ManagedProcess for the stdlib printer only.
+        if (
+            hold_existing_final_probe
+            and not request["newEnvironment"]
+            and "report={" in original_source
+        ):
+            held_phase.append(receipt["phaseRoot"])
+
+            def serve():
+                try:
+                    owner.serve(receipt["phaseRoot"])
+                except BaseException as error:
+                    errors.append(("serve", str(error)))
+
+            thread = threading.Thread(target=serve)
+            owner_threads.append(thread)
+            thread.start()
+            assert published.wait(2)
+        else:
+            owner.serve(receipt["phaseRoot"])  # Real ManagedProcess for stdlib printer only.
         return owner.dispatch(
             {
                 **{
@@ -171,8 +223,22 @@ def test_helper_and_client_share_creation_phases_and_real_stdlib_stop_proof(
             network_acknowledged=True,
         )
     )
+    if hold_existing_final_probe:
+        try:
+            assert published.wait(2) and mark_ready_entered.wait(2)
+            observed_wait = waiting.wait(1)
+        finally:
+            finish_owner.set()
+            for thread in owner_threads:
+                thread.join(3)
     service._workers[second.job_id].join(5)
-    assert service.get(second.job_id).state == "SUCCEEDED"
+    if hold_existing_final_probe:
+        assert observed_wait, f"mark-ready failed to await actual writer close: {errors}"
+        assert all(not thread.is_alive() for thread in owner_threads)
+    assert not errors
+    result = service.get(second.job_id)
+    assert result.state == "SUCCEEDED", result.model_dump()
+    assert result.verified and not result.needs_reprobe and not service._leases
     assert len(attempts) == 6  # Existing owned target reuses install + actual probe adapter.
     target.bind(existing_plan, second.job_id)
     assert target.call("snapshot")["ready"]

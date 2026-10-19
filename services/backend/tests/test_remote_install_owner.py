@@ -782,7 +782,7 @@ def test_status_publication_unsupported_never_falls_back_to_overwrite(owner, tmp
     assert not path.exists() and not list(tmp_path.glob("easyai-status-*"))
 
 
-@pytest.mark.parametrize("action", ["verify", "release"])
+@pytest.mark.parametrize("action", ["verify", "release", "mark-ready"])
 def test_unknown_phase_closeout_never_waits_or_releases(owner, payload, monkeypatch, action):
     payload = writer(payload)
     allocate(owner, payload)
