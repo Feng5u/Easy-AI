@@ -3451,3 +3451,26 @@ JSDOM无canvas布局，本地只提供明确受控measureText宽度，所有节�
 已请求父级在已登录页面读取该step首错/调用栈、最后ACTION/SELECTION及相关CANVAS/REVEAL/DRAG_GEOMETRY、PROCESS_EXIT/CLOSE_CONFIRMED。状态待返回；尚不能从元数据判断原NAME断言、注册、引用或数值/后续图闭环越过情况，也不能把上轮pid3668退出记录借给本轮。统一结构回归22、React10独立32、全TS395与check成功不冒充真实GUI成功。取得实际新首错前暂停依赖它的修补/CI，未重跑旧run、未重试受限日志/artifact接口。
 
 当前仅本地docs证据提交避免报告额外触发CI，main仍5323f86232529efcfb52131168ad049f01b219f3；原件/规格/README/锁无变化。完整空白CNN/M4/M7、真实SSH/MNIST/TST33/许可/A/B仍未验收，无训练安装/数据下载/权限/凭据/共享环境/main/发布操作。
+
+
+### 重开数值编辑器被选择回写销毁：真实SVG/React生命周期实证修复
+
+父级取得CI39255211142/job118068662715 step14：Prep/TrainData/TestData/TrainBatches/TestBatches/ToolboxCNN注册、训练MODEL_REF/TRAIN_LOADER_REF/TEST_LOADER_REF均PASS；首次IN_FEATURES与OUT_FEATURES设置也PASS。首错是编译后切回Linear的第二次IN_FEATURES编辑：实际input.blocklyHtmlInput已解析value3136，fill3135期间DOM detached，canvas.ts286→blank274/272，最终8000ms超时。实际失败12:52:53UTC、正常退出12:52:54，pid6268/code0/CLOSE_CONFIRMED，renderer failures[]。因此前条待首错已解决，不把问题叙述成数值输入从未工作；原文由父级保全，不假定父级路径可用。
+
+锁定实际销毁链：原生Selected→manager.inspect保存ID并onSelect→React selectedBlock effect无条件manager.select→browser handle centerOnBlock→WorkspaceSvg.scroll默认shouldHidePopups=true→hideChaff(true)→WidgetDiv.hide清空真实输入。第一次同块已有选择回写完成，编辑可成功；转到训练块再回Linear时新选择与刚打开editor相遇，正符合第二次编辑失败。独立源码审查确认该链；svgResize不直接hide，真正tab隐藏会hide（预期），receive的相同input/current signature早退不重载，真实外部图替换才重载。
+
+新增ProjectEditor.svg.test.mts用实际默认browserWorkspaceFactory、WorkspaceSvg、BlockSvg、FieldNumber/FieldSymbolRef、FocusManager、WidgetDiv/Dropdown及真实React props/effects。首次实际HTML editor提交3136/OUT_FEATURES10→选训练块/切回模型→重开真实数值editor，等实际Selected回写后，旧源码有效RED：先connected=true，随后同一input.isConnected=false；先前探针亦记录实际centerOnBlock调用。生产修复：props effect走syncSelection；同一有效inspectedId只同步实际highlight，不再select/center，避免制造第二次导航；不同外部对象仍走原select。显式select入口保留强导航（实测仍center），没有通过skip高亮/身份来掩盖。重复点击同ID的诊断仅setState原本可能不触发effect，是既有独立行为，本修复不冒称解决。
+
+实际生命周期GREEN：首次3136与10成功；重开后input在选择回写和实际intermediate字段事件serialize/onChange/props receive后仍是原节点且有焦点；DOM input事件提交3135，Enter才关闭并等待匹配blockID+IN_FEATURES的真实BlockChange；再重开修复3136，原Block对象/ID和serialized结果保持。第二项实际引用菜单经历同样原生选择/React回写保持，再通过实际DOM pointerup选Prep，真实字段保存原Prep ID。没有setFieldValue、假HTML编辑器、mock Widget/scroll/选择回调；单元公共focus/showEditor与fixture准备仅复现生命周期，不冒充E2E鼠标操作。E2E本轮原样保留，实际fill/Enter/shape诊断/修复/编译/保存重开门未改。
+
+本地布局只补明确受控字体测量/getScaledBBox矩形；真实DOM/焦点/编辑器创建与销毁、输入/菜单事件、序列化/effects均实际实现。测试间初稿关闭JSDOM取消待发rAF，导致第二项队列未交付；改卸载后用独立空workspace真实UI事件送达屏障清理队列，未用sleep/TEST_ONLY强刷或重试fill。该基础设施失败不冒称生产RED。独立生命周期/React/SVG/focus四文件35PASS；增强中间事件/Enter屏障后独立新2PASS，不重复加总；无新增明确P1/P2。真实WindowsGUI仍待验证，本机因既有sandbox/display约束NOT RUN。
+
+PASS命令（既有CI/XDG/UV_OFFLINE环境）：pnpm check；pnpm test（47文件PASS/1skip，397 TS PASS/2skip，950 Python PASS/19skip，36 Node PASS）；pnpm --filter @easyai/desktop build；git diff --check。提交前HEAD1a094649b251897231e0a7e84c1cfc00a2326037、remote dev72d4d844b59c2292852e0a91ebcc817636d21c88，本地证据提交保留；main5323f86232529efcfb52131168ad049f01b219f3和原plan/规格/README/两个锁SHA完全相同。下一步仅本轮实证修复后一次自然CI，旧run/失败fill不重试。完整空白CNN/M4/M7/SSH/MNIST/TST33/许可/A/B未验收，无训练安装/下载/真实SSH/权限/凭据/共享环境/main/发布操作。
+
+- 有效第二次编辑RED `/tmp/easyai-number-editor-actual-red-20261019.log` SHA256 `137ed59f67f9032cc3a8846880705c2da99bf25d6812a119c31e52faf585e035`。
+- 最终数值/引用2项 `/tmp/easyai-number-reference-lifecycle-final2-20261019.log` SHA256 `dbd50f967c0614b13b224dd13a24b7ffdedc9c6d31dd6d17ff5ae1fd7e02ef81`。
+- 独立35项 `/tmp/easyai-selection-echo-independent-qJv4L0.log` SHA256 `0b49fbcdabde55ade7540ce2c42513e459ea4a9cdc6eae3c79ff43ba95be4a5c`。
+- 增强屏障独立2项 `/tmp/easyai-input-barrier-independent-fy0yX6.log` SHA256 `4b098ba013765ecc8674d577945180671fadd4988ed10c983e41dd16868d2b31`。
+- check `/tmp/easyai-selection-echo-check-20261019.log` SHA256 `e580f738fb6f2a6bfe01cc5daae5d3e702f5220b2ad112eafff67fad6afa0a95`。
+- 完整test `/tmp/easyai-selection-echo-all-test-20261019.log` SHA256 `ed4469de334f4b65316ac08f000b05e604a57a3e786404bb5a8fc88efdb9a6b1`。
+- 桌面build `/tmp/easyai-selection-echo-desktop-build-20261019.log` SHA256 `0642a3873b4cf0a1caeaa2a497eaaeb7c59375262842f042dabef8aa1c10c89f`。

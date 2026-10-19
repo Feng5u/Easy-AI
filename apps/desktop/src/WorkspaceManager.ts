@@ -539,6 +539,21 @@ export class WorkspaceManager {
     this.readOnly = value;
     for (const handle of Object.values(this.handles)) handle.setReadOnly(value);
   }
+  syncSelection(id: string | null): void {
+    if (this.disposed) return;
+    const selected = id && this.block(id) ? id : null;
+    if (selected !== this.inspectedId) {
+      this.select(selected);
+      return;
+    }
+    // A native selection has already happened. Echo its highlight without
+    // re-centering: scrolling closes Blockly's active field/popover editor.
+    for (const workspace of Object.values(this.workspaces))
+      if (workspace.rendered)
+        (workspace as Blockly.WorkspaceSvg).highlightBlock(
+          selected && workspace.getBlockById(selected) ? selected : null,
+        );
+  }
   select(id: string | null): void {
     this.inspectedId = id && this.block(id) ? id : null;
     if (!id) {

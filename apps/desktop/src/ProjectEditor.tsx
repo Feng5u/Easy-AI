@@ -89,7 +89,7 @@ export function ProjectEditor(props: ProjectEditorProps) {
     manager.current?.setReadOnly(props.readOnly || Boolean(loadError));
   }, [props.readOnly, loadError]);
   useEffect(() => {
-    manager.current?.select(props.selectedBlock);
+    manager.current?.syncSelection(props.selectedBlock);
   }, [props.selectedBlock]);
 
   const selected = props.selectedBlock
