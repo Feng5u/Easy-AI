@@ -17,7 +17,7 @@ import {
 import type { ManagerCallbacks, WorkspaceFactory } from "./WorkspaceManager.js";
 import type { ProjectDocument, RunSource } from "../electron/bridge.js";
 import { ProjectEditor } from "./ProjectEditor.js";
-import { SnapshotCode } from "./RunSnapshot.js";
+import { SnapshotCode } from "./RunSnapshotCode.js";
 const captured = vi.hoisted(() => ({
   managers: [] as WorkspaceManager[],
   selections: [] as (string | null)[],

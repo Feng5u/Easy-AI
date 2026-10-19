@@ -25,9 +25,9 @@ import type {
   RunEventState,
   RuntimeDiagnostic,
 } from "./runEvents.js";
-import { SnapshotCode } from "./RunSnapshot.js";
+import { SnapshotCode } from "./RunSnapshotCode.js";
 import { captureRunSnapshot, locateRunBlock } from "./runSnapshot.js";
-import type { SnapshotRequest } from "./RunSnapshot.js";
+import type { SnapshotRequest } from "./RunSnapshotCode.js";
 
 const LOG_WINDOW = 120_000;
 export function MetricSeries({ points }: { points: EpochPoint[] }) {

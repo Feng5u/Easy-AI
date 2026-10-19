@@ -473,7 +473,10 @@ class RemoteRuns:
         phase: ArtifactSyncStage = "snapshot"
         core = self.core(run_id)
         directory = self.runs._directory(run_id)
-        self._publish(run_id, checkpoint, sync="syncing")
+        with self._gate:
+            if self._workers.get(run_id) is not owner or owner.paused or owner.stop.is_set():
+                return False
+            self._publish(run_id, checkpoint, sync="syncing")
         try:
             snapshot = core.artifact_snapshot(
                 read_regular(directory / "bundle.json", 65536),
@@ -581,6 +584,26 @@ class RemoteRuns:
                     return
                 run = self.runs._ledger.entries[run_id].run
                 current = run.artifact_sync or ArtifactSyncProgress()
+                # Paused is observable only together with pending, including a
+                # pause racing transfer completion. Commit both under the same
+                # ledger lock; a later worker publish must not be required.
+                # A sealed completion/error already committed before a late pause
+                # must remain terminal so the owner can settle normally.
+                sync_changed = state == "paused" and run.sync_state == "syncing"
+                if sync_changed:
+                    run.sync_state = "pending"
+                    self.runs._journal(run_id).append(
+                        "status_changed",
+                        None,
+                        {
+                            "status": run.status,
+                            "connectionState": run.connection_state,
+                            "syncState": run.sync_state,
+                            "remote": run.remote.model_dump(mode="json", by_alias=True)
+                            if run.remote
+                            else None,
+                        },
+                    )
                 run.artifact_sync = ArtifactSyncProgress(
                     state=state,
                     received_bytes=counts[0] if counts else current.received_bytes,
@@ -610,6 +633,9 @@ class RemoteRuns:
                             else None,
                         },
                     )
+                if sync_changed:
+                    self.runs._write_views(run_id, self.runs._journal(run_id).after(0))
+                if sync_changed or failure is not None:
                     self.runs._persist()
 
     def sync_control(

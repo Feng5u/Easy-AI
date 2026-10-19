@@ -2504,3 +2504,37 @@ NOT RUN：Windows新CI/原生桌面、Squirrel安装器、hook执行、候选包
 - `/tmp/easyai-ci-followup-desktopbuild-20261019.log`：`1813320c0343741d367acea834e8b23ac1d9f9a5f481a491af9cfc6eebeab3f6`。
 
 本节及相关清单只作本地证据提交，保持远端a62b48ac04e9c9fd434f9217d78679ebe1a2fa7a，不push，不请求/重跑CI。下一项取得上述最小失败正文后按实际错误恢复有界修复；最终报告给出本地完整证据SHA和未推送差异。
+
+## 2026-10-19 Linux暂停发布竞争及Windows模块解析歧义修复
+
+本轮继续单一写入者。起始本地`b97d8c11fde784bad545192b374b02d64b4feabf`（仅证据提交，未推送），远端`a62b48ac04e9c9fd434f9217d78679ebe1a2fa7a`；无用户WIP。父侧新增截图/正文是诊断证据，不是Actions接口许可。
+
+原CI失败保留：run39195428530 Linux `tests/test_remote_run_api.py::test_running_png_sync_pause_resume_keeps_training_owner_and_rejects_retired_scope`断言RUNNING且syncState应pending、实际syncing；teardown ValueError REMOTE_CLEANUP_UNCONFIRMED；原摘要1failed/923passed/8skipped/1warning/1error，92.49s。不是SVG title children警告导致测试失败。Windows实际首错误为Vite transformed767modules后MISSING_EXPORT：SnapshotCode不由src/RunSnapshot.ts导出，RunDashboard的./RunSnapshot.js导入失败，exit1。当前Linux本地全绿不能抹掉这两项CI FAIL。
+
+根因及最小修复：
+- 产品 `_sync` 先发布artifactSync.paused，随后另一次发布syncState.pending，API可观察两字段不一致。`_sync_progress`现于同RunService ledger锁内将活动syncing→pending与paused一并提交，保持status_changed journal/views/persist；迟到暂停不降级已提交的complete/error。`_sync`最初syncing发布也在gate内检查当前owner/paused/stop，避免迟到启动覆盖暂停。不引入core checkpoint锁反转，不放宽清理确认、session物理静止、身份/训练取消门。
+- 测试不是改宽断言：真实SftpArtifactSync在异常后join实际owned worker并确认quiescent，强制“传输已清理→发布暂停”的合法调度；worker在paused发布后被Event屏障保持，API严格读paused/pending。旧产品确定复现1FAIL（1.46s）。测试原先断言失败绕过resume_return.set，4秒等待超过close3秒预算，诱发附带cleanup ERROR；最外层finally现无条件释放全部Event，原清理门不改。新增迟到paused针对complete/error的低层回调回归，明确不冒充真实成功训练。
+- Windows case-insensitive路径把RunSnapshot.tsx与runSnapshot.ts在.js→.ts/.tsx扩展名替换时混淆；真正SnapshotCode在.tsx中。仅将组件重命名RunSnapshotCode.tsx并更新生产/类型/测试3处引用，纯模型runSnapshot.ts保留。未改Vite解析/屏蔽导出错误；前后casefold+stem静态比较确认基线冲突、最终无冲突。
+
+命令与证据（cwd /workspace/Easy-AI）：
+- PASS：原单用例`services/backend/.venv/bin/pytest -q services/backend/tests/test_remote_run_api.py::test_running_png_sync_pause_resume_keeps_training_owner_and_rejects_retired_scope`，原时序本地1PASS/2.71s；只前移retired屏障也1PASS/2.79s，未当复现。加入实际worker join确认后同命令 **FAIL 1failed/1warning/1.46s**，精确syncing!=pending，无teardown ERROR；日志分别保留。
+- PASS（首次产品修复、终态独审补强前）：`services/backend/.venv/bin/pytest -q services/backend/tests/test_remote_run_api.py`，19PASS/14.75s。独审指出通用paused→pending会降级终态P2，已修为仅syncing→pending并加complete/error回归后再跑完整测试；不以首轮通过代替最终结果。
+- PASS：`CI=true XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/.cache UV_CACHE_DIR=/workspace/.uv-cache UV_OFFLINE=1 pnpm check`，TS/合同/fixtures/Ruff/格式/mypy66文件/Prettier；最后终态guard微调后又实际`ruff check`及`ruff format --check`两修改Python文件PASS。
+- PASS：`CI=true XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/.cache pnpm exec vitest run apps/desktop/src/RunSnapshot.test.mts apps/desktop/src/FigureInspector.test.mts`，67PASS/3.37s。
+- PASS：`CI=true XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/.cache pnpm --filter @easyai/desktop build`，exit0，767模块，Vite1.31s，保留chunk>500KiB警告；这是Linux开发构建，不是Windows或新打包验收。
+- PASS：Python pathlib/defaultdict与git ls-tree HEAD的casefold/stem比较，原RunSnapshot.tsx/runSnapshot.ts冲突，最终源树无同stem冲突。`git diff --check`PASS。
+
+独立只读review已确认真实双状态窗口及测试屏障遗漏；终态P2修复后复核无剩余明确P1/P2，保持journal/persist与锁序，无新增权限/脚本许可。最终全量测试结果随后补记。正常推送开发分支一次（连同此前未推证据提交），仅让既有push工作流验证实质修复；不workflow_dispatch/重跑/读取被拒接口。当前Windows新结果仍NOT RUN/待父侧核实，不能标PASS。NOT RUN：真实SSH/训练/数据/受控安装、新builder包/发布；CIFAR限制未变，Windows生产storage门未开放。main无写入。
+
+最终PASS：`CI=true XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/.cache UV_CACHE_DIR=/workspace/.uv-cache UV_OFFLINE=1 pnpm test`，exit0；334前端PASS/2skip，924后端PASS/8skip/1warning（74.14s），20包保护PASS（864ms）。67定向UI与334全量重叠，不累加。警告保留，未增加skip或放松原断言。完整日志SHA256：
+- `/tmp/easyai-sync-race-before-20261019.log`：`2d927b52450262347dd67a5cf24ce3dcf8e4db0a016fdf01bd20b53e0b75e6fb`。
+- `/tmp/easyai-sync-race-barrier-before-20261019.log`：`46c2fe42034044cf220a914a34a8d8b004250cd5814c09e7ed64458e67134ceb`。
+- `/tmp/easyai-sync-race-deterministic-before-20261019.log`：`c46087728a85664bd9e1719eb7bd6cedb0369555edc66bf6610344da8b5800b8`。
+- `/tmp/easyai-sync-race-after-20261019.log`：`aa797140827a5a8bc0d4665d0ec155902bcecd0b26d0addf7ccdc7315c427657`。
+- `/tmp/easyai-dual-ci-casefold-20261019.log`：`5c8450ed6f9cc774024cd6a718d9afd909a7198917eef0c3e0b411a9cdeab85c`。
+- `/tmp/easyai-dual-ci-check-20261019.log`：`33d638c44f61709c5fea38251066696a5a89ca3d3d4d8bf8ffb532d282f23af2`。
+- `/tmp/easyai-dual-ci-ui-20261019.log`：`1bbc5b31e22715f141c2e9882fa880e568e8d54c5fc5f5106a523c6a84b9cd57`。
+- `/tmp/easyai-dual-ci-build-20261019.log`：`32c6cbe3fc5b20614e99270341403d2b8d38135f7110d39a99a7c80d2ab9e0a1`。
+- `/tmp/easyai-dual-ci-fulltest-20261019.log`：`58239ec7aad70ce548bd1a1ccbf4da69949b796a5b632e8c89ca8128ad15fdda`。
+
+预提交原件校验PASS：plan仍116185字节/SHA256 dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43；README与旧规格未改。仅正常提交推送codex/demo-v0.0.0，最终完整SHA/远端clean/main核对由最终回报提供；新CI由父侧既有合法渠道核实，本线程不读取被拒接口。

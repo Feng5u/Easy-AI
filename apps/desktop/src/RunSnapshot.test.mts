@@ -18,7 +18,7 @@ import type {
   AuthenticatedConnection,
 } from "../electron/bridge.js";
 import { ProjectEditor } from "./ProjectEditor.js";
-import { SnapshotCode } from "./RunSnapshot.js";
+import { SnapshotCode } from "./RunSnapshotCode.js";
 import { RunDashboard } from "./RunDashboard.js";
 import { captureRunSnapshot, locateRunBlock } from "./runSnapshot.js";
 
