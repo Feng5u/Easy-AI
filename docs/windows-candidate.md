@@ -1,5 +1,7 @@
 # Windows 未签名候选
 
+2026-10-19 当前真实结果：`da5a1af18afd4115bf072273cc2b012a65cbee7e` / [run39222623389](https://github.com/T1doo/Easy-AI/actions/runs/39222623389) Linux SUCCESS，Windows打包保护SUCCESS，实际Build unsigned Windows candidate FAIL，后续ZIP/包内E2E/上传SKIPPED，尚无Windows候选。缺该构建步骤首异常/堆栈，父级可用已登录浏览器读取；根因UNKNOWN，不猜测或放宽保护。原Linux候选保留。
+
 后续确定修复：固定ASAR3.4.1在Windows输出native反斜杠，原入口/隐私/集合检查只识别正斜杠。实际ASAR回归旧代码精确BUILDER_ASAR_ENTRY_MISSING，两个库输出边界归一后26项与独审通过；安全门不变。此源码缺陷不冒充旧CI首错，新的正常修复提交/自然CI结果待核。
 
 2026-10-19 实测增量：源码 `ca184beffeb5850adea499e08fb50619d6b01bc7` 的 [run39221894722](https://github.com/T1doo/Easy-AI/actions/runs/39221894722) Linux SUCCESS；Windows原开发E2E成功，新增Packaging input and archive guards（pnpm test:package）FAIL，后续实际打包/包内E2E/上传SKIPPED，尚无Windows候选。首错误正文待父级已登录浏览器读取，根因UNKNOWN；保护不跳过、不猜测同因。下文“待本轮CI”为提交时状态，现以此结果为准。

@@ -2722,3 +2722,8 @@ PASS：`CI=true XDG_DATA_HOME=/workspace/.local/share XDG_CACHE_HOME=/workspace/
 - `/tmp/easyai-win-asar-after-20261019.log`：`21b9e1134ab24a4e4400a7eab7155017262f577f1c27184b2539e7584ed8fc8f`。
 - `/tmp/easyai-win-asar-independent-20261019-unique1.log`：`a164a71af9b231bfdda437823abe01d11476b128be0f1036c3d3076472abdf8e`。
 - `/tmp/easyai-win-asar-independent-20261019-unique2.log`：`e6c6d8163425b1ca96b8beed707fd66ab3f7df107e2513eff0e1e4d3478d6705`。
+
+
+修复后的真实Windows结果：产品提交 `da5a1af18afd4115bf072273cc2b012a65cbee7e` 已正常推送，远端与产品SHA一致。[run39222623389](https://github.com/T1doo/Easy-AI/actions/runs/39222623389) **Linux check SUCCESS；Windows Packaging input and archive guards SUCCESS**，证明分隔符修复在实际Windows测试有效。随后 **Build unsigned Windows candidate (never publish) FAIL**，ZIP审计/包内PID与EOF/packaged Electron/上传全部SKIPPED；仍无已验证可下载Windows候选。旧run39221894722保护FAIL原样保留，不改写为通过。
+
+当前准确阻断是该Windows构建步骤的首个异常/cause/堆栈缺失，构建失败原因UNKNOWN；不是训练环境或SSH条件。需父级通过其已登录GitHub浏览器读取该精确步骤，本执行器没有重试被拒logs/artifacts接口、没有重新跑失败run或猜测改门。独立已完成打包产品接线、26项保护/独审和真实Windows保护通过，下一项据构建正文做最小修复后完成实际候选，不将本段当开发完成。无新增训练环境/数据/SSH/费用/许可/签名/权限；旧Linux候选、b05证据、main及三原件保留。此结果补记仅本地提交，不为文档触发CI；最终HEAD/远端差异在回报提供。
