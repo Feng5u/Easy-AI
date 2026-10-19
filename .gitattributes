@@ -2,3 +2,7 @@
 # Preserve their canonical LF bytes even with core.autocrlf=true on Windows.
 /packages/training-profiles/*.json text eol=lf
 /packages/training-profiles/*.lock text eol=lf
+
+# Generated Python, IR and source-map snapshots are canonical UTF-8/LF bytes.
+/services/backend/tests/fixtures/golden/*.txt text eol=lf
+/services/backend/tests/fixtures/golden/*.json text eol=lf

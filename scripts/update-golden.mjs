@@ -11,9 +11,9 @@ compiled = compile_project(project)
 assert compiled.result.runnable and compiled.program is not None
 output = Path('tests/fixtures/golden')
 output.mkdir(parents=True, exist_ok=True)
-(output / 'mnist.py.txt').write_text(compiled.result.code, encoding='utf-8')
-(output / 'mnist-program.json').write_text(compiled.program.model_dump_json(by_alias=True, indent=2) + '\\n', encoding='utf-8')
-(output / 'mnist-source-map.json').write_text(json.dumps([span.model_dump(by_alias=True) for span in compiled.result.source_map], ensure_ascii=False, indent=2) + '\\n', encoding='utf-8')
+(output / 'mnist.py.txt').write_bytes(compiled.result.code.encode('utf-8'))
+(output / 'mnist-program.json').write_bytes(compiled.program.model_dump_json(by_alias=True, indent=2).encode('utf-8') + bytes([10]))
+(output / 'mnist-source-map.json').write_bytes(json.dumps([span.model_dump(by_alias=True) for span in compiled.result.source_map], ensure_ascii=False, indent=2).encode('utf-8') + bytes([10]))
 `;
 const result = spawnSync("uv", ["run", "--frozen", "python", "-c", source], {
   cwd: "services/backend",

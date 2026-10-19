@@ -2877,3 +2877,28 @@ PASS：工作区XDG环境 `pnpm test:package`，34项/1.74s；独立直接四文
 准确剩余阻塞：需要父级从已登录浏览器读取 https://github.com/T1doo/Easy-AI/actions/runs/39228433732/job/117980313772#step:18:1 的首异常/断言和新增FROZEN_SMOKE_DIAGNOSTIC整行，以定位本轮端点/状态/脱敏frame及异常类别。本执行器仅使用允许的run/jobs元数据，未重试此前被拒logs/artifacts/browser接口；该新正文证据pending。不能把当前FAIL继续叫作旧catalog500，原因UNKNOWN；没有猜改/放宽原门/重跑CI。已通过异步问题请求父级提供该新正文。
 
 本轮结束检查：HEAD/远端产品4304d2d一致、工作区clean（本补记前）；远端main仍5323f86232529efcfb52131168ad049f01b219f3。原计划hash dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43、原规格/README/两个依赖锁hash与原值一致，旧Linux候选及c4证据保全。此补记只作本地docs提交不push，以免无实质新修复浪费CI。下一步据新正文继续最小修复和独审，再实际确认Windows packaged backend/Electron/上传。无main/force/PR/Release/部署/新权限或训练环境/数据/模型/SSH/教师环境变动；完整A/B、TST33、正式MNIST、真实SSH及法律审核仍未完成。
+
+
+## 2026-10-19 父级新正文：编译HTTP200，golden checkout字节不一致
+
+起始HEAD97ecda72f202aa6a32955ebd621f30be0840a308（前轮失败证据保全），工作区clean，remote4304d2d1756e77a6c80468737cfeff449a48201f。父级从已登录浏览器取得 https://github.com/T1doo/Easy-AI/actions/runs/39228433732/job/117980313772#step:18:386 ：包内offline package plan+explicit registration/cancel先PASS；FROZEN_SMOKE_DIAGNOSTIC lastRequest POST /projects/:id/compile status200，stderr truncated=false retainedBytes=0 frames/exceptions=[]。test-frozen.mjs:506 strictEqual ERR_ASSERTION，生成actual LF、checkout golden expected CRLF，非HTTP500。job2m57s，Electron/上传SKIP；原435171827字节ZIP及b625e8bd68c709d3a940ce36857ee378f52c3f877079c67bdd916477a07134eb审计成功记录保留。
+
+确认协议：CodeWriter.code明确'\n'.join(lines)+'\n'，bundle export文本写入明确newline='\n'；codeHash以UTF8实际生成字节计算。三个tracked golden目前原字节均UTF8/LF；test-frozen与test-portable Node readFile保留原换行，原Pythontest_compilation.read_text却自动转LF，曾掩盖checkout差异。仅.gitattributes对golden/*.txt和*.json补text eol=lf（全部3文件，IR/source-map同类一并保护），不全仓库renormalize、不改原golden内容或原计划/规格。加强原Python比较为code.encode UTF8 == golden.read_bytes；smoke strictEqual不变。刷新工具改write_bytes UTF8（JSON末尾显式byte10），既避免Windows默认文本换行，也避免旧JS/Python双转义把JSON末尾写成literal backslash-n；执行新工具后3原golden仍完全无diff。
+
+新增匹配回归：真实Git core.autocrlf=true init/add/checkout-index，实际Python编译真实Blockly fixture，原policy确定goldenCRLF vs compilerLF在byte64失败（1FAIL）。补LF policy后checkout原始bytes与生成code/codeHash一致，三份golden与原件byte一致，CRLF变体codeHash不同；没有对读取结果normalize。Windows CI原step8加入此回归和全部test_compilation，不跳任何旧测试。
+
+实际命令 cwd /workspace/Easy-AI：
+- FAIL（旧policy红例）：services/backend/.venv/bin/pytest -q services/backend/tests/test_golden_checkout.py，1FAIL，字节64 CR vs LF。
+- PASS：services/backend/.venv/bin/pytest -q services/backend/tests/test_golden_checkout.py services/backend/tests/test_compilation.py services/backend/tests/test_project_persistence.py services/backend/tests/test_install_platform_metadata.py，39PASS/1.19s（仅既有Starlette warning）。
+- PASS：workspace XDG/UV_OFFLINE=1 node scripts/update-golden.mjs；git diff --exit-code -- services/backend/tests/fixtures/golden，三原文件无diff。ruff check/format --check两Python测试通过；git check-attr三golden eol=lf。
+- PASS：同XDG环境pnpm test:package，36PASS/1.68s；原打包/ASAR/路径/秘密/字节门未改。pnpm format:check和git diff --check结果补记。
+
+原golden SHA256：mnist.py.txt dd8ca37bc3cd2feeec05982558f0fda8d0a95dc09a03df79e3304c849912f550；mnist-program.json c101b949a266a0a54c688e3434ecc6bf30181937ae91edc1a45100cbffb70854；mnist-source-map.json 3e700e144995967feb9adbb9b7b28abc3eb2540a474843c9118ab75dc37fc10a。README/原计划/规格/依赖锁hash和旧Linux候选保持；main未改。下一步独审后一次正常开发分支push自然CI，再实际检查packaged backend/Electron/上传，不把Linux通过冒充Windows确认，无发布/PR/main/force/新权限/凭据/付费/训练环境/数据模型/SSH/教师环境变化。
+
+- `/tmp/easyai-golden-eol-before-20261019.log`：SHA256 `52f5f7025f2d8de1946db3e411e7cd21939530b066f14bc49c48fc6153a137e9`。
+- `/tmp/easyai-golden-eol-after-20261019.log`：SHA256 `1174ab96ab892c797b7cd2d614b69309985c20af0647e1d35ab2490ef2c07e3e`。
+- `/tmp/easyai-golden-eol-package-20261019.log`：SHA256 `8421381d6b6db55892a1e0e40f60a1834d6c39ed0e650819b4e561f3273d3320`。
+
+独审补记：只读checkout+compiler回归28PASS，独立在内存生成3份golden与现有bytes完全一致（12734/13111/36689字节），未运行updater/构建/联网/修改文件，无新增明确P1/P2。pnpm format:check与git diff --check PASS。
+- `/tmp/easyai-golden-eol-independent-hnkviG.log`：SHA256 `74f86a5293b707c7ac69da66c43b77971486ba38ed342ffe41236e3789edfb20`。
+- `/tmp/easyai-golden-eol-format-20261019.log`：SHA256 `cbe9f0d2d90255e8d0e75efb8b65eb31c9f56a6a2fd881e2245b07403e38967f`。

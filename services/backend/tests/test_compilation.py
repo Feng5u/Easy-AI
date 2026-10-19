@@ -27,7 +27,7 @@ def project(name="mnist-figures"):
 def test_real_blockly_example_matches_frozen_code_ir_and_map():
     compiled = compile_project(project())
     assert compiled.result.runnable and compiled.program is not None
-    assert compiled.result.code == (GOLDEN / "mnist.py.txt").read_text()
+    assert compiled.result.code.encode("utf-8") == (GOLDEN / "mnist.py.txt").read_bytes()
     assert compiled.program.model_dump(mode="json", by_alias=True) == json.loads(
         (GOLDEN / "mnist-program.json").read_text()
     )
