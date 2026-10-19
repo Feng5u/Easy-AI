@@ -307,9 +307,13 @@ export class Canvas {
       signal.throwIfAborted();
       await input.press("Enter");
     });
+    await expect(this.field(id, "NAME")).toContainText(name);
     await interaction(`register object ${name}`, () =>
       inspector.getByRole("checkbox", { name: "供本项目引用" }).check(),
     );
+    await expect(
+      inspector.getByLabel("所选积木 ID", { exact: true }),
+    ).toHaveText(id);
     await expect(
       inspector.getByRole("button", { name: new RegExp(`^${name}`) }),
     ).toBeVisible();

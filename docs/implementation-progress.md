@@ -3387,3 +3387,27 @@ PASS命令（CI=true，XDG_DATA_HOME=/workspace/.local/share，XDG_CACHE_HOME=/w
 - build `/tmp/easyai-inspector-selection-build-20261019.log` SHA256 `b342221fdd317318757bb3f2b8dc872cf964af08231319b6499a1dfe1b8f8c72`。
 - 最终10项 `/tmp/easyai-inspector-selection-final-targeted-20261019.log` SHA256 `ff57a03f47747456de3146c7a0343d85509466bdcc276b178b980532b89488d5`。
 - 场景发现 `/tmp/easyai-inspector-selection-e2e-list-20261019.log` SHA256 `cba0ef52b51ecb00ca1372443c7837a9ba76c3ea9923b6f8a677baf99dd95eca`。
+
+
+### 注册事务统一审查：真实受控checkbox RED/GREEN与身份/引用/撤销回归
+
+父级取得CI39252719456/job118060231722 step14准确新证据：select object Prep、rename object Prep均PASS，inspected保留原预处理ID；首错register object Prep的locator.check（canvas.ts311:59，blank144/134），真实“供本项目引用”input click已完成但checked未改变。renderer failures[]、dirty native dialog、pid2432/code0/CLOSE_CONFIRMED。本轮确认选中修复已越过原挂点，而未取得的后续完整SELECTION原文不臆造；旧FAIL保留。
+
+先审查完整事务：真实input onChange→action→WorkspaceManager.register→setRegistration同步loadExtraState，再经真实Blockly BlockChange异步changed→onChange/refresh→React props echo receive。根因是checked读取缓存symbols，action原本仅setError('')，未同步更新快照；React在事件回调结束恢复受控旧checked时，真实block已经registered=true，但onRefresh尚未送达。rename不同：输入本身同步setName，不能从checkbox失败反推rename失败；引用provider读取实时manager.symbols，改名与注册均不换目标ID。
+
+新增真实ProjectEditor React DOM+真实headless WorkspaceManager/Blockly回归（只替换像素renderer，未替换register/rename/事件/序列化）。6种对象原实现全部有效RED：同步真实checkbox.click后manager registered=true但DOM checked=false，准确定位到受控恢复；没有强设checked/派发假change/睡眠。生产修复仅action成功后setSymbols(instance.symbols())，从真实对象同步发布快照，未绕过字段/角色校验或BlockChange保存/Undo。相同6项GREEN，取消注册同样同步反映；等待实际onChange送达后验证真实serialized graph与ID。
+
+统一回归共新增10项：6类transform/train-test dataset/train-test loader/model；真实名称input输入→Enter/blur→立即注册（无timer），再实际Undo两次/Redo两次，名称/注册状态/原ID/TRANSFORM_REF均精确保持；名称冲突、角色冲突拒绝且真实图不变；readonly DOM禁用且图不变。联合既有FigureInspector/manager/focus/symbols共47PASS。独立审查确认checkbox P2关闭、无新增明确P1/P2，独立新10PASS，不将同一测试重复加总。E2E依然真实click/check：新增注册前真实Blockly NAME文本提交断言、注册后原ID再核验；最终图保存/重开/编译/shape/安全门不减。
+
+PASS（CI=true、XDG_DATA_HOME=/workspace/.local/share、XDG_CACHE_HOME=/workspace/.cache、UV_CACHE_DIR=/workspace/.uv-cache、UV_OFFLINE=1）：完整pnpm check；完整pnpm test（45文件PASS/1skip、373 TS PASS/2skip、950 Python PASS/19skip、36 Node PASS）；pnpm --filter @easyai/desktop build；最终新10项；git diff --check。新测试类型笔误JSD、fields为unknown的访问及初次spread写法被check如实阻断，改JSDOM并先核字段是对象后才spread，最终check全过，未压制类型错误。真实GUI仍NOT RUN（既有本机sandbox/display条件），DOM回归不冒充Windows点击验收。
+
+提交前HEADcbefd5594d488080520e027abb3f356031368c30、remote dev fef98b5ee46a1e2fa796ae6faa5f5915149e6f0b，保留本地证据提交；main5323f86232529efcfb52131168ad049f01b219f3未变。原plan/原规格/README/锁SHA再次全部相同。接下来仅为该已实证缺陷推送一次自然CI，旧run不重试；完整空白CNN/M4/M7/SSH/MNIST/TST33/许可/A/B尚未验收。没有训练安装/数据下载/真实SSH/凭据/权限/共享环境/main/发布操作。
+
+- 6项RED `/tmp/easyai-registration-checkbox-red-20261019.log` SHA256 `2369a5bd96ccf46734c2026f898e102f4c8bec74792d6f3a97e7ef3635e5d208`。
+- 6项GREEN `/tmp/easyai-registration-checkbox-green-20261019.log` SHA256 `4817dbddf1ec2bc66dc4a8cc059ec7b8b5cce13e859ab01009a4d4c1a2890ffa`。
+- 联合47项 `/tmp/easyai-registration-transaction-20261019.log` SHA256 `3d879fa2ab52a862e810ec818c6318d6757696eff1228ac0565ffe365b482ea0`。
+- 独立10项 `/tmp/easyai-registration-independent-MSQI5C.log` SHA256 `d7abad65274b866d416214e50a598abf25bac7061477fe4e5aee011d14cc9787`。
+- 最终10项 `/tmp/easyai-registration-final-targeted-20261019.log` SHA256 `4abfd34f42344316b02341187dcdfd721df269c5d1368807154bdc8d7735c82d`。
+- check `/tmp/easyai-registration-check-final2-20261019.log` SHA256 `e580f738fb6f2a6bfe01cc5daae5d3e702f5220b2ad112eafff67fad6afa0a95`。
+- test `/tmp/easyai-registration-full-test-20261019.log` SHA256 `3f7e6f39955a39eebcfdd12fad03ae7aff9badc2fa7edbeae1248a5a92be8c46`。
+- desktop build `/tmp/easyai-registration-build-20261019.log` SHA256 `edf17c425104724e31ab68f1d9a4261e9d941974fcfc7e4a6ff83231d122dd05`。

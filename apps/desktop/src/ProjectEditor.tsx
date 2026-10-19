@@ -109,6 +109,10 @@ export function ProjectEditor(props: ProjectEditorProps) {
     if (!instance || readOnly) return;
     try {
       run(instance);
+      // Blockly updates synchronously but delivers change events later. Publish
+      // its actual snapshot before React restores controlled Inspector inputs.
+      // Persistence and Undo still use the original Blockly events.
+      setSymbols(instance.symbols());
       setError("");
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : "无法完成修改。");
