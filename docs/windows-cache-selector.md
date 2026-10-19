@@ -11,3 +11,5 @@
 这只接受宿主缓存，不等于完整Windows SSH。`HostKeyStore.__init__` 仍在 `host_keys.py` 拒绝非POSIX，其持久化目前直接用fcntl/dir_fd；这是下一项具体代码缺口。正式SSH身份/凭据/网络行为、数据、十轮MNIST、硬件与TST33均独立未验证。本地应用与训练环境仍分离，默认不下载、不改教师环境、不执行外部SSH。
 
 第二阶段源码 `f89831a15498e00db6da3d20891e9a4fe45c0b4a` / [CI39232654843](https://github.com/T1doo/Easy-AI/actions/runs/39232654843)：Windows完整SUCCESS，包含不再临时开启门的真实默认selector/native集成、packaged backend/Electron与上传；ZIP435167215字节，SHA256 `a869cd8a1a331b212f83f823982e8ad8ff2b6e5dfe032baa7bcc0caadbabba98`。Linux静态PASS、pnpm test FAIL，首错正文pending，不能把整轮叫成功。本地确认两旧unverified负例仅注入os.name=nt，现需明确gate=False才是未验证能力；该两行夹具修复保留全部拒绝和零副作用断言，43项本地与2项独审PASS，新CI待核。
+
+最终源码 `af5a1f96509976f9474eee80b5852b66aea1cee6` / [CI39233339421](https://github.com/T1doo/Easy-AI/actions/runs/39233339421) Linux/Windows全SUCCESS，默认selector/native、packaged backend/Electron/上传成功，未验证能力夹具红绿已由父级首错确认。候选与证据边界见[candidate-windows-af5a1f9.md](candidate-windows-af5a1f9.md)。指定的cache selector/有界原生枚举集成已完成；HostKeyStore仍为下一具体代码缺口，不是数据/桌面阻塞。

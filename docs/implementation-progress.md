@@ -3021,3 +3021,16 @@ Linux job117994084895 pnpm check SUCCESS但pnpm test FAILURE，后续build SKIPP
 - `/tmp/easyai-windows-selector-unverified-before-20261019.log`：SHA256 `d278e55af62905366a25f09ddc11b63f0ac850af4c9abc1cef82ee4701d25d76`。
 - `/tmp/easyai-windows-selector-unverified-after-20261019.log`：SHA256 `e62cca81e849d49993dffabbde5e2d26b2f1743459f4f4843b5c39a6232dac3d`。
 - `/tmp/easyai-cache-negative-independent-I3Z63T.log`：SHA256 `ec25e3d8f9c376b631bdb960261bed46c270ea3da0832e862b39d1aca41b17bd`。
+
+
+### 父级精确正文确认与最终全绿默认native缓存候选
+
+父级浏览器补齐f898前轮Linux正文：test_local_ssh_storage.py197/198只os.name=nt注入，预期PLATFORM_UNVERIFIED实际WINDOWS_CACHE_NATIVE_PLATFORM_REQUIRED，remote_cache296→windows_store517→NativeWindowsApi160；test_remote_run_api.py735预期422 REMOTE_CACHE_PLATFORM_UNVERIFIED实际run-bindings200，同一旧前提。2FAIL944PASS11SKIP/113.17s，Windows完整SUCCESS3m13s并上传。与本地两红例精确吻合，现可确认原失败节点而非猜测；本执行器未重试logs接口。两行夹具修复af5正常push一次自然CI，不改产品码或负向断言。
+
+最终源码/remote `af5a1f96509976f9474eee80b5852b66aea1cee6`，[run39233339421](https://github.com/T1doo/Easy-AI/actions/runs/39233339421) Linux job117996371304与Windows job117996371933均完整SUCCESS。Linux pnpm check/test/build SUCCESS；Windows step8 startup/metadata/compile等SUCCESS，step9实际生产default native selector集成/securitycontracts SUCCESS（无临时gate开启/存储factory/nativeAPI注入）；freeze/resources/devE2E/guards/build/ZIP audit/packaged backend/packaged Electron/retain全SUCCESS。旧Linux2FAIL已经通过正常真实CI关闭，不是跳测试。
+
+新实际ZIP easyai-0.0.0-win-x64.zip，435167215字节，SHA2567ae7812c414dc5ed1a4d02c7d5e13db758c175c2333200ead0f11e4080bada21，来自audit step实际输出。Artifacts名称easyai-unsigned-win-x64-af5a1f96509976f9474eee80b5852b66aea1cee6，一天留存，step20上传成功。收据docs/candidate-windows-af5a1f9.md记录证据范围和获取，原d4成功候选/06c阶段/f898 Windows成功及全部失败历史保全；没有下载或假称本地重验该ZIP/读取manifest。仅读允许run/jobs元数据，无logs/artifacts/browser绕过。
+
+本轮指定缺口完成：有界NTFS native枚举、require_local_cache/local_directory/limited_names/RunService默认selector真实接通，在实际native集成通过后才启用门，并再次实际验证product default和包内启动；ACL/reparse/volume/身份/锁/持久化均保持。父级独审与本地回归证据见上，不宣称真实外部SSH。
+
+下一具体代码项仍是HostKeyStore独立POSIX门及native私有主机信任库适配，SshClient before-dial仍拒绝该未支持平台；原计划§13.2未知/变化key确认与保护必须保持。此代码工作独立于正式数据/外部SSH凭据，可继续推进，整体不暂停在TST33/十轮训练。完整Windows SSH、真实SSH/正式MNIST/硬件/TST33/法律审核与A/B仍未完成；未自动下载/安装/修改共享训练环境。无main/force/PR/Release/部署/新权限/付费/凭据。此最终证据仅本地docs提交不push额外CI，remote产品af5保持；main、原计划/规格/README/依赖锁与原golden未动，工作区提交后clean。
