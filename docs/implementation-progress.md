@@ -3152,3 +3152,12 @@ PASS：固定workspace XDG/UV_OFFLINE=1 pnpm check（/tmp/easyai-ui-check-202610
 独审无明确P1/P2。PASS：固定workspace XDG/UV_OFFLINE=1 pnpm check（/tmp/easyai-monaco-editcontext-check-20261019.log）；prettier与git diff --check。本执行器无显示服务，真实键盘行为和完整Windowsdev/package验收仍NOT RUN，须看本次一次自然CI。无数据/训练/SSH/凭据/权限/CSP/sandbox变化。
 
 - /tmp/easyai-monaco-editcontext-check-20261019.log SHA256 `e580f738fb6f2a6bfe01cc5daae5d3e702f5220b2ad112eafff67fad6afa0a95`。
+
+
+### EditContext公共语义/行为断言后的实际CI结果
+
+产品HEAD/remote `e03ac95540c5cd20c739c7289a199f65b3e447ee`，[CI39239859806](https://github.com/T1doo/Easy-AI/actions/runs/39239859806)：Linux job118017764812 check/test/build完整SUCCESS；Windows job118017764526原项目、native cache/trust、冻结与桌面build检查SUCCESS，step14开发态E2E FAIL，后续候选构建/审计/包内E2E/上传SKIPPED，无新候选。没有实际新首断言正文，不能据step状态声称只读行为已通过/失败，也不能沿用上一轮私有textarea首错。
+
+已请求父级已登录浏览器读取本轮step14首断言、行号、Expected/Received与完整调用日志，状态pending；既有日志接口拒绝限制保持，未重试/绕过/盲重跑。锁定版本源码证明两EditContext公共textbox/ARIA路径，实际键盘行为仍待该首错进一步核验，完整编辑闭环未验收，packaged UI NOT RUN。独立审查本次diff无明确P1/P2，本地pnpm check PASS不替代Windows结果。
+
+本地与remote产品源码一致、工作区clean；此证据单独本地提交不push额外CI，main仍5323f86232529efcfb52131168ad049f01b219f3。原件、旧候选和两轮失败保持。真实SSH/MNIST/TST33/许可未完成；未执行训练/数据下载/凭据/发布或改安全权限。
