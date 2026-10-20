@@ -1,5 +1,7 @@
 import { RunObjects } from "./RunObjects.js";
 import { ArtifactSources } from "./ArtifactSources.js";
+import { RunLogViewer } from "./RunLogViewer.js";
+import { appendRunLogs, emptyLogPair } from "./logWindow.js";
 import { safeReport } from "../electron/diagnostic-report.mjs";
 import type { DiagnosticReport } from "../electron/bridge.js";
 import { FailureCard, operationFailure } from "./FailureCard.js";
@@ -34,7 +36,6 @@ import {
 } from "./runSnapshot.js";
 import type { SnapshotRequest } from "./RunSnapshotCode.js";
 
-const LOG_WINDOW = 120_000;
 export function MetricSeries({ points }: { points: EpochPoint[] }) {
   if (!points.length)
     return (
@@ -242,8 +243,7 @@ function RunDashboardForRun({
   const [syncError, setSyncError] = useState<string | null>(null);
   const syncRequest = useRef(0);
   const [artifacts, setArtifacts] = useState<ArtifactRecord[]>([]);
-  const [stdout, setStdout] = useState("");
-  const [stderr, setStderr] = useState("");
+  const [liveLogs, setLiveLogs] = useState(emptyLogPair);
   const [image, setImage] = useState<{
     id: string;
     dataUrl: string;
@@ -291,13 +291,11 @@ function RunDashboardForRun({
     mounted.current = true;
     let active = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    let stdoutAfter = 0,
-      stderrAfter = 0,
-      terminalPolls = 0;
+    let collected = emptyLogPair();
+    let terminalPolls = 0;
     let terminalEventReceived = false;
     setEvents(emptyEvents(runId));
-    setStdout("");
-    setStderr("");
+    setLiveLogs(collected);
     setSource(null);
     setSourceError(null);
     setSubscriptionError(null);
@@ -360,18 +358,17 @@ function RunDashboardForRun({
       try {
         const [latest, logs, files] = await Promise.all([
           api.runs.get(runId),
-          api.runs.logs(runId, stdoutAfter, stderrAfter),
+          api.runs.logs(runId, collected.stdout.end, collected.stderr.end),
           api.runs.artifacts(runId),
         ]);
         if (!active) return;
         verifyRunIdentity(latest);
+        const nextLogs = appendRunLogs(collected, logs);
         setRun(latest);
         onRunUpdate(latest);
         setReadError(null);
-        stdoutAfter = logs.stdoutAfter;
-        stderrAfter = logs.stderrAfter;
-        setStdout((previous) => (previous + logs.stdout).slice(-LOG_WINDOW));
-        setStderr((previous) => (previous + logs.stderr).slice(-LOG_WINDOW));
+        collected = nextLogs;
+        setLiveLogs(collected);
         setArtifacts(files.filter((item) => item.runId === runId));
         if (isRunSettled(latest) && logs.done) terminalPolls += 1;
         else terminalPolls = 0;
@@ -775,22 +772,20 @@ function RunDashboardForRun({
       )}
       <section className="panel">
         <h3>终端输出（只读）</h3>
-        <p className="muted">
-          保留最近 {LOG_WINDOW.toLocaleString()} 个字符；stdout 与 stderr
-          分开展示。
-        </p>
-        <details open>
-          <summary>stdout</summary>
-          <pre className="log" tabIndex={0}>
-            {stdout || "尚无 stdout 日志。"}
-          </pre>
-        </details>
-        <details open={Boolean(stderr)}>
-          <summary>stderr</summary>
-          <pre className="log stderr" tabIndex={0}>
-            {stderr || "尚无 stderr 日志。"}
-          </pre>
-        </details>
+        <RunLogViewer
+          api={api}
+          runId={runId}
+          stream="stdout"
+          live={liveLogs.stdout}
+          otherEnd={liveLogs.stderr.end}
+        />
+        <RunLogViewer
+          api={api}
+          runId={runId}
+          stream="stderr"
+          live={liveLogs.stderr}
+          otherEnd={liveLogs.stdout.end}
+        />
       </section>
     </section>
   );

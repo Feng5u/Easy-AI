@@ -199,6 +199,7 @@ beforeEach(() => {
 afterEach(async () => {
   if (root) await act(async () => root!.unmount());
   root = undefined;
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   dom.window.close();
 });
@@ -486,6 +487,70 @@ function dashboard(saved: RunSource, runId: string) {
   } as unknown as DesktopAPI;
   return { run, api, artifact, image, emit: (event: Event) => listener(event) };
 }
+
+it("continues independent live byte cursors while stdout is paused and old stderr pages are read", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  Object.defineProperty(dom.window.HTMLElement.prototype, "clientHeight", {
+    configurable: true,
+    get() {
+      return this.classList.contains("run-log-viewport") ? 303 : 0;
+    },
+  });
+  Object.defineProperty(dom.window.HTMLElement.prototype, "scrollHeight", {
+    configurable: true,
+    get() {
+      return this.classList.contains("run-log-viewport")
+        ? Number.parseFloat(this.firstElementChild?.style.height ?? "0")
+        : 0;
+    },
+  });
+  const h = dashboard(source(), "paged-logs");
+  h.run.status = "RUNNING";
+  let out = "A\n".repeat(16384);
+  let err = "old error\n";
+  vi.mocked(h.api.runs.logs).mockImplementation(async (_run, a, b) => {
+    const stdout = out.slice(a, a + 32768);
+    const stderr = err.slice(b, b + 32768);
+    return {
+      stdout,
+      stderr,
+      stdoutAfter: a + stdout.length,
+      stderrAfter: b + stderr.length,
+      done: false,
+    };
+  });
+  await render(
+    createElement(RunDashboard, {
+      api: h.api,
+      initialRun: h.run,
+      onRunUpdate: vi.fn(),
+    }),
+  );
+  expect(h.api.runs.logs).toHaveBeenLastCalledWith("paged-logs", 0, 0);
+  await click("暂停自动滚动 stdout");
+  out += "B\n".repeat(16384);
+  err += "new error\n";
+  await act(async () => vi.advanceTimersByTimeAsync(1000));
+  expect(h.api.runs.logs).toHaveBeenLastCalledWith("paged-logs", 32768, 10);
+  expect(
+    container.querySelector('[aria-label="stdout 虚拟文本窗口"]')?.textContent,
+  ).not.toContain("B");
+  await click("从头查看 stderr");
+  expect(h.api.runs.logs).toHaveBeenLastCalledWith("paged-logs", 65536, 0);
+  out += "C\n";
+  err += "last error\n";
+  await act(async () => vi.advanceTimersByTimeAsync(1000));
+  expect(h.api.runs.logs).toHaveBeenLastCalledWith("paged-logs", 65536, 20);
+  await click("恢复实时 stdout");
+  expect(
+    container.querySelector('[aria-label="stdout 虚拟文本窗口"]')?.textContent,
+  ).toContain("C");
+  // History neither rewinds the other live cursor nor consumes its new bytes.
+  await click("恢复实时 stderr");
+  expect(
+    container.querySelector('[aria-label="stderr 虚拟文本窗口"]')?.textContent,
+  ).toContain("last error");
+});
 
 it("selects registered panel/source/style/savefig contributors in the immutable old snapshot despite a changed current project", async () => {
   const saved = figureSource(),

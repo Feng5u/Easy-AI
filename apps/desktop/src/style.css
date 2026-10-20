@@ -394,6 +394,32 @@ th {
   background: #342720;
   color: #f0dbca;
 }
+.run-log-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.run-log-viewport {
+  max-height: none;
+  padding: 0;
+  overflow-x: scroll;
+  white-space: pre;
+  overflow-wrap: normal;
+}
+.run-log-spacer {
+  position: relative;
+  min-width: 100%;
+}
+.run-log-row {
+  position: absolute;
+  left: 0;
+  width: max-content;
+  min-width: 100%;
+  padding: 0 8px;
+  box-sizing: border-box;
+  white-space: pre;
+  overflow-wrap: normal;
+}
 @media (max-width: 800px) {
   .app-shell {
     padding: 20px 16px 40px;
