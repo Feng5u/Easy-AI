@@ -2,11 +2,11 @@
 
 ## 2026-10-20 当前交接状态
 
-本节更新旧盘点，原M0–M8/D01–D14及完整B门不变。最新产品提交为 `acdf3e6f74ac9835c0656060e7cf9f46f51b790b`，包含有界历史日志和默认最新图片/历史回放；其 [CI39376641569](https://github.com/T1doo/Easy-AI/actions/runs/39376641569) Linux/Windows全SUCCESS，含开发态与实际包内四场景，准确收据见implementation-progress末节。下文2026-10-19的FAIL/平台门/“停止新增开发”均是历史记录，保留以追溯，不代表当前事实。
+本节更新旧盘点，原M0–M8/D01–D14及完整B门不变。当前冻结源码为 `0e1e1b29eb356aa217a0ae133327d4e33509dd25`，包含有界历史日志、默认最新图片/历史回放、来源折叠重开/重复定位以及四项安全和可靠性修复；其 [CI39383662136](https://github.com/T1doo/Easy-AI/actions/runs/39383662136) Linux/Windows全SUCCESS，含开发态与实际包内四场景。最新未签名候选为 [artifact12245664573](https://github.com/T1doo/Easy-AI/actions/runs/39383662136/artifacts/12245664573)，准确SHA/审计/留存与失败历史见implementation-progress末节；新包未在本实例下载或重算。用户要求的main合并与Release继续HOLD。下文旧FAIL/平台门/“停止新增开发”均是历史记录，保留以追溯，不代表当前事实。
 
-已实际保全的Windows x64试用包绑定 `43474263d8b61ab12bc50ef554259013c4a326d6` / [CI39374728677](https://github.com/T1doo/Easy-AI/actions/runs/39374728677) / artifact12243226977，原开发态及包内四E2E、Linux完整检查、打包审计和退出均通过。ZIP435264873字节，SHA256 `4779ee31b553f8a09690cf1a59af36ace910998d405b31e90c8cb1301d5c2200`，本实例已下载、逐文件核验并持久保存到维护者Library，连同试用说明与清单供单独交接。该包含日志收口，不含后续acdf3e6图像回放；没有混用源码SHA。未签名、无安装器、不含训练环境/数据/权重，未执行此下载包；干净机与完整B仍未验收。
+已实际保全的Windows x64旧试用包绑定 `43474263d8b61ab12bc50ef554259013c4a326d6` / [CI39374728677](https://github.com/T1doo/Easy-AI/actions/runs/39374728677) / artifact12243226977，原开发态及包内四E2E、Linux完整检查、打包审计和退出均通过。ZIP435264873字节，SHA256 `4779ee31b553f8a09690cf1a59af36ace910998d405b31e90c8cb1301d5c2200`，本实例已下载、逐文件核验并持久保存到维护者Library，连同试用说明与清单供历史交接。该包含日志收口，不含后续图像回放、演示及安全修复，当前交付以本节新候选SHA为准。未签名、无安装器、不含训练环境/数据/权重，未执行此下载包；干净机与完整B仍未验收。
 
-实际代码/能力缺口：CIFAR10官方构造仍返回SAFE_PROBE_REQUIRED；OpenCV、NLTK、HanLP三张卡分别受native需求未核、固定候选漏洞、依赖无目标wheel阻断。受控安装执行合同为Linux x64/固定CPython与conda/owned根和受信任来源，Windows本地自动建训练环境不属于已有执行平台。不能把目录卡存在或元数据闭包当作这些能力已可用。Windows原生缓存与host trust当前VERIFIED均为True，旧“Windows生产门未开”不再列为当前代码缺口；真实SSH尚需实测。
+实际代码/能力缺口：CIFAR10官方构造仍返回SAFE_PROBE_REQUIRED；OpenCV、NLTK、HanLP三张卡分别受native加载/ABI未验、当前候选漏洞、依赖无目标wheel阻断。已授权的OpenCV单wheel静态ELF/许可与依赖来源实查见[m6-compatibility-review.md](m6-compatibility-review.md)，不等于加载或安装成功。受控安装执行合同为Linux x64/固定CPython与conda/owned根和受信任来源，Windows本地自动建训练环境不属于已有执行平台。不能把目录卡存在或元数据闭包当作这些能力已可用。Windows原生缓存与host trust当前VERIFIED均为True，旧“Windows生产门未开”不再列为当前代码缺口；真实SSH尚需实测。
 
 完整B接续所需最小外部条件（当前未运行，不自动恢复一次训练授权）：
 

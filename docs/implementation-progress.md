@@ -3849,3 +3849,15 @@ Linux job118493236984完整check、TS432PASS/2既有SKIP；Python1009PASS/19既�
 当前修改仅测试与本记录，生产文件零改；独立只读复审ACK未见新增确定P1/P2。Python静态check（ruff/format/mypy70src及runtime）PASS；完整合成API文件22项PASS，包含四个握手分支及新的清理确认。初次编辑一处缩进语法错误已在执行测试前修正，不冒充运行结果。没有为本次测试修改重跑无变化的TS/Node本地套件或构建；新提交仍由自然有界CI完整验证，不把e656的Windows绿灯转给新SHA。main/Release继续HOLD，原件hash保持，没有真实SSH/训练/数据下载/安装/新权限费用。
 
 当前最终22项实际9.38秒，正文SHA256 f49d84382e9c8012f63a917b1d6243cb080a63c9579095e156a36b7e33d41ae4；Python静态正文 2659850ba75af8d1cbf34f46433fe023742d2edbcd510d32d31da2daff2e84aa。先前22项9.39秒与受控6.49秒有交集，不相加为更多验收。
+
+## 2026-10-20 最终安全与演示修复冻结：0e1e1b2 全 GREEN
+
+完整源码 0e1e1b29eb356aa217a0ae133327d4e33509dd25 / [CI39383662136](https://github.com/T1doo/Easy-AI/actions/runs/39383662136) 两job全部SUCCESS。Linux job118498326675完整冻结setup/check/test/build：TS432PASS/2既有SKIP，Python1010PASS/19既有SKIP/12subtests、104.47秒、1既有warning，Node36PASS/0skip，Vite/TS与PyInstaller build完成。未启用训练集成及其他平台条件跳过原样保留，不计作已验；本次没有训练/数据/真实SSH或安装执行。
+
+Windows job118498326810全部SUCCESS：持久化/编译golden与原生安全、冻结资源/HTTP、venv身份隔离、开发态四E2E、打包输入保护、实际生成ZIP、362普通文件闭合集合/字节/hash/readonly审计、包内backend/资源/鉴权/EOF、包内四E2E/ASAR身份/sandbox/正常退出以及一天候选上传。两个真实Electron四场景均4PASS/1.2分钟；包保护Node为30PASS/6既有平台SKIP/0FAIL，不冒称Windows也36PASS。覆盖本轮summary折叠重开、同一producer滚离后Monaco恢复、真实文本反向定位、contributor映射、PNG解码/历史恢复与日志Unicode/横向条末行/历史/重开；这是局部真实GUI验收，不等于正式训练和完整课堂B。
+
+精确新候选 [artifact12245664573](https://github.com/T1doo/Easy-AI/actions/runs/39383662136/artifacts/12245664573) 绑定同一0e1e1b2完整SHA，未签名且distributionReady/legalReviewComplete仍false。内层easyai-0.0.0-win-x64.zip为435284263字节，CI审计SHA256 c057ae0438c0f04fa760a9fa8ceccedcb352b22445243c301915a1b13cc7dba6；外层artifact435452590字节，GitHub digest 2ef80ea06bc5a74a9e60a8ef6a2c7f46b0530c78808d205bdc281cfebb7d5048。留存至2026-10-21 15:05:12北京时间。本实例未下载/重算这份新包，不混用已保存Library的43474263旧包或整体失败的e656候选；真实包内执行和审计证据来自本次CI。
+
+本次完整解码日志私有保全：Linux SHA256 7b5c42e5ad84231371fa6acc4e29fd56c240961ced7d61cfd206fcc662f086ca；Windows 699a550a8dd6b66e86685c714cfec50c9825926a2c0d41a0606423c316a60011；两job/全部steps和artifact原元数据收据 f014924b14bb6341be00d16515ba6495d85047f2b0be6eaa735c429f95d60b07。此前605/55d/e656的FAIL及受控反例继续保留，没有无变更重跑或把旧绿灯转给新SHA。代码与测试已独立只读复审限定ACK，未发现剩余确定P1/P2，不作绝对无漏洞保证。
+
+末次仅回填证据文档并明确[skip ci]，全GREEN仍只绑定上述0e1e1b2源码。原计划SHA256 dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43、原需求5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190，README/两锁与main5323f86232529efcfb52131168ad049f01b219f3保持。合并/Release/部署继续HOLD；正式十轮、真实SSH、干净Win11、实际安装、CIFAR安全构造与三不支持包组的外部条件仍未关闭，详见remaining-critical-path与m6-compatibility-review。没有新增训练、数据下载、真实模型调用、用户设备操作、凭据、安全权限或费用。

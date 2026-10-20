@@ -41,3 +41,5 @@ bytearray避免无限多小块对象；超限/超时在下游响应开始前单�
 本轮独立只读代码复审最终ACK，不能代替运行结果。最后完整check/test、实际build与后续Windows开发态/包内E2E收据见implementation-progress末节。正式十轮、真实SSH、干净Windows11、真实安装与完整A/B仍NOT RUN；合并与Release继续等待用户。
 
 55d6797 / CI39381413118随后为LinuxSUCCESS、Windows开发E2E2PASS/2FAIL，后续打包/包内测试/候选上传均SKIPPED，不作为可交付通过。第一处新增测试把Monaco原生DOM scrollTop=0当作虚拟滚动顶部，实际高亮仍在视口；改用真实textbox聚焦和ControlOrMeta+Home，并核顶部代码可见、高亮离开，才检查同来源重新定位。第二处原startup点击长声明整行左上角时被html/scroll-decoration阻拦；改为先显示Monaco，再对精确Dataset声明中完整可见的非空文本token正常点击，原DataLoader→Dataset反向定位断言不变。没有force、dispatchEvent、内部editor测试API或sandbox修改；新的真实Windows结果仍须绑定新SHA。
+
+最终0e1e1b29eb356aa217a0ae133327d4e33509dd25 / [CI39383662136](https://github.com/T1doo/Easy-AI/actions/runs/39383662136)全SUCCESS，完整Linux检查/测试/构建与Windows开发态、归档审计、包内同四E2E均通过。中间e656的Linux合成握手5秒FAIL没有略过：合法串行3+3秒受控复现后只改测试整体握手同步、提前退出诊断与精确自有child清理；生产每次5秒/整体20秒门和单次启动/旧worker/授权拒绝断言不变，单stage6秒反例仍明确FAIL。该修正不声称还原原CI的精确慢阶段。原日志、全部新收据及未验边界见implementation-progress末节；没有以代码独审ACK替代实跑，也没有执行新的训练/数据/真实SSH或安装。main/Release继续HOLD。

@@ -27,3 +27,5 @@
 独审发现原生 details 的 summary 可把 DOM open 改成 false，而 React 保存的 open prop 仍为 true；再次来源请求只更新版本，不会重新打开。新增纯内存回归先真实 FAIL，再由导航 layout effect 对每次显式请求恢复 open；原生 Blockly 选择回声 `navigate=false` 不强制展开，待派发 toggle 不清除新请求。真实 Windows E2E 包含同一折叠/再点来源操作。
 
 本实例已有 Chromium sandbox 宿主权限故障，不重试或加 no-sandbox。Windows 开发态与包内 E2E 由已有有界 CI 执行；CI VM 不代表 Windows 11 干净用户机。旧一次 MNIST 小样本授权已用完；无新训练、SSH、数据下载、用户设备操作、CIFAR门放宽。不能承诺完整B或所有实机演示无问题；剩余条件见 remaining-critical-path。
+
+最终冻结为0e1e1b29eb356aa217a0ae133327d4e33509dd25 / [CI39383662136](https://github.com/T1doo/Easy-AI/actions/runs/39383662136)：Linux完整check/test/build及Windows开发态四场景、ZIP审计、包内相同四场景与正常退出均SUCCESS。新的[未签名候选](https://github.com/T1doo/Easy-AI/actions/runs/39383662136/artifacts/12245664573)保留至2026-10-21 15:05北京时间，未在本实例另行下载/重算；收据见implementation-progress末节。此前各次FAIL保留，整体失败的e656候选不充作全GREEN。当前绿色证明上述自动化演示路径，正式训练/SSH/干净Win11/原生picker人工验收及完整A/B仍未关闭；合并main与Release继续HOLD。
