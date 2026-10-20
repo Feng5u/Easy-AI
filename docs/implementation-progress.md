@@ -3642,3 +3642,14 @@ CI工作流on:[push,pull_request]，纯推两文档会额外全跑。已先向�
 旧指定artifact12192547002/435255641B/hash94d9873d1692c533e2b0d758aa47d4df3d6123f57686ad24930b13b91cf4eec8不是新包。在当前/workspace及可访问/tmp未找到本地保全；受保护/tmp/codex-daemon-1000不可读且无相关存储证据，不重试该无关目录。历史logs/artifacts/browser拒绝原具体下载tool/URL正文未保全，不能凭新工具可见就缩窄禁令。已明确请求专用github_download_workflow_artifact对T1doo/Easy-AI artifact12192547002单次许可或由已登录页面保全转交；该动作pending/NOT RUN，未调用下载、不改留存/Release、不借新hash伪称旧包保全。此为剩余具体阻塞，不是本轮下载失败/执行未知或新的自动审核拒绝。
 
 当前仅新CI收据本地docs提交，避免再触发纯文档CI；此前两份文档已全部在远端。原main5323f86232529efcfb52131168ad049f01b219f3、原件/规格/README/锁不变。实际交付新增本机CPU运算预检与准确诊断，未仅增加测试；完整真实MNIST/SSH/平台训练/安装/许可/干净机/发布门仍分别未验。无新依赖/数据下载、训练、模型服务调用、许可/安全例外、共享教师环境/main/PR/Release/部署操作。
+
+
+### 只读核真实MNIST授权：未取得路径，准备命令但未执行
+
+父级已独核接受41b736b532e008634d01821b02a8d7b493351fcb与CI39346965518。当前仅核已有授权文本、已知integration005/TST34回执与明确记录的根；没有搜索私人数据目录或尝试猜真实MNIST位置。已知两数据回执均明确合成IDX，原授权仅CPU32/16合成范围及固定基础运算检查，未发现用户给定且许可使用的真实数据根、真实训练样本/轮次/预算/新输出范围。不能把模板data、已有训练库或合成数据当作真实数据授权。
+
+已有CPU依赖可复用，不需装包。待用户明确给真实根及批准一次quick CPU：建议最多1024/256、1epoch、batch64、seed42，600秒+30秒取消清理、新根256MiB/训练根总5GB，download=False，不改原IDX/共享环境。仓库外real-mnist-a-ready.py只准备与ast.parse/静态审查，未执行、未import真实训练库；实际生产LocalWorkspace保存/编译/选择/预检/RunService链，不重复TST34、不用合成test:integration。缺输入先拒绝；失败取消/清理未知保留原错与私有状态，确认服务关闭后才发布PASS。该命令准备A训练切片，真实GUI可点击映射仍须另验，不能宣称完整A/B。详见real-mnist-acceptance-readiness.md。
+
+9ce1cc613d1cfc06a06b7704d882b155b7dc8b75三docs已独审无敏感/用户数据/凭据；新页只含占位数据根与任务自有脚本路径。保留9ce原SHA，追加纯docs提交带[skip ci]并正常开发分支推送两者，避免纯文档重复CI。已核GitHub官方skip-workflow-runs说明：on push/pull_request可由提交消息跳过；不改workflow，不跳过任何产品变更检查，不改main/强推/PR。当前追加提交不视为新CI PASS，产品证据仍准确绑定41b736。
+
+旧artifact明确继续历史限制，不调用下载或替代路径，不改留存、不借新候选hash回填旧文件。没有执行训练、下载、安装、SSH或新增模型调用。原件/README/锁保持，待真实数据明确授权后才启动相应有界验收。
