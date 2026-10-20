@@ -1,0 +1,113 @@
+{
+  "$defs": {
+    "PackageCard": {
+      "additionalProperties": false,
+      "properties": {
+        "packageId": {
+          "pattern": "^[a-z][a-z0-9-]{0,63}$",
+          "title": "Packageid",
+          "type": "string"
+        },
+        "importName": {
+          "title": "Importname",
+          "type": "string"
+        },
+        "group": {
+          "enum": [
+            "ml",
+            "dl",
+            "cv",
+            "nlp"
+          ],
+          "title": "Group",
+          "type": "string"
+        },
+        "purpose": {
+          "title": "Purpose",
+          "type": "string"
+        },
+        "dependencyNote": {
+          "title": "Dependencynote",
+          "type": "string"
+        },
+        "installedStatus": {
+          "const": "unknown",
+          "default": "unknown",
+          "title": "Installedstatus",
+          "type": "string"
+        },
+        "installedVersion": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Installedversion"
+        },
+        "targetVersion": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Targetversion"
+        }
+      },
+      "required": [
+        "packageId",
+        "importName",
+        "group",
+        "purpose",
+        "dependencyNote",
+        "targetVersion"
+      ],
+      "title": "PackageCard",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "catalogVersion": {
+      "const": 1,
+      "default": 1,
+      "title": "Catalogversion",
+      "type": "integer"
+    },
+    "packages": {
+      "items": {
+        "$ref": "#/$defs/PackageCard"
+      },
+      "title": "Packages",
+      "type": "array"
+    },
+    "profiles": {
+      "items": {
+        "enum": [
+          "teacher-existing",
+          "easyai-cpu"
+        ],
+        "type": "string"
+      },
+      "title": "Profiles",
+      "type": "array"
+    },
+    "executionEnabled": {
+      "default": false,
+      "title": "Executionenabled",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "packages",
+    "profiles"
+  ],
+  "title": "PackageCatalog",
+  "type": "object"
+}

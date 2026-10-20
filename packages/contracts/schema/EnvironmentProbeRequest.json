@@ -1,0 +1,83 @@
+{
+  "$defs": {
+    "DatasetProbe": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "enum": [
+            "MNIST",
+            "FashionMNIST",
+            "CIFAR10"
+          ],
+          "title": "Name",
+          "type": "string"
+        },
+        "dataRoot": {
+          "maxLength": 1024,
+          "minLength": 2,
+          "pattern": "^/[^\\\\\\x00-\\x1f\\x7f]*$",
+          "title": "Dataroot",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "dataRoot"
+      ],
+      "title": "DatasetProbe",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "projectId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Projectid",
+      "type": "string"
+    },
+    "connectionId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Connectionid",
+      "type": "string"
+    },
+    "requestId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Requestid",
+      "type": "string"
+    },
+    "environmentId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Environmentid",
+      "type": "string"
+    },
+    "device": {
+      "default": "cpu",
+      "enum": [
+        "cpu",
+        "cuda",
+        "mps"
+      ],
+      "title": "Device",
+      "type": "string"
+    },
+    "dataset": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DatasetProbe"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "projectId",
+    "connectionId",
+    "requestId",
+    "environmentId"
+  ],
+  "title": "EnvironmentProbeRequest",
+  "type": "object"
+}

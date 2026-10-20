@@ -1,0 +1,630 @@
+{
+  "irVersion": 1,
+  "compilerVersion": "0.0.0",
+  "blockLibraryVersion": "0.0.0",
+  "seed": 42,
+  "executionMode": "full",
+  "symbols": [
+    {
+      "id": "cnn",
+      "kind": "model_class",
+      "name": "MnistCNN",
+      "role": null,
+      "workspace": "model",
+      "registered": true
+    },
+    {
+      "id": "test-dataset",
+      "kind": "dataset",
+      "name": "test_data",
+      "role": "test",
+      "workspace": "data",
+      "registered": true
+    },
+    {
+      "id": "test-loader",
+      "kind": "dataloader",
+      "name": "test_batches",
+      "role": "test",
+      "workspace": "data",
+      "registered": true
+    },
+    {
+      "id": "train-dataset",
+      "kind": "dataset",
+      "name": "train_data",
+      "role": "train",
+      "workspace": "data",
+      "registered": true
+    },
+    {
+      "id": "train-loader",
+      "kind": "dataloader",
+      "name": "train_batches",
+      "role": "train",
+      "workspace": "data",
+      "registered": true
+    },
+    {
+      "id": "transform",
+      "kind": "transform",
+      "name": "preprocess",
+      "role": null,
+      "workspace": "data",
+      "registered": true
+    }
+  ],
+  "transforms": [
+    {
+      "id": "transform",
+      "name": "preprocess",
+      "origin": {
+        "blockId": "transform",
+        "workspace": "data"
+      },
+      "steps": [
+        {
+          "kind": "data.to_tensor",
+          "origin": {
+            "blockId": "tensor",
+            "workspace": "data"
+          }
+        },
+        {
+          "kind": "data.normalize",
+          "origin": {
+            "blockId": "normalize",
+            "workspace": "data"
+          },
+          "mean": [
+            0.1307
+          ],
+          "std": [
+            0.3081
+          ]
+        }
+      ]
+    }
+  ],
+  "datasets": [
+    {
+      "id": "train-dataset",
+      "name": "train_data",
+      "origin": {
+        "blockId": "train-dataset",
+        "workspace": "data"
+      },
+      "datasetName": "MNIST",
+      "split": "train",
+      "transformId": "transform",
+      "channels": 1,
+      "height": 28,
+      "width": 28,
+      "classes": 10
+    },
+    {
+      "id": "test-dataset",
+      "name": "test_data",
+      "origin": {
+        "blockId": "test-dataset",
+        "workspace": "data"
+      },
+      "datasetName": "MNIST",
+      "split": "test",
+      "transformId": "transform",
+      "channels": 1,
+      "height": 28,
+      "width": 28,
+      "classes": 10
+    }
+  ],
+  "dataloaders": [
+    {
+      "id": "train-loader",
+      "name": "train_batches",
+      "origin": {
+        "blockId": "train-loader",
+        "workspace": "data"
+      },
+      "datasetId": "train-dataset",
+      "batchSize": 128,
+      "shuffle": true,
+      "role": "train"
+    },
+    {
+      "id": "test-loader",
+      "name": "test_batches",
+      "origin": {
+        "blockId": "test-loader",
+        "workspace": "data"
+      },
+      "datasetId": "test-dataset",
+      "batchSize": 128,
+      "shuffle": false,
+      "role": "test"
+    }
+  ],
+  "model": {
+    "id": "cnn",
+    "name": "MnistCNN",
+    "origin": {
+      "blockId": "cnn",
+      "workspace": "model"
+    },
+    "layers": [
+      {
+        "kind": "model.conv2d",
+        "origin": {
+          "blockId": "layer-0",
+          "workspace": "model"
+        },
+        "inChannels": 1,
+        "outChannels": 16,
+        "kernelSize": 3,
+        "padding": 1
+      },
+      {
+        "kind": "model.relu",
+        "origin": {
+          "blockId": "layer-1",
+          "workspace": "model"
+        }
+      },
+      {
+        "kind": "model.maxpool2d",
+        "origin": {
+          "blockId": "layer-2",
+          "workspace": "model"
+        },
+        "kernelSize": 2
+      },
+      {
+        "kind": "model.conv2d",
+        "origin": {
+          "blockId": "layer-3",
+          "workspace": "model"
+        },
+        "inChannels": 16,
+        "outChannels": 32,
+        "kernelSize": 3,
+        "padding": 1
+      },
+      {
+        "kind": "model.relu",
+        "origin": {
+          "blockId": "layer-4",
+          "workspace": "model"
+        }
+      },
+      {
+        "kind": "model.maxpool2d",
+        "origin": {
+          "blockId": "layer-5",
+          "workspace": "model"
+        },
+        "kernelSize": 2
+      },
+      {
+        "kind": "model.flatten",
+        "origin": {
+          "blockId": "layer-6",
+          "workspace": "model"
+        }
+      },
+      {
+        "kind": "model.linear",
+        "origin": {
+          "blockId": "layer-7",
+          "workspace": "model"
+        },
+        "inFeatures": 1568,
+        "outFeatures": 128
+      },
+      {
+        "kind": "model.relu",
+        "origin": {
+          "blockId": "layer-8",
+          "workspace": "model"
+        }
+      },
+      {
+        "kind": "model.linear",
+        "origin": {
+          "blockId": "layer-9",
+          "workspace": "model"
+        },
+        "inFeatures": 128,
+        "outFeatures": 10
+      }
+    ]
+  },
+  "training": {
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "modelId": "cnn",
+    "trainLoaderId": "train-loader",
+    "testLoaderId": "test-loader",
+    "criterion": "CrossEntropy",
+    "optimizer": "SGD",
+    "learningRate": 0.01,
+    "epochs": 10,
+    "before": [
+      {
+        "id": "before-figure",
+        "origin": {
+          "blockId": "before-figure",
+          "workspace": "training"
+        },
+        "layout": [
+          1,
+          1
+        ],
+        "size": "medium",
+        "panels": [
+          {
+            "origin": {
+              "blockId": "before-0-panel",
+              "workspace": "training"
+            },
+            "chartType": "image_grid",
+            "count": 5,
+            "rows": 1,
+            "cols": 5,
+            "sources": [
+              {
+                "origin": {
+                  "blockId": "before-0-source",
+                  "workspace": "training"
+                },
+                "source": "train_samples",
+                "xSource": "none"
+              }
+            ],
+            "title": {
+              "origin": {
+                "blockId": "before-0-title",
+                "workspace": "training"
+              },
+              "text": "train_samples",
+              "color": "black"
+            },
+            "legend": null,
+            "axis": {
+              "origin": {
+                "blockId": "before-0-axis",
+                "workspace": "training"
+              },
+              "showTicks": false
+            }
+          }
+        ],
+        "save": {
+          "origin": {
+            "blockId": "before-save",
+            "workspace": "training"
+          },
+          "relativePath": "outputs/preview.png"
+        }
+      }
+    ],
+    "body": [
+      {
+        "id": "body-figure",
+        "origin": {
+          "blockId": "body-figure",
+          "workspace": "training"
+        },
+        "layout": [
+          1,
+          2
+        ],
+        "size": "medium",
+        "panels": [
+          {
+            "origin": {
+              "blockId": "body-0-panel",
+              "workspace": "training"
+            },
+            "chartType": "line",
+            "count": 10,
+            "rows": 2,
+            "cols": 5,
+            "sources": [
+              {
+                "origin": {
+                  "blockId": "body-0-source",
+                  "workspace": "training"
+                },
+                "source": "train_loss",
+                "xSource": "epoch"
+              }
+            ],
+            "title": {
+              "origin": {
+                "blockId": "body-0-title",
+                "workspace": "training"
+              },
+              "text": "train_loss",
+              "color": "black"
+            },
+            "legend": {
+              "blockId": "body-0-legend",
+              "workspace": "training"
+            },
+            "axis": {
+              "origin": {
+                "blockId": "body-0-axis",
+                "workspace": "training"
+              },
+              "showTicks": true
+            }
+          },
+          {
+            "origin": {
+              "blockId": "body-1-panel",
+              "workspace": "training"
+            },
+            "chartType": "line",
+            "count": 10,
+            "rows": 2,
+            "cols": 5,
+            "sources": [
+              {
+                "origin": {
+                  "blockId": "body-1-source",
+                  "workspace": "training"
+                },
+                "source": "test_accuracy",
+                "xSource": "epoch"
+              }
+            ],
+            "title": {
+              "origin": {
+                "blockId": "body-1-title",
+                "workspace": "training"
+              },
+              "text": "test_accuracy",
+              "color": "black"
+            },
+            "legend": {
+              "blockId": "body-1-legend",
+              "workspace": "training"
+            },
+            "axis": {
+              "origin": {
+                "blockId": "body-1-axis",
+                "workspace": "training"
+              },
+              "showTicks": true
+            }
+          }
+        ],
+        "save": {
+          "origin": {
+            "blockId": "body-save",
+            "workspace": "training"
+          },
+          "relativePath": "outputs/preview.png"
+        }
+      }
+    ],
+    "after": [
+      {
+        "id": "after-figure",
+        "origin": {
+          "blockId": "after-figure",
+          "workspace": "training"
+        },
+        "layout": [
+          1,
+          1
+        ],
+        "size": "medium",
+        "panels": [
+          {
+            "origin": {
+              "blockId": "after-0-panel",
+              "workspace": "training"
+            },
+            "chartType": "image_grid",
+            "count": 10,
+            "rows": 2,
+            "cols": 5,
+            "sources": [
+              {
+                "origin": {
+                  "blockId": "after-0-source",
+                  "workspace": "training"
+                },
+                "source": "predictions",
+                "xSource": "none"
+              }
+            ],
+            "title": {
+              "origin": {
+                "blockId": "after-0-title",
+                "workspace": "training"
+              },
+              "text": "predictions",
+              "color": "black"
+            },
+            "legend": null,
+            "axis": {
+              "origin": {
+                "blockId": "after-0-axis",
+                "workspace": "training"
+              },
+              "showTicks": false
+            }
+          }
+        ],
+        "save": {
+          "origin": {
+            "blockId": "after-save",
+            "workspace": "training"
+          },
+          "relativePath": "outputs/preview.png"
+        }
+      }
+    ]
+  },
+  "imports": [
+    "matplotlib.pyplot",
+    "torch",
+    "torch.nn",
+    "torch.optim",
+    "torch.utils.data",
+    "torchvision.datasets",
+    "torchvision.transforms"
+  ],
+  "shapeTrace": [
+    {
+      "origin": {
+        "blockId": "layer-0",
+        "workspace": "model"
+      },
+      "inputShape": [
+        1,
+        28,
+        28
+      ],
+      "outputShape": [
+        16,
+        28,
+        28
+      ]
+    },
+    {
+      "origin": {
+        "blockId": "layer-1",
+        "workspace": "model"
+      },
+      "inputShape": [
+        16,
+        28,
+        28
+      ],
+      "outputShape": [
+        16,
+        28,
+        28
+      ]
+    },
+    {
+      "origin": {
+        "blockId": "layer-2",
+        "workspace": "model"
+      },
+      "inputShape": [
+        16,
+        28,
+        28
+      ],
+      "outputShape": [
+        16,
+        14,
+        14
+      ]
+    },
+    {
+      "origin": {
+        "blockId": "layer-3",
+        "workspace": "model"
+      },
+      "inputShape": [
+        16,
+        14,
+        14
+      ],
+      "outputShape": [
+        32,
+        14,
+        14
+      ]
+    },
+    {
+      "origin": {
+        "blockId": "layer-4",
+        "workspace": "model"
+      },
+      "inputShape": [
+        32,
+        14,
+        14
+      ],
+      "outputShape": [
+        32,
+        14,
+        14
+      ]
+    },
+    {
+      "origin": {
+        "blockId": "layer-5",
+        "workspace": "model"
+      },
+      "inputShape": [
+        32,
+        14,
+        14
+      ],
+      "outputShape": [
+        32,
+        7,
+        7
+      ]
+    },
+    {
+      "origin": {
+        "blockId": "layer-6",
+        "workspace": "model"
+      },
+      "inputShape": [
+        32,
+        7,
+        7
+      ],
+      "outputShape": [
+        1568
+      ]
+    },
+    {
+      "origin": {
+        "blockId": "layer-7",
+        "workspace": "model"
+      },
+      "inputShape": [
+        1568
+      ],
+      "outputShape": [
+        128
+      ]
+    },
+    {
+      "origin": {
+        "blockId": "layer-8",
+        "workspace": "model"
+      },
+      "inputShape": [
+        128
+      ],
+      "outputShape": [
+        128
+      ]
+    },
+    {
+      "origin": {
+        "blockId": "layer-9",
+        "workspace": "model"
+      },
+      "inputShape": [
+        128
+      ],
+      "outputShape": [
+        10
+      ]
+    }
+  ]
+}

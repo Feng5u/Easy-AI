@@ -1,0 +1,52 @@
+{
+  "$defs": {
+    "SshEndpoint": {
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "title": "Host",
+          "type": "string"
+        },
+        "port": {
+          "default": 22,
+          "maximum": 65535,
+          "minimum": 1,
+          "title": "Port",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "host"
+      ],
+      "title": "SshEndpoint",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "alias": {
+      "maxLength": 80,
+      "minLength": 1,
+      "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+      "title": "Alias",
+      "type": "string"
+    },
+    "endpoint": {
+      "$ref": "#/$defs/SshEndpoint"
+    },
+    "username": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[^\\x00-\\x20\\x7f]+$",
+      "title": "Username",
+      "type": "string"
+    }
+  },
+  "required": [
+    "alias",
+    "endpoint",
+    "username"
+  ],
+  "title": "ConnectionProfileInput",
+  "type": "object"
+}

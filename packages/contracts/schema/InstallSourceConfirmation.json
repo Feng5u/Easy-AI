@@ -1,0 +1,27 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "previewId": {
+      "pattern": "^[a-f0-9-]{36}$",
+      "title": "Previewid",
+      "type": "string"
+    },
+    "previewHash": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Previewhash",
+      "type": "string"
+    },
+    "confirmed": {
+      "const": true,
+      "title": "Confirmed",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "previewId",
+    "previewHash",
+    "confirmed"
+  ],
+  "title": "InstallSourceConfirmation",
+  "type": "object"
+}

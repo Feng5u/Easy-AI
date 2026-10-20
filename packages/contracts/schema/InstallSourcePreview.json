@@ -1,0 +1,143 @@
+{
+  "$defs": {
+    "InstallSourceArtifact": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "bytes": {
+          "minimum": 1,
+          "title": "Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name",
+        "sha256",
+        "bytes"
+      ],
+      "title": "InstallSourceArtifact",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "previewId": {
+      "pattern": "^[a-f0-9-]{36}$",
+      "title": "Previewid",
+      "type": "string"
+    },
+    "previewHash": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Previewhash",
+      "type": "string"
+    },
+    "packageIds": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9-]{0,63}$",
+        "type": "string"
+      },
+      "title": "Packageids",
+      "type": "array"
+    },
+    "sourceName": {
+      "title": "Sourcename",
+      "type": "string"
+    },
+    "manifestSha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Manifestsha256",
+      "type": "string"
+    },
+    "launcher": {
+      "$ref": "#/$defs/InstallSourceArtifact"
+    },
+    "moduleName": {
+      "title": "Modulename",
+      "type": "string"
+    },
+    "moduleTreeSha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Moduletreesha256",
+      "type": "string"
+    },
+    "bootstrap": {
+      "items": {
+        "$ref": "#/$defs/InstallSourceArtifact"
+      },
+      "title": "Bootstrap",
+      "type": "array"
+    },
+    "wheels": {
+      "items": {
+        "$ref": "#/$defs/InstallSourceArtifact"
+      },
+      "title": "Wheels",
+      "type": "array"
+    },
+    "sourceBytes": {
+      "title": "Sourcebytes",
+      "type": "integer"
+    },
+    "installedBytes": {
+      "default": null,
+      "title": "Installedbytes",
+      "type": "null"
+    },
+    "diskBudgetBytes": {
+      "title": "Diskbudgetbytes",
+      "type": "integer"
+    },
+    "executionSeconds": {
+      "title": "Executionseconds",
+      "type": "integer"
+    },
+    "authorizationExpires": {
+      "format": "date-time",
+      "title": "Authorizationexpires",
+      "type": "string"
+    },
+    "declaredExecutionAuthorized": {
+      "title": "Declaredexecutionauthorized",
+      "type": "boolean"
+    },
+    "executionEnabled": {
+      "const": false,
+      "default": false,
+      "title": "Executionenabled",
+      "type": "boolean"
+    },
+    "expiresAt": {
+      "format": "date-time",
+      "title": "Expiresat",
+      "type": "string"
+    }
+  },
+  "required": [
+    "previewId",
+    "previewHash",
+    "packageIds",
+    "sourceName",
+    "manifestSha256",
+    "launcher",
+    "moduleName",
+    "moduleTreeSha256",
+    "bootstrap",
+    "wheels",
+    "sourceBytes",
+    "diskBudgetBytes",
+    "executionSeconds",
+    "authorizationExpires",
+    "declaredExecutionAuthorized",
+    "expiresAt"
+  ],
+  "title": "InstallSourcePreview",
+  "type": "object"
+}

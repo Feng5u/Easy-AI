@@ -1,0 +1,31 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "expectedRevision": {
+      "minimum": 1,
+      "title": "Expectedrevision",
+      "type": "integer"
+    },
+    "expectedProgramHash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Expectedprogramhash",
+      "type": "string"
+    },
+    "pythonSelectionId": {
+      "title": "Pythonselectionid",
+      "type": "string"
+    },
+    "dataSelectionId": {
+      "title": "Dataselectionid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "expectedRevision",
+    "expectedProgramHash",
+    "pythonSelectionId",
+    "dataSelectionId"
+  ],
+  "title": "RunStartRequest",
+  "type": "object"
+}

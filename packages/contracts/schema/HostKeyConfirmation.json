@@ -1,0 +1,21 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "challengeId": {
+      "pattern": "^[0-9a-f-]{36}$",
+      "title": "Challengeid",
+      "type": "string"
+    },
+    "fingerprint": {
+      "pattern": "^SHA256:[A-Za-z0-9+/]{43}$",
+      "title": "Fingerprint",
+      "type": "string"
+    }
+  },
+  "required": [
+    "challengeId",
+    "fingerprint"
+  ],
+  "title": "HostKeyConfirmation",
+  "type": "object"
+}

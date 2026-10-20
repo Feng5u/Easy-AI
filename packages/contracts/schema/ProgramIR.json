@@ -1,0 +1,1074 @@
+{
+  "$defs": {
+    "AxisSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        },
+        "showTicks": {
+          "title": "Showticks",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "origin",
+        "showTicks"
+      ],
+      "title": "AxisSpec",
+      "type": "object"
+    },
+    "Conv2dSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "model.conv2d",
+          "default": "model.conv2d",
+          "title": "Kind",
+          "type": "string"
+        },
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        },
+        "inChannels": {
+          "maximum": 4096,
+          "minimum": 1,
+          "title": "Inchannels",
+          "type": "integer"
+        },
+        "outChannels": {
+          "maximum": 4096,
+          "minimum": 1,
+          "title": "Outchannels",
+          "type": "integer"
+        },
+        "kernelSize": {
+          "maximum": 127,
+          "minimum": 1,
+          "title": "Kernelsize",
+          "type": "integer"
+        },
+        "padding": {
+          "maximum": 127,
+          "minimum": 0,
+          "title": "Padding",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "origin",
+        "inChannels",
+        "outChannels",
+        "kernelSize",
+        "padding"
+      ],
+      "title": "Conv2dSpec",
+      "type": "object"
+    },
+    "DataSourceSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        },
+        "source": {
+          "enum": [
+            "train_loss",
+            "test_accuracy",
+            "train_samples",
+            "test_samples",
+            "predictions"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "xSource": {
+          "enum": [
+            "epoch",
+            "none"
+          ],
+          "title": "Xsource",
+          "type": "string"
+        }
+      },
+      "required": [
+        "origin",
+        "source",
+        "xSource"
+      ],
+      "title": "DataSourceSpec",
+      "type": "object"
+    },
+    "DatasetDef": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 64,
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        },
+        "datasetName": {
+          "enum": [
+            "MNIST",
+            "FashionMNIST",
+            "CIFAR10"
+          ],
+          "title": "Datasetname",
+          "type": "string"
+        },
+        "split": {
+          "enum": [
+            "train",
+            "test"
+          ],
+          "title": "Split",
+          "type": "string"
+        },
+        "transformId": {
+          "title": "Transformid",
+          "type": "string"
+        },
+        "channels": {
+          "enum": [
+            1,
+            3
+          ],
+          "title": "Channels",
+          "type": "integer"
+        },
+        "height": {
+          "enum": [
+            28,
+            32
+          ],
+          "title": "Height",
+          "type": "integer"
+        },
+        "width": {
+          "enum": [
+            28,
+            32
+          ],
+          "title": "Width",
+          "type": "integer"
+        },
+        "classes": {
+          "const": 10,
+          "default": 10,
+          "title": "Classes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "origin",
+        "datasetName",
+        "split",
+        "transformId",
+        "channels",
+        "height",
+        "width"
+      ],
+      "title": "DatasetDef",
+      "type": "object"
+    },
+    "DropoutSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "model.dropout",
+          "default": "model.dropout",
+          "title": "Kind",
+          "type": "string"
+        },
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        },
+        "p": {
+          "exclusiveMaximum": 1,
+          "minimum": 0,
+          "title": "P",
+          "type": "number"
+        }
+      },
+      "required": [
+        "origin",
+        "p"
+      ],
+      "title": "DropoutSpec",
+      "type": "object"
+    },
+    "FigureSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        },
+        "layout": {
+          "items": {
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "title": "Layout",
+          "type": "array"
+        },
+        "size": {
+          "enum": [
+            "small",
+            "medium",
+            "large"
+          ],
+          "title": "Size",
+          "type": "string"
+        },
+        "panels": {
+          "items": {
+            "$ref": "#/$defs/PanelSpec"
+          },
+          "minItems": 1,
+          "title": "Panels",
+          "type": "array"
+        },
+        "save": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SaveSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id",
+        "origin",
+        "layout",
+        "size",
+        "panels"
+      ],
+      "title": "FigureSpec",
+      "type": "object"
+    },
+    "FlattenSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "model.flatten",
+          "default": "model.flatten",
+          "title": "Kind",
+          "type": "string"
+        },
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        }
+      },
+      "required": [
+        "origin"
+      ],
+      "title": "FlattenSpec",
+      "type": "object"
+    },
+    "LinearSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "model.linear",
+          "default": "model.linear",
+          "title": "Kind",
+          "type": "string"
+        },
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        },
+        "inFeatures": {
+          "maximum": 1000000,
+          "minimum": 1,
+          "title": "Infeatures",
+          "type": "integer"
+        },
+        "outFeatures": {
+          "maximum": 1000000,
+          "minimum": 1,
+          "title": "Outfeatures",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "origin",
+        "inFeatures",
+        "outFeatures"
+      ],
+      "title": "LinearSpec",
+      "type": "object"
+    },
+    "LoaderDef": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 64,
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        },
+        "datasetId": {
+          "title": "Datasetid",
+          "type": "string"
+        },
+        "batchSize": {
+          "maximum": 65536,
+          "minimum": 1,
+          "title": "Batchsize",
+          "type": "integer"
+        },
+        "shuffle": {
+          "title": "Shuffle",
+          "type": "boolean"
+        },
+        "role": {
+          "enum": [
+            "train",
+            "test"
+          ],
+          "title": "Role",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "origin",
+        "datasetId",
+        "batchSize",
+        "shuffle",
+        "role"
+      ],
+      "title": "LoaderDef",
+      "type": "object"
+    },
+    "ModelDef": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 64,
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        },
+        "layers": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "model.conv2d": "#/$defs/Conv2dSpec",
+                "model.dropout": "#/$defs/DropoutSpec",
+                "model.flatten": "#/$defs/FlattenSpec",
+                "model.linear": "#/$defs/LinearSpec",
+                "model.maxpool2d": "#/$defs/PoolSpec",
+                "model.relu": "#/$defs/ReluSpec",
+                "model.sequential": "#/$defs/SequentialSpec"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/Conv2dSpec"
+              },
+              {
+                "$ref": "#/$defs/LinearSpec"
+              },
+              {
+                "$ref": "#/$defs/ReluSpec"
+              },
+              {
+                "$ref": "#/$defs/PoolSpec"
+              },
+              {
+                "$ref": "#/$defs/DropoutSpec"
+              },
+              {
+                "$ref": "#/$defs/SequentialSpec"
+              },
+              {
+                "$ref": "#/$defs/FlattenSpec"
+              }
+            ]
+          },
+          "minItems": 1,
+          "title": "Layers",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "origin",
+        "layers"
+      ],
+      "title": "ModelDef",
+      "type": "object"
+    },
+    "NormalizeStep": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "data.normalize",
+          "default": "data.normalize",
+          "title": "Kind",
+          "type": "string"
+        },
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        },
+        "mean": {
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 1,
+          "title": "Mean",
+          "type": "array"
+        },
+        "std": {
+          "items": {
+            "exclusiveMinimum": 0,
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 1,
+          "title": "Std",
+          "type": "array"
+        }
+      },
+      "required": [
+        "origin",
+        "mean",
+        "std"
+      ],
+      "title": "NormalizeStep",
+      "type": "object"
+    },
+    "Origin": {
+      "additionalProperties": false,
+      "properties": {
+        "blockId": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Blockid",
+          "type": "string"
+        },
+        "workspace": {
+          "enum": [
+            "data",
+            "model",
+            "training"
+          ],
+          "title": "Workspace",
+          "type": "string"
+        }
+      },
+      "required": [
+        "blockId",
+        "workspace"
+      ],
+      "title": "Origin",
+      "type": "object"
+    },
+    "PanelSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        },
+        "chartType": {
+          "enum": [
+            "line",
+            "scatter",
+            "image_grid"
+          ],
+          "title": "Charttype",
+          "type": "string"
+        },
+        "count": {
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Count",
+          "type": "integer"
+        },
+        "rows": {
+          "maximum": 10,
+          "minimum": 1,
+          "title": "Rows",
+          "type": "integer"
+        },
+        "cols": {
+          "maximum": 10,
+          "minimum": 1,
+          "title": "Cols",
+          "type": "integer"
+        },
+        "sources": {
+          "items": {
+            "$ref": "#/$defs/DataSourceSpec"
+          },
+          "minItems": 1,
+          "title": "Sources",
+          "type": "array"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TitleSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "legend": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Origin"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "axis": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AxisSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "origin",
+        "chartType",
+        "count",
+        "rows",
+        "cols",
+        "sources"
+      ],
+      "title": "PanelSpec",
+      "type": "object"
+    },
+    "PoolSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "model.maxpool2d",
+          "default": "model.maxpool2d",
+          "title": "Kind",
+          "type": "string"
+        },
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        },
+        "kernelSize": {
+          "maximum": 127,
+          "minimum": 1,
+          "title": "Kernelsize",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "origin",
+        "kernelSize"
+      ],
+      "title": "PoolSpec",
+      "type": "object"
+    },
+    "ReluSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "model.relu",
+          "default": "model.relu",
+          "title": "Kind",
+          "type": "string"
+        },
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        }
+      },
+      "required": [
+        "origin"
+      ],
+      "title": "ReluSpec",
+      "type": "object"
+    },
+    "SaveSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        },
+        "relativePath": {
+          "title": "Relativepath",
+          "type": "string"
+        }
+      },
+      "required": [
+        "origin",
+        "relativePath"
+      ],
+      "title": "SaveSpec",
+      "type": "object"
+    },
+    "SequentialSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "model.sequential",
+          "default": "model.sequential",
+          "title": "Kind",
+          "type": "string"
+        },
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        },
+        "layers": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "model.conv2d": "#/$defs/Conv2dSpec",
+                "model.dropout": "#/$defs/DropoutSpec",
+                "model.linear": "#/$defs/LinearSpec",
+                "model.maxpool2d": "#/$defs/PoolSpec",
+                "model.relu": "#/$defs/ReluSpec"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/Conv2dSpec"
+              },
+              {
+                "$ref": "#/$defs/LinearSpec"
+              },
+              {
+                "$ref": "#/$defs/ReluSpec"
+              },
+              {
+                "$ref": "#/$defs/PoolSpec"
+              },
+              {
+                "$ref": "#/$defs/DropoutSpec"
+              }
+            ]
+          },
+          "minItems": 1,
+          "title": "Layers",
+          "type": "array"
+        }
+      },
+      "required": [
+        "origin",
+        "layers"
+      ],
+      "title": "SequentialSpec",
+      "type": "object"
+    },
+    "ShapeStep": {
+      "additionalProperties": false,
+      "properties": {
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        },
+        "inputShape": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Inputshape",
+          "type": "array"
+        },
+        "outputShape": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Outputshape",
+          "type": "array"
+        }
+      },
+      "required": [
+        "origin",
+        "inputShape",
+        "outputShape"
+      ],
+      "title": "ShapeStep",
+      "type": "object"
+    },
+    "SymbolEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "transform",
+            "dataset",
+            "dataloader",
+            "model_class"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "role": {
+          "anyOf": [
+            {
+              "enum": [
+                "train",
+                "test"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Role"
+        },
+        "workspace": {
+          "enum": [
+            "data",
+            "model"
+          ],
+          "title": "Workspace",
+          "type": "string"
+        },
+        "registered": {
+          "title": "Registered",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "name",
+        "workspace",
+        "registered"
+      ],
+      "title": "SymbolEntry",
+      "type": "object"
+    },
+    "TensorStep": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "data.to_tensor",
+          "default": "data.to_tensor",
+          "title": "Kind",
+          "type": "string"
+        },
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        }
+      },
+      "required": [
+        "origin"
+      ],
+      "title": "TensorStep",
+      "type": "object"
+    },
+    "TitleSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        },
+        "text": {
+          "maxLength": 256,
+          "title": "Text",
+          "type": "string"
+        },
+        "color": {
+          "enum": [
+            "black",
+            "red",
+            "green",
+            "blue"
+          ],
+          "title": "Color",
+          "type": "string"
+        }
+      },
+      "required": [
+        "origin",
+        "text",
+        "color"
+      ],
+      "title": "TitleSpec",
+      "type": "object"
+    },
+    "TrainingSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        },
+        "modelId": {
+          "title": "Modelid",
+          "type": "string"
+        },
+        "trainLoaderId": {
+          "title": "Trainloaderid",
+          "type": "string"
+        },
+        "testLoaderId": {
+          "title": "Testloaderid",
+          "type": "string"
+        },
+        "criterion": {
+          "const": "CrossEntropy",
+          "default": "CrossEntropy",
+          "title": "Criterion",
+          "type": "string"
+        },
+        "optimizer": {
+          "enum": [
+            "SGD",
+            "Adam"
+          ],
+          "title": "Optimizer",
+          "type": "string"
+        },
+        "learningRate": {
+          "exclusiveMinimum": 0,
+          "maximum": 100,
+          "title": "Learningrate",
+          "type": "number"
+        },
+        "epochs": {
+          "maximum": 10000,
+          "minimum": 1,
+          "title": "Epochs",
+          "type": "integer"
+        },
+        "before": {
+          "items": {
+            "$ref": "#/$defs/FigureSpec"
+          },
+          "title": "Before",
+          "type": "array"
+        },
+        "body": {
+          "items": {
+            "$ref": "#/$defs/FigureSpec"
+          },
+          "title": "Body",
+          "type": "array"
+        },
+        "after": {
+          "items": {
+            "$ref": "#/$defs/FigureSpec"
+          },
+          "title": "After",
+          "type": "array"
+        }
+      },
+      "required": [
+        "origin",
+        "modelId",
+        "trainLoaderId",
+        "testLoaderId",
+        "optimizer",
+        "learningRate",
+        "epochs",
+        "before",
+        "body",
+        "after"
+      ],
+      "title": "TrainingSpec",
+      "type": "object"
+    },
+    "TransformDef": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 64,
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        },
+        "steps": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "data.normalize": "#/$defs/NormalizeStep",
+                "data.to_tensor": "#/$defs/TensorStep"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/TensorStep"
+              },
+              {
+                "$ref": "#/$defs/NormalizeStep"
+              }
+            ]
+          },
+          "maxItems": 2,
+          "minItems": 1,
+          "title": "Steps",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "origin",
+        "steps"
+      ],
+      "title": "TransformDef",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "irVersion": {
+      "const": 1,
+      "default": 1,
+      "title": "Irversion",
+      "type": "integer"
+    },
+    "compilerVersion": {
+      "const": "0.0.0",
+      "default": "0.0.0",
+      "title": "Compilerversion",
+      "type": "string"
+    },
+    "blockLibraryVersion": {
+      "const": "0.0.0",
+      "default": "0.0.0",
+      "title": "Blocklibraryversion",
+      "type": "string"
+    },
+    "seed": {
+      "maximum": 4294967295,
+      "minimum": 0,
+      "title": "Seed",
+      "type": "integer"
+    },
+    "executionMode": {
+      "enum": [
+        "full",
+        "quick"
+      ],
+      "title": "Executionmode",
+      "type": "string"
+    },
+    "symbols": {
+      "items": {
+        "$ref": "#/$defs/SymbolEntry"
+      },
+      "title": "Symbols",
+      "type": "array"
+    },
+    "transforms": {
+      "items": {
+        "$ref": "#/$defs/TransformDef"
+      },
+      "title": "Transforms",
+      "type": "array"
+    },
+    "datasets": {
+      "items": {
+        "$ref": "#/$defs/DatasetDef"
+      },
+      "title": "Datasets",
+      "type": "array"
+    },
+    "dataloaders": {
+      "items": {
+        "$ref": "#/$defs/LoaderDef"
+      },
+      "title": "Dataloaders",
+      "type": "array"
+    },
+    "model": {
+      "$ref": "#/$defs/ModelDef"
+    },
+    "training": {
+      "$ref": "#/$defs/TrainingSpec"
+    },
+    "imports": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Imports",
+      "type": "array"
+    },
+    "shapeTrace": {
+      "items": {
+        "$ref": "#/$defs/ShapeStep"
+      },
+      "title": "Shapetrace",
+      "type": "array"
+    }
+  },
+  "required": [
+    "seed",
+    "executionMode",
+    "symbols",
+    "transforms",
+    "datasets",
+    "dataloaders",
+    "model",
+    "training",
+    "imports",
+    "shapeTrace"
+  ],
+  "title": "ProgramIR",
+  "type": "object"
+}

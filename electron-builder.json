@@ -1,0 +1,43 @@
+{
+  "appId": "io.easyai.desktop",
+  "productName": "Easy-AI",
+  "asar": true,
+  "npmRebuild": false,
+  "nodeGypRebuild": false,
+  "buildDependenciesFromSource": false,
+  "forceCodeSigning": false,
+  "publish": null,
+  "artifactName": "easyai-${version}-${os}-${arch}.${ext}",
+  "directories": {
+    "app": "dist/builder-input-not-prepared",
+    "output": "dist/builder-use-wrapper"
+  },
+  "files": [
+    "package.json",
+    "dist/index.html",
+    "dist/assets/**/*",
+    "dist-electron/*.mjs",
+    "dist-electron/preload.cjs",
+    "!**/*.test.*",
+    "!**/*.map",
+    "!**/.env*",
+    "!**/machine.local.json"
+  ],
+  "linux": {
+    "executableName": "easyai",
+    "category": "Education",
+    "target": [
+      "dir",
+      "tar.gz"
+    ]
+  },
+  "compression": "store",
+  "win": {
+    "executableName": "easyai",
+    "target": [
+      "dir",
+      "zip"
+    ],
+    "signAndEditExecutable": false
+  }
+}

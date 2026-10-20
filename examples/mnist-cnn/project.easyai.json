@@ -1,0 +1,734 @@
+{
+  "schemaVersion": 1,
+  "appVersion": "0.0.0",
+  "blockLibraryVersion": "0.0.0",
+  "projectId": "d27ce785-6e51-4f50-a709-35de949c0d93",
+  "name": "MNIST 入门实验",
+  "revision": 1,
+  "workspaces": {
+    "data": {
+      "blocks": {
+        "languageVersion": 0,
+        "blocks": [
+          {
+            "type": "data.compose",
+            "id": "transform",
+            "x": 0,
+            "y": 0,
+            "extraState": {
+              "easyai": {
+                "version": 1,
+                "registered": true
+              }
+            },
+            "fields": {
+              "NAME": "preprocess"
+            },
+            "inputs": {
+              "steps": {
+                "block": {
+                  "type": "data.to_tensor",
+                  "id": "tensor",
+                  "extraState": {
+                    "easyai": {
+                      "version": 1,
+                      "registered": false
+                    }
+                  },
+                  "next": {
+                    "block": {
+                      "type": "data.normalize",
+                      "id": "normalize",
+                      "extraState": {
+                        "easyai": {
+                          "version": 1,
+                          "registered": false
+                        }
+                      },
+                      "fields": {
+                        "MEAN": "0.1307",
+                        "STD": "0.3081"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "data.dataset_builtin",
+            "id": "train-dataset",
+            "x": 0,
+            "y": 0,
+            "extraState": {
+              "easyai": {
+                "version": 1,
+                "registered": true
+              }
+            },
+            "fields": {
+              "NAME": "train_data",
+              "DATASET_NAME": "MNIST",
+              "SPLIT": "train",
+              "TRANSFORM_REF": "transform"
+            }
+          },
+          {
+            "type": "data.dataloader",
+            "id": "train-loader",
+            "x": 0,
+            "y": 0,
+            "extraState": {
+              "easyai": {
+                "version": 1,
+                "registered": true
+              }
+            },
+            "fields": {
+              "NAME": "train_batches",
+              "DATASET_REF": "train-dataset",
+              "BATCH_SIZE": 128,
+              "SHUFFLE": true
+            }
+          },
+          {
+            "type": "data.dataset_builtin",
+            "id": "test-dataset",
+            "x": 0,
+            "y": 0,
+            "extraState": {
+              "easyai": {
+                "version": 1,
+                "registered": true
+              }
+            },
+            "fields": {
+              "NAME": "test_data",
+              "DATASET_NAME": "MNIST",
+              "SPLIT": "test",
+              "TRANSFORM_REF": "transform"
+            }
+          },
+          {
+            "type": "data.dataloader",
+            "id": "test-loader",
+            "x": 0,
+            "y": 0,
+            "extraState": {
+              "easyai": {
+                "version": 1,
+                "registered": true
+              }
+            },
+            "fields": {
+              "NAME": "test_batches",
+              "DATASET_REF": "test-dataset",
+              "BATCH_SIZE": 128,
+              "SHUFFLE": false
+            }
+          }
+        ]
+      }
+    },
+    "model": {
+      "blocks": {
+        "languageVersion": 0,
+        "blocks": [
+          {
+            "type": "model.define",
+            "id": "cnn",
+            "x": 0,
+            "y": 0,
+            "extraState": {
+              "easyai": {
+                "version": 1,
+                "registered": true
+              }
+            },
+            "fields": {
+              "NAME": "MnistCNN"
+            },
+            "inputs": {
+              "body": {
+                "block": {
+                  "type": "model.conv2d",
+                  "id": "layer-0",
+                  "extraState": {
+                    "easyai": {
+                      "version": 1,
+                      "registered": false
+                    }
+                  },
+                  "fields": {
+                    "IN_CHANNELS": 1,
+                    "OUT_CHANNELS": 16,
+                    "KERNEL_SIZE": 3,
+                    "PADDING": 1
+                  },
+                  "next": {
+                    "block": {
+                      "type": "model.relu",
+                      "id": "layer-1",
+                      "extraState": {
+                        "easyai": {
+                          "version": 1,
+                          "registered": false
+                        }
+                      },
+                      "next": {
+                        "block": {
+                          "type": "model.maxpool2d",
+                          "id": "layer-2",
+                          "extraState": {
+                            "easyai": {
+                              "version": 1,
+                              "registered": false
+                            }
+                          },
+                          "fields": {
+                            "KERNEL_SIZE": 2
+                          },
+                          "next": {
+                            "block": {
+                              "type": "model.conv2d",
+                              "id": "layer-3",
+                              "extraState": {
+                                "easyai": {
+                                  "version": 1,
+                                  "registered": false
+                                }
+                              },
+                              "fields": {
+                                "IN_CHANNELS": 16,
+                                "OUT_CHANNELS": 32,
+                                "KERNEL_SIZE": 3,
+                                "PADDING": 1
+                              },
+                              "next": {
+                                "block": {
+                                  "type": "model.relu",
+                                  "id": "layer-4",
+                                  "extraState": {
+                                    "easyai": {
+                                      "version": 1,
+                                      "registered": false
+                                    }
+                                  },
+                                  "next": {
+                                    "block": {
+                                      "type": "model.maxpool2d",
+                                      "id": "layer-5",
+                                      "extraState": {
+                                        "easyai": {
+                                          "version": 1,
+                                          "registered": false
+                                        }
+                                      },
+                                      "fields": {
+                                        "KERNEL_SIZE": 2
+                                      },
+                                      "next": {
+                                        "block": {
+                                          "type": "model.flatten",
+                                          "id": "layer-6",
+                                          "extraState": {
+                                            "easyai": {
+                                              "version": 1,
+                                              "registered": false
+                                            }
+                                          },
+                                          "next": {
+                                            "block": {
+                                              "type": "model.linear",
+                                              "id": "layer-7",
+                                              "extraState": {
+                                                "easyai": {
+                                                  "version": 1,
+                                                  "registered": false
+                                                }
+                                              },
+                                              "fields": {
+                                                "IN_FEATURES": 1568,
+                                                "OUT_FEATURES": 128
+                                              },
+                                              "next": {
+                                                "block": {
+                                                  "type": "model.relu",
+                                                  "id": "layer-8",
+                                                  "extraState": {
+                                                    "easyai": {
+                                                      "version": 1,
+                                                      "registered": false
+                                                    }
+                                                  },
+                                                  "next": {
+                                                    "block": {
+                                                      "type": "model.linear",
+                                                      "id": "layer-9",
+                                                      "extraState": {
+                                                        "easyai": {
+                                                          "version": 1,
+                                                          "registered": false
+                                                        }
+                                                      },
+                                                      "fields": {
+                                                        "IN_FEATURES": 128,
+                                                        "OUT_FEATURES": 10
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "training": {
+      "blocks": {
+        "languageVersion": 0,
+        "blocks": [
+          {
+            "type": "train.loop",
+            "id": "training",
+            "x": 0,
+            "y": 0,
+            "extraState": {
+              "easyai": {
+                "version": 1,
+                "registered": false
+              }
+            },
+            "fields": {
+              "MODEL_REF": "cnn",
+              "TRAIN_LOADER_REF": "train-loader",
+              "TEST_LOADER_REF": "test-loader",
+              "CRITERION": "CrossEntropy",
+              "OPTIMIZER": "SGD",
+              "LEARNING_RATE": 0.01,
+              "EPOCHS": 10
+            },
+            "inputs": {
+              "before": {
+                "block": {
+                  "type": "viz.figure",
+                  "id": "before-figure",
+                  "extraState": {
+                    "easyai": {
+                      "version": 1,
+                      "registered": false
+                    }
+                  },
+                  "fields": {
+                    "LAYOUT": "1,1",
+                    "SIZE": "medium"
+                  },
+                  "inputs": {
+                    "panels": {
+                      "block": {
+                        "type": "viz.panel",
+                        "id": "before-0-panel",
+                        "extraState": {
+                          "easyai": {
+                            "version": 1,
+                            "registered": false
+                          }
+                        },
+                        "fields": {
+                          "CHART_TYPE": "image_grid",
+                          "COUNT": 5,
+                          "ROWS": 1,
+                          "COLS": 5
+                        },
+                        "inputs": {
+                          "data": {
+                            "block": {
+                              "type": "viz.data_source",
+                              "id": "before-0-source",
+                              "extraState": {
+                                "easyai": {
+                                  "version": 1,
+                                  "registered": false
+                                }
+                              },
+                              "fields": {
+                                "SOURCE": "train_samples",
+                                "X_SOURCE": "none"
+                              }
+                            }
+                          },
+                          "style": {
+                            "block": {
+                              "type": "viz.title",
+                              "id": "before-0-title",
+                              "extraState": {
+                                "easyai": {
+                                  "version": 1,
+                                  "registered": false
+                                }
+                              },
+                              "fields": {
+                                "TEXT": "train_samples",
+                                "COLOR": "black"
+                              },
+                              "next": {
+                                "block": {
+                                  "type": "viz.axis",
+                                  "id": "before-0-axis",
+                                  "extraState": {
+                                    "easyai": {
+                                      "version": 1,
+                                      "registered": false
+                                    }
+                                  },
+                                  "fields": {
+                                    "SHOW_TICKS": false
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "save": {
+                      "block": {
+                        "type": "viz.savefig",
+                        "id": "before-save",
+                        "extraState": {
+                          "easyai": {
+                            "version": 1,
+                            "registered": false
+                          }
+                        },
+                        "fields": {
+                          "PATH": "outputs/preview.png"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "body": {
+                "block": {
+                  "type": "viz.figure",
+                  "id": "body-figure",
+                  "extraState": {
+                    "easyai": {
+                      "version": 1,
+                      "registered": false
+                    }
+                  },
+                  "fields": {
+                    "LAYOUT": "1,2",
+                    "SIZE": "medium"
+                  },
+                  "inputs": {
+                    "panels": {
+                      "block": {
+                        "type": "viz.panel",
+                        "id": "body-0-panel",
+                        "extraState": {
+                          "easyai": {
+                            "version": 1,
+                            "registered": false
+                          }
+                        },
+                        "fields": {
+                          "CHART_TYPE": "line",
+                          "COUNT": 10,
+                          "ROWS": 2,
+                          "COLS": 5
+                        },
+                        "inputs": {
+                          "data": {
+                            "block": {
+                              "type": "viz.data_source",
+                              "id": "body-0-source",
+                              "extraState": {
+                                "easyai": {
+                                  "version": 1,
+                                  "registered": false
+                                }
+                              },
+                              "fields": {
+                                "SOURCE": "train_loss",
+                                "X_SOURCE": "epoch"
+                              }
+                            }
+                          },
+                          "style": {
+                            "block": {
+                              "type": "viz.title",
+                              "id": "body-0-title",
+                              "extraState": {
+                                "easyai": {
+                                  "version": 1,
+                                  "registered": false
+                                }
+                              },
+                              "fields": {
+                                "TEXT": "train_loss",
+                                "COLOR": "black"
+                              },
+                              "next": {
+                                "block": {
+                                  "type": "viz.axis",
+                                  "id": "body-0-axis",
+                                  "extraState": {
+                                    "easyai": {
+                                      "version": 1,
+                                      "registered": false
+                                    }
+                                  },
+                                  "fields": {
+                                    "SHOW_TICKS": true
+                                  },
+                                  "next": {
+                                    "block": {
+                                      "type": "viz.legend",
+                                      "id": "body-0-legend",
+                                      "extraState": {
+                                        "easyai": {
+                                          "version": 1,
+                                          "registered": false
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "next": {
+                          "block": {
+                            "type": "viz.panel",
+                            "id": "body-1-panel",
+                            "extraState": {
+                              "easyai": {
+                                "version": 1,
+                                "registered": false
+                              }
+                            },
+                            "fields": {
+                              "CHART_TYPE": "line",
+                              "COUNT": 10,
+                              "ROWS": 2,
+                              "COLS": 5
+                            },
+                            "inputs": {
+                              "data": {
+                                "block": {
+                                  "type": "viz.data_source",
+                                  "id": "body-1-source",
+                                  "extraState": {
+                                    "easyai": {
+                                      "version": 1,
+                                      "registered": false
+                                    }
+                                  },
+                                  "fields": {
+                                    "SOURCE": "test_accuracy",
+                                    "X_SOURCE": "epoch"
+                                  }
+                                }
+                              },
+                              "style": {
+                                "block": {
+                                  "type": "viz.title",
+                                  "id": "body-1-title",
+                                  "extraState": {
+                                    "easyai": {
+                                      "version": 1,
+                                      "registered": false
+                                    }
+                                  },
+                                  "fields": {
+                                    "TEXT": "test_accuracy",
+                                    "COLOR": "black"
+                                  },
+                                  "next": {
+                                    "block": {
+                                      "type": "viz.axis",
+                                      "id": "body-1-axis",
+                                      "extraState": {
+                                        "easyai": {
+                                          "version": 1,
+                                          "registered": false
+                                        }
+                                      },
+                                      "fields": {
+                                        "SHOW_TICKS": true
+                                      },
+                                      "next": {
+                                        "block": {
+                                          "type": "viz.legend",
+                                          "id": "body-1-legend",
+                                          "extraState": {
+                                            "easyai": {
+                                              "version": 1,
+                                              "registered": false
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "save": {
+                      "block": {
+                        "type": "viz.savefig",
+                        "id": "body-save",
+                        "extraState": {
+                          "easyai": {
+                            "version": 1,
+                            "registered": false
+                          }
+                        },
+                        "fields": {
+                          "PATH": "outputs/preview.png"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "after": {
+                "block": {
+                  "type": "viz.figure",
+                  "id": "after-figure",
+                  "extraState": {
+                    "easyai": {
+                      "version": 1,
+                      "registered": false
+                    }
+                  },
+                  "fields": {
+                    "LAYOUT": "1,1",
+                    "SIZE": "medium"
+                  },
+                  "inputs": {
+                    "panels": {
+                      "block": {
+                        "type": "viz.panel",
+                        "id": "after-0-panel",
+                        "extraState": {
+                          "easyai": {
+                            "version": 1,
+                            "registered": false
+                          }
+                        },
+                        "fields": {
+                          "CHART_TYPE": "image_grid",
+                          "COUNT": 10,
+                          "ROWS": 2,
+                          "COLS": 5
+                        },
+                        "inputs": {
+                          "data": {
+                            "block": {
+                              "type": "viz.data_source",
+                              "id": "after-0-source",
+                              "extraState": {
+                                "easyai": {
+                                  "version": 1,
+                                  "registered": false
+                                }
+                              },
+                              "fields": {
+                                "SOURCE": "predictions",
+                                "X_SOURCE": "none"
+                              }
+                            }
+                          },
+                          "style": {
+                            "block": {
+                              "type": "viz.title",
+                              "id": "after-0-title",
+                              "extraState": {
+                                "easyai": {
+                                  "version": 1,
+                                  "registered": false
+                                }
+                              },
+                              "fields": {
+                                "TEXT": "predictions",
+                                "COLOR": "black"
+                              },
+                              "next": {
+                                "block": {
+                                  "type": "viz.axis",
+                                  "id": "after-0-axis",
+                                  "extraState": {
+                                    "easyai": {
+                                      "version": 1,
+                                      "registered": false
+                                    }
+                                  },
+                                  "fields": {
+                                    "SHOW_TICKS": false
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "save": {
+                      "block": {
+                        "type": "viz.savefig",
+                        "id": "after-save",
+                        "extraState": {
+                          "easyai": {
+                            "version": 1,
+                            "registered": false
+                          }
+                        },
+                        "fields": {
+                          "PATH": "outputs/preview.png"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "settings": {
+    "dataDirectory": "data",
+    "seed": 42,
+    "executionMode": "full"
+  },
+  "ui": {
+    "activeTab": "data",
+    "codeVisible": false
+  }
+}

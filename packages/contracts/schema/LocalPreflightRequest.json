@@ -1,0 +1,33 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "projectId": {
+      "pattern": "^[0-9a-f-]{36}$",
+      "title": "Projectid",
+      "type": "string"
+    },
+    "expectedRevision": {
+      "minimum": 1,
+      "title": "Expectedrevision",
+      "type": "integer"
+    },
+    "pythonSelectionId": {
+      "pattern": "^[0-9a-f-]{36}$",
+      "title": "Pythonselectionid",
+      "type": "string"
+    },
+    "dataSelectionId": {
+      "pattern": "^[0-9a-f-]{36}$",
+      "title": "Dataselectionid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "projectId",
+    "expectedRevision",
+    "pythonSelectionId",
+    "dataSelectionId"
+  ],
+  "title": "LocalPreflightRequest",
+  "type": "object"
+}

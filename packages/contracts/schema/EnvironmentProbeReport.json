@@ -1,0 +1,330 @@
+{
+  "$defs": {
+    "DatasetCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "enum": [
+            "MNIST",
+            "FashionMNIST",
+            "CIFAR10"
+          ],
+          "title": "Name",
+          "type": "string"
+        },
+        "dataRoot": {
+          "maxLength": 1024,
+          "minLength": 2,
+          "pattern": "^/[^\\\\\\x00-\\x1f\\x7f]*$",
+          "title": "Dataroot",
+          "type": "string"
+        },
+        "ok": {
+          "title": "Ok",
+          "type": "boolean"
+        },
+        "sampleShape": {
+          "anyOf": [
+            {
+              "items": {
+                "maximum": 4096,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "maxItems": 4,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Sampleshape"
+        },
+        "sampleDtype": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Sampledtype"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "maximum": 9,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Label"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "enum": [
+                "dependency_missing",
+                "unavailable",
+                "unsafe_format_blocked"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Error"
+        }
+      },
+      "required": [
+        "name",
+        "dataRoot",
+        "ok",
+        "sampleShape",
+        "sampleDtype",
+        "label",
+        "error"
+      ],
+      "title": "DatasetCheck",
+      "type": "object"
+    },
+    "DeviceCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "cudaAvailable": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cudaavailable"
+        },
+        "mpsAvailable": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Mpsavailable"
+        }
+      },
+      "required": [
+        "cudaAvailable",
+        "mpsAvailable"
+      ],
+      "title": "DeviceCheck",
+      "type": "object"
+    },
+    "ImportChecks": {
+      "additionalProperties": false,
+      "properties": {
+        "torch": {
+          "$ref": "#/$defs/PackageCheck"
+        },
+        "torchvision": {
+          "$ref": "#/$defs/PackageCheck"
+        },
+        "matplotlib": {
+          "$ref": "#/$defs/PackageCheck"
+        }
+      },
+      "required": [
+        "torch",
+        "torchvision",
+        "matplotlib"
+      ],
+      "title": "ImportChecks",
+      "type": "object"
+    },
+    "PackageCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Version"
+        },
+        "imported": {
+          "title": "Imported",
+          "type": "boolean"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "enum": [
+                "missing",
+                "import_failed"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Error"
+        }
+      },
+      "required": [
+        "version",
+        "imported",
+        "error"
+      ],
+      "title": "PackageCheck",
+      "type": "object"
+    },
+    "PythonCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "executable": {
+          "maxLength": 1024,
+          "minLength": 2,
+          "pattern": "^/[^\\\\\\x00-\\x1f\\x7f]*$",
+          "title": "Executable",
+          "type": "string"
+        },
+        "prefix": {
+          "maxLength": 1024,
+          "minLength": 2,
+          "pattern": "^/[^\\\\\\x00-\\x1f\\x7f]*$",
+          "title": "Prefix",
+          "type": "string"
+        },
+        "version": {
+          "items": {
+            "maximum": 1000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Version",
+          "type": "array"
+        }
+      },
+      "required": [
+        "executable",
+        "prefix",
+        "version"
+      ],
+      "title": "PythonCheck",
+      "type": "object"
+    },
+    "TensorCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "attempted": {
+          "title": "Attempted",
+          "type": "boolean"
+        },
+        "ok": {
+          "title": "Ok",
+          "type": "boolean"
+        },
+        "device": {
+          "enum": [
+            "cpu",
+            "cuda",
+            "mps"
+          ],
+          "title": "Device",
+          "type": "string"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "enum": [
+                "dependency_missing",
+                "device_unavailable",
+                "execution_failed"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Error"
+        }
+      },
+      "required": [
+        "attempted",
+        "ok",
+        "device",
+        "error"
+      ],
+      "title": "TensorCheck",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": 1,
+      "title": "Schemaversion",
+      "type": "integer"
+    },
+    "nonce": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Nonce",
+      "type": "string"
+    },
+    "platform": {
+      "const": "linux",
+      "title": "Platform",
+      "type": "string"
+    },
+    "python": {
+      "$ref": "#/$defs/PythonCheck"
+    },
+    "imports": {
+      "$ref": "#/$defs/ImportChecks"
+    },
+    "devices": {
+      "$ref": "#/$defs/DeviceCheck"
+    },
+    "tensor": {
+      "$ref": "#/$defs/TensorCheck"
+    },
+    "dataset": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DatasetCheck"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "nonce",
+    "platform",
+    "python",
+    "imports",
+    "devices",
+    "tensor",
+    "dataset"
+  ],
+  "title": "EnvironmentProbeReport",
+  "type": "object"
+}

@@ -1,0 +1,36 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "stdout": {
+      "title": "Stdout",
+      "type": "string"
+    },
+    "stderr": {
+      "title": "Stderr",
+      "type": "string"
+    },
+    "stdoutAfter": {
+      "minimum": 0,
+      "title": "Stdoutafter",
+      "type": "integer"
+    },
+    "stderrAfter": {
+      "minimum": 0,
+      "title": "Stderrafter",
+      "type": "integer"
+    },
+    "done": {
+      "title": "Done",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "stdout",
+    "stderr",
+    "stdoutAfter",
+    "stderrAfter",
+    "done"
+  ],
+  "title": "RunLogs",
+  "type": "object"
+}

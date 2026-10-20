@@ -1,0 +1,10 @@
+packages:
+  - apps/*
+  - packages/*
+# Keep unreviewed dependency lifecycle scripts fatal.
+strictDepBuilds: true
+allowBuilds:
+  # Preserve the existing Electron install permission, narrowed to the lock.
+  electron@44.9.0: true
+  # Squirrel is not a supported packaging target. Do not prepare its 7-Zip.
+  electron-winstaller@5.4.0: false

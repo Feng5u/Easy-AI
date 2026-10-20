@@ -1,0 +1,21 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "projectId": {
+      "pattern": "^[0-9a-f-]{36}$",
+      "title": "Projectid",
+      "type": "string"
+    },
+    "requestId": {
+      "pattern": "^[0-9a-f-]{36}$",
+      "title": "Requestid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "projectId",
+    "requestId"
+  ],
+  "title": "IdentityRequest",
+  "type": "object"
+}

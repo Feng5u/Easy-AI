@@ -1,0 +1,333 @@
+{
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "data.compose",
+        "id": "fixture-data.compose",
+        "x": 0,
+        "y": 0,
+        "extraState": {
+          "easyai": {
+            "version": 1,
+            "registered": false
+          }
+        },
+        "fields": {
+          "NAME": "MyObject"
+        }
+      },
+      {
+        "type": "data.to_tensor",
+        "id": "fixture-data.to_tensor",
+        "x": 0,
+        "y": 0,
+        "extraState": {
+          "easyai": {
+            "version": 1,
+            "registered": false
+          }
+        }
+      },
+      {
+        "type": "data.normalize",
+        "id": "fixture-data.normalize",
+        "x": 0,
+        "y": 0,
+        "extraState": {
+          "easyai": {
+            "version": 1,
+            "registered": false
+          }
+        },
+        "fields": {
+          "MEAN": "0.1307",
+          "STD": "0.3081"
+        }
+      },
+      {
+        "type": "data.dataset_builtin",
+        "id": "fixture-data.dataset_builtin",
+        "x": 0,
+        "y": 0,
+        "extraState": {
+          "easyai": {
+            "version": 1,
+            "registered": false
+          }
+        },
+        "fields": {
+          "NAME": "MyObject",
+          "DATASET_NAME": "MNIST",
+          "SPLIT": "train",
+          "TRANSFORM_REF": ""
+        }
+      },
+      {
+        "type": "data.dataloader",
+        "id": "fixture-data.dataloader",
+        "x": 0,
+        "y": 0,
+        "extraState": {
+          "easyai": {
+            "version": 1,
+            "registered": false
+          }
+        },
+        "fields": {
+          "NAME": "MyObject",
+          "DATASET_REF": "",
+          "BATCH_SIZE": 128,
+          "SHUFFLE": true
+        }
+      },
+      {
+        "type": "model.define",
+        "id": "fixture-model.define",
+        "x": 0,
+        "y": 0,
+        "extraState": {
+          "easyai": {
+            "version": 1,
+            "registered": false
+          }
+        },
+        "fields": {
+          "NAME": "MyModel"
+        }
+      },
+      {
+        "type": "model.sequential",
+        "id": "fixture-model.sequential",
+        "x": 0,
+        "y": 0,
+        "extraState": {
+          "easyai": {
+            "version": 1,
+            "registered": false
+          }
+        }
+      },
+      {
+        "type": "model.conv2d",
+        "id": "fixture-model.conv2d",
+        "x": 0,
+        "y": 0,
+        "extraState": {
+          "easyai": {
+            "version": 1,
+            "registered": false
+          }
+        },
+        "fields": {
+          "IN_CHANNELS": 1,
+          "OUT_CHANNELS": 16,
+          "KERNEL_SIZE": 3,
+          "PADDING": 1
+        }
+      },
+      {
+        "type": "model.linear",
+        "id": "fixture-model.linear",
+        "x": 0,
+        "y": 0,
+        "extraState": {
+          "easyai": {
+            "version": 1,
+            "registered": false
+          }
+        },
+        "fields": {
+          "IN_FEATURES": 1568,
+          "OUT_FEATURES": 128
+        }
+      },
+      {
+        "type": "model.relu",
+        "id": "fixture-model.relu",
+        "x": 0,
+        "y": 0,
+        "extraState": {
+          "easyai": {
+            "version": 1,
+            "registered": false
+          }
+        }
+      },
+      {
+        "type": "model.maxpool2d",
+        "id": "fixture-model.maxpool2d",
+        "x": 0,
+        "y": 0,
+        "extraState": {
+          "easyai": {
+            "version": 1,
+            "registered": false
+          }
+        },
+        "fields": {
+          "KERNEL_SIZE": 2
+        }
+      },
+      {
+        "type": "model.dropout",
+        "id": "fixture-model.dropout",
+        "x": 0,
+        "y": 0,
+        "disabledReasons": [
+          "MANUALLY_DISABLED"
+        ],
+        "extraState": {
+          "easyai": {
+            "version": 1,
+            "registered": false
+          }
+        },
+        "fields": {
+          "P": 0.5
+        }
+      },
+      {
+        "type": "model.flatten",
+        "id": "fixture-model.flatten",
+        "x": 0,
+        "y": 0,
+        "extraState": {
+          "easyai": {
+            "version": 1,
+            "registered": false
+          }
+        }
+      },
+      {
+        "type": "train.loop",
+        "id": "fixture-train.loop",
+        "x": 0,
+        "y": 0,
+        "extraState": {
+          "easyai": {
+            "version": 1,
+            "registered": false
+          }
+        },
+        "fields": {
+          "MODEL_REF": "",
+          "TRAIN_LOADER_REF": "",
+          "TEST_LOADER_REF": "",
+          "CRITERION": "CrossEntropy",
+          "OPTIMIZER": "SGD",
+          "LEARNING_RATE": 0.01,
+          "EPOCHS": 10
+        }
+      },
+      {
+        "type": "viz.figure",
+        "id": "fixture-viz.figure",
+        "x": 0,
+        "y": 0,
+        "extraState": {
+          "easyai": {
+            "version": 1,
+            "registered": false
+          }
+        },
+        "fields": {
+          "LAYOUT": "1,1",
+          "SIZE": "medium"
+        }
+      },
+      {
+        "type": "viz.panel",
+        "id": "fixture-viz.panel",
+        "x": 0,
+        "y": 0,
+        "extraState": {
+          "easyai": {
+            "version": 1,
+            "registered": false
+          }
+        },
+        "fields": {
+          "CHART_TYPE": "line",
+          "COUNT": 10,
+          "ROWS": 2,
+          "COLS": 5
+        }
+      },
+      {
+        "type": "viz.data_source",
+        "id": "fixture-viz.data_source",
+        "x": 0,
+        "y": 0,
+        "extraState": {
+          "easyai": {
+            "version": 1,
+            "registered": false
+          }
+        },
+        "fields": {
+          "SOURCE": "train_loss",
+          "X_SOURCE": "epoch"
+        }
+      },
+      {
+        "type": "viz.title",
+        "id": "fixture-viz.title",
+        "x": 0,
+        "y": 0,
+        "extraState": {
+          "easyai": {
+            "version": 1,
+            "registered": false
+          }
+        },
+        "fields": {
+          "TEXT": "",
+          "COLOR": "black"
+        }
+      },
+      {
+        "type": "viz.legend",
+        "id": "fixture-viz.legend",
+        "x": 0,
+        "y": 0,
+        "extraState": {
+          "easyai": {
+            "version": 1,
+            "registered": false
+          }
+        }
+      },
+      {
+        "type": "viz.axis",
+        "id": "fixture-viz.axis",
+        "x": 0,
+        "y": 0,
+        "extraState": {
+          "easyai": {
+            "version": 1,
+            "registered": false
+          }
+        },
+        "fields": {
+          "SHOW_TICKS": false
+        }
+      },
+      {
+        "type": "viz.savefig",
+        "id": "fixture-viz.savefig",
+        "x": 0,
+        "y": 0,
+        "extraState": {
+          "easyai": {
+            "version": 1,
+            "registered": false
+          }
+        },
+        "fields": {
+          "PATH": "outputs/figure.png"
+        }
+      }
+    ]
+  }
+}

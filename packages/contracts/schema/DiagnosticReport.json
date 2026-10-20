@@ -1,0 +1,114 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "reportVersion": {
+      "const": 1,
+      "default": 1,
+      "title": "Reportversion",
+      "type": "integer"
+    },
+    "scope": {
+      "const": "local_safe_summary",
+      "default": "local_safe_summary",
+      "title": "Scope",
+      "type": "string"
+    },
+    "code": {
+      "enum": [
+        "RUNTIME_NAME_ERROR",
+        "RUNTIME_EXCEPTION"
+      ],
+      "title": "Code",
+      "type": "string"
+    },
+    "runId": {
+      "pattern": "^[0-9a-f-]{36}$",
+      "title": "Runid",
+      "type": "string"
+    },
+    "eventSeq": {
+      "minimum": 1,
+      "title": "Eventseq",
+      "type": "integer"
+    },
+    "codeHash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Codehash",
+      "type": "string"
+    },
+    "projectRevision": {
+      "minimum": 1,
+      "title": "Projectrevision",
+      "type": "integer"
+    },
+    "precision": {
+      "enum": [
+        "semantic",
+        "scaffold",
+        "none"
+      ],
+      "title": "Precision",
+      "type": "string"
+    },
+    "nameState": {
+      "enum": [
+        "registered",
+        "unregistered",
+        "not_matched",
+        "ambiguous",
+        "unavailable"
+      ],
+      "title": "Namestate",
+      "type": "string"
+    },
+    "referenceCheck": {
+      "enum": [
+        "passed",
+        "failed",
+        "unavailable"
+      ],
+      "title": "Referencecheck",
+      "type": "string"
+    },
+    "objectsTotal": {
+      "anyOf": [
+        {
+          "maximum": 500,
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Objectstotal"
+    },
+    "registeredTotal": {
+      "anyOf": [
+        {
+          "maximum": 500,
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Registeredtotal"
+    }
+  },
+  "required": [
+    "code",
+    "runId",
+    "eventSeq",
+    "codeHash",
+    "projectRevision",
+    "precision",
+    "nameState",
+    "referenceCheck"
+  ],
+  "title": "DiagnosticReport",
+  "type": "object"
+}

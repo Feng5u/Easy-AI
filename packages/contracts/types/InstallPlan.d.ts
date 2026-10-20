@@ -1,0 +1,83 @@
+/* Generated from Pydantic. Do not edit. */
+
+export type Planid = string;
+export type Planhash = string;
+export type Targetid = "local" | string;
+export type Projectid = string;
+export type Targetid1 = string;
+export type Targetrevision = number;
+export type Host = string;
+export type Port = number;
+export type Hostfingerprint = string;
+export type Username = string;
+export type Root = string;
+export type Remotefreebytes = number | null;
+export type Profileid = "easyai-cpu";
+export type Environmentid = string;
+export type Environmentname = string;
+export type Newenvironment = boolean;
+export type Baselinefingerprint = string;
+export type Constraintshash = string;
+export type Packageid = string;
+export type Previousversion = string | null;
+export type Targetversion = string | null;
+export type Action = "add" | "keep" | "unresolved";
+export type Requested = boolean;
+export type Packagechanges = PackageChange[];
+export type Requiresnetwork = boolean;
+export type Downloadbytes = number | null;
+export type Installedbytes = number | null;
+export type Sizestatus = "locked-wheel-estimate" | "unresolved";
+export type Platform = string;
+export type Blockers = string[];
+export type Executionenabled = boolean;
+export type Runtimefingerprint = string | null;
+export type Bootstrapbytes = number | null;
+export type Diskbudgetbytes = number | null;
+export type Executionseconds = number | null;
+
+export interface InstallPlan {
+  planId: Planid;
+  planHash: Planhash;
+  targetId?: Targetid;
+  targetIdentity?: InstallTargetIdentity | null;
+  remoteFreeBytes?: Remotefreebytes;
+  profileId?: Profileid;
+  environmentId: Environmentid;
+  environmentName: Environmentname;
+  newEnvironment: Newenvironment;
+  baselineFingerprint: Baselinefingerprint;
+  constraintsHash: Constraintshash;
+  packageChanges: Packagechanges;
+  requiresNetwork?: Requiresnetwork;
+  downloadBytes: Downloadbytes;
+  installedBytes: Installedbytes;
+  sizeStatus: Sizestatus;
+  platform: Platform;
+  blockers: Blockers;
+  executionEnabled?: Executionenabled;
+  runtimeFingerprint?: Runtimefingerprint;
+  bootstrapBytes?: Bootstrapbytes;
+  diskBudgetBytes?: Diskbudgetbytes;
+  executionSeconds?: Executionseconds;
+}
+export interface InstallTargetIdentity {
+  projectId: Projectid;
+  targetId: Targetid1;
+  targetRevision: Targetrevision;
+  endpoint: SshEndpoint;
+  hostFingerprint: Hostfingerprint;
+  username: Username;
+  root: Root;
+}
+export interface SshEndpoint {
+  host: Host;
+  port?: Port;
+}
+export interface PackageChange {
+  packageId: Packageid;
+  previousVersion: Previousversion;
+  targetVersion: Targetversion;
+  action: Action;
+  requested: Requested;
+}

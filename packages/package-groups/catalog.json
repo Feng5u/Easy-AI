@@ -1,0 +1,124 @@
+{
+  "catalogVersion": 1,
+  "packages": [
+    {
+      "packageId": "numpy",
+      "importName": "numpy",
+      "group": "ml",
+      "purpose": "数值数组",
+      "dependencyNote": "完整依赖须受控解析；MNIST核心组合采用CPU profile锁定约束。"
+    },
+    {
+      "packageId": "scipy",
+      "importName": "scipy",
+      "group": "ml",
+      "purpose": "科学计算",
+      "dependencyNote": "Linux CPython 3.11固定1.17.1；复用核心NumPy 2.4.2，完整闭包进入计划。"
+    },
+    {
+      "packageId": "pandas",
+      "importName": "pandas",
+      "group": "ml",
+      "purpose": "表格数据",
+      "dependencyNote": "Linux CPython 3.11固定3.0.1；复用核心NumPy/dateutil，无额外extras或平台外依赖。"
+    },
+    {
+      "packageId": "matplotlib",
+      "importName": "matplotlib",
+      "group": "ml",
+      "purpose": "绘制图表",
+      "dependencyNote": "完整依赖须受控解析；MNIST核心组合采用CPU profile锁定约束。"
+    },
+    {
+      "packageId": "scikit-learn",
+      "importName": "sklearn",
+      "group": "ml",
+      "purpose": "传统机器学习",
+      "dependencyNote": "Linux CPython 3.11固定1.8.0；附带锁定scipy、joblib、threadpoolctl及核心NumPy。"
+    },
+    {
+      "packageId": "torch",
+      "importName": "torch",
+      "group": "dl",
+      "purpose": "张量与深度学习",
+      "dependencyNote": "完整依赖须受控解析；MNIST核心组合采用CPU profile锁定约束。"
+    },
+    {
+      "packageId": "torchvision",
+      "importName": "torchvision",
+      "group": "dl",
+      "purpose": "视觉数据与变换",
+      "dependencyNote": "完整依赖须受控解析；MNIST核心组合采用CPU profile锁定约束。"
+    },
+    {
+      "packageId": "pytorch-lightning",
+      "importName": "pytorch_lightning",
+      "group": "dl",
+      "purpose": "训练流程封装",
+      "dependencyNote": "Linux CPython 3.11固定2.6.6；复用既有CPU torch/fsspec等核心，完整包含fsspec[http]、torchmetrics及14个新增wheel闭包，无其他extras。"
+    },
+    {
+      "packageId": "pillow",
+      "importName": "PIL",
+      "group": "cv",
+      "purpose": "图像读写",
+      "dependencyNote": "完整依赖须受控解析；MNIST核心组合采用CPU profile锁定约束。"
+    },
+    {
+      "packageId": "opencv-python",
+      "importName": "cv2",
+      "group": "cv",
+      "purpose": "计算机视觉",
+      "dependencyNote": "不支持安装：cv2目标GUI/系统动态库要求未可靠核实；候选元数据不等于可安装，不替换headless。"
+    },
+    {
+      "packageId": "scikit-image",
+      "importName": "skimage",
+      "group": "cv",
+      "purpose": "图像处理",
+      "dependencyNote": "Linux CPython 3.11固定0.26.0；复用NumPy/SciPy/Pillow，附带锁定imageio/tifffile/lazy-loader，无data或codec extras。"
+    },
+    {
+      "packageId": "nltk",
+      "importName": "nltk",
+      "group": "nlp",
+      "purpose": "文本处理",
+      "dependencyNote": "不支持当前固定候选3.10.3：官方发行JSON列有未撤回且无修复版本的GHSA-8mgp-746c-j5xp；不自动选旧版，不下载语料。"
+    },
+    {
+      "packageId": "spacy",
+      "importName": "spacy",
+      "group": "nlp",
+      "purpose": "语言处理",
+      "dependencyNote": "Linux CPython 3.11固定3.8.16；thinc/blis等默认完整闭包按核心约束锁定。只提供库的元数据计划/普通import复检，不下载或加载语言模型；真实ABI/离线行为未验。"
+    },
+    {
+      "packageId": "sentencepiece",
+      "importName": "sentencepiece",
+      "group": "nlp",
+      "purpose": "文本分词",
+      "dependencyNote": "Linux CPython 3.11固定0.2.2；PEP658默认依赖为空，加入核心加本包的完整离线计划与import复检。无numpy/protobuf extras，不下载模型或语料；真实ABI仍未验。"
+    },
+    {
+      "packageId": "transformers",
+      "importName": "transformers",
+      "group": "nlp",
+      "purpose": "预训练模型接口",
+      "dependencyNote": "Linux CPython 3.11固定5.20.1；hub/tokenizers/safetensors等默认闭包锁定，无torch/vision等extras。pipeline/from_pretrained会获取模型，本应用不调用；真实import/离线行为未验。"
+    },
+    {
+      "packageId": "gensim",
+      "importName": "gensim",
+      "group": "nlp",
+      "purpose": "文本表示",
+      "dependencyNote": "Linux CPython 3.11固定4.4.0；复用NumPy2.4.2/SciPy1.17.1，锁smart-open8.0.4/wrapt2.5.1默认闭包。不启用远端语料/下载器；真实ABI/离线行为未验。"
+    },
+    {
+      "packageId": "hanlp",
+      "importName": "hanlp",
+      "group": "nlp",
+      "purpose": "中文语言处理",
+      "dependencyNote": "固定候选2.1.5不支持：hanlp-common0.0.23、hanlp-downloader0.0.25、hanlp-trie0.0.5仅sdist，无目标wheel；不源码构建、不下载预训练模型，不归因CPU冲突。"
+    }
+  ]
+}

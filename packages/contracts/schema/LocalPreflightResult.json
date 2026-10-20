@@ -1,0 +1,115 @@
+{
+  "$defs": {
+    "LocalPreflightCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "ok": {
+          "title": "Ok",
+          "type": "boolean"
+        },
+        "code": {
+          "title": "Code",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ok",
+        "code"
+      ],
+      "title": "LocalPreflightCheck",
+      "type": "object"
+    },
+    "LocalPythonVersions": {
+      "additionalProperties": false,
+      "properties": {
+        "python": {
+          "title": "Python",
+          "type": "string"
+        },
+        "prefix": {
+          "title": "Prefix",
+          "type": "string"
+        },
+        "torch": {
+          "title": "Torch",
+          "type": "string"
+        },
+        "torchvision": {
+          "title": "Torchvision",
+          "type": "string"
+        },
+        "matplotlib": {
+          "title": "Matplotlib",
+          "type": "string"
+        }
+      },
+      "required": [
+        "python",
+        "prefix",
+        "torch",
+        "torchvision",
+        "matplotlib"
+      ],
+      "title": "LocalPythonVersions",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "projectId": {
+      "pattern": "^[0-9a-f-]{36}$",
+      "title": "Projectid",
+      "type": "string"
+    },
+    "expectedRevision": {
+      "minimum": 1,
+      "title": "Expectedrevision",
+      "type": "integer"
+    },
+    "pythonSelectionId": {
+      "pattern": "^[0-9a-f-]{36}$",
+      "title": "Pythonselectionid",
+      "type": "string"
+    },
+    "dataSelectionId": {
+      "pattern": "^[0-9a-f-]{36}$",
+      "title": "Dataselectionid",
+      "type": "string"
+    },
+    "environment": {
+      "$ref": "#/$defs/LocalPreflightCheck"
+    },
+    "data": {
+      "$ref": "#/$defs/LocalPreflightCheck"
+    },
+    "versions": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LocalPythonVersions"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "datasetNames": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Datasetnames",
+      "type": "array"
+    }
+  },
+  "required": [
+    "projectId",
+    "expectedRevision",
+    "pythonSelectionId",
+    "dataSelectionId",
+    "environment",
+    "data",
+    "datasetNames"
+  ],
+  "title": "LocalPreflightResult",
+  "type": "object"
+}

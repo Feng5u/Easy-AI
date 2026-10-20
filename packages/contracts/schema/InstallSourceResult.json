@@ -1,0 +1,38 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "previewId": {
+      "title": "Previewid",
+      "type": "string"
+    },
+    "manifestSha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Manifestsha256",
+      "type": "string"
+    },
+    "runtimeFingerprint": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Runtimefingerprint",
+      "type": "string"
+    },
+    "executionEnabled": {
+      "const": false,
+      "default": false,
+      "title": "Executionenabled",
+      "type": "boolean"
+    },
+    "authorizationExpires": {
+      "format": "date-time",
+      "title": "Authorizationexpires",
+      "type": "string"
+    }
+  },
+  "required": [
+    "previewId",
+    "manifestSha256",
+    "runtimeFingerprint",
+    "authorizationExpires"
+  ],
+  "title": "InstallSourceResult",
+  "type": "object"
+}

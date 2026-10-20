@@ -1,0 +1,123 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "bindingId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Bindingid",
+      "type": "string"
+    },
+    "projectId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Projectid",
+      "type": "string"
+    },
+    "connectionId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Connectionid",
+      "type": "string"
+    },
+    "targetId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Targetid",
+      "type": "string"
+    },
+    "environmentId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Environmentid",
+      "type": "string"
+    },
+    "dataBindingId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Databindingid",
+      "type": "string"
+    },
+    "projectRevision": {
+      "minimum": 1,
+      "title": "Projectrevision",
+      "type": "integer"
+    },
+    "programHash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Programhash",
+      "type": "string"
+    },
+    "pythonExecutable": {
+      "maxLength": 1024,
+      "minLength": 2,
+      "pattern": "^/[^\\\\\\x00-\\x1f\\x7f]*$",
+      "title": "Pythonexecutable",
+      "type": "string"
+    },
+    "environmentPrefix": {
+      "anyOf": [
+        {
+          "maxLength": 1024,
+          "minLength": 2,
+          "pattern": "^/[^\\\\\\x00-\\x1f\\x7f]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Environmentprefix"
+    },
+    "device": {
+      "enum": [
+        "cpu",
+        "cuda",
+        "mps"
+      ],
+      "title": "Device",
+      "type": "string"
+    },
+    "datasetName": {
+      "enum": [
+        "MNIST",
+        "FashionMNIST",
+        "CIFAR10"
+      ],
+      "title": "Datasetname",
+      "type": "string"
+    },
+    "dataRoot": {
+      "maxLength": 1024,
+      "minLength": 2,
+      "pattern": "^/[^\\\\\\x00-\\x1f\\x7f]*$",
+      "title": "Dataroot",
+      "type": "string"
+    },
+    "runBase": {
+      "maxLength": 1024,
+      "minLength": 2,
+      "pattern": "^/[^\\\\\\x00-\\x1f\\x7f]*$",
+      "title": "Runbase",
+      "type": "string"
+    },
+    "expiresInSeconds": {
+      "maximum": 300,
+      "minimum": 1,
+      "title": "Expiresinseconds",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "bindingId",
+    "projectId",
+    "connectionId",
+    "targetId",
+    "environmentId",
+    "dataBindingId",
+    "projectRevision",
+    "programHash",
+    "pythonExecutable",
+    "environmentPrefix",
+    "device",
+    "datasetName",
+    "dataRoot",
+    "runBase",
+    "expiresInSeconds"
+  ],
+  "title": "RemoteBinding",
+  "type": "object"
+}

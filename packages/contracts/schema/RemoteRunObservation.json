@@ -1,0 +1,253 @@
+{
+  "$defs": {
+    "ArtifactReceipt": {
+      "additionalProperties": false,
+      "description": "Immutable manifest and exact raw-event prefix, published before owner status.",
+      "properties": {
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "sourceSeq": {
+          "minimum": 1,
+          "title": "Sourceseq",
+          "type": "integer"
+        },
+        "eventsSha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Eventssha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sha256",
+        "sourceSeq",
+        "eventsSha256"
+      ],
+      "title": "ArtifactReceipt",
+      "type": "object"
+    },
+    "RemoteRunIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "projectId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Projectid",
+          "type": "string"
+        },
+        "targetId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Targetid",
+          "type": "string"
+        },
+        "runId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Runid",
+          "type": "string"
+        },
+        "launchId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Launchid",
+          "type": "string"
+        },
+        "username": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[^\\x00-\\x20\\x7f]+$",
+          "title": "Username",
+          "type": "string"
+        },
+        "endpoint": {
+          "$ref": "#/$defs/SshEndpoint"
+        },
+        "hostFingerprint": {
+          "pattern": "^SHA256:[A-Za-z0-9+/]{43}$",
+          "title": "Hostfingerprint",
+          "type": "string"
+        },
+        "runRoot": {
+          "maxLength": 1024,
+          "minLength": 2,
+          "pattern": "^/[^\\\\\\x00-\\x1f\\x7f]*$",
+          "title": "Runroot",
+          "type": "string"
+        },
+        "programHash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Programhash",
+          "type": "string"
+        },
+        "codeHash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Codehash",
+          "type": "string"
+        },
+        "bundleHash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Bundlehash",
+          "type": "string"
+        },
+        "configHash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Confighash",
+          "type": "string"
+        }
+      },
+      "required": [
+        "projectId",
+        "targetId",
+        "runId",
+        "launchId",
+        "username",
+        "endpoint",
+        "hostFingerprint",
+        "runRoot",
+        "programHash",
+        "codeHash",
+        "bundleHash",
+        "configHash"
+      ],
+      "title": "RemoteRunIdentity",
+      "type": "object"
+    },
+    "RemoteStream": {
+      "additionalProperties": false,
+      "properties": {
+        "generation": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Generation",
+          "type": "string"
+        },
+        "sizeBytes": {
+          "maximum": 134217728,
+          "minimum": 0,
+          "title": "Sizebytes",
+          "type": "integer"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "generation",
+        "sizeBytes",
+        "sha256"
+      ],
+      "title": "RemoteStream",
+      "type": "object"
+    },
+    "RemoteStreams": {
+      "additionalProperties": false,
+      "properties": {
+        "events": {
+          "$ref": "#/$defs/RemoteStream"
+        },
+        "stdout": {
+          "$ref": "#/$defs/RemoteStream"
+        },
+        "stderr": {
+          "$ref": "#/$defs/RemoteStream"
+        }
+      },
+      "required": [
+        "events",
+        "stdout",
+        "stderr"
+      ],
+      "title": "RemoteStreams",
+      "type": "object"
+    },
+    "SshEndpoint": {
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "title": "Host",
+          "type": "string"
+        },
+        "port": {
+          "default": 22,
+          "maximum": 65535,
+          "minimum": 1,
+          "title": "Port",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "host"
+      ],
+      "title": "SshEndpoint",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "identity": {
+      "$ref": "#/$defs/RemoteRunIdentity"
+    },
+    "heartbeat": {
+      "minimum": 1,
+      "title": "Heartbeat",
+      "type": "integer"
+    },
+    "artifactReceipt": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ArtifactReceipt"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "state": {
+      "enum": [
+        "STARTING",
+        "RUNNING",
+        "CANCELLING",
+        "CLEANUP_PENDING",
+        "COMPLETED",
+        "FAILED",
+        "CANCELLED"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "sealed": {
+      "title": "Sealed",
+      "type": "boolean"
+    },
+    "spawnFailed": {
+      "default": false,
+      "title": "Spawnfailed",
+      "type": "boolean"
+    },
+    "exitCode": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Exitcode"
+    },
+    "streams": {
+      "$ref": "#/$defs/RemoteStreams"
+    }
+  },
+  "required": [
+    "identity",
+    "heartbeat",
+    "state",
+    "sealed",
+    "streams"
+  ],
+  "title": "RemoteRunObservation",
+  "type": "object"
+}

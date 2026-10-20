@@ -1,0 +1,48 @@
+{
+  "$defs": {
+    "HostKeyConfirmation": {
+      "additionalProperties": false,
+      "properties": {
+        "challengeId": {
+          "pattern": "^[0-9a-f-]{36}$",
+          "title": "Challengeid",
+          "type": "string"
+        },
+        "fingerprint": {
+          "pattern": "^SHA256:[A-Za-z0-9+/]{43}$",
+          "title": "Fingerprint",
+          "type": "string"
+        }
+      },
+      "required": [
+        "challengeId",
+        "fingerprint"
+      ],
+      "title": "HostKeyConfirmation",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "projectId": {
+      "pattern": "^[0-9a-f-]{36}$",
+      "title": "Projectid",
+      "type": "string"
+    },
+    "requestId": {
+      "pattern": "^[0-9a-f-]{36}$",
+      "title": "Requestid",
+      "type": "string"
+    },
+    "confirmation": {
+      "$ref": "#/$defs/HostKeyConfirmation"
+    }
+  },
+  "required": [
+    "projectId",
+    "requestId",
+    "confirmation"
+  ],
+  "title": "IdentityConfirmRequest",
+  "type": "object"
+}
