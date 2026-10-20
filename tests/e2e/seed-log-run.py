@@ -7,6 +7,7 @@ import struct
 import sys
 import zlib
 from pathlib import Path
+from uuid import uuid4
 
 from easyai.compiler.pipeline import compile_project
 from easyai.domain.contracts import ArtifactRecord
@@ -58,12 +59,13 @@ try:
     figures = [compiled.program.training.before[0], compiled.program.training.body[0]]
     output = Path(run.config.run_root) / "outputs"
     output.mkdir()
+    figure_ids = []
     for index, figure in enumerate(figures):
         name = f"fixture-image-{index}"
         content = png(bytes((200, 60, 60) if index == 0 else (30, 80, 210)))
         (output / f"{name}.png").write_bytes(content)
         record = ArtifactRecord(
-            artifact_id=name,
+            artifact_id=str(uuid4()),
             run_id=run.run_id,
             kind="figure",
             relative_path=f"outputs/{name}.png",
@@ -79,7 +81,16 @@ try:
         workspace.runs._journal(run.run_id).append(
             "artifact_created", figure.id, record.model_dump(by_alias=True)
         )
+        figure_ids.append(record.artifact_id)
     workspace.runs._write_views(run.run_id, workspace.runs.events(run.run_id))
-    print(json.dumps({"runId": run.run_id, "runRoot": run.config.run_root}))
+    print(
+        json.dumps(
+            {
+                "runId": run.run_id,
+                "runRoot": run.config.run_root,
+                "figureIds": figure_ids,
+            }
+        )
+    )
 finally:
     workspace.close()

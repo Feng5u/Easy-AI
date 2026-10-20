@@ -132,7 +132,7 @@ function figureLabel(artifact: ArtifactRecord) {
       ? "训练前"
       : artifact.phase === "after"
         ? "训练后"
-        : artifact.epoch !== undefined
+        : typeof artifact.epoch === "number"
           ? `第 ${artifact.epoch} 轮`
           : "图像";
   return `${phase} · ${artifact.relativePath}`;

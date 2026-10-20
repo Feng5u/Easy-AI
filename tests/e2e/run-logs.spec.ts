@@ -50,7 +50,11 @@ test("real log windows and image history preserve their independent views", asyn
     ],
     { timeout: 15000 },
   );
-  const fixture = JSON.parse(stdout) as { runId: string; runRoot: string };
+  const fixture = JSON.parse(stdout) as {
+    runId: string;
+    runRoot: string;
+    figureIds: string[];
+  };
   const outFile = path.join(fixture.runRoot, "logs/train.log");
   const errFile = path.join(fixture.runRoot, "logs/stderr.log");
   const head = Buffer.from("FIXTURE-HEAD\n");
@@ -97,7 +101,7 @@ test("real log windows and image history preserve their independent views", asyn
     await expect.poll(pixel).toEqual([30, 80, 210, 255]);
     await page
       .getByRole("combobox", { name: "运行图像版本" })
-      .selectOption("fixture-image-0");
+      .selectOption(fixture.figureIds[0]);
     await expect(image).toHaveAttribute("alt", /fixture-image-0\.png/);
     await expect.poll(pixel).toEqual([200, 60, 60, 255]);
     await page

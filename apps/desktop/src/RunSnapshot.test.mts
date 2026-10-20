@@ -660,6 +660,8 @@ it("selects registered panel/source/style/savefig contributors in the immutable 
     current = structuredClone(saved.snapshot),
     h = dashboard(saved, "old-figure-configuration"),
     changed = vi.fn();
+  h.artifact.phase = null;
+  h.artifact.epoch = null;
   current.name = "已修改的当前工程";
   current.revision += 1;
   current.workspaces.training.blocks.blocks = [];
@@ -692,6 +694,9 @@ it("selects registered panel/source/style/savefig contributors in the immutable 
   const currentManager = captured.managers.find((item) => !item.readonly)!;
   // Default latest preview is independent of configuration navigation.
   expect(h.api.runs.image).toHaveBeenCalledTimes(1);
+  expect(
+    container.querySelector('[aria-label="运行图像版本"]')?.textContent,
+  ).toContain("图像 · outputs/old.png");
   const currentNavigation = [...currentManager.navigation];
   const currentWorkspace = JSON.stringify(currentManager.manager.serialize());
   await click("来源：body-figure");
