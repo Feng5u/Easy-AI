@@ -1,4 +1,30 @@
-# 真实 MNIST 小样本 CPU 验收：待明确授权
+# 真实 MNIST 小样本 CPU 验收：已授权，首次下载被代理拒绝
+
+
+## 2026-10-20 新授权与实际结果
+
+以下旧章节保留准备时的历史状态；当前缺项已从“授权/来源”变为“允许取得数据的路径”。父线程01a14dbf-e27d-721e-888a-587c8c296022转达用户允许寻找公开真实数据，随后明确批准一次CPU quick：最多1024训练/256测试、1epoch、batch64、seed42、600秒加30秒清理、新输出256MiB、既有训练根总5,000,000,000字节；不新增依赖、不用GPU、不改共享环境。训练/测试集分离，不重复合成TST34，也不作为正式10轮/完整A或B验收。
+
+父线程核对 [torchvision官方MNIST源码](https://docs.pytorch.org/vision/stable/_modules/torchvision/datasets/mnist.html) 与 [CVDF托管说明](https://github.com/cvdfoundation/mnist)，批准固定HTTPS源 `https://ossci-datasets.s3.amazonaws.com/mnist/` 四文件。父线程提供的压缩完整性MD5如下（不是数字签名；本机尚未取得文件，未完成校验）：
+
+| 文件 | 官方压缩MD5 |
+| --- | --- |
+| train-images-idx3-ubyte.gz | f68b3c2dcbeaaa9fbdd348bbdeb94873 |
+| train-labels-idx1-ubyte.gz | d53e105ee54ea40749a09fcbcd1e9432 |
+| t10k-images-idx3-ubyte.gz | 9fb629c4189551a2d022fa330f9573f3 |
+| t10k-labels-idx1-ubyte.gz | ec29112dd5afa0611ce80d1b7f02629c |
+
+来源页面无登录或单独接受条款步骤，CVDF说明获Yann LeCun许可托管。原作者站点父线程未成功读取，未确认具体数据许可身份，不能称CC0/GPL等已核；只在隔离私有目录验收，不再分发数据/权重/样本进公开仓库。
+
+本轮真实命令：`python -B /workspace/easy-ai-training-cpu/download-real-mnist-001.py`，**FAIL，exit1**。目标仅第一个文件 `https://ossci-datasets.s3.amazonaws.com/mnist/train-images-idx3-ubyte.gz`。`urllib.request` 经当前配置代理建立隧道即返回 `OSError: Tunnel connection failed: 403 Forbidden`，外层 `urllib.error.URLError`；不是文件HTTP正文校验失败或训练失败，也不是自动审批审核拒绝。没有调用提权、镜像、替代下载工具、跳转或重试。
+
+已创建独占私有 `real-mnist-data-001/MNIST/raw`，其中数据文件0个，仅根下 `failure.json` 与 `blocked-receipt.json`；原FAIL回执保留，completedFiles=[]。新输出 `real-mnist-a-001` 未创建，准备训练脚本未执行，真实训练 **NOT RUN**。下载脚本预设先MD5、再有界解压并核IDX magic/维度/数量/长度/标签范围，随后原样落raw文件；这些步骤均未到达，不能记PASS。下载脚本SHA256 `f5d17bdcf777b62303b287859762a2fb380b7783e57a4cf6976dbb96c3b3956f`，原准备脚本SHA256 `1e8561427d70f2e1c2c9787b5bab4808445f6cf05a5ddea53b18e519d042d5cd`。脚本、失败回执均仓库外保留。
+
+本地只读PASS：branch/remote HEAD均 `985f99bcc5b54f9bfd177770da73575d9a006707`，main仍 `5323f86232529efcfb52131168ad049f01b219f3`；开始工作区干净，无其他真实训练/sidecar/git写进程；既有CPU metadata torch2.10.0+cpu/torchvision0.25.0+cpu/Matplotlib3.10.8，未导入torch或安装依赖。原训练根逻辑1,989,886,593字节，磁盘余量18,851,844,096字节（下载前检查），未扩大原预算。原计划116185字节/SHA256 dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43及规格/README/两锁不变。
+
+下一项：父线程处理明确目标的代理拒绝，或提供经批准且能在本执行器取得、可按上述校验值验证的四文件交接。一般“继续推进”不解除拒绝；本次不自动重试或将合成数据代替真实验收。授权已具备，无需再次索要相同训练授权。实际来源映射GUI点击、参数变化、PNG解码、产物manifest及真实指标均仍NOT RUN，不能借先前合成证据回填。
+
+## 历史准备记录（新授权前）
 
 2026-10-20 仅只读核对授权/已有记录，没有搜索私人数据目录、读取真实 MNIST、下载、安装或训练。产品源码仍为已验收 `41b736b532e008634d01821b02a8d7b493351fcb`；该源码 CI39346965518 全 SUCCESS。本页不是实际验收 PASS。
 

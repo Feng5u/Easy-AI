@@ -3653,3 +3653,16 @@ CI工作流on:[push,pull_request]，纯推两文档会额外全跑。已先向�
 9ce1cc613d1cfc06a06b7704d882b155b7dc8b75三docs已独审无敏感/用户数据/凭据；新页只含占位数据根与任务自有脚本路径。保留9ce原SHA，追加纯docs提交带[skip ci]并正常开发分支推送两者，避免纯文档重复CI。已核GitHub官方skip-workflow-runs说明：on push/pull_request可由提交消息跳过；不改workflow，不跳过任何产品变更检查，不改main/强推/PR。当前追加提交不视为新CI PASS，产品证据仍准确绑定41b736。
 
 旧artifact明确继续历史限制，不调用下载或替代路径，不改留存、不借新候选hash回填旧文件。没有执行训练、下载、安装、SSH或新增模型调用。原件/README/锁保持，待真实数据明确授权后才启动相应有界验收。
+
+
+### 真实MNIST quick已获授权，首次固定官方源下载被代理403阻断
+
+基线/remote开发HEAD985f99bcc5b54f9bfd177770da73575d9a006707，产品源码仍41b736b532e008634d01821b02a8d7b493351fcb/CI39346965518全SUCCESS；main5323f86232529efcfb52131168ad049f01b219f3未改。单写入者、干净工作区、原116185字节计划/hash及规格/README/锁均核对保持；只读CPU依赖metadata和预算PASS，无安装或训练。
+
+父线程转达用户同意自行寻找公开数据，继而核torchvision官方四gzip来源/压缩MD5及CVDF托管许可说明，明确允许一次1024训练/256测试、1epoch、batch64、seed42、CPU600秒+30秒清理、新输出256MiB、原训练根总5GB。无需重复索要这组训练授权；具体数据许可身份未核，不宣称CC0/GPL，数据/模型/样本不入公开仓库。完整来源、四MD5和真实命令见real-mnist-acceptance-readiness.md顶部新增记录，旧“待授权”章节明确标为历史。
+
+实际命令python -B /workspace/easy-ai-training-cpu/download-real-mnist-001.py **FAIL exit1**：固定首目标https://ossci-datasets.s3.amazonaws.com/mnist/train-images-idx3-ubyte.gz，当前代理CONNECT隧道403 Forbidden（urllib.error.URLError），未取得任何数据。独占新私有real-mnist-data-001仅失败回执，raw目录为空；real-mnist-a-001尚未创建，准备脚本未执行。压缩MD5/解压IDX检查/真实训练/指标/参数变化/PNG/manifest均NOT RUN。未重试、换镜像、跳转、提权或改代理，无网络拒绝绕过；并非自动审核拒绝。原件/产品/测试/依赖均未更改，本轮仅docs，不重复完整测试或触发产品CI。
+
+下一准确阻塞是该官方URL的代理拒绝，待父线程处理允许的交接/网络范围。一般继续推进不等于解除拒绝；不造新合成训练替代真实MNIST、不回填历史TST34，更不称完整A/B。旧artifact历史拒绝继续保持，不下载或经替代接口绕过。
+
+独立只读审查两docs、两私有脚本及失败回执认可，无新增明确P1/P2或敏感项；独立核raw空/输出根不存在、脚本SHA一致、FAIL与NOT RUN/已授权与历史记录边界准确。git diff --check PASS。最终训练根逻辑1,989,890,428字节；未重复运行下载或训练。仅文档提交使用[skip ci]正常推送，不把跳过记为产品CI PASS。
