@@ -515,6 +515,23 @@ class RunService:
             if run.status != "CREATED":
                 raise ValueError("RUN_PROCESS_IDENTITY_UNKNOWN")
             self._verify_snapshot(run_id)
+            from easyai.runtime.dataset_inputs import reject_legacy_cache, require_guarded_code
+            from easyai.domain.program import ProgramIR
+
+            require_guarded_code(
+                read_regular(self._safe_path(run_id, "code/train.py"), 8 * 1024 * 1024).decode(
+                    "utf-8"
+                )
+            )
+            program = ProgramIR.model_validate_json(
+                read_regular(self._safe_path(run_id, "program.ir.json"), 5 * 1024 * 1024)
+            )
+            from easyai.compiler.artifact_budget import validate_artifact_budget
+
+            validate_artifact_budget(program)
+            for dataset in program.datasets:
+                if dataset.dataset_name in {"MNIST", "FashionMNIST"}:
+                    reject_legacy_cache(Path(run.config.data_root), dataset.dataset_name)
             directory = self._directory(run_id)
             supervisor = ManagedSupervisor(
                 directory,

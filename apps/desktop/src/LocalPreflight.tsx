@@ -23,6 +23,8 @@ const messages: Record<string, string> = {
     "CIFAR10 需要完整的 cifar-10-batches-py Python 格式目录，含五个训练批次、测试批次及元数据；当前文件结构不符合要求。",
   DATASET_CIFAR10_SAFE_PROBE_REQUIRED:
     "CIFAR10 文件布局初检完成，但安全的官方适配器构造探测尚未完成；未反序列化 pickle，数据未就绪，不能开始本机训练。",
+  DATASET_LEGACY_CACHE_FORBIDDEN:
+    "数据目录含旧版 processed 缓存，可能覆盖已检查的原始数据。请改选仅含原始 IDX 文件的数据目录；应用不会删除缓存。",
   DATA_PATH_FORBIDDEN: "数据路径未通过安全检查。",
   DATASET_UNREADABLE: "数据文件不可读，请检查目录与读取权限。",
   DATASET_PREFLIGHT_NOT_SUPPORTED: "此数据集尚不支持本机预检。",

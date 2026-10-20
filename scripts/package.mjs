@@ -231,6 +231,10 @@ export const resourcePairs = [
     "easyai_runtime.py",
   ].map((name) => [`runtime/${name}`, `runtime/${name}`]),
   ["services/backend/src/easyai/runtime/managed.py", "runtime/managed.py"],
+  [
+    "services/backend/src/easyai/runtime/dataset_inputs.py",
+    "runtime/dataset_inputs.py",
+  ],
 ];
 export async function stagePortable({
   root,

@@ -46,6 +46,7 @@ from easyai.security.files import read_regular
 from easyai.services.project_service import ProjectService, read_project, validate_project_bytes
 from easyai.services.run_service import RunService
 from easyai.services.cifar_preflight import inspect_cifar10_layout
+from easyai.runtime.dataset_inputs import reject_legacy_cache
 
 T = TypeVar("T")
 
@@ -221,6 +222,7 @@ def preflight_data(
             inspect_cifar10_layout(root, checkpoint)
         if dataset not in {"MNIST", "FashionMNIST"}:
             raise ValueError("DATASET_PREFLIGHT_NOT_SUPPORTED")
+        reject_legacy_cache(root, dataset)
         raw = root / dataset / "raw"
         current = root
         for part in (dataset, "raw"):
@@ -806,6 +808,7 @@ class LocalWorkspace:
                         "DATA_PATH_FORBIDDEN",
                         "DATASET_MISSING_NO_DOWNLOAD",
                         "DATASET_IDX_INVALID",
+                        "DATASET_LEGACY_CACHE_FORBIDDEN",
                         "DATASET_CIFAR10_FORMAT_INVALID",
                         "DATASET_CIFAR10_SAFE_PROBE_REQUIRED",
                     }

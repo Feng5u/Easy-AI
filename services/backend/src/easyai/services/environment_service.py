@@ -295,7 +295,13 @@ class EnvironmentService:
                 if descriptor is None or self._catalog_expires <= self._clock():
                     raise EnvironmentFailure("ENVIRONMENT_SELECTION_STALE")
                 conda = self._conda
-            source = read_regular(RUNTIME_ROOT / "probe.py", 24000).decode("utf-8")
+            from easyai.compiler.bundle import runtime_sources
+
+            source = (
+                runtime_sources()["code/dataset_inputs.py"]
+                + "\n"
+                + read_regular(RUNTIME_ROOT / "probe.py", 24000).decode("utf-8")
+            )
             argv: tuple[str, ...] = (descriptor.location, "-I", "-B", "-c", source)
             if descriptor.kind == "conda":
                 if conda is None:

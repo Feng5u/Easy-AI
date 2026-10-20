@@ -20,6 +20,8 @@
 
 ## 发现与限制
 
+后续独立安全检查发现并修复HTTP鉴权前body读取、MNIST legacy缓存、产物登记预算和安装来源预算顺序；同时补同来源Monaco重复定位。见[本次安全修复](security-review-20261020.md)。6052609 Windows新增重开日志断言曾FAIL，分页等待窗口已作有根据的修正；最终状态必须以新冻结提交CI为准，不能借基线绿灯放行。合并/Release仍暂停。
+
 独审发现原生 details 的 summary 可把 DOM open 改成 false，而 React 保存的 open prop 仍为 true；再次来源请求只更新版本，不会重新打开。新增纯内存回归先真实 FAIL，再由导航 layout effect 对每次显式请求恢复 open；原生 Blockly 选择回声 `navigate=false` 不强制展开，待派发 toggle 不清除新请求。真实 Windows E2E 包含同一折叠/再点来源操作。
 
 本实例已有 Chromium sandbox 宿主权限故障，不重试或加 no-sandbox。Windows 开发态与包内 E2E 由已有有界 CI 执行；CI VM 不代表 Windows 11 干净用户机。旧一次 MNIST 小样本授权已用完；无新训练、SSH、数据下载、用户设备操作、CIFAR门放宽。不能承诺完整B或所有实机演示无问题；剩余条件见 remaining-critical-path。

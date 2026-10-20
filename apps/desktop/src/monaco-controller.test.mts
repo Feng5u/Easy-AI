@@ -120,6 +120,37 @@ describe("read-only Monaco lifecycle adapter", () => {
     ).toHaveBeenCalledWith(2);
     view.dispose();
   });
+  it("reveals repeated explicit navigation without resetting manual scroll during ordinary updates", () => {
+    const fake = fakeEditor();
+    const view = createReadOnlyCodeController(
+      fake.api,
+      {} as HTMLElement,
+      fake.model.getValue(),
+      () => {},
+    );
+    const code = fake.model.getValue(),
+      spans = [span("child", 2)];
+    view.update(code, spans, "child", 1);
+    view.update(code, spans, "child", 1);
+    view.update(code, spans, "child");
+    expect(
+      fake.editor.revealLineInCenterIfOutsideViewport,
+    ).toHaveBeenCalledTimes(1);
+    view.update(code, spans, "child", 2);
+    expect(
+      fake.editor.revealLineInCenterIfOutsideViewport,
+    ).toHaveBeenCalledTimes(2);
+    expect(
+      fake.editor.revealLineInCenterIfOutsideViewport,
+    ).toHaveBeenLastCalledWith(2);
+    view.update(code, spans, "child");
+    view.update(code, spans, "child", 2);
+    expect(
+      fake.editor.revealLineInCenterIfOutsideViewport,
+    ).toHaveBeenCalledTimes(2);
+    expect(fake.model.setValue).not.toHaveBeenCalled();
+    view.dispose();
+  });
   it("updates the owned model and disposes mouse listener/editor/model exactly once", () => {
     const fake = fakeEditor();
     const view = createReadOnlyCodeController(

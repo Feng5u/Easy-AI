@@ -75,6 +75,7 @@ from easyai.compiler.pipeline import compile_project
 from easyai.services.run_service import RunService
 from easyai.services.local_workspace import LocalWorkspace, RunScope
 from easyai.services.run_views import RunViews
+from easyai.security.http_boundary import SessionRequestBoundary
 from easyai.domain.install import (
     InstallSourceRequest,
     InstallSourcePreview,
@@ -144,6 +145,7 @@ def create_app(
     app = FastAPI(
         docs_url=None, redoc_url=None, openapi_url=None, dependencies=[Depends(authorize)]
     )
+    app.add_middleware(SessionRequestBoundary, token=token)
 
     @app.exception_handler(RequestValidationError)
     async def invalid_request(request: Request, error: RequestValidationError) -> Response:

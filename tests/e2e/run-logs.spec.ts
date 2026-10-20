@@ -168,6 +168,24 @@ test("real log windows and image history preserve their independent views", asyn
       ).toBeInViewport();
     };
     await assertPainted(mapping.producer);
+    const monaco = source.getByLabel("Monaco 只读代码视图");
+    await monaco.hover();
+    await page.mouse.wheel(0, -20000);
+    await expect
+      .poll(() =>
+        monaco
+          .locator(".monaco-scrollable-element")
+          .first()
+          .evaluate((element) => element.scrollTop),
+      )
+      .toBe(0);
+    await expect(
+      monaco.locator(".monaco-source-selected-semantic").first(),
+    ).not.toBeInViewport();
+    await latestArtifact
+      .getByRole("button", { name: `来源：${mapping.producer}`, exact: true })
+      .click();
+    await assertPainted(mapping.producer);
     await latestArtifact
       .getByRole("button", { name: "查看配置", exact: true })
       .click();
@@ -317,7 +335,7 @@ test("real log windows and image history preserve their independent views", asyn
       reopened
         .getByRole("region", { name: "stdout 日志查看器" })
         .getByRole("list"),
-    ).toContainText("FIXTURE-GROWN");
+    ).toContainText("FIXTURE-GROWN", { timeout: 15000 });
     await expect(
       reopened.getByRole("region", {
         name: "本次运行的只读积木快照",

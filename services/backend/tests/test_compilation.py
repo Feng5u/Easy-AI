@@ -127,6 +127,7 @@ def test_bundle_complete_deterministic_and_refuses_existing_targets(tmp_path):
         "code/supervisor.py",
         "code/portable_journal.py",
         "code/managed.py",
+        "code/dataset_inputs.py",
         "program.ir.json",
         "ENVIRONMENT.md",
         "README.md",
@@ -299,6 +300,9 @@ def test_bundle_can_export_managed_core_from_frozen_resource_layout(tmp_path, mo
         shutil.copyfile(SOURCE_ROOT / "runtime" / name, resources / name)
     expected = (SOURCE_ROOT / "services/backend/src/easyai/runtime/managed.py").read_bytes()
     (resources / "managed.py").write_bytes(expected)
+    (resources / "dataset_inputs.py").write_bytes(
+        (SOURCE_ROOT / "services/backend/src/easyai/runtime/dataset_inputs.py").read_bytes()
+    )
     monkeypatch.setattr(bundle, "__file__", str(tmp_path / "frozen/easyai/compiler/bundle.py"))
     monkeypatch.setattr(bundle, "RUNTIME_ROOT", resources)
     bundle.export_bundle(compile_project(project()), tmp_path / "exported")

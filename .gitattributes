@@ -11,6 +11,7 @@
 # and checked byte for byte against the tracked source.
 /runtime/*.py text eol=lf
 /services/backend/src/easyai/runtime/managed.py text eol=lf
+/services/backend/src/easyai/runtime/dataset_inputs.py text eol=lf
 /packages/block-library/manifest.json text eol=lf
 /packages/package-groups/catalog.json text eol=lf
 /examples/mnist-cnn/project.easyai.json text eol=lf

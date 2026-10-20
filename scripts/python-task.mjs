@@ -75,6 +75,8 @@ const operations = {
       "--add-data",
       "src/easyai/runtime/managed.py:easyai/resources/runtime",
       "--add-data",
+      "src/easyai/runtime/dataset_inputs.py:easyai/resources/runtime",
+      "--add-data",
       "../../runtime/easyai_runtime.py:easyai/resources/runtime",
       "src/easyai/main.py",
     ],

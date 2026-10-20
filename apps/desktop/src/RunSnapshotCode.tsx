@@ -98,6 +98,9 @@ export function SnapshotCode({
           code={view.code}
           spans={view.spans}
           selectedBlock={location.codeBlockId}
+          navigationVersion={
+            request?.navigate !== false ? request?.version : undefined
+          }
           onSelectBlock={onSelectBlock}
         />
       </details>

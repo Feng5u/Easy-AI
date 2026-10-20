@@ -133,7 +133,7 @@ def protected(path: Path, *, directory: bool = False) -> os.stat_result:
 def archive(item: Archive) -> tuple[int, int, int, int, int]:
     path = Path(item.path)
     before = protected(path)
-    if before.st_size != item.bytes or digest_regular(path, FILE_LIMIT) != item.sha256:
+    if before.st_size != item.bytes or digest_regular(path, item.bytes) != item.sha256:
         raise ValueError("INSTALL_SOURCE_CHANGED")
     after = protected(path)
 
@@ -145,9 +145,9 @@ def archive(item: Archive) -> tuple[int, int, int, int, int]:
     return stamp(after)
 
 
-def tree(root: Path) -> str:
+def _tree_inventory(root: Path) -> list[tuple[Path, os.stat_result]]:
     protected(root, directory=True)
-    records: list[tuple[str, str]] = []
+    pending: list[tuple[Path, os.stat_result]] = []
     total = count = 0
     for directory, names, files in os.walk(root, followlinks=False):
         count += len(names) + len(files)
@@ -161,7 +161,22 @@ def tree(root: Path) -> str:
             total += info.st_size
             if total > FILE_LIMIT:
                 raise ValueError("INSTALL_SOURCE_LIMIT")
-            records.append((str(path.relative_to(root)), digest_regular(path, FILE_LIMIT)))
+            pending.append((path, info))
+    return pending
+
+
+def tree(root: Path, *, inventory: list[tuple[Path, os.stat_result]] | None = None) -> str:
+    def stamp(info: os.stat_result) -> tuple[int, ...]:
+        return info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns
+
+    records = []
+    for path, planned in _tree_inventory(root) if inventory is None else inventory:
+        if stamp(protected(path)) != stamp(planned):
+            raise ValueError("INSTALL_SOURCE_CHANGED")
+        value = digest_regular(path, planned.st_size)
+        if stamp(protected(path)) != stamp(planned):
+            raise ValueError("INSTALL_SOURCE_CHANGED")
+        records.append((str(path.relative_to(root)), value))
     return digest(sorted(records))
 
 
@@ -341,13 +356,8 @@ class InstallRuntime:
             or config.authorization_expires.tzinfo is None
         ):
             raise ValueError("INSTALL_PROFILE_PLATFORM_UNSUPPORTED")
-        launcher = archive(config.launcher)
         module_root = Path(config.module_root)
-        if (
-            tree(module_root) != config.module_tree_sha256
-            or not (module_root / "conda/__init__.py").is_file()
-        ):
-            raise ValueError("INSTALL_LAUNCHER_SOURCE_CHANGED")
+        protected(module_root, directory=True)
         names = [Path(a.path).name for a in config.bootstrap]
         if (
             len(set(names)) != len(names)
@@ -356,26 +366,45 @@ class InstallRuntime:
             or any(not n.endswith((".conda", ".tar.bz2")) for n in names)
         ):
             raise ValueError("INSTALL_BOOTSTRAP_SOURCE_INVALID")
-        stamps = [archive(a) for a in config.bootstrap]
         selected_wheels = wheels(PROFILE_ROOT, selected)
         wheelhouse = Path(config.wheelhouse)
         protected(wheelhouse, directory=True)
-        wheel_stamps = [
-            archive(
-                Archive(
-                    path=str(wheelhouse / w["filename"]),
-                    sha256=w["sha256"],
-                    bytes=w["downloadBytes"],
-                )
+        wheel_archives = [
+            Archive(
+                path=str(wheelhouse / w["filename"]),
+                sha256=w["sha256"],
+                bytes=w["downloadBytes"],
             )
             for w in selected_wheels
         ]
+        # Validate every declared path/size without scanning file contents first.
+        for item in [config.launcher, *config.bootstrap, *wheel_archives]:
+            if protected(Path(item.path)).st_size != item.bytes:
+                raise ValueError("INSTALL_SOURCE_CHANGED")
         if (
             sum(a.bytes for a in config.bootstrap)
             + sum(w["downloadBytes"] for w in selected_wheels)
             > config.disk_budget_bytes
         ):
             raise ValueError("INSTALL_DISK_BUDGET_EXCEEDED")
+        inventory = _tree_inventory(module_root)
+        # Keep diskBudgetBytes as the owned-environment budget. Source scan work
+        # is separately bounded by that budget plus the existing 1 GiB limits
+        # for launcher and module tree; all metadata precedes any content hash.
+        planned_scan = config.launcher.bytes + sum(info.st_size for _, info in inventory)
+        planned_scan += sum(a.bytes for a in config.bootstrap) + sum(
+            a.bytes for a in wheel_archives
+        )
+        if planned_scan > config.disk_budget_bytes + 2 * FILE_LIMIT:
+            raise ValueError("INSTALL_SOURCE_LIMIT")
+        launcher = archive(config.launcher)
+        if (
+            tree(module_root, inventory=inventory) != config.module_tree_sha256
+            or not (module_root / "conda/__init__.py").is_file()
+        ):
+            raise ValueError("INSTALL_LAUNCHER_SOURCE_CHANGED")
+        stamps = [archive(a) for a in config.bootstrap]
+        wheel_stamps = [archive(a) for a in wheel_archives]
         if private_snapshot(path, 65536) != (raw, identity):
             raise ValueError("INSTALL_SOURCE_CHANGED")
         return config, digest(

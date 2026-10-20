@@ -413,3 +413,59 @@ def test_close_during_runtime_hash_cannot_publish_enabled_late_plan(tmp_path):
         worker.join(2)
         service.close()
     assert errors and str(errors[0]) == "INSTALL_SESSION_CLOSED" and not service._plans
+
+
+def test_source_budget_precedes_all_archive_and_module_content_hashes(configured, monkeypatch):
+    app, sources, config = configured
+    config["diskBudgetBytes"] = 1
+    path = app / "install-runtime.json"
+    path.write_text(json.dumps(config))
+    monkeypatch.setattr(
+        runtime_module, "archive", lambda *a, **k: pytest.fail("No archive scanning")
+    )
+    monkeypatch.setattr(runtime_module, "tree", lambda *a, **k: pytest.fail("No module scanning"))
+    runtime = InstallRuntime(app)
+    with pytest.raises(ValueError, match="INSTALL_DISK_BUDGET_EXCEEDED"):
+        runtime.inspect_source(path)
+
+
+def test_module_tree_checks_total_bytes_before_hashing_any_file(tmp_path, monkeypatch):
+    root = tmp_path / "modules"
+    root.mkdir(mode=0o700)
+    (root / "one").write_bytes(b"small fixture")
+    (root / "two").write_bytes(b"small fixture")
+    monkeypatch.setattr(runtime_module, "FILE_LIMIT", 1)
+    monkeypatch.setattr(
+        runtime_module, "digest_regular", lambda *a, **k: pytest.fail("No module hashing")
+    )
+    with pytest.raises(ValueError, match="INSTALL_SOURCE_LIMIT"):
+        tree(root)
+
+
+@pytest.mark.parametrize("source", ["archive", "tree"])
+def test_source_growth_cannot_expand_the_metadata_read_budget(tmp_path, monkeypatch, source):
+    root = tmp_path / "source"
+    root.mkdir(mode=0o700)
+    path = root / "small"
+    path.write_bytes(b"abc")
+    limits = []
+    original = runtime_module.digest_regular
+
+    def grow(target, limit):
+        limits.append(limit)
+        target.write_bytes(b"x" * 1024)
+        return original(target, limit)
+
+    monkeypatch.setattr(runtime_module, "digest_regular", grow)
+    with pytest.raises(ValueError, match="FILE_SIZE_LIMIT"):
+        if source == "archive":
+            runtime_module.archive(
+                runtime_module.Archive(
+                    path=str(path),
+                    bytes=3,
+                    sha256=hashlib.sha256(b"abc").hexdigest(),
+                )
+            )
+        else:
+            tree(root)
+    assert limits == [3]

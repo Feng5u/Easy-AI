@@ -10,16 +10,30 @@ export function CodeView({
   spans = [],
   selectedBlock,
   onSelectBlock,
+  navigationVersion,
 }: {
   code: string;
   spans?: readonly Span[];
   selectedBlock?: string | null;
   onSelectBlock?: (id: string) => void;
+  navigationVersion?: number;
 }) {
   const host = useRef<HTMLDivElement | null>(null);
   const controller = useRef<ReadOnlyCodeController | null>(null);
-  const latest = useRef({ code, spans, selectedBlock, onSelectBlock });
-  latest.current = { code, spans, selectedBlock, onSelectBlock };
+  const latest = useRef({
+    code,
+    spans,
+    selectedBlock,
+    onSelectBlock,
+    navigationVersion,
+  });
+  latest.current = {
+    code,
+    spans,
+    selectedBlock,
+    onSelectBlock,
+    navigationVersion,
+  };
   const [ready, setReady] = useState(false);
   const [failure, setFailure] = useState("");
   const immutableMap = useMemo(() => freezeSourceMap(spans), [spans]);
@@ -62,6 +76,7 @@ export function CodeView({
             current.code,
             current.spans,
             current.selectedBlock,
+            current.navigationVersion,
           );
           setReady(true);
         })
@@ -86,8 +101,13 @@ export function CodeView({
     };
   }, []);
   useEffect(() => {
-    controller.current?.update(code, immutableMap, selectedBlock);
-  }, [code, immutableMap, selectedBlock]);
+    controller.current?.update(
+      code,
+      immutableMap,
+      selectedBlock,
+      navigationVersion,
+    );
+  }, [code, immutableMap, selectedBlock, navigationVersion]);
   return (
     <div className="code-view" tabIndex={0} aria-label="只读生成代码">
       {failure && <p role="alert">{failure}</p>}

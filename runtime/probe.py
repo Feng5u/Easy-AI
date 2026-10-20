@@ -13,7 +13,11 @@ import re
 from pathlib import PurePosixPath
 import sys
 import tempfile
-from typing import Any
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    # Production prepends this exact shared stdlib source to the fixed -c payload.
+    from easyai.runtime.dataset_inputs import construct_dataset
 
 
 def _path(value: Any) -> str:
@@ -144,7 +148,8 @@ def inspect_environment(config: dict[str, Any]) -> dict[str, Any]:
                 # Fixed whitelist, both required splits; no download or dataset writes.
                 constructor = getattr(vision.datasets, binding["name"])
                 for training_split in (True, False):
-                    selected_data = constructor(
+                    selected_data = construct_dataset(
+                        constructor,
                         root=binding["dataRoot"],
                         train=training_split,
                         transform=vision.transforms.ToTensor(),

@@ -12,6 +12,7 @@ export interface ReadOnlyCodeController {
     code: string,
     spans: readonly CodeSpan[],
     selectedBlock: string | null | undefined,
+    navigationVersion?: number,
   ): void;
   layout(): void;
   dispose(): void;
@@ -54,13 +55,14 @@ export function createReadOnlyCodeController(
   let decorations: string[] = [];
   let disposed = false;
   let revealed: string | null | undefined;
+  let navigationVersion: number | undefined;
   const mouse = editor.onMouseDown((event) => {
     if (!event.target.position) return;
     const source = sourceAtLine(spans, event.target.position.lineNumber);
     if (source) onSelectBlock(source.origin.blockId);
   });
   return {
-    update(code, nextSpans, selectedBlock) {
+    update(code, nextSpans, selectedBlock, nextNavigationVersion) {
       if (disposed) return;
       if (model.getValue() !== code) {
         model.setValue(code);
@@ -100,12 +102,18 @@ export function createReadOnlyCodeController(
         });
       }
       decorations = editor.deltaDecorations(decorations, mapped);
-      if (selectedBlock !== revealed) {
+      if (
+        selectedBlock !== revealed ||
+        (nextNavigationVersion !== undefined &&
+          nextNavigationVersion !== navigationVersion)
+      ) {
         const first = firstSemanticLine(spans, selectedBlock);
         if (first !== undefined && first <= lineCount)
           editor.revealLineInCenterIfOutsideViewport(first);
         revealed = selectedBlock;
       }
+      if (nextNavigationVersion !== undefined)
+        navigationVersion = nextNavigationVersion;
     },
     layout() {
       if (!disposed) editor.layout();

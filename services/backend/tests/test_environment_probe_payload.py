@@ -12,6 +12,7 @@ from types import SimpleNamespace
 import pytest
 
 from easyai.domain.environment import EnvironmentProbeReport
+from easyai.runtime.dataset_inputs import construct_dataset
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -39,6 +40,7 @@ def payload(monkeypatch):
     )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
+    module.construct_dataset = construct_dataset
     monkeypatch.setattr(
         module,
         "sys",
@@ -56,10 +58,10 @@ def config(dataset=None):
     return {"nonce": "11111111-1111-4111-8111-111111111111", "device": "cpu", "dataset": dataset}
 
 
-@pytest.mark.parametrize("missing_train", [False, True])
+@pytest.mark.parametrize("missing_train", [False, True, "legacy"])
 @pytest.mark.parametrize("name", ["MNIST", "FashionMNIST", "CIFAR10"])
 def test_fixed_payload_executes_small_conv_and_exact_offline_dataset_call_with_synthetic_modules(
-    payload, monkeypatch, name, missing_train
+    payload, monkeypatch, name, missing_train, tmp_path
 ):
     calls = []
 
@@ -95,11 +97,12 @@ def test_fixed_payload_executes_small_conv_and_exact_offline_dataset_call_with_s
             assert index == 0
             return SimpleNamespace(shape=shape, dtype="synthetic.float32"), 2
 
-    def constructor(**kwargs):
+    def initialize(self, **kwargs):
         calls.append(("dataset", kwargs))
         if missing_train and kwargs["train"]:
             raise RuntimeError("synthetic missing training split")
-        return Dataset()
+
+    constructor = type(name, (Dataset,), {"__init__": initialize})
 
     vision = SimpleNamespace(
         datasets=SimpleNamespace(**{name: constructor}),
@@ -111,8 +114,14 @@ def test_fixed_payload_executes_small_conv_and_exact_offline_dataset_call_with_s
         return {"version": "synthetic-only", "imported": True, "error": None}, modules[package_name]
 
     monkeypatch.setattr(payload, "_package", package)
+    data_root = "/remote/teacher data"
+    if missing_train == "legacy":
+        data_root = str(tmp_path)
+        processed = tmp_path / name / "processed"
+        processed.mkdir(parents=True)
+        (processed / "training.pt").write_bytes(b"never deserialize")
     report = EnvironmentProbeReport.model_validate(
-        payload.inspect_environment(config({"name": name, "dataRoot": "/remote/teacher data"}))
+        payload.inspect_environment(config({"name": name, "dataRoot": data_root}))
     )
     assert report.tensor.ok
     if name == "CIFAR10":
@@ -123,7 +132,9 @@ def test_fixed_payload_executes_small_conv_and_exact_offline_dataset_call_with_s
         return
     if missing_train:
         assert not report.dataset.ok
-        assert [call[1]["train"] for call in calls if call[0] == "dataset"] == [True]
+        assert [call[1]["train"] for call in calls if call[0] == "dataset"] == (
+            [] if missing_train == "legacy" else [True]
+        )
         return
     assert report.dataset.ok
     assert ("conv-created", (1, 1, 3), {"bias": False}) in calls

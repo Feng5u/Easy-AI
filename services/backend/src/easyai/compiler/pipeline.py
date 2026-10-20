@@ -41,6 +41,20 @@ def prepare(project: ProjectDocument) -> tuple[ProgramIR | None, list[Diagnostic
             return None, diagnostics
         program, semantic = lower_program(validated, roots, symbols)
         diagnostics.extend(semantic)
+        if program is not None:
+            from easyai.compiler.artifact_budget import validate_artifact_budget
+
+            try:
+                validate_artifact_budget(program)
+            except ValueError as error:
+                diagnostics.append(
+                    Diagnostic(
+                        code=str(error),
+                        message="图像/模型产物的数量或登记信息超过本版本安全上限，请减少轮数或每轮图像。",
+                        origin=program.training.origin,
+                    )
+                )
+                return None, diagnostics
         return program, diagnostics
     except (ValueError, RecursionError, DecodeError) as error:
         return None, [

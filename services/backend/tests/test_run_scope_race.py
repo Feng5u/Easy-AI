@@ -184,7 +184,13 @@ def test_sse_stops_remaining_batch_after_first_delivery_switches_project(scoped)
     messages = []
     delivered = 0
 
+    request_delivered = False
+
     async def receive():
+        nonlocal request_delivered
+        if not request_delivered:
+            request_delivered = True
+            return {"type": "http.request", "body": b"", "more_body": False}
         await asyncio.Event().wait()
 
     async def send(message):

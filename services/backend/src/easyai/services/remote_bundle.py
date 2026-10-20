@@ -11,6 +11,7 @@ from easyai.domain.environment import remote_path
 from easyai.domain.remote_run import RemoteRunIdentity
 from easyai.security.remote_cache import LocalDirectory, local_directory
 from easyai.services.remote_artifacts import _decode, _encoded
+from easyai.runtime.dataset_inputs import require_guarded_code
 
 BUNDLE_FILES = frozenset(
     {
@@ -20,6 +21,7 @@ BUNDLE_FILES = frozenset(
         "code/easyai_runtime.py",
         "code/supervisor.py",
         "code/managed.py",
+        "code/dataset_inputs.py",
         "code/portable_journal.py",
         "program.ir.json",
         "README.md",
@@ -155,6 +157,11 @@ class RemoteBundle:
                 if digest(raw) != manifest["files"][name]:
                     raise ValueError("REMOTE_BUNDLE_HASH_INVALID")
                 files[name] = raw
+            require_guarded_code(files["code/train.py"].decode("utf-8"))
+            from easyai.compiler.artifact_budget import validate_artifact_budget
+            from easyai.domain.program import ProgramIR
+
+            validate_artifact_budget(ProgramIR.model_validate_json(files["program.ir.json"]))
             for name, source in runtime_sources().items():
                 if files[name] != source.encode("utf-8"):
                     raise ValueError("REMOTE_BUNDLE_HELPER_INVALID")

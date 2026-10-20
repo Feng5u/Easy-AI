@@ -23,6 +23,7 @@ FILES = {
     "code/easyai_runtime.py",
     "code/supervisor.py",
     "code/managed.py",
+    "code/dataset_inputs.py",
     "code/portable_journal.py",
     "program.ir.json",
     "README.md",

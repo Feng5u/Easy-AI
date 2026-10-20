@@ -14,6 +14,10 @@ for (const [source, resource] of [
   ["runtime/supervisor.py", "supervisor.py"],
   ["runtime/portable_journal.py", "portable_journal.py"],
   ["services/backend/src/easyai/runtime/managed.py", "managed.py"],
+  [
+    "services/backend/src/easyai/runtime/dataset_inputs.py",
+    "dataset_inputs.py",
+  ],
 ]) {
   assert.deepEqual(
     await readFile(join(build, "_internal/easyai/resources/runtime", resource)),

@@ -51,6 +51,7 @@ def test_autocrlf_checkout_preserves_packaged_text_assets(tmp_path, monkeypatch)
 
     assets = sorted((SOURCE_ROOT / "runtime").glob("*.py")) + [
         SOURCE_ROOT / "services/backend/src/easyai/runtime/managed.py",
+        SOURCE_ROOT / "services/backend/src/easyai/runtime/dataset_inputs.py",
         SOURCE_ROOT / "packages/block-library/manifest.json",
         SOURCE_ROOT / "packages/package-groups/catalog.json",
         SOURCE_ROOT / "examples/mnist-cnn/project.easyai.json",
@@ -85,8 +86,8 @@ def test_autocrlf_checkout_preserves_packaged_text_assets(tmp_path, monkeypatch)
     )
     for name, text in bundle.runtime_sources().items():
         source = (
-            checkout / "services/backend/src/easyai/runtime/managed.py"
-            if name == "code/managed.py"
+            checkout / "services/backend/src/easyai/runtime" / Path(name).name
+            if name in {"code/managed.py", "code/dataset_inputs.py"}
             else checkout / "runtime" / Path(name).name
         )
         assert text.encode("utf-8") == source.read_bytes()

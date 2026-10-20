@@ -11,6 +11,7 @@ from uuid import uuid4
 from easyai.compiler.pipeline import Compilation
 from easyai.domain.catalog import RUNTIME_ROOT
 from easyai.domain.contracts import ProjectDocument
+from easyai.runtime.dataset_inputs import require_guarded_code
 
 if TYPE_CHECKING:
     from easyai.security.remote_cache import LocalDirectory
@@ -26,6 +27,10 @@ def runtime_sources() -> dict[str, str]:
     if not managed.is_file():
         managed = RUNTIME_ROOT / "managed.py"
     sources["code/managed.py"] = managed.read_text(encoding="utf-8")
+    inputs = Path(__file__).parents[1] / "runtime/dataset_inputs.py"
+    if not inputs.is_file():
+        inputs = RUNTIME_ROOT / "dataset_inputs.py"
+    sources["code/dataset_inputs.py"] = inputs.read_text(encoding="utf-8")
     return sources
 
 
@@ -39,6 +44,10 @@ def export_bundle(
     result, program = compilation.result, compilation.program
     if not result.runnable or result.code is None or result.source_map is None or program is None:
         raise ValueError("BUNDLE_NOT_RUNNABLE")
+    require_guarded_code(result.code)
+    from easyai.compiler.artifact_budget import validate_artifact_budget
+
+    validate_artifact_budget(program)
     # Standalone export exclusively claims the destination. Internal run export
     # borrows the owner's already exclusive claim; neither merges user output.
     if destination.name in ("", ".", "..") or destination.is_symlink():
