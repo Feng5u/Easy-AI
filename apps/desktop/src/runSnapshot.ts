@@ -1,4 +1,4 @@
-import type { RunSource } from "../electron/bridge.js";
+import type { ArtifactRecord, RunSource } from "../electron/bridge.js";
 import type { WorkspaceTab } from "./editor-contract.js";
 import { freezeSourceMap } from "./monaco-mapping.js";
 
@@ -9,6 +9,7 @@ export function captureRunSnapshot(source: RunSource) {
     (span) => (span.file ?? "train.py") === "train.py" && span.endLine <= lines,
   );
   const blocks = new Map<string, WorkspaceTab>();
+  const blockTypes = new Map<string, string>();
   let issue = "";
   if (
     (snapshot.schemaVersion ?? 1) !== 1 ||
@@ -36,6 +37,8 @@ export function captureRunSnapshot(source: RunSource) {
           if (blocks.has(block.id))
             issue = "旧运行包含重复积木 ID，不能可靠定位。";
           blocks.set(block.id, tab);
+          if (typeof block.type === "string")
+            blockTypes.set(block.id, block.type);
         }
         if (block.next && typeof block.next === "object")
           pending.push((block.next as Record<string, unknown>).block);
@@ -48,7 +51,31 @@ export function captureRunSnapshot(source: RunSource) {
       }
     }
   }
-  return { snapshot, spans, blocks, issue, code: source.code };
+  return { snapshot, spans, blocks, blockTypes, issue, code: source.code };
+}
+
+export function locateArtifactBlock(
+  view: ReturnType<typeof captureRunSnapshot> | null,
+  artifact: ArtifactRecord,
+  runId: string,
+  id: string,
+) {
+  if (artifact.runId !== runId)
+    return { blockId: null, issue: "此产物不属于本次运行，不能定位来源。" };
+  if (!view)
+    return { blockId: null, issue: "本次运行的来源尚未核验，暂不能定位。" };
+  if (
+    id !== artifact.producerBlockId &&
+    !artifact.contributorBlockIds.includes(id)
+  )
+    return { blockId: null, issue: "此积木未登记为该产物的来源。" };
+  const location = locateRunBlock(view, id);
+  return {
+    blockId: location.codeBlockId ? location.blockId : null,
+    issue:
+      location.issue ||
+      (location.codeBlockId ? "" : "此来源缺少可核验的积木和代码映射，不能定位。"),
+  };
 }
 
 export function locateRunBlock(

@@ -20,7 +20,11 @@ import type {
 import { ProjectEditor } from "./ProjectEditor.js";
 import { SnapshotCode } from "./RunSnapshotCode.js";
 import { RunDashboard } from "./RunDashboard.js";
-import { captureRunSnapshot, locateRunBlock } from "./runSnapshot.js";
+import {
+  captureRunSnapshot,
+  locateArtifactBlock,
+  locateRunBlock,
+} from "./runSnapshot.js";
 
 // Real Blockly serialization/manager and real React components. Only SVG host
 // rendering is replaced by headless handles; this is not Electron acceptance.
@@ -106,6 +110,42 @@ function source(): RunSource {
 function id(saved: RunSource, tab: "data" | "model" | "training") {
   return saved.sourceMap.find((span) => span.origin.workspace === tab)!.origin
     .blockId;
+}
+// Synthetic run/source protocol records over the actual saved Blockly fixture;
+// no generated program is executed and no training result is simulated.
+function figureSource(): RunSource {
+  const saved = source();
+  saved.snapshot = JSON.parse(
+    readFileSync(
+      new URL(
+        "../../../packages/contracts/fixtures/mnist-figures.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
+  saved.snapshot.name = "旧运行的图配置";
+  saved.snapshot.revision = saved.projectRevision;
+  const ids = [
+    "body-figure",
+    "body-0-panel",
+    "body-0-source",
+    "body-0-title",
+    "body-0-axis",
+    "body-0-legend",
+    "body-save",
+  ];
+  saved.code = ids
+    .map((blockId) => `# saved configuration ${blockId}`)
+    .join("\n");
+  saved.sourceMap = ids.map((blockId, index) => ({
+    file: "train.py",
+    startLine: index + 1,
+    endLine: index + 1,
+    kind: "semantic",
+    origin: { blockId, workspace: "training" },
+  }));
+  return saved;
 }
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -444,8 +484,167 @@ function dashboard(saved: RunSource, runId: string) {
       ),
     },
   } as unknown as DesktopAPI;
-  return { run, api, image, emit: (event: Event) => listener(event) };
+  return { run, api, artifact, image, emit: (event: Event) => listener(event) };
 }
+
+it("selects registered panel/source/style/savefig contributors in the immutable old snapshot despite a changed current project", async () => {
+  const saved = figureSource(),
+    before = JSON.stringify(saved),
+    current = structuredClone(saved.snapshot),
+    h = dashboard(saved, "old-figure-configuration"),
+    changed = vi.fn();
+  current.name = "已修改的当前工程";
+  current.revision += 1;
+  current.workspaces.training.blocks.blocks = [];
+  current.workspaces.model.blocks.blocks![0].id = "body-0-panel";
+  const currentBefore = JSON.stringify(current);
+  const contributors = saved.sourceMap
+    .slice(1)
+    .map((span) => span.origin.blockId);
+  h.artifact.contributorBlockIds = [...contributors, contributors[0]];
+  await render(
+    createElement(
+      Fragment,
+      null,
+      createElement(ProjectEditor, {
+        project: current,
+        readOnly: false,
+        selectedBlock: null,
+        activeTab: "model",
+        onTabChange() {},
+        onSelect() {},
+        onChange: changed,
+      }),
+      createElement(RunDashboard, {
+        api: h.api,
+        initialRun: h.run,
+        onRunUpdate: vi.fn(),
+      }),
+    ),
+  );
+  const currentManager = captured.managers.find((item) => !item.readonly)!;
+  const currentNavigation = [...currentManager.navigation];
+  const currentWorkspace = JSON.stringify(currentManager.manager.serialize());
+  await click("来源：body-figure");
+  const historical = captured.managers.find((item) => item.readonly)!;
+  const historicalBefore = JSON.stringify(historical.manager.serialize());
+  await click("查看配置");
+  const choices = Array.from(
+    container.querySelectorAll<HTMLButtonElement>(
+      ".artifact-contributors button",
+    ),
+  );
+  expect(choices).toHaveLength(contributors.length);
+  expect(choices.every((button) => !button.disabled)).toBe(true);
+  for (const [index, button] of choices.entries()) {
+    expect(button.textContent).toContain(contributors[index]);
+    await act(async () => button.click());
+    expect(historical.navigation.at(-1)).toEqual({
+      tab: "training",
+      id: contributors[index],
+    });
+    expect(container.querySelector(".code-selected")?.textContent).toContain(
+      `# saved configuration ${contributors[index]}`,
+    );
+  }
+  await act(async () => choices.at(-1)!.click());
+  expect(historical.navigation).toHaveLength(contributors.length + 2);
+  expect(JSON.stringify(historical.manager.serialize())).toBe(historicalBefore);
+  expect(currentManager.navigation).toEqual(currentNavigation);
+  expect(JSON.stringify(currentManager.manager.serialize())).toBe(
+    currentWorkspace,
+  );
+  expect(JSON.stringify(saved)).toBe(before);
+  expect(JSON.stringify(current)).toBe(currentBefore);
+  expect(changed).not.toHaveBeenCalled();
+  expect(h.api.runs.image).not.toHaveBeenCalled();
+});
+
+it.each([
+  "source-pending",
+  "source-mismatch",
+  "missing-block",
+  "missing-map",
+  "wrong-tab",
+  "unsupported-version",
+  "duplicate-id",
+])(
+  "disables and explains %s artifact configuration sources",
+  async (variant) => {
+    const saved = figureSource(),
+      h = dashboard(saved, "invalid-configuration"),
+      blockId = "body-0-panel";
+    h.artifact.contributorBlockIds = [blockId];
+    if (variant === "source-pending")
+      vi.mocked(h.api.runs.source).mockReturnValue(
+        deferred<RunSource>().promise,
+      );
+    if (variant === "source-mismatch")
+      vi.mocked(h.api.runs.source).mockResolvedValue({
+        ...saved,
+        codeHash: "f".repeat(64),
+      });
+    if (variant === "missing-block")
+      h.artifact.contributorBlockIds = ["foreign-not-in-old-snapshot"];
+    if (variant === "missing-map")
+      saved.sourceMap = saved.sourceMap.filter(
+        (span) => span.origin.blockId !== blockId,
+      );
+    if (variant === "wrong-tab") saved.sourceMap[1].origin.workspace = "model";
+    if (variant === "unsupported-version")
+      saved.snapshot.blockLibraryVersion = "9.0.0";
+    if (variant === "duplicate-id")
+      saved.snapshot.workspaces.model.blocks.blocks![0].id = blockId;
+    await render(
+      createElement(RunDashboard, {
+        api: h.api,
+        initialRun: h.run,
+        onRunUpdate: vi.fn(),
+      }),
+    );
+    await click("查看配置");
+    const choice = container.querySelector<HTMLButtonElement>(
+      ".artifact-contributors button",
+    )!;
+    expect(choice.disabled).toBe(true);
+    const reason = document.getElementById(
+      choice.getAttribute("aria-describedby")!,
+    );
+    expect(reason?.textContent?.length).toBeGreaterThan(0);
+    await act(async () => choice.click());
+    expect(captured.managers).toHaveLength(0);
+    expect(container.textContent).not.toContain("foreign-not-in-old-snapshot");
+  },
+);
+
+it("accepts only this artifact's declared source IDs and current run", async () => {
+  const saved = figureSource(),
+    h = dashboard(saved, "owned-configuration"),
+    view = captureRunSnapshot(saved);
+  h.artifact.contributorBlockIds = ["body-0-panel"];
+  const foreign = { ...h.artifact, runId: "foreign-run" };
+  expect(
+    locateArtifactBlock(view, foreign, h.run.runId, "body-0-panel").blockId,
+  ).toBeNull();
+  expect(
+    locateArtifactBlock(view, h.artifact, h.run.runId, "body-0-source").blockId,
+  ).toBeNull();
+  expect(
+    locateArtifactBlock(view, h.artifact, h.run.runId, "body-0-panel").blockId,
+  ).toBe("body-0-panel");
+  vi.mocked(h.api.runs.artifacts).mockResolvedValue([
+    { ...h.artifact, runId: "foreign-run" },
+  ]);
+  await render(
+    createElement(RunDashboard, {
+      api: h.api,
+      initialRun: h.run,
+      onRunUpdate: vi.fn(),
+    }),
+  );
+  expect(container.textContent).toContain("尚无已登记的真实产物");
+  expect(container.querySelector(".artifact-sources")).toBeNull();
+});
 
 it("artifact and runtime-error clicks open the actual run snapshot and synchronize old code", async () => {
   const saved = source(),
@@ -539,7 +738,10 @@ it("switching run rejects late source/image/events and does not reopen a closed 
   freshSource.snapshot.name = "另一次运行";
   freshSource.code = "fresh data\nfresh model\nfresh training";
   const fresh = dashboard(freshSource, "fresh"),
-    late = deferred<RunSource>();
+    late = deferred<RunSource>(),
+    lateArtifacts = deferred<ArtifactRecord[]>();
+  old.artifact.contributorBlockIds = [id(oldSource, "model")];
+  fresh.artifact.contributorBlockIds = [id(freshSource, "model")];
   await render(
     createElement(RunDashboard, {
       api: old.api,
@@ -547,9 +749,13 @@ it("switching run rejects late source/image/events and does not reopen a closed 
       onRunUpdate: vi.fn(),
     }),
   );
+  await click("查看配置");
   await click("查看图片");
   await click("关闭快照，返回运行结果");
   vi.mocked(old.api.runs.source).mockImplementation(() => late.promise);
+  vi.mocked(old.api.runs.artifacts).mockImplementation(
+    () => lateArtifacts.promise,
+  );
   await render(
     createElement(RunDashboard, {
       api: old.api,
@@ -567,8 +773,14 @@ it("switching run rejects late source/image/events and does not reopen a closed 
   const retiredNavigation = captured.managers.map(
     (item) => [item, item.navigation.length] as const,
   );
+  expect(
+    [...container.querySelectorAll("button")]
+      .find((button) => button.textContent === "查看配置")
+      ?.getAttribute("aria-expanded"),
+  ).toBe("false");
   await act(async () => {
     late.resolve(oldSource);
+    lateArtifacts.resolve([old.artifact]);
     old.image.resolve({ dataUrl: "data:image/png;base64,OLD" });
     old.emit({
       runId: "old",

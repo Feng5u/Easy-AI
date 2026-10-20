@@ -3734,3 +3734,18 @@ CI工作流on:[push,pull_request]，纯推两文档会额外全跑。已先向�
 保留的跳过门未改变：2项TS为显式CPU训练环境/自有根/合成输入未启用；Python1项同为显式CPU训练集成未启用，另18项为Windows native store/cache/host-key平台条件（7+3+8）。本轮Windows job118453828594全部SUCCESS，含该原生安全套件、开发态E2E、冻结backend/资源、打包保护/桌面build、ZIP审计、包内backend和Electron、一天留存。审计步骤记录ZIP435257098字节/hash dea65c6be70d79966677189df5f27166d0d1d2bd429b2f840a141ef45b42a111，未下载或独立重算该候选。
 
 首个因果回执SHA256 `76fc1a59bc3d331991f9be597c25a95e2cff7d68d91f2106205c7f297ede5d6c`、标准库probe脚本 `1ceec69907048bafb2381d8fb4dd2a5f040b0729ad2b1cc732e45733a711c5c5`、最终Linux完整日志 `cdff8e949f95455d161ad69f0c5e6bea1afd594dc6cf1fcbc744b7b81b05d635` 私有保存，旧失败证据不覆盖。原产品树12381b58之后生产代码、workflow、脚本与锁零差异；本轮仅测试合同修复，不改变“核验必须安全读取”规则。原件/README/main保持，最终收据仅docs提交[skip ci]避免重复CI；完整GREEN归属7d4a363完整SHA。无新本地依赖、训练、数据下载、真实SSH或发布；真实GUI历史快照像素验收及完整A/B边界保持。
+
+
+### 2026-10-20 M6.4 / M4.3：产物查看配置与旧贡献积木导航
+
+从开发分支 `2b692f82b0cd65dfb2aae396820ad8442c1e4788` 单写入者接续，父侧已独审接受前轮atime因果修复与全绿CI。重核原计划§10.3/M6.4/M4.3：figure以figure为producer，panel/source/style/savefig为contributors；点击文件来源定位producer，“查看配置”应允许选择contributors，并使用运行旧快照。实际缺口为文件卡只读producer和PNG，完全未消费contributorBlockIds。
+
+本轮最小UI为ArtifactSources：文件来源按钮继续定位producer，新增可展开“查看配置”，按产物登记顺序列出贡献积木、去重，以旧快照类型和现有积木目录显示名称，选择后复用既有递增navigationRequest进入只读旧快照并同步旧代码。没有重新推导/编造产物来源、路径输入或新renderer接口。无contributors时解释并禁用配置入口；未核验source、缺块/缺map/错tab/不支持版本/重复ID时逐项解释并禁用定位。界面使用button、aria-expanded/controls/describedby和React useId，CSS仅隔离嵌套列表与按钮布局。
+
+来源先经RunDashboard既有project/revision/programHash/codeHash与run绑定和迟到响应隔离；新的locateArtifactBlock再核artifact.runId、目标须为该artifact登记的producer/contributors、旧snapshot ID和有效同workspace代码map。图片预览的producer定位也使用同一门。不会查当前已改工程、接受任意ID或在缺map时猜行。记录图片可读状态仍由syncState控制，不将远端产物事件冒充本地文件可打开。
+
+必要回归使用实际mnist-figures Blockly保存fixture上的明确合成run/source协议记录，不执行生成程序或冒充训练指标。六类panel/source/title/axis/legend/savefig配置逐项点击、重复点击、旧代码同步，新旧快照不变；当前工程删除training且复用旧panel ID为当前model，仍只能导航只读旧manager。另覆盖七类不可用来源、foreign-run/未登记ID拒绝，原迟到source/image/events测试增加artifact响应和配置展开状态跨run隔离。
+
+独立只读审查未见明确P1/P2；Node24原生stripTypeScriptTypes后实际执行当前runSnapshot/monaco-mapping纯逻辑，7个合法producer/contributor及foreign-run/未登记/null view/缺块/缺map/错tab/版本/重复ID边界通过，输入JSON不变；新增测试语法解析与git diff --check PASS，不累加为完整套件。两TSX按既有React best-practices核hooks/派生属性/只读与可访问性，未增加effect或跨run共享状态。本地node --check与diff检查PASS；因无React/Vitest/项目node_modules，本地完整类型/格式/React测试NOT RUN，未安装依赖，等待本次必要产品变更后的自然CI实际结果。
+
+原main、计划/规格/README/两锁保持；只提交本切片及必要记录，不改backend/CI工作流，不再围绕atime加外围测试。没有第二次训练、新数据下载、SSH或本地依赖安装。此切片不等于历史快照真实GUI像素验收或完整A/B完成。

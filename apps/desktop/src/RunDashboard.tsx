@@ -1,4 +1,5 @@
 import { RunObjects } from "./RunObjects.js";
+import { ArtifactSources } from "./ArtifactSources.js";
 import { safeReport } from "../electron/diagnostic-report.mjs";
 import type { DiagnosticReport } from "../electron/bridge.js";
 import { FailureCard, operationFailure } from "./FailureCard.js";
@@ -26,7 +27,11 @@ import type {
   RuntimeDiagnostic,
 } from "./runEvents.js";
 import { SnapshotCode } from "./RunSnapshotCode.js";
-import { captureRunSnapshot, locateRunBlock } from "./runSnapshot.js";
+import {
+  captureRunSnapshot,
+  locateArtifactBlock,
+  locateRunBlock,
+} from "./runSnapshot.js";
 import type { SnapshotRequest } from "./RunSnapshotCode.js";
 
 const LOG_WINDOW = 120_000;
@@ -521,7 +526,13 @@ function RunDashboardForRun({
   async function preview(artifact: ArtifactRecord) {
     const request = ++imageRequest.current;
     setImageError(null);
-    setSelectedBlock(artifact.producerBlockId);
+    const producer = locateArtifactBlock(
+      sourceView,
+      artifact,
+      runId,
+      artifact.producerBlockId,
+    );
+    if (producer.blockId) setSelectedBlock(producer.blockId);
     try {
       const result = await api.runs.image(runId, artifact.artifactId);
       if (!result.dataUrl.startsWith("data:image/png;base64,"))
@@ -722,13 +733,12 @@ function RunDashboardForRun({
                       ? "已就绪"
                       : artifact.syncState}
                   </span>
-                  <button
-                    type="button"
-                    className="text-button"
-                    onClick={() => setSelectedBlock(artifact.producerBlockId)}
-                  >
-                    来源：{artifact.producerBlockId}
-                  </button>
+                  <ArtifactSources
+                    artifact={artifact}
+                    runId={runId}
+                    view={sourceView}
+                    onLocate={setSelectedBlock}
+                  />
                 </div>
                 {artifact.kind === "figure" &&
                   artifact.mimeType === "image/png" && (

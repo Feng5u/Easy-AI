@@ -339,7 +339,7 @@ th {
   list-style: none;
   padding: 0;
 }
-.artifacts li {
+.artifacts > li {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -347,7 +347,7 @@ th {
   padding: 12px 0;
   border-bottom: 1px solid #e3ebe0;
 }
-.artifacts li > div {
+.artifacts > li > div {
   display: grid;
   overflow-wrap: anywhere;
   min-width: 0;
@@ -355,6 +355,11 @@ th {
 .artifacts li span {
   font-size: 12px;
   color: #617567;
+}
+.artifact-sources {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
 }
 .image-preview {
   margin: 18px 0 0;
