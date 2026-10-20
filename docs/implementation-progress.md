@@ -3711,3 +3711,9 @@ CI工作流on:[push,pull_request]，纯推两文档会额外全跑。已先向�
 当前本地 `node --check apps/desktop/src/RunSnapshot.test.mts` 与 `git diff --check` PASS；当前实例无项目 node_modules，未安装依赖，本地整套check/test/build NOT RUN。修复后的现有冻结CI结果待观察，不能预记GREEN。本轮未重复训练、下载数据、安装训练环境或执行SSH；真实MNIST一次quick的证据保持原归属，完整A/B和实际GUI验收仍未关闭。
 
 产品修复 `4d0ee60a99cbda99a6dbee2e2fa0bc40e4ff79da` 的 [CI39368371032](https://github.com/T1doo/Easy-AI/actions/runs/39368371032) check PASS，四个新增导航回归均PASS；完整TS结果403通过/1失败/2跳过。唯一失败为原FigureInspector历史快照测试的JSDOM没有scrollIntoView，新增显式导航首次实际触达此浏览器方法。仅为该夹具提供记录方法并断言调用参数，更新选择回显的显式false参数断言且保留真实manager导航断言；不改产品滚动、不弱化检查。最终GREEN仍待此必要夹具修正后的自然CI。
+
+最终测试/产品树 `12381b58b1a7728b131de767631cc1ee41b7de72` 的 [CI39368567470](https://github.com/T1doo/Easy-AI/actions/runs/39368567470) attempt1已终态。Linux job118450933463 check PASS，49项RunSnapshot、22项FigureInspector、4项真实SVG编辑器测试均PASS，完整TS404通过/2跳过。随后Python为958通过/19跳过/1失败（另12 subtests通过、1既有warning），唯一失败 `test_existing_run_conflicts_never_overwrite[content]` 在 `test_owner_transport.py:330` 比较完整stat_result：只st_atime由1792469790变为1792469791；mode/inode/device/links/uid/gid/size/mtime/ctime保持。该日志支持访问时间变化触发断言，不能把整套记为PASS。当前backend/scripts/workflow与基线零差异；不改这项安全测试、不无变更重跑。后续Node测试及Linux build被既有串联命令跳过，均NOT RUN。
+
+同一SHA的Windows job118450933126全部SUCCESS，含原生安全、冻结backend/资源、开发态E2E、桌面build、打包保护、ZIP审计、包内backend及包内Electron场景、一天候选留存。候选字节435257098、SHA256 e82d7a2e1b70d111812544e2094d37026b22219583cc4d69fd5e5b9c718dc91e来自成功审计步骤元数据，本执行器未下载或独立重算。最终当前导航修复回归通过，但整套GREEN仍被上述未改动的后端断言阻挡，交父侧独审，不称完整A/B。
+
+原始RED日志SHA256 `2a1e8d2a93e041d7071f058a7e4821a93b29182772cfb4c79c73f85d7d42355c`；首次格式失败和夹具失败也完整私有保留。原件/README/两锁与main保持不变、工作树无其他写入者变更。本段仅回填实际结果，纯docs提交使用[skip ci]不追加CI，也不将跳过视为PASS；产品/测试证据仍绑定12381b58完整SHA。无第二次训练、数据下载、新本地依赖、SSH或发布操作。
