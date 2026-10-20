@@ -3683,3 +3683,16 @@ CI工作流on:[push,pull_request]，纯推两文档会额外全跑。已先向�
 执行宿主为Python3.12.14/Pydantic2.13.4，不冒充冻结Python3.11环境。当前没有项目venv/node_modules及pytest/ruff/mypy，遵守本轮不安装要求，`pnpm check/test/build`与冻结全套、实际Windows回归均NOT RUN；不将旧CI或本轮定向测试回填为当前整套PASS。原始RED日志SHA256 `0ed39ac4079eefaac8952d87f55738869c8d74a1e429a2a6ef938ef28772b08a`，GREEN日志 `1fd6a679d98e821537e9de5ad274b1232d2a2721c23aa46fc1c5901750498a4f`，保留在仓库外私有证据目录。
 
 本轮仅此原计划协议修复、故障回归和必要进度记录，正常开发分支推送供冻结CI复核，不使用skip标记绕过产品检查。未改原件、需求、README、锁、应用安全门、训练环境、数据、远端教师环境或许可；无真实SSH、新凭据/权限/费用、main/PR/Release/部署。原完整A/B及真实MNIST、SSH、干净机/平台/许可验收仍分别未完成。
+
+
+### 2026-10-20 用户明确批准后：独立锁定环境与唯一真实MNIST quick PASS
+
+本轮先核本地/远端产品源码 `352c91014f5e4c517b8339b15adbcbad19c955db`、原计划哈希及已有数据，未发现活动训练。该源码唯一自然[CI39357036818](https://github.com/T1doo/Easy-AI/actions/runs/39357036818) attempt1已全SUCCESS：Linux冻结安装/check/test/build，Windows现有开发态/包内桌面场景、冻结后端/安全/退出/ZIP审计及一天留存全部通过。只读run/jobs/steps证据，不读受限日志或下载artifact，不追加CI。
+
+父级收到用户03:44安装许可后，独立新目录安装Python3.11.17和原CPU锁21包，不改系统/宿主/共享训练环境。Python固定官方URL/SHA256及全部wheel来源/hash/大小核对后离线安装，uv pip check及真实CPU健康检查PASS；详细来源、版本和预算见[真实MNIST回执](real-mnist-acceptance-readiness.md)。未重复下载原MNIST，raw硬链接整理目录，前后MD5及gzip/raw摘要对照通过，无许可身份猜测或数据再分发。
+
+实际命令 `python3 -I -B <private-root>/run-real-mnist.py`（此处路径脱敏，完整argv/脚本/日志私有保留）一次执行生产LocalWorkspace保存/编译/预检、RunService不可变快照和真实entry协议；原生成模型/训练循环未替换。03:54:40 UTC唯一start，CPU1024训练/256测试、1epoch、两loader batch64、seed42、workers0，10.123248秒SUCCEEDED/exit0。真实loss2.2593740820884705、测试准确率0.390625，CSV/事件一致；8/8参数张量更新且有限，3PNG实际解码、831555字节最终state_dict及四产物hash/来源映射通过。重建初始模型只检查同类/seed的初始化，不再训练/评估。
+
+13应用/9执行事件连续，唯一epoch/completion，stderr空；workspace关闭、supervisor quiescent且child退出，未遗留本次进程。输出receipt时1327569字节、后验保守总量2219333988字节，未触及256MiB/5GB或600秒+30秒边界。receipt SHA256 `94f4354414eaf5beb2cdfe3cd30778842d13742030b1095038c164f9856be062`、后验 `9ec4e724b78b3bb5ebe4e0e8a8f2ff469e10480ad325cd752817f4c60223bf89`；完整文件/hash和失败历史均在仓库外保存，本轮无第二次训练。
+
+本轮只有脱敏证据文档，没有产品/测试/锁改动；不重复check/test/build或训练，不把证据提交视作新产品CI。纯文档正常开发分支推送使用[skip ci]避免额外CI，保留352c910真实产品CI归属；main、原件/规格/README/两锁未改，无PR/Release/部署。只关闭真实小样本后端切片，实际GUI点击映射、SSH、干净机、正式10轮、硬件/许可及完整A/B仍分别未验收，不给虚构完成百分比。

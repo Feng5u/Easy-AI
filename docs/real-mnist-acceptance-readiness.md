@@ -1,7 +1,24 @@
-# 真实 MNIST 小样本 CPU 验收：已授权，首次下载被代理拒绝
+# 真实 MNIST 小样本 CPU 验收：单次后端切片 PASS
 
+## 2026-10-20 03:55 UTC：新实例真实执行结果
 
-## 2026-10-20 新授权与实际结果
+父级转达用户03:44明确批准在独立目录重建原锁定训练环境，并接续唯一一次真实MNIST quick。本次实际产品源码为 `352c91014f5e4c517b8339b15adbcbad19c955db`，对应[CI39357036818](https://github.com/T1doo/Easy-AI/actions/runs/39357036818) Linux/Windows全部SUCCESS；未退回旧实现、修改产品代码或借文档提交触发重复CI。原计划、规格、README和两锁保持。
+
+已安装：独立CPython3.11.17及原CPU锁21包，torch2.10.0+cpu、torchvision0.25.0+cpu、NumPy2.4.2、Matplotlib3.10.8。Python归档来自固定uv0.12.23的[官方元数据](https://raw.githubusercontent.com/astral-sh/uv/0.12.23/crates/uv-python/download-metadata.json)，20261003 Linux x86_64 install-only归档30,785,899字节，本地SHA256 `aadcba18994cb8f9ee752aceb31d61e04f75b5d900d76fb575c6fbfabadec434`匹配；安全路径/链接检查后解包，许可说明保留。全部21个wheel来自原来源清单，240,772,699字节，逐项SHA256、精确大小、包名/版本与展开大小通过后，uv以offline/no-index/only-binary/require-hashes同步原锁；无新增候选包或交互接受条款。依赖一致性、CPU卷积、CPU NMS、NumPy转换和Agg PNG解码PASS，无健康检查训练。系统/宿主/共享环境未安装训练包，宿主Torch spec仍None。
+
+原先四文件已在新配置下下载成功，此轮没有重下MNIST。训练前后均核四项压缩MD5，后验还将gzip重新流式解压的SHA256与原raw逐字节摘要对照，通过；私有MNIST/raw结构只建立原raw的硬链接，不改数据内容。原训练/测试来源分别为60,000/10,000条，本次分别只用前1024/256条，未将训练集冒充测试集，不做数据/图像/权重公开再分发或猜测许可证身份。
+
+真实链：LocalWorkspace创建示例工程→设置quick/seed42/两个loader的batch64/1epoch→保存revision2→真实Python编译器→所选独立Python及数据预检→RunService.prepare不可变快照/Bundle→RunService.start一次→真实entry/runtime协议。编排使用本实例已有Python3.12.14/Pydantic2.13.4；实际训练子进程使用锁定Python3.11.17，不把宿主当作冻结应用环境验收。执行命令经脱敏记为 `python3 -I -B <private-root>/run-real-mnist.py`；实际完整argv、脚本、日志和运行目录均保留在私有证据内。独占attempt标记在唯一start前落盘，无第二次训练或追加评估循环。
+
+实际启动03:54:40 UTC，runId `be6f1659-082a-4fd9-96bf-04a16e919b24`，状态SUCCEEDED、exit0；含解释器启动和图表的受管墙钟10.123248秒，指标自身elapsed_seconds=0.842151752。实际device=cpu、workers0、pinMemory=false；配置设备策略auto在该CPU-only环境中实际选CPU，未使用GPU。唯一epoch的真实 `train_loss=2.2593740820884705`、`test_accuracy=0.390625`（39.0625%）、train_samples1024/test_samples256，与CSV及事件一致；这是小样本一轮结果，不作为正式十轮学习效果。
+
+13条应用事件、9条执行事件连续且同runId，唯一epoch/completion、process_exited0、无runtime_error；普通stderr为空。最终state_dict831,555字节，SHA256 `c1cb78af5eab974e9756555c9c5b857b807bfe5f23a5939e89d1aa5a822625b2`；自身权重用weights_only加载，8/8张量有限且变化。初始基线在start前从同一生成类/seed初始化，后验重建哈希相同；没有将重建初始参数冒称另一次训练。三张1000×600 PNG实际Pillow解码通过；四产物hash/大小/producer及contributors、代码/Bundle/旧快照source-map均核验通过。
+
+programHash `111c12137238e2a48262e95ab1d4eae8c362b4cb1d410d343a35521965fe8b75`；codeHash `8d2d72cca7de25d2d2f26a7184506ac86e8bac5e5ea9111cfdf02e2497b55d8b`；bundleHash `d5b91ba9c564ce69a2302a80f636fcfeb0572d57d6486e841f4adba091f5f53a`。私有receipt SHA256 `94f4354414eaf5beb2cdfe3cd30778842d13742030b1095038c164f9856be062`，后验核查 `9ec4e724b78b3bb5ebe4e0e8a8f2ff469e10480ad325cd752817f4c60223bf89`，实际命令全日志 `4d78162076b7e865eb22df0debe65720786642b192ea62f419e46d5c24cb3629`。
+
+工作区已close，监督线程quiescent、持有child已退出、无本次训练/参数检查进程；清理0.002514秒，无超时或取消。新输出在receipt时1,327,569字节，后验保守总占用2,219,333,988字节（包括Python、wheelhouse、缓存、环境、临时文件、数据硬链接重复计量及原数据），分别低于256MiB和5GB。此结果仅关闭真实小样本后端执行切片，不代表实际GUI点击映射、干净机、真实SSH、正式10轮或完整A/B通过；不造百分比或将旧合成数据结果改名。
+
+## 历史：首次授权与代理失败
 
 以下旧章节保留准备时的历史状态；当前缺项已从“授权/来源”变为“允许取得数据的路径”。父线程01a14dbf-e27d-721e-888a-587c8c296022转达用户允许寻找公开真实数据，随后明确批准一次CPU quick：最多1024训练/256测试、1epoch、batch64、seed42、600秒加30秒清理、新输出256MiB、既有训练根总5,000,000,000字节；不新增依赖、不用GPU、不改共享环境。训练/测试集分离，不重复合成TST34，也不作为正式10轮/完整A或B验收。
 
