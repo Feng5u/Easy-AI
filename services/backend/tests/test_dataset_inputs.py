@@ -1,8 +1,10 @@
 """Synthetic paths and constructor traps only; no torch or .pt deserialization."""
 
+import ast
 import importlib
 from pathlib import Path
 import struct
+import sys
 from types import SimpleNamespace
 
 import pytest
@@ -38,6 +40,65 @@ class MNIST(Stub):
 
 class FashionMNIST(Stub):
     pass
+
+
+@pytest.mark.parametrize("name", ["MNIST", "FashionMNIST"])
+def test_legal_model_name_cannot_shadow_dataset_constructor(tmp_path, monkeypatch, name):
+    from easyai.compiler.pipeline import compile_project
+    from test_compilation import project
+
+    value = project("mnist")
+    value.workspaces.model.blocks.blocks[0]["fields"]["NAME"] = "construct_dataset"
+    for block in value.workspaces.data.blocks.blocks:
+        if block["type"] == "data.dataset_builtin":
+            block["fields"]["DATASET_NAME"] = name
+    result = compile_project(value).result
+    assert result.runnable
+    tree = ast.parse(result.code)
+    model = next(node for node in tree.body if isinstance(node, ast.ClassDef))
+    assert model.name == "construct_dataset"
+    helper = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.ImportFrom) and node.module == "dataset_inputs"
+    )
+    assignments = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Assign)
+        and isinstance(node.value, ast.Call)
+        and any(
+            isinstance(arg, ast.Attribute)
+            and isinstance(arg.value, ast.Name)
+            and arg.value.id == "datasets"
+            for arg in node.value.args
+        )
+    ]
+    assert len(assignments) == 2
+    namespace = {
+        "nn": SimpleNamespace(Module=object),
+        "datasets": SimpleNamespace(**{name: globals()[name]}),
+        "context": SimpleNamespace(data_root=tmp_path),
+    }
+    for assignment in assignments:
+        transform = next(
+            item.value for item in assignment.value.keywords if item.arg == "transform"
+        )
+        assert isinstance(transform, ast.Name)
+        namespace[transform.id] = "stub-transform"
+    monkeypatch.setitem(sys.modules, "dataset_inputs", inputs)
+    # Execute only the actual import, class definition and two constructor lines.
+    # No generated main(), model instantiation, torch, tensors or data contents.
+    selected = ast.Module(body=[helper, model, *assignments], type_ignores=[])
+    exec(compile(selected, "<constructor-scope>", "exec"), namespace)
+    for assignment, train in zip(assignments, (True, False), strict=True):
+        target = assignment.targets[0]
+        assert isinstance(target, ast.Name)
+        selected_data = namespace[target.id]
+        assert isinstance(selected_data, globals()[name])
+        assert selected_data.options == dict(
+            root=str(tmp_path), train=train, transform="stub-transform", download=False
+        )
 
 
 def raw_data(root, name):
@@ -151,7 +212,9 @@ def test_old_direct_constructor_is_not_executable_or_exportable_but_code_is_pres
     from test_compilation import project
 
     compiled = compile_project(project())
-    code = compiled.result.code.replace("construct_dataset(datasets.MNIST, ", "datasets.MNIST(")
+    code = compiled.result.code.replace(
+        "_easyai_construct_dataset(datasets.MNIST, ", "datasets.MNIST("
+    )
     compiled.result.code = code
     with pytest.raises(ValueError, match="DATASET_INPUT_GUARD_REQUIRED"):
         export_bundle(compiled, tmp_path / "must-not-exist")
@@ -165,7 +228,9 @@ def test_old_created_snapshot_cannot_start_or_be_rewritten(owned, monkeypatch):
     from easyai.services import run_service
 
     compiled = compile_project(owned[2])
-    old = compiled.result.code.replace("construct_dataset(datasets.MNIST, ", "datasets.MNIST(")
+    old = compiled.result.code.replace(
+        "_easyai_construct_dataset(datasets.MNIST, ", "datasets.MNIST("
+    )
     compiled.result.code = old
     compiled.result.code_hash = hashlib.sha256(old.encode()).hexdigest()
     # Build a prior-version fixture with internally consistent immutable hashes.

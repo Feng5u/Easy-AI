@@ -251,7 +251,15 @@ test("secure desktop, Dataset error repair, Monaco and saved project reopen", as
     await expect(
       symbols.getByLabel("所选积木类型", { exact: true }),
     ).toHaveText("data.dataloader");
-    await mappedLine.click({ position: { x: 4, y: 4 } });
+    await monaco.scrollIntoViewIfNeeded();
+    // Click visible declaration text, not the top-left edge of a virtualized
+    // whole line that can be wider than the editor and clipped by its layers.
+    const declaration = mappedLine
+      .locator(":scope > span > span")
+      .filter({ hasText: /\S/ })
+      .first();
+    await expect(declaration).toBeInViewport({ ratio: 1 });
+    await declaration.click();
     await expect(symbols.getByLabel("所选积木 ID", { exact: true })).toHaveText(
       datasetId,
     );

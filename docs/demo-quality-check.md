@@ -1,6 +1,6 @@
 # 演示检查与冻结边界（2026-10-20）
 
-用户要求先等待、再检查演示，因此合并 main 与 Release 均暂停。基线产品为 `acdf3e6f74ac9835c0656060e7cf9f46f51b790b`，其 Linux/Windows [CI39376641569](https://github.com/T1doo/Easy-AI/actions/runs/39376641569) 成功；本次只修复检查发现的来源面板折叠问题并补演示验收，不增加产品范围。最终候选 SHA、CI 和 artifact 另在进度记录冻结，不能把基线的绿灯转移给修复版本。
+用户要求先等待、再检查演示，因此合并 main 与 Release 均暂停。基线产品为 `acdf3e6f74ac9835c0656060e7cf9f46f51b790b`，其 Linux/Windows [CI39376641569](https://github.com/T1doo/Easy-AI/actions/runs/39376641569) 成功；本次修复检查发现的来源面板折叠、重复定位和输入安全问题并补演示验收，不增加产品范围。最终候选 SHA、CI 和 artifact 另在进度记录冻结，不能把基线的绿灯转移给修复版本。
 
 ## 可实际演示的顺序
 
@@ -21,6 +21,8 @@
 ## 发现与限制
 
 后续独立安全检查发现并修复HTTP鉴权前body读取、MNIST legacy缓存、产物登记预算和安装来源预算顺序；同时补同来源Monaco重复定位。见[本次安全修复](security-review-20261020.md)。6052609 Windows新增重开日志断言曾FAIL，分页等待窗口已作有根据的修正；最终状态必须以新冻结提交CI为准，不能借基线绿灯放行。合并/Release仍暂停。
+
+55d6797的Windows E2E另有两处真实失败：Monaco虚拟滚动被错误的DOM scrollTop前置判断掩盖、长Dataset行左上点击被编辑器视图层拦截；分别改为真实键盘回顶部并核实际代码、可见文本token正常点击。父级还发现合法construct_dataset模型名覆盖新增helper，已用不可被用户占用的内部别名修复，保留合法命名。上述失败均保留，新SHA的开发态和包内结果待实际CI，旧候选不能冒充已包含修复。
 
 独审发现原生 details 的 summary 可把 DOM open 改成 false，而 React 保存的 open prop 仍为 true；再次来源请求只更新版本，不会重新打开。新增纯内存回归先真实 FAIL，再由导航 layout effect 对每次显式请求恢复 open；原生 Blockly 选择回声 `navigate=false` 不强制展开，待派发 toggle 不清除新请求。真实 Windows E2E 包含同一折叠/再点来源操作。
 

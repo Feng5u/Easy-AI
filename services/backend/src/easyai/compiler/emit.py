@@ -70,7 +70,8 @@ def emit_program(program: ProgramIR) -> tuple[str, list[SourceSpan]]:
             emitted_imports.add(statement)
     line("import torchvision")
     line("from easyai_runtime import RunContext")
-    line("from dataset_inputs import construct_dataset")
+    # User identifiers must start with a letter; keep helper bindings outside that namespace.
+    line("from dataset_inputs import construct_dataset as _easyai_construct_dataset")
     if training.before or training.body or training.after:
         line("import matplotlib")
         line("matplotlib.use('Agg')")
@@ -181,7 +182,7 @@ def emit_program(program: ProgramIR) -> tuple[str, list[SourceSpan]]:
         line(
             base
             + (
-                f"{variable} = construct_dataset(datasets.{dataset.dataset_name}, root=str(context.data_root), train={dataset.split == 'train'}, transform={transform_names[dataset.transform_id]}, download=False)"
+                f"{variable} = _easyai_construct_dataset(datasets.{dataset.dataset_name}, root=str(context.data_root), train={dataset.split == 'train'}, transform={transform_names[dataset.transform_id]}, download=False)"
                 if dataset.dataset_name in {"MNIST", "FashionMNIST"}
                 else f"{variable} = datasets.{dataset.dataset_name}(root=str(context.data_root), train={dataset.split == 'train'}, transform={transform_names[dataset.transform_id]}, download=False)"
             ),

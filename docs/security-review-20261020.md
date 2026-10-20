@@ -22,6 +22,8 @@ bytearray避免无限多小块对象；超限/超时在下游响应开始前单�
 
 此门消除了legacy选择竞态，不等于对同UID恶意进程任意替换raw内容/父路径提供完整隔离；既有raw文件安全与教师准备可信数据前提保留。CIFAR官方pickle/fullMD5门不变。
 
+父级在55d6797独审发现确定P2回归：新增公开helper导入名construct_dataset不在保留词中，合法同名模型class会覆盖它；纯编译/AST检查仍通过，构造数据集才TypeError。改为生成代码内部别名_easyai_construct_dataset，沿用既有用户名称必须以英文字母开头的规则，保留原合法模型名；不扩大前后端保留词。两种数据集的因果stub回归先真实TypeError、修复后通过，只执行实际生成import/class定义/两条构造语句，没有main/model实例/torch/数据内容读取。既有绑定覆盖测试补查所有import/as绑定；其余新增helper均在独立sidecar/helper模块，无用户模型共享绑定。旧Bundle拒绝回归保持有效。
+
 ## 产物计划与安装来源预算
 
 原300epoch/每轮一图的工程可编译，而远端第257条artifact及64KiB receipt/cache index会拒绝，可能留下未封存/未知状态。新增纯预算检查按before + epochs×body + after +最终model计数（quick按1轮），同时保守计算owner UTF8 receipt与本地ASCII cache index（含optional null规范化）的较大字节数，保留256条/64KiB现有门；identity/UID/sourceSeq预留16KiB。实际figure物理路径、producer和contributors进入预算；不只按记录数或ASCII估算。编译、导出、本地正式start、远端freeze共同检查，无法完成的计划不启动。纯测试覆盖300轮、低count但receipt超额、Unicode配置、quick与正式10轮示例；不训练或远端连线。
@@ -37,3 +39,5 @@ bytearray避免无限多小块对象；超限/超时在下游响应开始前单�
 独审另核实同一来源再次点击只重定位Blockly，不会使用户滚离的Monaco回到对应代码。已将显式导航版本贯通SnapshotCode→CodeView惰性初始化/effect→controller；新版本才重复reveal，同版本/普通轮询不重滚。controller因果回归先FAIL（预期2次、实际1次），再通过；真实WindowsE2E新增手动滚离→同来源→高亮回视口。原summary折叠重开修复保留，未扩大UI范围。
 
 本轮独立只读代码复审最终ACK，不能代替运行结果。最后完整check/test、实际build与后续Windows开发态/包内E2E收据见implementation-progress末节。正式十轮、真实SSH、干净Windows11、真实安装与完整A/B仍NOT RUN；合并与Release继续等待用户。
+
+55d6797 / CI39381413118随后为LinuxSUCCESS、Windows开发E2E2PASS/2FAIL，后续打包/包内测试/候选上传均SKIPPED，不作为可交付通过。第一处新增测试把Monaco原生DOM scrollTop=0当作虚拟滚动顶部，实际高亮仍在视口；改用真实textbox聚焦和ControlOrMeta+Home，并核顶部代码可见、高亮离开，才检查同来源重新定位。第二处原startup点击长声明整行左上角时被html/scroll-decoration阻拦；改为先显示Monaco，再对精确Dataset声明中完整可见的非空文本token正常点击，原DataLoader→Dataset反向定位断言不变。没有force、dispatchEvent、内部editor测试API或sandbox修改；新的真实Windows结果仍须绑定新SHA。

@@ -176,6 +176,11 @@ def test_model_scope_reserved_names_cover_all_generated_bindings():
             for node in ast.walk(tree)
             if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store)
         }
+        bindings.update(
+            node.asname or node.name.split(".")[0]
+            for node in ast.walk(tree)
+            if isinstance(node, ast.alias)
+        )
         assert {name for name in bindings if not name.startswith("_")} <= RESERVED
 
 
