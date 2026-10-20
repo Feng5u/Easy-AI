@@ -3728,3 +3728,9 @@ CI工作流on:[push,pull_request]，纯推两文档会额外全跑。已先向�
 生产逻辑无须改动。最小测试修复仍覆盖五类冲突：测试内容采样移到基线前，content设置旧atime稳定覆盖relatime条件，拒绝后的元数据在测试回读内容前采集。逐项保留dev/inode/mode/nlink/uid/gid/size/mtime_ns/ctime_ns、原始内容或链接目标、source目标完整stat与一次rename/无执行断言。新增open模式/chmod/listdir夹具hook，操作白名单只允许SFTP ack、lstat、listdir、rb open/read和close；违规尝试先记账再阻止，拒绝后再次核审计防异常被产品转换为RemoteUnavailable后假通过。safe普通文件必须确有读取，symlink/writable必须没有open/read且atime仍精确相等，所有读取只限冻结bundle文件。没有简单删除atime字段或降低不读取危险路径/不修改/不执行门。
 
 当前本地Python3.11语法解析与git diff --check PASS，定向标准库因果probe PASS；当前无项目pytest/paramiko，未安装，完整冻结测试等待本次必要测试合同变更后的自然CI，不能预记PASS。只修改测试夹具/断言与进度记录，不新增生产行为、训练、数据、SSH、依赖或CI工作流。
+
+修复SHA `7d4a3631c3193009dde81c5ff5511a7cb6d94333` 的唯一自然 [CI39369472545](https://github.com/T1doo/Easy-AI/actions/runs/39369472545) attempt1已全部SUCCESS。Linux job118453828069完整check/test/build成功：TS404通过/2跳过，Python959通过/19跳过/12 subtests通过、85.33秒、1既有warning；随后Node36通过/0跳过，实际桌面Vite/TS与Linux PyInstaller build均完成。原五类冲突用例由完整pytest收集并通过，未删除安全断言或通过无变更重跑碰运气。
+
+保留的跳过门未改变：2项TS为显式CPU训练环境/自有根/合成输入未启用；Python1项同为显式CPU训练集成未启用，另18项为Windows native store/cache/host-key平台条件（7+3+8）。本轮Windows job118453828594全部SUCCESS，含该原生安全套件、开发态E2E、冻结backend/资源、打包保护/桌面build、ZIP审计、包内backend和Electron、一天留存。审计步骤记录ZIP435257098字节/hash dea65c6be70d79966677189df5f27166d0d1d2bd429b2f840a141ef45b42a111，未下载或独立重算该候选。
+
+首个因果回执SHA256 `76fc1a59bc3d331991f9be597c25a95e2cff7d68d91f2106205c7f297ede5d6c`、标准库probe脚本 `1ceec69907048bafb2381d8fb4dd2a5f040b0729ad2b1cc732e45733a711c5c5`、最终Linux完整日志 `cdff8e949f95455d161ad69f0c5e6bea1afd594dc6cf1fcbc744b7b81b05d635` 私有保存，旧失败证据不覆盖。原产品树12381b58之后生产代码、workflow、脚本与锁零差异；本轮仅测试合同修复，不改变“核验必须安全读取”规则。原件/README/main保持，最终收据仅docs提交[skip ci]避免重复CI；完整GREEN归属7d4a363完整SHA。无新本地依赖、训练、数据下载、真实SSH或发布；真实GUI历史快照像素验收及完整A/B边界保持。
