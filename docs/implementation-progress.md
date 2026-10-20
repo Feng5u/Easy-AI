@@ -3773,3 +3773,15 @@ Windows job118458925751全部SUCCESS，含原生安全、冻结backend与资源�
 保持 `chromiumSandbox:true` 的本机系统Chromium实际启动FAIL：`/usr/lib/chromium/chrome-sandbox`非root所有，浏览器在打开页面前SIGABRT；未关闭sandbox或修改系统权限。因此本机GUI/20px像素验收NOT RUN，不以JSDOM受控303px几何冒充。新增 `tests/e2e/run-logs.spec.ts` 与 `seed-log-run.py`，通过真实LocalWorkspace/RunService.prepare建立测试自有CREATED未启动记录，恢复实际App/IPC/read_log链，覆盖大量空行、跨页CRLF、中文emoji、宽行双向滚动、末行可见、暂停仍采集、独立历史及终态不完整UTF-8；断言无runtime_started/epoch/process_spawn，取消仅作用于该CREATED夹具。正常及失败路径均取消自有未启动记录后确认应用退出，不启动训练或读取数据。新测试TS类型、Ruff与Playwright收集PASS；真实Electron执行待本次自然Windows开发态与包内CI，尚不能称PASS。
 
 独立只读审查覆盖WIP7文件、两路本地/远端read_log合同与新增测试；发现的失败清理缺口已补精确fixture.runId取消，复审无确认P1/P2。React best-practices复核hooks/派生状态/只读转义/异步退役和可访问性，无额外依赖。实际日志私有保留 `/tmp/easyai-logview-*.log`；完整check/test/build SHA256分别 `84b2e545f7114f5d80028f06afee91a46c4f65f8e08569bff955046be99c3b9c` / `452f392b416a07611a502152408b7f4a1e6d0f8e821af1bc8b9b43a9b23b447a` / `74d8a1ba9ab33dc92ef5792b058528e5286cd6e5e5ec2cf4b31042c05f15dbe8`。普通开发分支提交将触发既有有界免费CI；完整A/B、真实SSH、干净机、正式10轮与真实历史快照像素验收仍未关闭。
+
+日志最终源码 `43474263d8b61ab12bc50ef554259013c4a326d6` 已正常推送，同SHA唯一自然 [CI39374728677](https://github.com/T1doo/Easy-AI/actions/runs/39374728677) 全SUCCESS：Linux job118470195856冻结check/test/build，Windows job118470195438原生安全/冻结资源、开发态四E2E、ZIP审计、包内backend及包内相同四E2E、一天留存均成功。新增日志场景实际运行真实App/IPC/read_log与CSS几何，不以JSDOM替代；含20px实际行高、横向条减小clientHeight后的末行可见、双向滚动与分页。该局部GUI门通过，不等于所有历史快照像素/完整课堂流或A/B完成。
+
+用户明确追加要求保存可交付候选后，专用 `github_download_workflow_artifact` 对本次 artifact12243226977一次成功，随后从返回文件引用保存到本实例仓库外私有目录；不是旧artifact12192547002的重试或旧包替换。外层artifact435432733字节/SHA256 `ffa9d47c596c0f95df5b36b43c40c855b79ddaf085371375950288840ee17499`匹配GitHub元数据。内层候选ZIP435264873字节/SHA256 `4779ee31b553f8a09690cf1a59af36ace910998d405b31e90c8cb1301d5c2200`，原manifest/provenance/audit均绑定43474263。实际流式比对361普通文件的闭合集合/大小/hash/readonly/路径通过；源码tree与四构建输入hash也通过。首次直接Git blob比Windows checkout hash失败已保全；因四文件未指定eol，Git `-c core.autocrlf=true cat-file --filters`精确重放CRLF后均匹配，不修改锁或归档、不任意归一化放行。独审另核outer三份小metadata与保存文件逐字节一致。未执行EXE；artifact未保留input/vendor/electron.exe，不能独立重放PE变换；未声称识别嵌入PYZ/native中的任意秘密。试用说明和原始核验材料已准备，Library持久保存状态另记，不以本地路径充交付链接。
+
+### 2026-10-20 接续 §10.2 / M6.4：最新图片与历史回放
+
+日志切片收口后核原规格明确缺口：图像面板此前只有逐文件“查看图片”，不会默认显示最新图，也没有按阶段/轮次回放入口。最小修改只在RunDashboard复用本run已登记PNG及既有runs.image；按规范artifact_created登记顺序跟随最新，历史选择固定不被新产物替换，可恢复最新或重读。pending图明确等待同步/校验，不显示旧图冒充；身份/hash/ready门与effect cleanup隔离迟到成功/失败；按原始字段而非每poll新对象触发读，稳定轮询不重复取同图。自动图片更新不会定位/打开旧积木快照，文件卡显式点击仍保留原来源定位。
+
+本轮真实React回归覆盖默认读、稳定poll、pending→ready、固定历史、新图、恢复、迟到、重试脱敏与失败→另一pending图清旧错误。原配置测试唯一初次FAIL是旧“从不读图”断言与新增自动预览不符；现明确初始自动读恰1次、随后配置/贡献积木导航仍恰1次，不删除不重复取图门。独审发现旧图错误可能残留到pending选择，已在切图effect清除并加入回归，复审无确定P1/P2。
+
+实际完整pnpm check PASS；pnpm test（修正上述预期后）429 TS/2既有skip、959 Python/19既有skip/12 subtests、36 Node PASS；随后独审的清错小修后再次运行完整Vitest为429 PASS/2skip，定向RunSnapshot60 PASS，最终完整check与desktop build PASS，未重复无变化的Python/Node套件或后端冻结。既有warning/大chunk提示保留。测试专用CREATED夹具现额外由标准库生成两张中性1×1 PNG并按真实编译figure ID登记，无runtime/epoch指标/训练/数据读取；既有E2E追加最新/历史/恢复及真实Canvas RGBA解码断言。该新真实浏览器场景待本次自然CI，尚不称PASS；本机Electron二进制/Chromium helper阻塞未绕过。原件/锁/后端/协议/预算/安全配置无改动，未发生新训练、数据下载、SSH、真实模型调用、main/PR/Release/部署。

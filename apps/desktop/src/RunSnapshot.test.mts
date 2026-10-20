@@ -552,6 +552,108 @@ it("continues independent live byte cursors while stdout is paused and old stder
   ).toContain("last error");
 });
 
+it("follows ready figures, pins history during new arrivals and rejects retired image replies", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  const h = dashboard(source(), "figure-replay");
+  h.run.status = "RUNNING";
+  h.artifact.phase = "before";
+  let files = [h.artifact];
+  vi.mocked(h.api.runs.artifacts).mockImplementation(async () => files);
+  const late = deferred<{ dataUrl: string }>();
+  vi.mocked(h.api.runs.image).mockImplementation(async (_run, imageId) =>
+    imageId === "third"
+      ? late.promise
+      : { dataUrl: `data:image/png;base64,${imageId}` },
+  );
+  await render(
+    createElement(RunDashboard, {
+      api: h.api,
+      initialRun: h.run,
+      onRunUpdate: vi.fn(),
+    }),
+  );
+  const image = () =>
+    container.querySelector<HTMLImageElement>(".image-preview img");
+  const choose = async (value: string) => {
+    await act(async () => {
+      const select = container.querySelector<HTMLSelectElement>(
+        '[aria-label="运行图像版本"]',
+      )!;
+      select.value = value;
+      select.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+    });
+  };
+  expect(image()?.getAttribute("src")).toBe("data:image/png;base64,image");
+  expect(captured.managers).toHaveLength(0); // Auto previews never navigate code.
+  await act(async () => vi.advanceTimersByTimeAsync(1000));
+  expect(h.api.runs.image).toHaveBeenCalledTimes(1); // Same poll metadata is not a new image.
+  const second: ArtifactRecord = {
+    ...h.artifact,
+    artifactId: "second",
+    relativePath: "outputs/epoch-1.png",
+    phase: "epoch_end",
+    epoch: 1,
+    syncState: "pending",
+  };
+  files = [h.artifact, second];
+  await act(async () => vi.advanceTimersByTimeAsync(1000));
+  expect(image()).toBeNull();
+  expect(container.textContent).toContain("此图片尚未在本机就绪");
+  expect(h.api.runs.image).toHaveBeenCalledTimes(1);
+  files = [h.artifact, { ...second, syncState: "ready" }];
+  await act(async () => vi.advanceTimersByTimeAsync(1000));
+  expect(image()?.getAttribute("src")).toBe("data:image/png;base64,second");
+  expect(
+    container.querySelector('[aria-label="运行图像版本"]')?.textContent,
+  ).toContain("第 1 轮");
+  await choose(h.artifact.artifactId);
+  expect(image()?.getAttribute("src")).toBe("data:image/png;base64,image");
+  const third: ArtifactRecord = {
+    ...second,
+    artifactId: "third",
+    relativePath: "outputs/epoch-2.png",
+    epoch: 2,
+    syncState: "ready",
+  };
+  files = [...files, third];
+  const before = vi.mocked(h.api.runs.image).mock.calls.length;
+  await act(async () => vi.advanceTimersByTimeAsync(1000));
+  expect(h.api.runs.image).toHaveBeenCalledTimes(before);
+  expect(image()?.getAttribute("src")).toBe("data:image/png;base64,image");
+  expect(container.textContent).toContain("已固定历史图片");
+  await click("恢复最新图片");
+  expect(h.api.runs.image).toHaveBeenLastCalledWith(h.run.runId, "third");
+  expect(image()).toBeNull(); // Never label an old image as the requested version.
+  await choose("second");
+  expect(image()?.getAttribute("src")).toBe("data:image/png;base64,second");
+  await act(async () =>
+    late.resolve({ dataUrl: "data:image/png;base64,third" }),
+  );
+  expect(image()?.getAttribute("src")).toBe("data:image/png;base64,second");
+  await click("恢复最新图片");
+  expect(image()?.getAttribute("src")).toBe("data:image/png;base64,third");
+  vi.mocked(h.api.runs.image).mockRejectedValueOnce(
+    new Error("private image token=secret"),
+  );
+  await click("重新读取图片");
+  expect(container.textContent).toContain("图片尚不可用");
+  expect(container.textContent).not.toContain("token=secret");
+  await click("重新读取图片");
+  expect(container.textContent).not.toContain("图片尚不可用");
+  vi.mocked(h.api.runs.image).mockRejectedValueOnce(new Error("old failure"));
+  await click("重新读取图片");
+  expect(container.textContent).toContain("图片尚不可用");
+  files = [
+    ...files,
+    { ...third, artifactId: "fourth", epoch: 3, syncState: "pending" },
+  ];
+  await act(async () => vi.advanceTimersByTimeAsync(1000));
+  expect(container.textContent).not.toContain("图片尚不可用");
+  expect(container.textContent).toContain("此图片尚未在本机就绪");
+  expect(image()).toBeNull();
+  expect(captured.managers).toHaveLength(0);
+});
+
 it("selects registered panel/source/style/savefig contributors in the immutable old snapshot despite a changed current project", async () => {
   const saved = figureSource(),
     before = JSON.stringify(saved),
@@ -588,6 +690,8 @@ it("selects registered panel/source/style/savefig contributors in the immutable 
     ),
   );
   const currentManager = captured.managers.find((item) => !item.readonly)!;
+  // Default latest preview is independent of configuration navigation.
+  expect(h.api.runs.image).toHaveBeenCalledTimes(1);
   const currentNavigation = [...currentManager.navigation];
   const currentWorkspace = JSON.stringify(currentManager.manager.serialize());
   await click("来源：body-figure");
@@ -622,7 +726,7 @@ it("selects registered panel/source/style/savefig contributors in the immutable 
   expect(JSON.stringify(saved)).toBe(before);
   expect(JSON.stringify(current)).toBe(currentBefore);
   expect(changed).not.toHaveBeenCalled();
-  expect(h.api.runs.image).not.toHaveBeenCalled();
+  expect(h.api.runs.image).toHaveBeenCalledTimes(1);
 });
 
 it.each([

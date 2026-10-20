@@ -126,6 +126,18 @@ export function MetricSeries({ points }: { points: EpochPoint[] }) {
     </>
   );
 }
+function figureLabel(artifact: ArtifactRecord) {
+  const phase =
+    artifact.phase === "before"
+      ? "训练前"
+      : artifact.phase === "after"
+        ? "训练后"
+        : artifact.epoch !== undefined
+          ? `第 ${artifact.epoch} 轮`
+          : "图像";
+  return `${phase} · ${artifact.relativePath}`;
+}
+
 export function RunSummary({
   run,
   connection,
@@ -244,11 +256,68 @@ function RunDashboardForRun({
   const syncRequest = useRef(0);
   const [artifacts, setArtifacts] = useState<ArtifactRecord[]>([]);
   const [liveLogs, setLiveLogs] = useState(emptyLogPair);
+  const [figureId, setFigureId] = useState<string | null>(null);
+  const [imageVersion, setImageVersion] = useState(0);
+  const [imageBusy, setImageBusy] = useState(false);
+  const figures = artifacts.filter(
+    (item) => item.kind === "figure" && item.mimeType === "image/png",
+  );
+  const figure = figureId
+    ? figures.find((item) => item.artifactId === figureId)
+    : figures.at(-1);
+  const figureIdentity = figure?.artifactId;
+  const figureHash = figure?.sha256;
+  const figureState = figure?.syncState;
+  const figurePath = figure?.relativePath;
   const [image, setImage] = useState<{
     id: string;
+    hash: string;
     dataUrl: string;
     label: string;
   } | null>(null);
+  useEffect(() => {
+    let active = true;
+    setImageBusy(false);
+    setImageError(null);
+    if (
+      !figureIdentity ||
+      !figureHash ||
+      !figurePath ||
+      figureState !== "ready"
+    )
+      return;
+    setImageBusy(true);
+    void api.runs
+      .image(runId, figureIdentity)
+      .then((result) => {
+        if (!active) return;
+        if (!result.dataUrl.startsWith("data:image/png;base64,"))
+          throw new Error("桥接返回了非 PNG 图像内容");
+        setImage({
+          id: figureIdentity,
+          hash: figureHash,
+          dataUrl: result.dataUrl,
+          label: figurePath,
+        });
+      })
+      .catch((reason) => {
+        if (active) setImageError(operationFailure("runImage", reason));
+      })
+      .finally(() => {
+        if (active) setImageBusy(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [
+    api,
+    runId,
+    figureIdentity,
+    figureHash,
+    figureState,
+    figurePath,
+    imageVersion,
+  ]);
   const [snapshotRequest, setSnapshotRequest] =
     useState<SnapshotRequest | null>(null);
   const snapshotVersion = useRef(0);
@@ -285,7 +354,6 @@ function RunDashboardForRun({
   const [stopping, setStopping] = useState(false);
   const [resuming, setResuming] = useState(false);
   const [readGeneration, setReadGeneration] = useState(0);
-  const imageRequest = useRef(0);
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
@@ -389,7 +457,6 @@ function RunDashboardForRun({
     return () => {
       active = false;
       mounted.current = false;
-      imageRequest.current += 1;
       syncRequest.current += 1;
       if (timer) clearTimeout(timer);
       unsubscribe();
@@ -520,9 +587,7 @@ function RunDashboardForRun({
     remoteSession.scope.endpoint.host === run.remote?.host &&
     remoteSession.scope.endpoint.port === run.remote?.port &&
     remoteSession.scope.hostFingerprint === run.remote?.hostFingerprint;
-  async function preview(artifact: ArtifactRecord) {
-    const request = ++imageRequest.current;
-    setImageError(null);
+  function preview(artifact: ArtifactRecord) {
     const producer = locateArtifactBlock(
       sourceView,
       artifact,
@@ -530,20 +595,8 @@ function RunDashboardForRun({
       artifact.producerBlockId,
     );
     if (producer.blockId) setSelectedBlock(producer.blockId);
-    try {
-      const result = await api.runs.image(runId, artifact.artifactId);
-      if (!result.dataUrl.startsWith("data:image/png;base64,"))
-        throw new Error("桥接返回了非 PNG 图像内容");
-      if (mounted.current && imageRequest.current === request)
-        setImage({
-          id: artifact.artifactId,
-          dataUrl: result.dataUrl,
-          label: artifact.relativePath,
-        });
-    } catch (reason) {
-      if (mounted.current && imageRequest.current === request)
-        setImageError(operationFailure("runImage", reason));
-    }
+    setFigureId(artifact.artifactId);
+    setImageVersion((previous) => previous + 1);
   }
   return (
     <section aria-labelledby="run-heading" className="run-workspace">
@@ -753,15 +806,73 @@ function RunDashboardForRun({
             ))}
           </ul>
         )}
-        {image && (
-          <figure className="image-preview">
-            <img
-              src={image.dataUrl}
-              alt={`本次运行生成的图像：${image.label}`}
-            />
-            <figcaption>{image.label}</figcaption>
-          </figure>
+        {figures.length > 0 && (
+          <section aria-label="运行图像回放">
+            <div className="button-row">
+              <label>
+                显示图片
+                <select
+                  aria-label="运行图像版本"
+                  value={figureId ?? ""}
+                  onChange={(event) => {
+                    setFigureId(event.target.value || null);
+                    setImageVersion((previous) => previous + 1);
+                  }}
+                >
+                  <option value="">跟随最新图片</option>
+                  {figures.map((item) => (
+                    <option key={item.artifactId} value={item.artifactId}>
+                      {figureLabel(item)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                disabled={!figureId}
+                onClick={() => setFigureId(null)}
+              >
+                恢复最新图片
+              </button>
+              <button
+                type="button"
+                disabled={imageBusy || figureState !== "ready"}
+                onClick={() => setImageVersion((previous) => previous + 1)}
+              >
+                重新读取图片
+              </button>
+            </div>
+            <p className="muted">
+              {figureId
+                ? "已固定历史图片；新产物不会替换此选择。"
+                : "自动显示本次运行最新登记的图片。"}
+              {figure && ` ${figureLabel(figure)}`}
+            </p>
+            {imageBusy && <p role="status">正在读取本次运行图片…</p>}
+            {figure && figureState !== "ready" && (
+              <p role="status">
+                此图片尚未在本机就绪，等待文件同步或校验；不会显示其他版本冒充此图。
+              </p>
+            )}
+            {!figure && (
+              <p role="status">
+                此历史图片暂不在本次产物列表中，可恢复最新图片。
+              </p>
+            )}
+          </section>
         )}
+        {image &&
+          image.id === figureIdentity &&
+          image.hash === figureHash &&
+          figureState === "ready" && (
+            <figure className="image-preview">
+              <img
+                src={image.dataUrl}
+                alt={`本次运行生成的图像：${image.label}`}
+              />
+              <figcaption>{image.label}</figcaption>
+            </figure>
+          )}
       </section>
       {source && (
         <SnapshotCode

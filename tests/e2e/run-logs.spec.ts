@@ -32,7 +32,7 @@ async function geometry(viewport: Locator) {
   });
 }
 
-test("real log windows keep their bottom row visible while live collection and history are independent", async ({}, testInfo) => {
+test("real log windows and image history preserve their independent views", async ({}, testInfo) => {
   test.setTimeout(90000);
   const directory = await mkdtemp(path.join(tmpdir(), "easyai-log-e2e-"));
   // Only test-owned files feed the real saved-run / IPC / read_log path. No
@@ -77,6 +77,34 @@ test("real log windows keep their bottom row visible while live collection and h
         name: new RegExp(`^${fixture.runId.slice(0, 8)} ·`),
       })
       .click();
+    const image = page.locator(".image-preview img");
+    const pixel = () =>
+      image.evaluate((element) => {
+        const picture = element as HTMLImageElement;
+        if (
+          !picture.complete ||
+          picture.naturalWidth !== 1 ||
+          picture.naturalHeight !== 1
+        )
+          return null;
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = 1;
+        const context = canvas.getContext("2d")!;
+        context.drawImage(picture, 0, 0);
+        return [...context.getImageData(0, 0, 1, 1).data];
+      });
+    await expect(image).toHaveAttribute("alt", /fixture-image-1\.png/);
+    await expect.poll(pixel).toEqual([30, 80, 210, 255]);
+    await page
+      .getByRole("combobox", { name: "运行图像版本" })
+      .selectOption("fixture-image-0");
+    await expect(image).toHaveAttribute("alt", /fixture-image-0\.png/);
+    await expect.poll(pixel).toEqual([200, 60, 60, 255]);
+    await page
+      .getByRole("button", { name: "恢复最新图片", exact: true })
+      .click();
+    await expect(image).toHaveAttribute("alt", /fixture-image-1\.png/);
+    await expect.poll(pixel).toEqual([30, 80, 210, 255]);
     const out = page.getByRole("region", { name: "stdout 日志查看器" });
     const err = page.getByRole("region", { name: "stderr 日志查看器" });
     const viewport = out.getByRole("list", { name: "stdout 虚拟文本窗口" });
