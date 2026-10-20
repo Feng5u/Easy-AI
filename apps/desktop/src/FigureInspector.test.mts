@@ -313,6 +313,8 @@ it("runtime grid skips disabled chain head like Python, while full chain remains
   expect(captured.managers.at(-1)!.figure("body-figure")!.layout).toBe("1,2");
 });
 it("actual historical SnapshotCode exposes readonly inspector navigation without changing its snapshot", async () => {
+  const scroll = vi.fn();
+  dom.window.HTMLElement.prototype.scrollIntoView = scroll;
   const project = fixture();
   const before = canonical(project);
   const source: RunSource = {
@@ -343,6 +345,11 @@ it("actual historical SnapshotCode exposes readonly inspector navigation without
     await act(async () => {
       await settle();
     });
+  expect(scroll).toHaveBeenCalledWith({
+    block: "nearest",
+    inline: "nearest",
+    behavior: "instant",
+  });
   expect(container.querySelectorAll("select")).toHaveLength(2);
   expect(
     [...container.querySelectorAll("select")].every((input) => input.disabled),
@@ -359,7 +366,8 @@ it("actual historical SnapshotCode exposes readonly inspector navigation without
   await act(async () => {
     (grid.querySelector("button") as HTMLButtonElement).click();
   });
-  expect(onSelectBlock).toHaveBeenCalledWith("body-0-panel");
+  expect(onSelectBlock).toHaveBeenCalledWith("body-0-panel", false);
+  expect(captured.selections.at(-1)).toBe("body-0-panel");
   expect(canonical(project)).toBe(before);
 });
 it("real Blockly edits survive ProjectService save/reopen with deterministic Python code/hash/map", async () => {

@@ -3709,3 +3709,5 @@ CI工作流on:[push,pull_request]，纯推两文档会额外全跑。已先向�
 最小产品修复仅将已验证的旧 snapshot projectId/blockId/request.version 绑定为现有 navigationRequest；原生 Blockly 选择携带 navigate=false，只同步选中高亮。旧代码/产物/诊断显式点击仍生成新序号，复用已有跨页签后居中及序号消费逻辑，不增加另一套编辑器实现或改工程格式。已依 React best-practices 核 hooks/依赖、派生属性、按运行 key 隔离、懒加载、只读和可访问标签。
 
 当前本地 `node --check apps/desktop/src/RunSnapshot.test.mts` 与 `git diff --check` PASS；当前实例无项目 node_modules，未安装依赖，本地整套check/test/build NOT RUN。修复后的现有冻结CI结果待观察，不能预记GREEN。本轮未重复训练、下载数据、安装训练环境或执行SSH；真实MNIST一次quick的证据保持原归属，完整A/B和实际GUI验收仍未关闭。
+
+产品修复 `4d0ee60a99cbda99a6dbee2e2fa0bc40e4ff79da` 的 [CI39368371032](https://github.com/T1doo/Easy-AI/actions/runs/39368371032) check PASS，四个新增导航回归均PASS；完整TS结果403通过/1失败/2跳过。唯一失败为原FigureInspector历史快照测试的JSDOM没有scrollIntoView，新增显式导航首次实际触达此浏览器方法。仅为该夹具提供记录方法并断言调用参数，更新选择回显的显式false参数断言且保留真实manager导航断言；不改产品滚动、不弱化检查。最终GREEN仍待此必要夹具修正后的自然CI。
