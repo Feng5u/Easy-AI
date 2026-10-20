@@ -74,7 +74,17 @@ class EndpointChannel(Channel):
                 identity_digest(identity),
             ]
             self.session.client.commands.append(argv[4])
-        result = subprocess.run(argv, stdin=subprocess.DEVNULL, capture_output=True, timeout=4)
+            if argv[4] == "--start":
+                self.session.client.started_roots.add(root)
+        phase = "uid" if argv[3] == "-c" else argv[4]
+        trace = self.session.client.command_trace
+        trace.append((phase, "entered", time.monotonic()))
+        try:
+            result = subprocess.run(argv, stdin=subprocess.DEVNULL, capture_output=True, timeout=4)
+        except Exception as error:
+            trace.append((phase, type(error).__name__, time.monotonic()))
+            raise
+        trace.append((phase, result.returncode, time.monotonic()))
         self.out, self.err = bytearray(result.stdout), bytearray(result.stderr)
         self.code, self.eof_received = result.returncode, True
         if len(argv) > 4 and argv[4] == "--start" and self.session.client.lose_start_ack:
@@ -113,6 +123,8 @@ class EndpointClient(Client):
         super().__init__(root, mutex)
         self.run_base = run_base
         self.commands = []
+        self.command_trace = []
+        self.started_roots = set()
         self.lose_start_ack = False
 
     def connect_verified(self, endpoint, cancel):
@@ -181,10 +193,35 @@ emit_event("artifact_created", {producer!r}, {{
     try:
         yield workspace, endpoint, api, project
     finally:
-        for root in run_base.iterdir():
-            if root.is_dir() and (root / "code").is_dir():
+        try:
+            workspace.close()  # Quiesce staging/exec before locating final roots.
+        finally:
+            roots = endpoint.started_roots.copy()
+            for root in roots:
+                assert root.parent == run_base and root.is_dir()
                 (root / "fixture-finish").touch()
-        workspace.close()
+            for root in roots:
+                wait_for(lambda: child_finished(root), bool)
+
+
+def child_finished(root):
+    import fcntl
+
+    # Only exact final roots recorded before this fixture's local --start call.
+    # A sealed owner proves managed child exit; its lock release proves cleanup.
+    status = root / "owner-status.json"
+    if not status.exists():
+        return False
+    value = json.loads(status.read_bytes())
+    if not value["sealed"] or value["exitCode"] is None:
+        return False
+    assert value["identity"] == json.loads((root / "remote-identity.json").read_bytes())
+    with (root / ".serve.lock").open("rb") as source:
+        try:
+            fcntl.flock(source.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return False
+    return True
 
 
 def authorize(workspace, api, project):
@@ -466,7 +503,7 @@ def test_consumed_start_lost_ack_explicit_fresh_resume_never_restarts(
             and not published.is_set()
         ):
             published.set()
-            assert release.wait(5)
+            assert release.wait(25), "Synthetic worker fence was not released"
 
     def release_after_fence(run_id, seconds=3):
         old = workspace.runs.remote._workers[run_id].thread
@@ -494,7 +531,28 @@ def test_consumed_start_lost_ack_explicit_fresh_resume_never_restarts(
         assert started.status_code == 202
         run_id = started.json()["runId"]
         base = f"/api/v1/runs/{run_id}"
-        assert published.wait(5)
+        # This handshake spans stage + start + disconnect/persist/publish, not
+        # one <=5s transport call. Keep the real production budgets unchanged.
+        deadline = time.monotonic() + 25
+        while not published.wait(0.02):
+            worker = workspace.runs.remote._workers[run_id].thread
+            if worker is None or not worker.is_alive() or time.monotonic() >= deadline:
+                core = workspace.runs.remote._cores[run_id]
+                checkpoint = core._checkpoint
+                pytest.fail(
+                    repr(
+                        {
+                            "startOutcome": checkpoint.start_outcome,
+                            "executionState": checkpoint.execution_state,
+                            "connectionState": checkpoint.connection_state,
+                            "workerAlive": worker is not None and worker.is_alive(),
+                            "commands": endpoint.commands,
+                            "commandTrace": endpoint.command_trace,
+                            "sessions": [(s.closed, s.io_lock.locked()) for s in endpoint.sessions],
+                            "rootNames": sorted(path.name for path in endpoint.run_base.iterdir()),
+                        }
+                    )
+                )
         unknown = api.get(base).json()
         assert unknown["remote"]["startOutcome"] == "unknown"
         assert unknown["connectionState"] == "disconnected"
