@@ -259,9 +259,11 @@ function RunDashboardForRun({
     )
       throw new Error("返回的运行身份与本次运行不一致，未更新运行或来源。");
   }
-  function setSelectedBlock(id: string | null) {
+  function setSelectedBlock(id: string | null, navigate = true) {
     setSnapshotRequest(
-      id === null ? null : { blockId: id, version: ++snapshotVersion.current },
+      id === null
+        ? null
+        : { blockId: id, version: ++snapshotVersion.current, navigate },
     );
   }
   function diagnosticBlock(item: RuntimeDiagnostic) {

@@ -13,6 +13,8 @@ const ignoreChanges = () => {};
 export interface SnapshotRequest {
   blockId: string;
   version: number;
+  // Native Blockly selection only echoes the highlight; explicit clicks navigate.
+  navigate?: boolean;
 }
 
 export function SnapshotCode({
@@ -22,7 +24,7 @@ export function SnapshotCode({
 }: {
   source: RunSource;
   request: SnapshotRequest | null;
-  onSelectBlock: (id: string | null) => void;
+  onSelectBlock: (id: string | null, navigate?: boolean) => void;
 }) {
   const view = useMemo(() => captureRunSnapshot(source), [source]);
   const location = locateRunBlock(view, request?.blockId ?? null);
@@ -60,10 +62,19 @@ export function SnapshotCode({
                   project={view.snapshot}
                   readOnly={true}
                   selectedBlock={location.blockId}
+                  navigationRequest={
+                    request.navigate !== false && location.blockId
+                      ? {
+                          projectId: view.snapshot.projectId,
+                          blockId: location.blockId,
+                          sequence: request.version,
+                        }
+                      : null
+                  }
                   activeTab={tab}
                   onTabChange={setTab}
                   onSelect={(id) => {
-                    if (id) onSelectBlock(id);
+                    if (id) onSelectBlock(id, false);
                   }}
                   onChange={ignoreChanges}
                 />

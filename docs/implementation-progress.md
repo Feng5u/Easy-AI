@@ -3696,3 +3696,16 @@ CI工作流on:[push,pull_request]，纯推两文档会额外全跑。已先向�
 13应用/9执行事件连续，唯一epoch/completion，stderr空；workspace关闭、supervisor quiescent且child退出，未遗留本次进程。输出receipt时1327569字节、后验保守总量2219333988字节，未触及256MiB/5GB或600秒+30秒边界。receipt SHA256 `94f4354414eaf5beb2cdfe3cd30778842d13742030b1095038c164f9856be062`、后验 `9ec4e724b78b3bb5ebe4e0e8a8f2ff469e10480ad325cd752817f4c60223bf89`；完整文件/hash和失败历史均在仓库外保存，本轮无第二次训练。
 
 本轮只有脱敏证据文档，没有产品/测试/锁改动；不重复check/test/build或训练，不把证据提交视作新产品CI。纯文档正常开发分支推送使用[skip ci]避免额外CI，保留352c910真实产品CI归属；main、原件/规格/README/两锁未改，无PR/Release/部署。只关闭真实小样本后端切片，实际GUI点击映射、SSH、干净机、正式10轮、硬件/许可及完整A/B仍分别未验收，不给虚构完成百分比。
+
+
+### 2026-10-20 TST30 / M4.3：旧运行同块重复显式导航
+
+本轮唯一写入者从开发分支 `58a4abc987f06e0ff08844985ac18103633b0661` 接续；原计划/规格/README/两锁哈希不变。实际缺口是 `SnapshotCode` 只将请求版本用于切换页签，没有向已有 `ProjectEditor` 传显式导航命令。再次点击相同旧积木只同步高亮，画布被滚走后不会再次居中。
+
+先提交可观察的回归：保留真实 Blockly 序列化、WorkspaceManager 与 React 组件，只替换 SVG host，记录 manager 发给工作区的 select 导航命令。测试覆盖三工作区相同版本不重复、更新版本再次导航、产物/代码重复点击、原生选择回显、旧快照和 source 不变、切运行后迟到来源/图片/事件不能触发旧导航。该记录证明导航命令，不冒充真实 GUI 像素位置；已有真实 SVG 编辑器测试继续由完整测试收集。
+
+首次测试提交 `f635a703e0ccbb7973c2441465e84b739dbf6536` 的 [CI39367860311](https://github.com/T1doo/Easy-AI/actions/runs/39367860311) 停在新增测试的 Prettier 格式检查，测试未执行，不计行为 RED。仅修正格式后 `241e26bd3d3540fac206c7b5f7e2dd2019e2e946` 的 [CI39368220278](https://github.com/T1doo/Easy-AI/actions/runs/39368220278) check PASS、test 如期 FAIL：三个工作区与产物重复点击共四个新增回归均只收到一次导航；其余400项TS通过、2跳过。原始失败日志仓库外保留，未削弱检查。
+
+最小产品修复仅将已验证的旧 snapshot projectId/blockId/request.version 绑定为现有 navigationRequest；原生 Blockly 选择携带 navigate=false，只同步选中高亮。旧代码/产物/诊断显式点击仍生成新序号，复用已有跨页签后居中及序号消费逻辑，不增加另一套编辑器实现或改工程格式。已依 React best-practices 核 hooks/依赖、派生属性、按运行 key 隔离、懒加载、只读和可访问标签。
+
+当前本地 `node --check apps/desktop/src/RunSnapshot.test.mts` 与 `git diff --check` PASS；当前实例无项目 node_modules，未安装依赖，本地整套check/test/build NOT RUN。修复后的现有冻结CI结果待观察，不能预记GREEN。本轮未重复训练、下载数据、安装训练环境或执行SSH；真实MNIST一次quick的证据保持原归属，完整A/B和实际GUI验收仍未关闭。
