@@ -25,7 +25,11 @@ import { captureRunSnapshot, locateRunBlock } from "./runSnapshot.js";
 // Real Blockly serialization/manager and real React components. Only SVG host
 // rendering is replaced by headless handles; this is not Electron acceptance.
 const captured = vi.hoisted(() => ({
-  managers: [] as { manager: WorkspaceManager; readonly: boolean }[],
+  managers: [] as {
+    manager: WorkspaceManager;
+    readonly: boolean;
+    navigation: { tab: "data" | "model" | "training"; id: string | null }[];
+  }[],
 }));
 vi.mock("./WorkspaceManager.js", async (original) => {
   const actual = await original<typeof import("./WorkspaceManager.js")>();
@@ -38,19 +42,22 @@ vi.mock("./WorkspaceManager.js", async (original) => {
         readOnly: boolean,
         callbacks: ManagerCallbacks,
       ) {
-        const factory: WorkspaceFactory = () => {
+        const navigation: (typeof captured.managers)[number]["navigation"] = [];
+        const factory: WorkspaceFactory = (_host, tab) => {
           const workspace = new blockly.Workspace();
           return {
             workspace,
             resize() {},
             setVisible() {},
             setReadOnly() {},
-            select() {},
+            select(id) {
+              navigation.push({ tab, id });
+            },
             dispose: () => workspace.dispose(),
           };
         };
         super(hosts, readOnly, callbacks, factory);
-        captured.managers.push({ manager: this, readonly: readOnly });
+        captured.managers.push({ manager: this, readonly: readOnly, navigation });
       }
     },
   };
@@ -143,6 +150,7 @@ beforeEach(() => {
   );
   container = dom.window.document.createElement("div");
   dom.window.document.body.append(container);
+  dom.window.HTMLElement.prototype.scrollIntoView = vi.fn();
 });
 afterEach(async () => {
   if (root) await act(async () => root!.unmount());
@@ -293,6 +301,41 @@ it("locates all three tabs using old spans, repeated requests navigate back and 
   ).toBe("训练管线");
 });
 
+it.each(["data", "model", "training"] as const)(
+  "issues a fresh navigation command for the same old %s block without changing its snapshot",
+  async (tab) => {
+    const saved = source();
+    saved.snapshot.ui = { ...saved.snapshot.ui, activeTab: tab };
+    const blockId = id(saved, tab),
+      before = JSON.stringify(saved),
+      select = vi.fn();
+    const renderRequest = (version: number) =>
+      render(
+        createElement(SnapshotCode, {
+          source: saved,
+          request: { blockId, version },
+          onSelectBlock: select,
+        }),
+      );
+    await renderRequest(1);
+    const historical = captured.managers.find((item) => item.readonly)!;
+    const snapshotBefore = JSON.stringify(historical.manager.serialize());
+    expect(historical.navigation).toEqual([{ tab, id: blockId }]);
+    // Observe the actual manager-to-workspace navigation command, rather than
+    // treating an unchanged tab/highlight as proof of re-centering.
+    await renderRequest(2);
+    expect(historical.navigation).toEqual([
+      { tab, id: blockId },
+      { tab, id: blockId },
+    ]);
+    await renderRequest(2);
+    expect(historical.navigation).toHaveLength(2);
+    expect(JSON.stringify(historical.manager.serialize())).toBe(snapshotBefore);
+    expect(JSON.stringify(saved)).toBe(before);
+    expect(select).not.toHaveBeenCalled();
+  },
+);
+
 it.each([
   "no-spans",
   "missing-block",
@@ -438,6 +481,53 @@ it("artifact and runtime-error clicks open the actual run snapshot and synchroni
   );
 });
 
+it("repeats old artifact/code navigation while native old-block selection remains an echo", async () => {
+  const saved = source(),
+    before = JSON.stringify(saved),
+    h = dashboard(saved, "repeat-old-run");
+  await render(
+    createElement(RunDashboard, {
+      api: h.api,
+      initialRun: h.run,
+      onRunUpdate: vi.fn(),
+    }),
+  );
+  const training = id(saved, "training"),
+    model = id(saved, "model");
+  await click("来源：" + training);
+  const historical = captured.managers.find((item) => item.readonly)!;
+  expect(historical.navigation).toEqual([{ tab: "training", id: training }]);
+  const snapshotBefore = JSON.stringify(historical.manager.serialize());
+  await click("来源：" + training);
+  expect(historical.navigation).toHaveLength(2);
+  await click("模型结构");
+  const blockly = await import("blockly/core");
+  await act(async () => {
+    const workspace = historical.manager.workspaces.model;
+    workspace.fireChangeListener(
+      new blockly.Events.Selected(undefined, model, workspace.id),
+    );
+  });
+  expect(container.querySelector(".code-selected")?.textContent).toContain(
+    "old model code",
+  );
+  expect(historical.navigation).toHaveLength(2);
+  const codeLine = container.querySelector<HTMLButtonElement>(
+    `button[aria-label="第 2 行，源积木 ${model}"]`,
+  )!;
+  await act(async () => codeLine.click());
+  expect(historical.navigation).toHaveLength(3);
+  await act(async () => codeLine.click());
+  expect(historical.navigation).toEqual([
+    { tab: "training", id: training },
+    { tab: "training", id: training },
+    { tab: "model", id: model },
+    { tab: "model", id: model },
+  ]);
+  expect(JSON.stringify(historical.manager.serialize())).toBe(snapshotBefore);
+  expect(JSON.stringify(saved)).toBe(before);
+});
+
 it("switching run rejects late source/image/events and does not reopen a closed old snapshot", async () => {
   const oldSource = source(),
     old = dashboard(oldSource, "old"),
@@ -470,6 +560,9 @@ it("switching run rejects late source/image/events and does not reopen a closed 
       onRunUpdate: vi.fn(),
     }),
   );
+  const retiredNavigation = captured.managers.map(
+    (item) => [item, item.navigation.length] as const,
+  );
   await act(async () => {
     late.resolve(oldSource);
     old.image.resolve({ dataUrl: "data:image/png;base64,OLD" });
@@ -485,6 +578,8 @@ it("switching run rejects late source/image/events and does not reopen a closed 
   expect(container.textContent).not.toContain("RUNTIME_NAME_ERROR");
   expect(container.querySelectorAll('[role="alert"]')).toHaveLength(0);
   expect(container.querySelector(".image-preview img")).toBeNull();
+  for (const [manager, count] of retiredNavigation)
+    expect(manager.navigation).toHaveLength(count);
   await click("来源：" + id(freshSource, "training"));
   expect(container.textContent).toContain("另一次运行");
   expect(container.textContent).not.toContain("old training code");
