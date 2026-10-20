@@ -57,7 +57,11 @@ vi.mock("./WorkspaceManager.js", async (original) => {
           };
         };
         super(hosts, readOnly, callbacks, factory);
-        captured.managers.push({ manager: this, readonly: readOnly, navigation });
+        captured.managers.push({
+          manager: this,
+          readonly: readOnly,
+          navigation,
+        });
       }
     },
   };
