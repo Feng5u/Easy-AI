@@ -68,17 +68,26 @@ if TYPE_CHECKING:
 
 
 def probe_python(python: Path, cache: Path) -> dict[str, Any]:
-    """Only the explicitly selected executable runs this fixed import probe, never pip."""
+    """Selected Python checks imports and a fixed CPU operation, never pip or training."""
     if cache.is_symlink():
         raise ValueError("LOCAL_STORAGE_FORBIDDEN")
     cache.mkdir(parents=True, exist_ok=True)
     environment = os.environ.copy()
     environment.update(PYTHONDONTWRITEBYTECODE="1", MPLCONFIGDIR=str(cache))
     script = (
-        "import json,sys; import torch,torchvision,matplotlib; "
+        "import json,sys\n"
+        "import torch,torchvision,matplotlib\n"
+        "torch.set_num_threads(1)\n"
+        "with torch.no_grad():\n"
+        "    sample = torch.ones((1,1,3,3), device='cpu')\n"
+        "    kernel = torch.ones((1,1,3,3), device='cpu')\n"
+        "    output = torch.nn.functional.conv2d(sample, kernel)\n"
+        "    if (list(output.shape) != [1,1,1,1] or not torch.isfinite(output).all().item()\n"
+        "            or not (output == 9).all().item()):\n"
+        "        raise ValueError('CPU convolution check failed')\n"
         "print('EASYAI_PROBE:'+json.dumps({'python':sys.executable,'prefix':sys.prefix,"
         "'torch':str(torch.__version__),'torchvision':str(torchvision.__version__),"
-        "'matplotlib':str(matplotlib.__version__)}))"
+        "'matplotlib':str(matplotlib.__version__)}))\n"
     )
     try:
         process = subprocess.Popen(

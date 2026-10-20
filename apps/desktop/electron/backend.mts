@@ -182,7 +182,7 @@ export async function startBackend(
             "已有本地任务正在执行，请先等待结束或停止该任务。",
           RUN_IDEMPOTENCY_CONFLICT: "本次运行请求已改变，请重新检查后开始。",
           ENVIRONMENT_IMPORT_FAILED:
-            "所选Python无法导入训练依赖，请选择已准备的独立训练环境。",
+            "所选Python无法导入训练依赖或执行基础CPU运算，请检查兼容性或选择其他已有独立训练环境。",
           ENVIRONMENT_PROBE_TIMEOUT: "所选Python检查超时，未启动训练。",
           ENVIRONMENT_PYTHON_UNAVAILABLE:
             "无法启动所选Python，请重新选择已有训练环境。",

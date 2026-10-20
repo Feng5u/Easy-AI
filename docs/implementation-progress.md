@@ -3611,3 +3611,23 @@ ZIP435255641字节，SHA256 94d9873d1692c533e2b0d758aa47d4df3d6123f57686ad24930b
 独立审查只读标准库重验导出11文件、IR/快照/hash、实际argv/cwd/sidecar停止/exitcode、连续事件/CSV与4产物，以及三张1000×600 PNG的CRC/解压PASS；未重复训练/导入torch，未冒称独立重跑8参数验证。无明确P1/P2，无生产修复需要。实际命令node私有export.mjs FAIL→python私有verify-export.py同目录PASS→python私有standalone.py真实独立训练及验证PASS；不是把原FAIL命令改称PASS。git diff --check PASS，未重复完整常规CI/测试（只有证据文档更改）。
 
 本轮只关闭TST34合成外部执行切片；真实MNIST效果/完整A或B/Windows外部训练/原生picker/TST33/进程树取消/SSH/硬件许可仍未验收。下一条件分别为真实数据与运行范围、隔离SSH目标/指纹/凭据/窗口、干净图形机，不装包/下载或改老师环境。旧TST32 GUI输入1..25及全1=9 unit边界、旧63px原因未确证和startup退出Unknown保持。保全4b89本地收据，当前仅本地文档提交不触发证据CI；remote源码仍f487b65，main5323f86232529efcfb52131168ad049f01b219f3未改，无PR/Release/部署/新权限或凭据。
+
+
+### 2026-10-20 重新核实际产品入口：本机预检缺少CPU运算门
+
+原指定环境恢复后仅本集成者写入，工作区起始干净；本地fdb525557a05be58f9fe942da9087d417493b649，remote开发源码f487b6531f9e492fba3820d8408f3f372227cec9，main5323f86232529efcfb52131168ad049f01b219f3。无其他git写进程/测试/sidecar活动。保全本地4b89ecb59052fea53ac5d734bc957909fa9968bf与fdb5255两文档提交，独审6个docs文件无凭据/用户数据/私密SSH或机器配置；合成测试自有路径不是共享教师环境配置。TST32 GUI1..25/unit全1=9、旧startup退出Unknown/63px唯一原因未证、TST34 checker FAIL/同目录恢复核验PASS及非完整A/B均准确。
+
+不只看既有绿色结果，重新对照原M0–M8/D01–D14与真实调用链，发现原§14.2在本机入口的实际缺口：local_workspace.probe_python仅import torch/torchvision/matplotlib并读版本，preflight_local据此报ENVIRONMENT_READY，start也复用同一薄检查。远端固定probe已有实际tensor/conv；本机可在‘import能成功但基础运算损坏’时误报健康。前轮‘未发现’不能替代本轮入口实证。
+
+最小产品修复只在已选解释器-I/-B固定子进程内、输出成功marker前，no_grad执行CPU全1输入3×3/全1kernel3×3 functional.conv2d，要求shape[1,1,1,1]、finite、数值9；set_num_threads1仅作用于该短命probe。没有model/optimizer/backward、没有GPU探测/数据读取或依赖安装，sidecar不import torch。原15秒、双管64KiB、scope/revision/selection、group清理/cleanup_pending及输出schema不变。沿用ENVIRONMENT_IMPORT_FAILED码，LocalPreflight和Main说明准确涵盖导入或基础CPU运算失败，READY写明未训练。
+
+真实隔离Python子进程执行原生产script、仅导入synthetic模块，模拟raises/错shape/非finite/错值/healthy五种：旧源码有效5RED（4负例未拒，healthy证明根本未调用operation）；GREEN两文件28PythonPASS。前端/Main相关13PASS；独审Python28/LocalPreflight9与主执行重叠不累计。pnpm check与桌面build PASS。额外用已有CPU解释器实际执行修复probe，6.256秒PASS，torch2.10.0+cpu/vision0.25.0+cpu/matplotlib3.10.8，无training/data/install；应用解释器find_spec(torch)仍None。完整pnpm test尚在执行，不提前称PASS。
+
+CI工作流on:[push,pull_request]，纯推两文档会额外全跑。已先向父级说明：让必要产品修复与已独审两文档一次正常开发推送，由唯一自然CI覆盖；不改workflow/重写旧提交/跳过检查。独审认可，无新增明确P1/P2。
+
+候选保全只读核查：当前/workspace与可访问/tmp未发现要求的435255641字节Windows ZIP，只见旧Linux候选。已知artifact12192547002/hash94d9873d1692c533e2b0d758aa47d4df3d6123f57686ad24930b13b91cf4eec8到期2026-10-20 22:02北京时间。历史有logs/artifacts/browser拒绝，原具体artifact端点/工具正文未保全，不能擅自缩窄拒绝或认为新工具可绕过。已请求父级明确专用github_download_workflow_artifact对该ID单次下载许可，或经已登录GitHub页保全转交；状态pending，尚未调用下载/受限artifact接口、不改留存/发Release。此限制不阻塞本轮实际产品修复。
+
+
+本轮最终本地PASS：pnpm check；pnpm test（400TS/2skip、955Python/19skip，73.54秒与1既有warning，36Node）；pnpm --filter @easyai/desktop build；git diff --check。定向28Python/13TS与独审重叠不累计。原plan/规格/README/两锁SHA再次不变。只改本机probe生产路径及关联诊断文案/实际子进程回归，未增加训练、数据下载、模型服务调用、依赖/许可或安全例外。必要修复和两旧证据正常一次开发分支推送，唯一自然CI后再记录实际结果。
+
+日志SHA256：/tmp/easyai-local-probe-cpu-red-20261020.log 6c3a7ad2233b9d809189f847bc3a23799b78a7c07d871f1c09fd129bea5202a7；green 4457e187749b5298c3aba36283e7e6d83fb19255051cd950529f6a5ea4b9cfc6；UI cef128c1aa6fea1a2c9a57c1cbe4603b9d8f23c81645a8bf0d09ecf8e2406fd3；check e580f738fb6f2a6bfe01cc5daae5d3e702f5220b2ad112eafff67fad6afa0a95；real-CPU 86fccc7bddad393732b4728e00d3c96a741556dd86eaf3d67366055e8b8739e2；build 0d190e92baa72bd5975295e09fce03df760b8ce65429e5eb0cbbbc48f861de53；all-test d80a13254da2cf735acac3f0ab7c223bd8e1921756c8dfa5c158434cd5ae90d7。完整路径以/tmp/easyai-local-probe-*-20261020.log为准。

@@ -192,6 +192,56 @@ def test_python_probe_output_is_drained_with_a_hard_cap_without_importing_torch(
         probe_python(Path(sys.executable), tmp_path / "app-owned-probe-cache")
 
 
+@pytest.mark.parametrize("mode", ["raises", "shape", "nonfinite", "wrong_value", "healthy"])
+def test_python_probe_requires_cpu_execution_after_successful_imports(tmp_path, monkeypatch, mode):
+    """Run the production fixed script in a real child with synthetic module imports."""
+    import subprocess
+    from easyai.services.local_workspace import probe_python
+
+    original = subprocess.Popen
+    observed = tmp_path / "operation-called"
+    bootstrap = """
+import contextlib,sys,types
+torch=types.ModuleType('torch');torch.__version__='synthetic-torch'
+torch.set_num_threads=lambda count:None
+torch.no_grad=contextlib.nullcontext
+torch.ones=lambda shape,**kwargs:shape
+class Result:
+ def __init__(self,value):self.value=value
+ def all(self):return self
+ def item(self):return self.value
+class Tensor:
+ shape=(1,1,2,2) if MODE=='shape' else (1,1,1,1)
+ def __eq__(self,value):return Result(MODE!='wrong_value')
+def convolution(sample,kernel):
+ assert sample==(1,1,3,3) and kernel==(1,1,3,3)
+ from pathlib import Path
+ Path(OBSERVED).write_text('synthetic CPU operation called')
+ if MODE=='raises':raise RuntimeError('synthetic CPU operation unavailable')
+ return Tensor()
+torch.nn=types.SimpleNamespace(functional=types.SimpleNamespace(conv2d=convolution))
+torch.isfinite=lambda output:Result(MODE!='nonfinite')
+sys.modules['torch']=torch
+for name in ['torchvision','matplotlib']:
+ module=types.ModuleType(name);module.__version__='synthetic-'+name;sys.modules[name]=module
+"""
+
+    def synthetic_imports(argv, **kwargs):
+        assert argv == [str(Path(sys.executable)), "-I", "-B", "-c", argv[-1]]
+        script = f"MODE={mode!r}\nOBSERVED={str(observed)!r}\n" + bootstrap
+        script += "\nexec(" + repr(argv[-1]) + ")\n"
+        return original([sys.executable, "-I", "-B", "-c", script], **kwargs)
+
+    monkeypatch.setattr("easyai.services.local_workspace.subprocess.Popen", synthetic_imports)
+    if mode == "healthy":
+        report = probe_python(Path(sys.executable), tmp_path / "owned-cache")
+        assert report["torch"] == "synthetic-torch"
+    else:
+        with pytest.raises(ValueError, match="ENVIRONMENT_IMPORT_FAILED"):
+            probe_python(Path(sys.executable), tmp_path / "owned-cache")
+    assert observed.read_text() == "synthetic CPU operation called"
+
+
 def test_python_probe_normal_leader_exit_returns_marker_and_retires_readers(tmp_path, monkeypatch):
     import subprocess
     from easyai.services.local_workspace import probe_python

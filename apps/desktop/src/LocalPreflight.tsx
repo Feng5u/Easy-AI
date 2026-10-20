@@ -6,11 +6,11 @@ import type {
 } from "../electron/bridge.js";
 
 const messages: Record<string, string> = {
-  ENVIRONMENT_READY: "依赖导入通过。",
+  ENVIRONMENT_READY: "依赖导入与基础 CPU 运算检查通过；未执行训练。",
   ENVIRONMENT_PYTHON_UNAVAILABLE:
     "所选 Python 无法启动，请重新选择已有解释器。",
   ENVIRONMENT_IMPORT_FAILED:
-    "所选 Python 无法导入 torch、torchvision 或 Matplotlib。请检查该环境；此操作不会安装包。",
+    "所选 Python 无法导入训练依赖，或基础 CPU 运算检查失败。请检查 torch、torchvision、Matplotlib 的兼容性，或选择其他已有环境；此操作不会安装包。",
   ENVIRONMENT_PROBE_TIMEOUT: "环境检查超时。",
   ENVIRONMENT_PROBE_INVALID: "解释器未返回有效检查报告。",
   ENVIRONMENT_PROBE_CLEANUP_PENDING: "环境检查尚未确认清理，请稍后重试。",
