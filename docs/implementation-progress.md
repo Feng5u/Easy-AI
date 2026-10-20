@@ -3795,3 +3795,17 @@ Windows job118458925751全部SUCCESS，含原生安全、冻结backend与资源�
 最终图像源码 `acdf3e6f74ac9835c0656060e7cf9f46f51b790b` 的 [CI39376641569](https://github.com/T1doo/Easy-AI/actions/runs/39376641569) attempt1全SUCCESS：Linux job118476154477完整冻结check/test/build；Windows job118476154759原生安全/冻结资源、开发态step14四场景、打包审计、包内backend/身份/资源、包内step19同四场景及step20上传全部SUCCESS。新图像场景实际通过默认最新→历史→恢复最新、合法PNG解码和精确RGBA值；同场景日志与其他三个编辑/教程门保留。中间eb3c2a1失败仍保留FAIL，没有无变更重跑或削弱UUID/沙箱门。新artifact12244120627外层435434445字节/digest `c066c517c66025a2c89b4149fb5e6f8854438279877c614d778d3538d9ee12cf`来自成功上传元数据，本实例未下载或重算此新包，不能冒称已保全。已保存到Library的交接包仍明确为43474263。
 
 最终独审覆盖修正后的生产/测试4文件、候选保全链和3份当前交接文档，无确认P1/P2；此前独审漏核fixture UUID门已由实际失败和修正关闭，不隐去。末次仅docs收据用[skip ci]避免重复产品CI，全GREEN归属精确acdf3e6及43474263；原计划/原需求/README/两锁/main均未改。当前M8.4交接顶部已区分实际代码缺口、平台边界、外部验收条件和旧历史，不宣布完整v0.0.0或A/B完成。没有新增训练/数据/SSH/安装执行/真实模型调用/用户电脑操作、签名、发布、main或强推。
+
+## 2026-10-20 演示质量检查：原生折叠后来源重新打开
+
+用户最新要求先等待合并/Release、再检查演示；本轮不改main、不发布。基线远端与本地均1db1ef7ac4e49d8b7279b1af82096ccfd7faf71f（产品acdf3e6f74ac9835c0656060e7cf9f46f51b790b），远端main仍5323f86232529efcfb52131168ad049f01b219f3。原计划SHA256 dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43、v0.0.0.md SHA256 5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190未变。
+
+独审发现P2：旧运行快照用summary手动折叠后，React的open prop仍true，后续来源请求只改version，不重新写DOM open。新增定向React/JSDOM回归实际先FAIL（expected false to be true）；最小修复在现有导航layoutEffect里用details ref恢复open，限定显式navigate!==false，不依赖异步toggle清请求。新回归包括toggle已派发/尚未派发，两者PASS。没有改变快照/后端协议或产品范围。
+
+现有真实Windows日志E2E扩展：两个色块PNG夹具的producer/5及11项contributors取自真实编译FigureSpec，RunViews核所有ID均有旧sourceMap；该受控fixture探针PASS，没有supervisor/process_spawn/runtime_started/epoch_completed。初始两条临时探针误用不存在的RunService.source/_runs而FAIL，未产生训练，修正为真实RunViews.source/get及已保存artifacts后PASS；未更改产品API迁就探针。E2E新增来源summary折叠重开、全部贡献者定位、producer及一项配置实际Blockly/Monaco可见、手动换页后的重复导航、正常退出/重开后的CANCELLED日志/最新图恢复、project/snapshot字节不变。独审纠正草稿取消文案为实际“已停止”，未改产品文案。它们是中性协议夹具，不是训练效果演示。
+
+本轮实际验证：日志/图片/旧快照76项PASS；Python只读运行视图/项目持久化/LocalWorkspace30项PASS；完整pnpm check（TypeScript、ruff/mypy、生成合同/fixture与格式）PASS；桌面build PASS（仅既有chunk体积提醒）；playwright --list列出原4场景。首pnpm check因uv默认/home/agent/.cache只读FAIL，改用本会话已有/tmp/easyai-dev-cache和/tmp/easyai-dev-data及UV_OFFLINE=1后完整PASS，未申请权限/下载/安装依赖。当前宿主已知sandbox故障不重试、不加no-sandbox；新增真实Windows开发态/包内E2E待本提交自然有界CI，不能预记PASS。
+
+本地日志SHA256：check 84b2e545f7114f5d80028f06afee91a46c4f65f8e08569bff955046be99c3b9c；desktop build b38499206a6559b4bd6df097f8090abbb2696a76aff7d64620ed0690760304bf；76项 2f4f384dafc0fa33add57c703a0510722323f998d22216f280f70b9da73ae50c；30项 dc0aabe42d7365356ad9c3192417f7cd1f3a30cc5a07a648be952f81fd79d0d5。演示顺序/不可展示范围见demo-quality-check.md。
+
+在优先级改变前完成的M6来源实查保全于m6-compatibility-review.md：NLTK当前官网仍3.10.3且公告无修复；HanLP三依赖所有满足版本无wheel；授权下载一个OpenCV精确wheel 73,783,032字节/16.78秒并静态读42ELF、许可/版本表，确认16项外部SONAME及glibc/GLIBCXX/CXXABI必要条件，不安装/执行/换headless、不将其当完整ABI/安全已通过。CIFAR固定官方MD5表/适配器源码hash、缺官方SHA256、最小隔离/扫描/预算裁决材料及正式十轮/SSH/干净Windows/真实安装具体范围一并给出，门仍关闭。当前不训练、不下数据、不SSH、不操作用户设备，不把局部检查等同完整A/B。

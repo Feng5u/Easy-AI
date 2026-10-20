@@ -417,6 +417,53 @@ it.each([
   },
 );
 
+it.each(["delivered", "pending"])(
+  "reopens a source after its native details summary was collapsed with %s toggle",
+  async (toggle) => {
+    const saved = source();
+    const blockId = id(saved, "training");
+    function Viewer() {
+      const [request, setRequest] = useState<{
+        blockId: string;
+        version: number;
+      } | null>(null);
+      const [version, setVersion] = useState(0);
+      return createElement(
+        Fragment,
+        null,
+        createElement("button", {
+          children: "Open source",
+          onClick: () => {
+            setVersion(version + 1);
+            setRequest({ blockId, version: version + 1 });
+          },
+        }),
+        createElement(SnapshotCode, {
+          source: saved,
+          request,
+          onSelectBlock: (next) => {
+            if (next === null) setRequest(null);
+          },
+        }),
+      );
+    }
+    await render(createElement(Viewer));
+    await click("Open source");
+    const details = container.querySelector("details")!;
+    expect(details.open).toBe(true);
+    await act(async () => {
+      details.open = false;
+      if (toggle === "delivered")
+        details.dispatchEvent(new dom.window.Event("toggle"));
+    });
+    await click("Open source");
+    expect(details.open).toBe(true);
+    expect(container.querySelector(".code-selected")?.textContent).toContain(
+      "old training code",
+    );
+  },
+);
+
 it("captures the old snapshot and source map rather than caller-owned mutable objects", () => {
   const saved = source(),
     blockId = id(saved, "model"),

@@ -33,7 +33,7 @@ async function geometry(viewport: Locator) {
 }
 
 test("real log windows and image history preserve their independent views", async ({}, testInfo) => {
-  test.setTimeout(90000);
+  test.setTimeout(120000);
   const directory = await mkdtemp(path.join(tmpdir(), "easyai-log-e2e-"));
   // Only test-owned files feed the real saved-run / IPC / read_log path. No
   // Runner, training environment, dataset, metrics or process is synthesized.
@@ -54,7 +54,15 @@ test("real log windows and image history preserve their independent views", asyn
     runId: string;
     runRoot: string;
     figureIds: string[];
+    figureSources: { producer: string; contributors: string[] }[];
   };
+  const projectFile = path.join(directory, "project/project.easyai.json");
+  const snapshotFile = path.join(
+    fixture.runRoot,
+    "snapshot/project.easyai.json",
+  );
+  const savedProject = await readFile(projectFile, "utf8");
+  const savedSnapshot = await readFile(snapshotFile, "utf8");
   const outFile = path.join(fixture.runRoot, "logs/train.log");
   const errFile = path.join(fixture.runRoot, "logs/stderr.log");
   const head = Buffer.from("FIXTURE-HEAD\n");
@@ -67,7 +75,8 @@ test("real log windows and image history preserve their independent views", asyn
   ]);
   await writeFile(outFile, initial);
   await writeFile(errFile, "FIXTURE-STDERR\n");
-  const app = await launchDesktop(path.join(directory, "application-state"));
+  const stateDirectory = path.join(directory, "application-state");
+  let app = await launchDesktop(stateDirectory);
   let failed = false;
   try {
     const page = await app.firstWindow();
@@ -99,6 +108,87 @@ test("real log windows and image history preserve their independent views", asyn
       });
     await expect(image).toHaveAttribute("alt", /fixture-image-1\.png/);
     await expect.poll(pixel).toEqual([30, 80, 210, 255]);
+    const latestArtifact = page
+      .locator(".artifacts > li")
+      .filter({ hasText: "outputs/fixture-image-1.png" });
+    const source = page.getByRole("region", {
+      name: "本次运行的代码与积木来源",
+      exact: true,
+    });
+    const snapshot = source.getByRole("region", {
+      name: "本次运行的只读积木快照",
+      exact: true,
+    });
+    const mapping = fixture.figureSources[1];
+    const assertSelected = async (id: string) => {
+      await expect(snapshot.getByLabel("所选积木 ID")).toHaveText(id);
+      await expect(
+        snapshot.getByRole("tab", { name: "训练管线", exact: true }),
+      ).toHaveAttribute("aria-selected", "true");
+      await expect
+        .poll(() =>
+          source
+            .locator(".code-selected button")
+            .evaluateAll(
+              (buttons, blockId) =>
+                buttons.some((button) =>
+                  button
+                    .getAttribute("aria-label")
+                    ?.endsWith(`源积木 ${blockId}`),
+                ),
+              id,
+            ),
+        )
+        .toBe(true);
+    };
+    await latestArtifact
+      .getByRole("button", { name: `来源：${mapping.producer}`, exact: true })
+      .click();
+    await assertSelected(mapping.producer);
+    await source.locator("summary").first().click();
+    await expect(source.locator("details").first()).not.toHaveAttribute("open");
+    await latestArtifact
+      .getByRole("button", { name: `来源：${mapping.producer}`, exact: true })
+      .click();
+    await expect(source.locator("details").first()).toHaveAttribute("open", "");
+    await expect(snapshot).toBeVisible();
+    await assertSelected(mapping.producer);
+    const assertPainted = async (id: string) => {
+      const selected = snapshot
+        .getByRole("tabpanel", { name: "训练管线", exact: true })
+        .locator("g.blocklyHighlighted")
+        .first();
+      await expect(selected).toHaveAttribute("data-id", id);
+      await selected.scrollIntoViewIfNeeded();
+      await expect(selected).toBeInViewport();
+      const monaco = source.getByLabel("Monaco 只读代码视图");
+      await monaco.scrollIntoViewIfNeeded();
+      await expect(
+        monaco.locator(".monaco-source-selected-semantic").first(),
+      ).toBeInViewport();
+    };
+    await assertPainted(mapping.producer);
+    await latestArtifact
+      .getByRole("button", { name: "查看配置", exact: true })
+      .click();
+    const choices = latestArtifact.locator(".artifact-contributors button");
+    await expect(choices).toHaveCount(mapping.contributors.length);
+    expect(mapping.contributors.length).toBeGreaterThan(1);
+    for (const [index, id] of mapping.contributors.entries()) {
+      await choices.nth(index).click();
+      await assertSelected(id);
+    }
+    await assertPainted(mapping.contributors.at(-1)!);
+    // An explicit repeated source click must navigate back after a manual tab change.
+    await snapshot.getByRole("tab", { name: "模型结构", exact: true }).click();
+    await latestArtifact
+      .getByRole("button", { name: `来源：${mapping.producer}`, exact: true })
+      .click();
+    await assertSelected(mapping.producer);
+    await snapshot
+      .getByRole("button", { name: "关闭快照，返回运行结果", exact: true })
+      .click();
+    await expect(snapshot).toHaveCount(0);
     await page
       .getByRole("combobox", { name: "运行图像版本" })
       .selectOption(fixture.figureIds[0]);
@@ -203,6 +293,39 @@ test("real log windows and image history preserve their independent views", asyn
       "utf8",
     );
     expect(events).not.toMatch(/process_spawn|runtime_started|epoch_completed/);
+    expect(failures).toEqual([]);
+    expect(await readFile(projectFile, "utf8")).toBe(savedProject);
+    expect(await readFile(snapshotFile, "utf8")).toBe(savedSnapshot);
+    await closeTemporaryDesktop(app, false);
+    app = await launchDesktop(stateDirectory);
+    const reopened = await app.firstWindow();
+    reopened.on("pageerror", (error) => failures.push(error.name));
+    await expect(reopened.getByTestId("backend-status")).toHaveText(
+      "本地服务已就绪。",
+    );
+    await reopened
+      .getByRole("button", {
+        name: new RegExp(`^${fixture.runId.slice(0, 8)} ·`),
+      })
+      .click();
+    await expect(reopened.locator(".run-summary")).toContainText("已停止");
+    await expect(reopened.locator(".image-preview img")).toHaveAttribute(
+      "alt",
+      /fixture-image-1\.png/,
+    );
+    await expect(
+      reopened
+        .getByRole("region", { name: "stdout 日志查看器" })
+        .getByRole("list"),
+    ).toContainText("FIXTURE-GROWN");
+    await expect(
+      reopened.getByRole("region", {
+        name: "本次运行的只读积木快照",
+        exact: true,
+      }),
+    ).toHaveCount(0);
+    expect(await readFile(projectFile, "utf8")).toBe(savedProject);
+    expect(await readFile(snapshotFile, "utf8")).toBe(savedSnapshot);
     expect(failures).toEqual([]);
   } catch (error) {
     failed = true;

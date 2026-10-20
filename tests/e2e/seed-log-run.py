@@ -60,10 +60,24 @@ try:
     output = Path(run.config.run_root) / "outputs"
     output.mkdir()
     figure_ids = []
+    figure_sources = []
     for index, figure in enumerate(figures):
         name = f"fixture-image-{index}"
         content = png(bytes((200, 60, 60) if index == 0 else (30, 80, 210)))
         (output / f"{name}.png").write_bytes(content)
+        contributors = []
+        for panel in figure.panels:
+            contributors.append(panel.origin.block_id)
+            contributors.extend(source.origin.block_id for source in panel.sources)
+            if panel.title:
+                contributors.append(panel.title.origin.block_id)
+            if panel.axis:
+                contributors.append(panel.axis.origin.block_id)
+            if panel.legend:
+                contributors.append(panel.legend.block_id)
+        if figure.save:
+            contributors.append(figure.save.origin.block_id)
+        contributors = list(dict.fromkeys(contributors))
         record = ArtifactRecord(
             artifact_id=str(uuid4()),
             run_id=run.run_id,
@@ -73,7 +87,7 @@ try:
             size_bytes=len(content),
             sha256=hashlib.sha256(content).hexdigest(),
             producer_block_id=figure.id,
-            contributor_block_ids=[],
+            contributor_block_ids=contributors,
             phase="before" if index == 0 else "epoch_end",
             epoch=None if index == 0 else 1,
             sync_state="ready",
@@ -82,6 +96,7 @@ try:
             "artifact_created", figure.id, record.model_dump(by_alias=True)
         )
         figure_ids.append(record.artifact_id)
+        figure_sources.append({"producer": figure.id, "contributors": contributors})
     workspace.runs._write_views(run.run_id, workspace.runs.events(run.run_id))
     print(
         json.dumps(
@@ -89,6 +104,7 @@ try:
                 "runId": run.run_id,
                 "runRoot": run.config.run_root,
                 "figureIds": figure_ids,
+                "figureSources": figure_sources,
             }
         )
     )

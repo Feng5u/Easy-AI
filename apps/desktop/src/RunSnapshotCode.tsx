@@ -1,4 +1,11 @@
-import { lazy, Suspense, useLayoutEffect, useMemo, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { RunSource } from "../electron/bridge.js";
 import type { WorkspaceTab } from "./editor-contract.js";
 import { CodeView } from "./CodeView.js";
@@ -28,15 +35,20 @@ export function SnapshotCode({
 }) {
   const view = useMemo(() => captureRunSnapshot(source), [source]);
   const location = locateRunBlock(view, request?.blockId ?? null);
+  const details = useRef<HTMLDetailsElement>(null);
   const [tab, setTab] = useState<WorkspaceTab>(
     view.snapshot.ui?.activeTab ?? "data",
   );
   useLayoutEffect(() => {
     if (location.workspace) setTab(location.workspace);
+    // Native summary clicks can change open without changing React's prop.
+    // Reapply every explicit navigation, even before a queued toggle event.
+    if (request && request.navigate !== false && details.current)
+      details.current.open = true;
   }, [request?.version, location.workspace]);
   return (
     <section className="panel" aria-label="本次运行的代码与积木来源">
-      <details open={request !== null}>
+      <details ref={details} open={request !== null}>
         <summary>
           本次运行的代码与来源 · revision {source.projectRevision}
         </summary>
