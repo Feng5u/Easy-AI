@@ -29,6 +29,7 @@ from test_ssh_run_coordinator import auth_for
 class File:
     def __init__(self, path, mode, endpoint):
         self.path, self.endpoint = path, endpoint
+        endpoint.hook("open_" + mode, path)
         if mode == "wx":
             self.stream = path.open("xb")
         else:
@@ -46,6 +47,7 @@ class File:
 
     def chmod(self, mode):
         assert mode == 0o600
+        self.endpoint.hook("chmod", self.path)
         os.fchmod(self.stream.fileno(), mode)
 
     def read(self, count):
@@ -75,6 +77,7 @@ class Sftp:
         return Path(path).lstat()
 
     def listdir(self, path):
+        self.endpoint.hook("listdir", Path(path))
         return os.listdir(path)
 
     def mkdir(self, path, mode):
@@ -324,11 +327,58 @@ def test_existing_run_conflicts_never_overwrite(prepared, mutation):
         path.chmod(0o666)
     else:
         (root / "remote-identity.json").write_text("unknown")
+    # Take our content sample BEFORE the metadata baseline: test reads can
+    # advance atime too. Verification must read safe regular files to reject a
+    # content mismatch; that access is not permission to modify or execute them.
+    contents = path.readlink() if mutation == "symlink" else path.read_bytes()
+    if mutation == "content":
+        # Force relatime to expose the old whole-stat assertion deterministically.
+        os.utime(path, ns=(1, path.stat().st_mtime_ns))
     before = path.lstat()
+    source_before = (source.root / "code/train.py").lstat()
+    os.listdir(path.parent)
+    assert path.lstat() == before  # lstat/listdir do not read the file contents
+    operations = []
+    allowed = {"sftp_ack", "lstat", "listdir", "open_rb", "read", "sftp_close"}
+
+    def audit(action, target):
+        operations.append((action, target))
+        # Record even attempted mutation/exec, then stop it before it can run.
+        assert action in allowed, f"Conflict verification attempted {action}"
+
+    endpoint.hook = audit
+    uid_calls = endpoint.uid_calls
     with pytest.raises(RemoteUnavailable):
         transport.stage(bundle.identity, timeout=3)
-    assert path.lstat() == before and endpoint.renames == 1
-    assert not endpoint.commands
+    after = path.lstat()  # capture before our post-check content read
+    assert all(action in allowed for action, _ in operations)
+    assert endpoint.renames == 1 and endpoint.uid_calls == uid_calls
+    assert not endpoint.commands and transport.quiescent
+    # Identity, permissions, size and nanosecond modification/change times must
+    # remain exact. atime is separately constrained by the audited read policy.
+    for field in (
+        "st_dev",
+        "st_ino",
+        "st_mode",
+        "st_nlink",
+        "st_uid",
+        "st_gid",
+        "st_size",
+        "st_mtime_ns",
+        "st_ctime_ns",
+    ):
+        assert getattr(after, field) == getattr(before, field), field
+    opens = [target for action, target in operations if action == "open_rb"]
+    reads = [target for action, target in operations if action == "read"]
+    permitted = {root / name for name, _ in bundle.files}
+    assert set(opens) <= permitted and set(reads) <= permitted
+    if mutation in ("symlink", "writable"):
+        assert path not in opens and path not in reads
+        assert after.st_atime_ns == before.st_atime_ns
+    else:
+        assert path in opens and path in reads
+    assert (source.root / "code/train.py").lstat() == source_before
+    assert (path.readlink() if mutation == "symlink" else path.read_bytes()) == contents
 
 
 def test_upload_failure_leaves_only_one_immutable_partial_and_no_execution(prepared):

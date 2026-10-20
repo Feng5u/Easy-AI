@@ -3717,3 +3717,14 @@ CI工作流on:[push,pull_request]，纯推两文档会额外全跑。已先向�
 同一SHA的Windows job118450933126全部SUCCESS，含原生安全、冻结backend/资源、开发态E2E、桌面build、打包保护、ZIP审计、包内backend及包内Electron场景、一天候选留存。候选字节435257098、SHA256 e82d7a2e1b70d111812544e2094d37026b22219583cc4d69fd5e5b9c718dc91e来自成功审计步骤元数据，本执行器未下载或独立重算。最终当前导航修复回归通过，但整套GREEN仍被上述未改动的后端断言阻挡，交父侧独审，不称完整A/B。
 
 原始RED日志SHA256 `2a1e8d2a93e041d7071f058a7e4821a93b29182772cfb4c79c73f85d7d42355c`；首次格式失败和夹具失败也完整私有保留。原件/README/两锁与main保持不变、工作树无其他写入者变更。本段仅回填实际结果，纯docs提交使用[skip ci]不追加CI，也不将跳过视为PASS；产品/测试证据仍绑定12381b58完整SHA。无第二次训练、数据下载、新本地依赖、SSH或发布操作。
+
+
+### 2026-10-20 冲突核验测试的atime因果与只读审计
+
+父侧要求继续定位而非无变更重跑或删除安全门。源码与独审一致：冲突测试先write_text('unknown')、再保存完整lstat，随后stage已有目录分支合法调用_verify → _Reader.read → SFTP rb read按冻结字节核验，再因内容不匹配拒绝。内容核验必须读取安全普通文件，原whole-stat同时要求atime不变与这一合同冲突。测试自身lstat及目录枚举不读取train.py内容；后续核内容的测试读取也必须在元数据采样之外。
+
+当前Linux工作区mount可见relatime。仓库外标准库因果probe从当前源码AST原样载入生产OwnerSshTransport/_Reader和既有离线SFTP夹具类，只提供私有最小bundle/identity与缓存UID，不导入/安装paramiko/pytest，不建网络连接或执行子进程。主动将测试自有文件atime置旧后，三类安全普通文件（content/extra_module/identity）均实际rb read、推进atime、拒绝，原whole-stat断言稳定失败；symlink/writable在open/read之前拒绝且完整stat保持。单独lstat/目录枚举对照不改变目标文件atime；九项身份/权限/size/mtime_ns/ctime_ns均精确保持、外部链接目标完整stat保持，没有write/mkdir/rename/exec。完整操作轨迹、源码hash和两次有限probe回执私有保留；不冒充冻结Python3.11完整pytest。
+
+生产逻辑无须改动。最小测试修复仍覆盖五类冲突：测试内容采样移到基线前，content设置旧atime稳定覆盖relatime条件，拒绝后的元数据在测试回读内容前采集。逐项保留dev/inode/mode/nlink/uid/gid/size/mtime_ns/ctime_ns、原始内容或链接目标、source目标完整stat与一次rename/无执行断言。新增open模式/chmod/listdir夹具hook，操作白名单只允许SFTP ack、lstat、listdir、rb open/read和close；违规尝试先记账再阻止，拒绝后再次核审计防异常被产品转换为RemoteUnavailable后假通过。safe普通文件必须确有读取，symlink/writable必须没有open/read且atime仍精确相等，所有读取只限冻结bundle文件。没有简单删除atime字段或降低不读取危险路径/不修改/不执行门。
+
+当前本地Python3.11语法解析与git diff --check PASS，定向标准库因果probe PASS；当前无项目pytest/paramiko，未安装，完整冻结测试等待本次必要测试合同变更后的自然CI，不能预记PASS。只修改测试夹具/断言与进度记录，不新增生产行为、训练、数据、SSH、依赖或CI工作流。
