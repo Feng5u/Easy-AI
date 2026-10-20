@@ -3753,3 +3753,9 @@ CI工作流on:[push,pull_request]，纯推两文档会额外全跑。已先向�
 首产品提交 `b47312c307d1f7af3c1fa740789a59f85efc9321` 的 [CI39370731336](https://github.com/T1doo/Easy-AI/actions/runs/39370731336) Linux check在新增异常夹具处TS2322失败：直接把锁定字面量版本赋值为9.0.0；尚未执行格式/测试/build，不计行为RED或PASS。仅改为文件已有Object.assign构造异常输入方式，保持相同异常值及拒绝断言，不放宽生成类型、校验或生产代码；原始失败日志私有保留。后续结果待实际CI。
 
 夹具修正SHA `5aef5e9b90f5bbb50541bec6993ea5ab8f32e918` 的 [CI39370891313](https://github.com/T1doo/Easy-AI/actions/runs/39370891313) 已通过TS/Python静态、合同与fixture检查，随后Prettier指出ArtifactSources和runSnapshot各一行格式问题，尚未执行test/build。核两行中文显示宽度均83列，修正JSX条件段和条件分支换行；同时将缺map说明明确为“此产物来源缺少本次运行的代码映射，暂不能定位”，避免旧通用文案“仅定位快照”与禁用按钮含义冲突。不改来源门或测试断言，保留失败日志，待必要修正后的自然CI实测。
+
+最终产品/测试SHA `1fe228466cc15599a0d07d9c90ec0cfc9515495c` 的 [CI39371101849](https://github.com/T1doo/Easy-AI/actions/runs/39371101849) attempt1已全部SUCCESS。Linux job118458926008完整check/test/build通过：RunSnapshot58项PASS（含9项本轮新增用例和增强迟到隔离），TS413通过/2跳过，Python959通过/19跳过/12 subtests通过、94.50秒、1既有warning，Node36通过/0跳过；实际Vite/TS与Linux PyInstaller build完成。TS2项和Python1项为未启用显式训练集成，Python其余18项为Windows原生平台条件；均未改门或冒充已验。
+
+Windows job118458925751全部SUCCESS，含原生安全、冻结backend与资源门、开发态E2E、桌面build/打包保护、ZIP审计、包内backend和Electron场景、一天候选留存。审计元数据ZIP435259273字节/hash093d18344dc39af213bb5d0e0d77b74a495c10df4dd1dd9e4fdd5ed16f63bc58，未下载或独立重算。该既有流程不等于新配置入口已做真实桌面像素验收；本轮新入口证据为真实React/Blockly manager上的合成协议回归及独立定位逻辑验证，完整A/B仍分别未关闭。
+
+三次CI各由必要源码/夹具/格式修正正常push触发，均attempt1，无无变更重跑或绕过检查；前两次失败不回填PASS。最终Linux完整日志SHA256 `91a0e92840316e3750afbf60aba0d5960a654ba64e76ed208c3bee7b9e6035f5`，前两失败日志 `49f10e034171348955a39db73a3e607ff03481673be28ae924bbd9155fb3199c` / `b5d8ec2bc5aa1dac3cd727d9bca9477db7834efee342b4e6d261fbf2a72350a3` 与元数据/独审记录仓库外私有保留。最终仅回填证据文档，[skip ci]避免纯文档重复CI；全绿仍绑定1fe2284完整SHA。原件/README/锁/main保持，无训练、数据、SSH、新本地依赖、PR/Release/部署操作。
