@@ -258,8 +258,21 @@ class ManagedProcess(Generic[E]):
         if self._max_log_bytes is not None:
             used = self._log_bytes.get(id(log), 0)
             content = content[: max(0, self._max_log_bytes - used)]
-            self._log_bytes[id(log)] = used + len(content)
-        log.write(content)
+        remaining = memoryview(content)
+        while remaining:
+            count = log.write(remaining)
+            if count is None or count <= 0:
+                raise OSError("Managed log write made no progress")
+            if self._max_log_bytes is not None:
+                self._log_bytes[id(log)] = self._log_bytes.get(id(log), 0) + count
+            remaining = remaining[count:]
+
+    def _log_fault(self, message: str) -> None:
+        self._protocol_fault(message)
+        # Persistence has failed: do not leave computation running without logs.
+        # Only terminate this launch's owned group/child; this is FAILED, not a
+        # user cancellation, and cannot depend on writing another file to disk.
+        self._signal_group(force=True)
 
     def _line(self, raw: bytes, log: BinaryIO, complete: bool = True) -> None:
         if not raw.startswith(PREFIX):
@@ -332,7 +345,7 @@ class ManagedProcess(Generic[E]):
             if pending:
                 self._line(pending, log, complete=False)
         except Exception as error:
-            self._protocol_fault(f"stdout drain failed: {error}")
+            self._log_fault(f"stdout drain failed: {error}")
         finally:
             self._close_streams(stream, log)
 
@@ -341,7 +354,7 @@ class ManagedProcess(Generic[E]):
             while chunk := os.read(stream.fileno(), 16384):
                 self._write_log(log, chunk)
         except Exception as error:
-            self._protocol_fault(f"stderr drain failed: {error}")
+            self._log_fault(f"stderr drain failed: {error}")
         finally:
             self._close_streams(stream, log)
 
@@ -351,12 +364,12 @@ class ManagedProcess(Generic[E]):
             log.flush()
             os.fsync(log.fileno())
         except Exception:
-            self._protocol_fault("Managed log persistence failed")
+            self._log_fault("Managed log persistence failed")
         finally:
             try:
                 log.close()
             except Exception:
-                self._protocol_fault("Managed log close failed")
+                self._log_fault("Managed log close failed")
 
     def _signal_group(self, force: bool = False) -> None:
         process = self._process

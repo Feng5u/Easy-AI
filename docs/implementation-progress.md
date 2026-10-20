@@ -3666,3 +3666,20 @@ CI工作流on:[push,pull_request]，纯推两文档会额外全跑。已先向�
 下一准确阻塞是该官方URL的代理拒绝，待父线程处理允许的交接/网络范围。一般继续推进不等于解除拒绝；不造新合成训练替代真实MNIST、不回填历史TST34，更不称完整A/B。旧artifact历史拒绝继续保持，不下载或经替代接口绕过。
 
 独立只读审查两docs、两私有脚本及失败回执认可，无新增明确P1/P2或敏感项；独立核raw空/输出根不存在、脚本SHA一致、FAIL与NOT RUN/已授权与历史记录边界准确。git diff --check PASS。最终训练根逻辑1,989,890,428字节；未重复运行下载或训练。仅文档提交使用[skip ci]正常推送，不把跳过记为产品CI PASS。
+
+
+### 2026-10-20 新实例接续：受管日志完整写入与持久化失败停止
+
+父级确认旧任务停写后，本实例作为唯一接续者工作。正常fetch并核开发分支完整SHA `fcb6393b4d9d2f77c6a41754602b50b9cecba2d2`，祖先 `41b736b532e008634d01821b02a8d7b493351fcb` 验证通过；从该开发分支接续，未改main。完整阅读原1544行计划/M0–M8/D01–D14、原规格及最新交付记录；原计划SHA256 `dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43`、规格/README/两锁保持。此前原实例的Python3.11与训练venv不在新实例，不能借旧记录声称已准备；本轮不安装依赖、不训练、不重下已校验MNIST。
+
+独立只读核查在共用监督核心发现原计划§11.3/TST11与§12.4的实际缺口：`_open_log`返回无缓冲FileIO，`_write_log`只调用一次write且忽略返回字节数，允许静默短写；drain/flush/close错误只标fault，计算中无新输出的子进程仍可能继续运行。Python3.11官方[原始I/O合同](https://docs.python.org/3.11/library/io.html#io.RawIOBase.write)明确允许短写。独审在独立进程以匿名memfd和本进程RLIMIT_FSIZE=3实证：输入10字节，旧方法正常返回、fsync成功，但实际仅3字节；未写满磁盘或改宿主资源限制。
+
+最小修复仅改生产`runtime/managed.py`：循环写完剩余字节，0/None进展抛OSError，限额只累计已成功写入的字节。日志读写/flush/fsync/close故障保留原fault诊断，并用已有owned进程组/子进程句柄终止本次计算；不用额外落盘取消请求，终态为FAILED而非用户CANCELLED。Windows仍只操作持有child，不声明孙进程清理能力。Bundle与远端owner原文共用该核心，无第二套实现或schema/生成训练代码变更。
+
+新增`test_managed_log_writes.py`可由标准库unittest直接运行，也由既有pytest收集。实际fixture子进程验证双路短写原文/UTF8留存与1024字节限额、0/None/部分写后ENOSPC停止计算、两路flush/close故障停止，以及Linux匿名FileIO真实短写不能成功返回。旧源码同组3方法出现12个失败子场景；修复后4方法PASS，独审独立4方法PASS，不累加。Linux专属memfd用例其他平台明确skip，普通双路/终态用例不跳过。测试没有真实训练指标、数据或模型。
+
+本实例实际命令：`python3 -I -B`加明确backend src/test路径、`unittest.defaultTestLoader.discover(..., pattern='test_managed_log_writes.py')` PASS；Python3.11语法模式解析两修改源码PASS；三真实Blockly fixture纯编译PASS，MNIST golden code/IR/source-map逐项一致；生产Bundle导出核`code/managed.py`逐字同源码及helper语法PASS，未执行生成程序；`git diff --check` PASS。独审未发现明确P1/P2，实际原文helper核验同样PASS。
+
+执行宿主为Python3.12.14/Pydantic2.13.4，不冒充冻结Python3.11环境。当前没有项目venv/node_modules及pytest/ruff/mypy，遵守本轮不安装要求，`pnpm check/test/build`与冻结全套、实际Windows回归均NOT RUN；不将旧CI或本轮定向测试回填为当前整套PASS。原始RED日志SHA256 `0ed39ac4079eefaac8952d87f55738869c8d74a1e429a2a6ef938ef28772b08a`，GREEN日志 `1fd6a679d98e821537e9de5ad274b1232d2a2721c23aa46fc1c5901750498a4f`，保留在仓库外私有证据目录。
+
+本轮仅此原计划协议修复、故障回归和必要进度记录，正常开发分支推送供冻结CI复核，不使用skip标记绕过产品检查。未改原件、需求、README、锁、应用安全门、训练环境、数据、远端教师环境或许可；无真实SSH、新凭据/权限/费用、main/PR/Release/部署。原完整A/B及真实MNIST、SSH、干净机/平台/许可验收仍分别未完成。
