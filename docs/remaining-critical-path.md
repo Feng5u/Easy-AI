@@ -1,5 +1,24 @@
 # v0.0.0 有界收口盘点（2026-10-19）
 
+## 2026-10-20 当前交接状态
+
+本节更新旧盘点，原M0–M8/D01–D14及完整B门不变。最新产品提交为 `acdf3e6f74ac9835c0656060e7cf9f46f51b790b`，包含有界历史日志和默认最新图片/历史回放；其 [CI39376641569](https://github.com/T1doo/Easy-AI/actions/runs/39376641569) Linux/Windows全SUCCESS，含开发态与实际包内四场景，准确收据见implementation-progress末节。下文2026-10-19的FAIL/平台门/“停止新增开发”均是历史记录，保留以追溯，不代表当前事实。
+
+已实际保全的Windows x64试用包绑定 `43474263d8b61ab12bc50ef554259013c4a326d6` / [CI39374728677](https://github.com/T1doo/Easy-AI/actions/runs/39374728677) / artifact12243226977，原开发态及包内四E2E、Linux完整检查、打包审计和退出均通过。ZIP435264873字节，SHA256 `4779ee31b553f8a09690cf1a59af36ace910998d405b31e90c8cb1301d5c2200`，本实例已下载、逐文件核验并持久保存到维护者Library，连同试用说明与清单供单独交接。该包含日志收口，不含后续acdf3e6图像回放；没有混用源码SHA。未签名、无安装器、不含训练环境/数据/权重，未执行此下载包；干净机与完整B仍未验收。
+
+实际代码/能力缺口：CIFAR10官方构造仍返回SAFE_PROBE_REQUIRED；OpenCV、NLTK、HanLP三张卡分别受native需求未核、固定候选漏洞、依赖无目标wheel阻断。受控安装执行合同为Linux x64/固定CPython与conda/owned根和受信任来源，Windows本地自动建训练环境不属于已有执行平台。不能把目录卡存在或元数据闭包当作这些能力已可用。Windows原生缓存与host trust当前VERIFIED均为True，旧“Windows生产门未开”不再列为当前代码缺口；真实SSH尚需实测。
+
+完整B接续所需最小外部条件（当前未运行，不自动恢复一次训练授权）：
+
+- 正式MNIST十轮：已准备的训练Python与数据绝对路径、CPU/GPU选择、允许时长/资源预算和明确新执行范围；已有一次1024/256/1epoch CPU证据不重复使用为十轮验收，也不再下载数据。
+- SSH：单跳Linux隔离目标/账号、可信渠道指纹、既有Python或conda前缀/数据根、应用专有run目录，以及取消、断线、重连与应用重启的操作窗口；凭据通过私密入口提供。
+- TST33：Windows11 x64干净图形机，无Node/开发Python；明确由谁实际操作/保全截图与退出记录。Windows Server CI包内成功不能替代此项，当前未操作用户电脑。
+- 安装：一次性owned根/环境、具体包ID、固定可信来源、联网或离线方式、下载/容量/时间预算；教师共享环境继续只读，原实现不支持的卡不能暗中解禁。
+- CIFAR合同：固定官方构造必需的全量MD5/pickle读取与现预检约束冲突，需要对受信任固定数据、隔离执行方式和扫描例外作具体裁决；不改用自制解析器绕过。
+- 交接许可：权利人选择项目自身许可证，指定native/system第三方许可审核责任人并给出审核结论；不自行设legalReviewComplete或distributionReady为true。
+
+其余真实课堂编辑→运行→指标/PNG/权重/取消/恢复/映射仍须按原验收矩阵串联。已有代码与局部自动化成功不等于A/B完成。当前交接优先完成这些原范围阻断项，不增加新功能，也不从测试数量推算完成率或承诺未知授权的日期。
+
 2026-10-19 当前真实结果：`da5a1af18afd4115bf072273cc2b012a65cbee7e` / [run39222623389](https://github.com/T1doo/Easy-AI/actions/runs/39222623389) Linux SUCCESS，Windows打包保护SUCCESS，实际Build unsigned Windows candidate FAIL，后续ZIP/包内E2E/上传SKIPPED，尚无Windows候选。缺该构建步骤首异常/堆栈，父级可用已登录浏览器读取；根因UNKNOWN，不猜测或放宽保护。原Linux候选保留。
 
 2026-10-19 实测增量：源码 `ca184beffeb5850adea499e08fb50619d6b01bc7` 的 [run39221894722](https://github.com/T1doo/Easy-AI/actions/runs/39221894722) Linux SUCCESS；Windows原开发E2E成功，新增Packaging input and archive guards（pnpm test:package）FAIL，后续实际打包/包内E2E/上传SKIPPED，尚无Windows候选。首错误正文待父级已登录浏览器读取，根因UNKNOWN；保护不跳过、不猜测同因。下文“待本轮CI”为提交时状态，现以此结果为准。

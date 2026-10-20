@@ -1,5 +1,7 @@
 # v0.0.0 发布验收清单
 
+2026-10-20当前状态：`43474263d8b61ab12bc50ef554259013c4a326d6` / [CI39374728677](https://github.com/T1doo/Easy-AI/actions/runs/39374728677) Linux/Windows全SUCCESS；artifact12243226977的Windows未签名ZIP已实际下载、核验361文件并持久保全到维护者Library，435264873字节/SHA256 `4779ee31b553f8a09690cf1a59af36ace910998d405b31e90c8cb1301d5c2200`。该日志候选不含后续图像回放源码acdf3e6，版本分别记录。完整B仍未验收，distributionReady/legalReviewComplete保持false。当前具体缺口与最小条件见[当前交接状态](remaining-critical-path.md#2026-10-20-当前交接状态)，图像最终验证见implementation-progress末节；以下旧FAIL与门控状态是历史记录。
+
 2026-10-19 当前真实结果：`da5a1af18afd4115bf072273cc2b012a65cbee7e` / [run39222623389](https://github.com/T1doo/Easy-AI/actions/runs/39222623389) Linux SUCCESS，Windows打包保护SUCCESS，实际Build unsigned Windows candidate FAIL，后续ZIP/包内E2E/上传SKIPPED，尚无Windows候选。缺该构建步骤首异常/堆栈，父级可用已登录浏览器读取；根因UNKNOWN，不猜测或放宽保护。原Linux候选保留。
 
 2026-10-19 实测增量：源码 `ca184beffeb5850adea499e08fb50619d6b01bc7` 的 [run39221894722](https://github.com/T1doo/Easy-AI/actions/runs/39221894722) Linux SUCCESS；Windows原开发E2E成功，新增Packaging input and archive guards（pnpm test:package）FAIL，后续实际打包/包内E2E/上传SKIPPED，尚无Windows候选。首错误正文待父级已登录浏览器读取，根因UNKNOWN；保护不跳过、不猜测同因。下文“待本轮CI”为提交时状态，现以此结果为准。
