@@ -3751,3 +3751,5 @@ CI工作流on:[push,pull_request]，纯推两文档会额外全跑。已先向�
 原main、计划/规格/README/两锁保持；只提交本切片及必要记录，不改backend/CI工作流，不再围绕atime加外围测试。没有第二次训练、新数据下载、SSH或本地依赖安装。此切片不等于历史快照真实GUI像素验收或完整A/B完成。
 
 首产品提交 `b47312c307d1f7af3c1fa740789a59f85efc9321` 的 [CI39370731336](https://github.com/T1doo/Easy-AI/actions/runs/39370731336) Linux check在新增异常夹具处TS2322失败：直接把锁定字面量版本赋值为9.0.0；尚未执行格式/测试/build，不计行为RED或PASS。仅改为文件已有Object.assign构造异常输入方式，保持相同异常值及拒绝断言，不放宽生成类型、校验或生产代码；原始失败日志私有保留。后续结果待实际CI。
+
+夹具修正SHA `5aef5e9b90f5bbb50541bec6993ea5ab8f32e918` 的 [CI39370891313](https://github.com/T1doo/Easy-AI/actions/runs/39370891313) 已通过TS/Python静态、合同与fixture检查，随后Prettier指出ArtifactSources和runSnapshot各一行格式问题，尚未执行test/build。核两行中文显示宽度均83列，修正JSX条件段和条件分支换行；同时将缺map说明明确为“此产物来源缺少本次运行的代码映射，暂不能定位”，避免旧通用文案“仅定位快照”与禁用按钮含义冲突。不改来源门或测试断言，保留失败日志，待必要修正后的自然CI实测。

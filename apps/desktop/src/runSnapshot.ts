@@ -70,11 +70,16 @@ export function locateArtifactBlock(
   )
     return { blockId: null, issue: "此积木未登记为该产物的来源。" };
   const location = locateRunBlock(view, id);
+  if (!location.codeBlockId)
+    return {
+      blockId: null,
+      issue: location.blockId
+        ? "此产物来源缺少本次运行的代码映射，暂不能定位。"
+        : location.issue || "此来源缺少可核验的积木和代码映射，不能定位。",
+    };
   return {
-    blockId: location.codeBlockId ? location.blockId : null,
-    issue:
-      location.issue ||
-      (location.codeBlockId ? "" : "此来源缺少可核验的积木和代码映射，不能定位。"),
+    blockId: location.blockId,
+    issue: location.issue,
   };
 }
 

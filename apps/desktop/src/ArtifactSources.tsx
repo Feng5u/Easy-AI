@@ -57,7 +57,9 @@ export function ArtifactSources({
       >
         查看配置
       </button>
-      {!contributors.length && <p className="muted">此产物未登记配置贡献积木。</p>}
+      {!contributors.length && (
+        <p className="muted">此产物未登记配置贡献积木。</p>
+      )}
       <div id={configurationId} hidden={!expanded}>
         <p className="muted">选择此产物登记的配置，定位本次运行的只读快照。</p>
         <ul className="artifact-contributors">
