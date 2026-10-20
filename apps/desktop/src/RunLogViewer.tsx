@@ -171,8 +171,8 @@ function LogStreamViewer({ api, runId, stream, live, otherEnd }: Props) {
             ? "已暂停滚动"
             : "历史页"}
         ：显示字节 [{window.start.toLocaleString()},{" "}
-        {window.end.toLocaleString()})；实时已读取至{" "}
-        {live.end.toLocaleString()} 字节。
+        {window.end.toLocaleString()})；实时已读取至 {live.end.toLocaleString()}{" "}
+        字节。
       </p>
       <p className="muted">
         每页最多 {LOG_PAGE_BYTES.toLocaleString()} 字节，实时最多保留{" "}

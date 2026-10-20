@@ -61,9 +61,7 @@ async function render(element: ReturnType<typeof createElement>) {
 }
 function button(label: string) {
   const buttons = container.querySelectorAll<HTMLButtonElement>("button");
-  const found = [...buttons].find(
-    (item) => item.textContent?.trim() === label,
-  );
+  const found = [...buttons].find((item) => item.textContent?.trim() === label);
   if (!found) throw new Error("Missing button: " + label);
   return found;
 }
@@ -273,48 +271,44 @@ it("keeps one physical history request through resume and ignores late replies a
   expect(button("从头查看 stdout").disabled).toBe(false);
 });
 
-it(
-  "bounds bookmark history and virtual DOM while failures and empty pages preserve position",
-  async () => {
-    const h = fixture("x".repeat(LOG_PAGE_BYTES * (LOG_BOOKMARKS + 2)));
-    await render(
-      createElement(RunLogViewer, {
-        api: h.api,
-        runId: "many-pages",
-        stream: "stdout",
-        live: emptyLogPair().stdout,
-        otherEnd: 0,
-      }),
-    );
-    await click("从头查看 stdout");
-    for (let n = 0; n <= LOG_BOOKMARKS; n++) {
-      await click("下一页 stdout");
-      expect(
-        viewport().querySelectorAll('[role="listitem"]').length,
-      ).toBeLessThanOrEqual(24);
-    }
-    expect(container.textContent).toContain("更早的页请从头读取");
-    const end = summary();
+it("bounds bookmark history and virtual DOM while failures and empty pages preserve position", async () => {
+  const h = fixture("x".repeat(LOG_PAGE_BYTES * (LOG_BOOKMARKS + 2)));
+  await render(
+    createElement(RunLogViewer, {
+      api: h.api,
+      runId: "many-pages",
+      stream: "stdout",
+      live: emptyLogPair().stdout,
+      otherEnd: 0,
+    }),
+  );
+  await click("从头查看 stdout");
+  for (let n = 0; n <= LOG_BOOKMARKS; n++) {
     await click("下一页 stdout");
-    expect(summary()).toBe(end);
-    h.logs.mockRejectedValueOnce(
-      new Error("private path /home/user token=secret"),
-    );
-    await click("上一页 stdout");
-    expect(summary()).toBe(end);
-    expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-      "读取失败",
-    );
-    expect(container.textContent).not.toContain("token=secret");
-    for (let n = 0; n < LOG_BOOKMARKS; n++) await click("上一页 stdout");
-    expect(button("上一页 stdout").disabled).toBe(true);
-    expect(summary()).toContain(LOG_PAGE_BYTES.toLocaleString());
-    await click("从头查看 stdout");
-    expect(button("上一页 stdout").disabled).toBe(true);
-    expect(container.textContent).not.toContain("更早的页请从头读取");
-  },
-  10_000,
-);
+    expect(
+      viewport().querySelectorAll('[role="listitem"]').length,
+    ).toBeLessThanOrEqual(24);
+  }
+  expect(container.textContent).toContain("更早的页请从头读取");
+  const end = summary();
+  await click("下一页 stdout");
+  expect(summary()).toBe(end);
+  h.logs.mockRejectedValueOnce(
+    new Error("private path /home/user token=secret"),
+  );
+  await click("上一页 stdout");
+  expect(summary()).toBe(end);
+  expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+    "读取失败",
+  );
+  expect(container.textContent).not.toContain("token=secret");
+  for (let n = 0; n < LOG_BOOKMARKS; n++) await click("上一页 stdout");
+  expect(button("上一页 stdout").disabled).toBe(true);
+  expect(summary()).toContain(LOG_PAGE_BYTES.toLocaleString());
+  await click("从头查看 stdout");
+  expect(button("上一页 stdout").disabled).toBe(true);
+  expect(container.textContent).not.toContain("更早的页请从头读取");
+}, 10_000);
 
 it("shows every long-line codepoint through a bounded virtual window and escapes HTML", async () => {
   const h = fixture();
@@ -341,7 +335,8 @@ it("shows every long-line codepoint through a bounded virtual window and escapes
   const expected = logRows(raw);
   expect(viewport().scrollTop).toBe(viewport().scrollHeight - 303);
   expect(
-    viewport().querySelector('[role="listitem"]:last-child')
+    viewport()
+      .querySelector('[role="listitem"]:last-child')
       ?.getAttribute("aria-posinset"),
   ).toBe(String(expected.length));
   await click("暂停自动滚动 stdout");

@@ -3759,3 +3759,17 @@ CI工作流on:[push,pull_request]，纯推两文档会额外全跑。已先向�
 Windows job118458925751全部SUCCESS，含原生安全、冻结backend与资源门、开发态E2E、桌面build/打包保护、ZIP审计、包内backend和Electron场景、一天候选留存。审计元数据ZIP435259273字节/hash093d18344dc39af213bb5d0e0d77b74a495c10df4dd1dd9e4fdd5ed16f63bc58，未下载或独立重算。该既有流程不等于新配置入口已做真实桌面像素验收；本轮新入口证据为真实React/Blockly manager上的合成协议回归及独立定位逻辑验证，完整A/B仍分别未关闭。
 
 三次CI各由必要源码/夹具/格式修正正常push触发，均attempt1，无无变更重跑或绕过检查；前两次失败不回填PASS。最终Linux完整日志SHA256 `91a0e92840316e3750afbf60aba0d5960a654ba64e76ed208c3bee7b9e6035f5`，前两失败日志 `49f10e034171348955a39db73a3e607ff03481673be28ae924bbd9155fb3199c` / `b5d8ec2bc5aa1dac3cd727d9bca9477db7834efee342b4e6d261fbf2a72350a3` 与元数据/独审记录仓库外私有保留。最终仅回填证据文档，[skip ci]避免纯文档重复CI；全绿仍绑定1fe2284完整SHA。原件/README/锁/main保持，无训练、数据、SSH、新本地依赖、PR/Release/部署操作。
+
+### 2026-10-20 新实例收口 §11.3 / M3.4 / M6.4 有界历史日志查看器
+
+本实例初始干净 `work` / `5323f86232529efcfb52131168ad049f01b219f3`，远端基本读取可用；fetch 后核准并检出 `codex/wip-historical-log-viewer-20261020` 的准确 WIP `8274af7952910daa6b7c28f7161b1280dab97bff`，父 `602941e667fb99be2b1c2749438d5bf1a6f45f1a`。祖先检查成立，WIP准确7文件+1009/-29，保留现有代码及安全测试修复。WIP有明确 `[skip ci]`，不计作CI通过。main仍为原基线；计划 SHA256 `dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43`、原需求 `5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190` 不变。
+
+最小设计沿用 `runs.logs/read_log`：每路实时最多4×32768原字节，暂停可额外固定最多4块旧快照，历史页另保留最多32768原字节；整体有界，不声称所有状态总共只有4块。历史读取不改变两路实时游标，每路64个回退位置、最多24个DOM文本片段。长行按256 Unicode codepoints折段，行高20px；滚动到底采用实际 `scrollHeight-clientHeight`，固定横向条。原字节游标不以替换字符重新编码；等待未完整UTF-8、终态冲洗、空页/增长/失败保位与run切换迟到隔离保持既有合同，不新增后端协议/预算。
+
+本实例实际冻结安装 Node24.19.0/pnpm11.25.0 与项目锁成功；首次pnpm默认全局目录不可写，改用任务专用 `/tmp` XDG缓存后成功，未改HOME或项目锁。`pnpm setup` 的冻结CPython3.11.17与应用后端依赖成功，不含torch；最后Electron44.9.0二进制获取报 `TypeError: fetch failed`，setup整体FAIL，未改索引/代理/权限或反复重试。旧训练环境/数据未使用。
+
+当前实际 `pnpm --filter @easyai/desktop check` PASS；定向 logWindow/RunLogViewer/RunSnapshot 73 PASS。首次格式检查指出两个新文件，已用锁定Prettier修正。随后完整 `pnpm check` PASS（TS、Python静态、合同/fixtures、格式），完整 `pnpm test` PASS：428 TS/2既有skip、959 Python/19既有skip/12 subtests、36 Node，保留1既有warning。完整 `pnpm build` PASS：renderer/main/preload与PyInstaller应用sidecar。未运行训练集成/SSH，不将旧真实MNIST一次quick或旧CI充当本轮结果。
+
+保持 `chromiumSandbox:true` 的本机系统Chromium实际启动FAIL：`/usr/lib/chromium/chrome-sandbox`非root所有，浏览器在打开页面前SIGABRT；未关闭sandbox或修改系统权限。因此本机GUI/20px像素验收NOT RUN，不以JSDOM受控303px几何冒充。新增 `tests/e2e/run-logs.spec.ts` 与 `seed-log-run.py`，通过真实LocalWorkspace/RunService.prepare建立测试自有CREATED未启动记录，恢复实际App/IPC/read_log链，覆盖大量空行、跨页CRLF、中文emoji、宽行双向滚动、末行可见、暂停仍采集、独立历史及终态不完整UTF-8；断言无runtime_started/epoch/process_spawn，取消仅作用于该CREATED夹具。正常及失败路径均取消自有未启动记录后确认应用退出，不启动训练或读取数据。新测试TS类型、Ruff与Playwright收集PASS；真实Electron执行待本次自然Windows开发态与包内CI，尚不能称PASS。
+
+独立只读审查覆盖WIP7文件、两路本地/远端read_log合同与新增测试；发现的失败清理缺口已补精确fixture.runId取消，复审无确认P1/P2。React best-practices复核hooks/派生状态/只读转义/异步退役和可访问性，无额外依赖。实际日志私有保留 `/tmp/easyai-logview-*.log`；完整check/test/build SHA256分别 `84b2e545f7114f5d80028f06afee91a46c4f65f8e08569bff955046be99c3b9c` / `452f392b416a07611a502152408b7f4a1e6d0f8e821af1bc8b9b43a9b23b447a` / `74d8a1ba9ab33dc92ef5792b058528e5286cd6e5e5ec2cf4b31042c05f15dbe8`。普通开发分支提交将触发既有有界免费CI；完整A/B、真实SSH、干净机、正式10轮与真实历史快照像素验收仍未关闭。
