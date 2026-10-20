@@ -3631,3 +3631,14 @@ CI工作流on:[push,pull_request]，纯推两文档会额外全跑。已先向�
 本轮最终本地PASS：pnpm check；pnpm test（400TS/2skip、955Python/19skip，73.54秒与1既有warning，36Node）；pnpm --filter @easyai/desktop build；git diff --check。定向28Python/13TS与独审重叠不累计。原plan/规格/README/两锁SHA再次不变。只改本机probe生产路径及关联诊断文案/实际子进程回归，未增加训练、数据下载、模型服务调用、依赖/许可或安全例外。必要修复和两旧证据正常一次开发分支推送，唯一自然CI后再记录实际结果。
 
 日志SHA256：/tmp/easyai-local-probe-cpu-red-20261020.log 6c3a7ad2233b9d809189f847bc3a23799b78a7c07d871f1c09fd129bea5202a7；green 4457e187749b5298c3aba36283e7e6d83fb19255051cd950529f6a5ea4b9cfc6；UI cef128c1aa6fea1a2c9a57c1cbe4603b9d8f23c81645a8bf0d09ecf8e2406fd3；check e580f738fb6f2a6bfe01cc5daae5d3e702f5220b2ad112eafff67fad6afa0a95；real-CPU 86fccc7bddad393732b4728e00d3c96a741556dd86eaf3d67366055e8b8739e2；build 0d190e92baa72bd5975295e09fce03df760b8ce65429e5eb0cbbbc48f861de53；all-test d80a13254da2cf735acac3f0ab7c223bd8e1921756c8dfa5c158434cd5ae90d7。完整路径以/tmp/easyai-local-probe-*-20261020.log为准。
+
+
+### 41b736b 单次自然 CI 全 SUCCESS，旧文档已推送，旧候选保全仍待明确下载范围
+
+开发源码/remote `41b736b532e008634d01821b02a8d7b493351fcb`，[CI39346965518](https://github.com/T1doo/Easy-AI/actions/runs/39346965518)。Linux job118381784830完整check/test/build SUCCESS；Windows job118381785172全部步骤SUCCESS，含native安全、冻结backend/资源、开发态step14三个场景、打包保护/build、ZIP审计17、包内backend18、包内19相同三个场景、上传20。独立允许元数据复核整体/source/branch与两job均SUCCESS，未读受限logs/artifacts。两个旧docs4b89ecb59052fea53ac5d734bc957909fa9968bf与fdb525557a05be58f9fe942da9087d417493b649为当前远端源码祖先，已正常推送保全；仅一次必要产品CI，没有纯文档额外CI或绕检查。
+
+新ZIP435256032B，SHA256 abee57c5f61db79b202f876ff97858a4f1007e51c39dcb2bead276da07b614ec；artifact easyai-unsigned-win-x64-41b736b532e008634d01821b02a8d7b493351fcb上传成功/留存一天。新candidate-windows-41b736b.md和windows-candidate顶部记录来源/范围；字节/hash来自成功审计元数据，本执行器未下载或独立重算Windows ZIP。
+
+旧指定artifact12192547002/435255641B/hash94d9873d1692c533e2b0d758aa47d4df3d6123f57686ad24930b13b91cf4eec8不是新包。在当前/workspace及可访问/tmp未找到本地保全；受保护/tmp/codex-daemon-1000不可读且无相关存储证据，不重试该无关目录。历史logs/artifacts/browser拒绝原具体下载tool/URL正文未保全，不能凭新工具可见就缩窄禁令。已明确请求专用github_download_workflow_artifact对T1doo/Easy-AI artifact12192547002单次许可或由已登录页面保全转交；该动作pending/NOT RUN，未调用下载、不改留存/Release、不借新hash伪称旧包保全。此为剩余具体阻塞，不是本轮下载失败/执行未知或新的自动审核拒绝。
+
+当前仅新CI收据本地docs提交，避免再触发纯文档CI；此前两份文档已全部在远端。原main5323f86232529efcfb52131168ad049f01b219f3、原件/规格/README/锁不变。实际交付新增本机CPU运算预检与准确诊断，未仅增加测试；完整真实MNIST/SSH/平台训练/安装/许可/干净机/发布门仍分别未验。无新依赖/数据下载、训练、模型服务调用、许可/安全例外、共享教师环境/main/PR/Release/部署操作。

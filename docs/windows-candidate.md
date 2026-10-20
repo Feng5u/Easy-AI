@@ -1,5 +1,7 @@
 # Windows 未签名候选
 
+**最新本机运算预检修复候选**：源码 `41b736b532e008634d01821b02a8d7b493351fcb` / [CI39346965518](https://github.com/T1doo/Easy-AI/actions/runs/39346965518) Linux/Windows 全 SUCCESS；开发态及包内三个完整场景、审计与上传均成功。新增已选Python实际CPU小卷积后才报就绪，应用不安装/导入torch。ZIP435256032字节，SHA256 `abee57c5f61db79b202f876ff97858a4f1007e51c39dcb2bead276da07b614ec`，一天留存。见[准确范围与旧候选保全待项](candidate-windows-41b736b.md)。原指定artifact12192547002未证实本地保全，新包不替代旧hash；完整A/B未通过。
+
 **最新教程算术验收候选**：源码 `f487b6531f9e492fba3820d8408f3f372227cec9` / [CI39264647912](https://github.com/T1doo/Easy-AI/actions/runs/39264647912) Linux/Windows 全 SUCCESS。开发态与实际包内均完成原两个编辑场景及新增 TST32 本地卷积教程算术/错误修复场景；验证名称草稿修复及严格同帧 Monaco 高亮观测。ZIP435255641字节，SHA256 `94d9873d1692c533e2b0d758aa47d4df3d6123f57686ad24930b13b91cf4eec8`；审计/包内 backend/上传成功，一天留存。见[候选收据与证据边界](candidate-windows-f487b65.md)。旧 startup 退出归属 Unknown 保留；完整 M4/M7/MNIST/SSH/TST33/34/许可/A/B 未整体验收。
 
 **最新重复源定位候选**：源码 `3c53280b16fc63f30567520951b3fe3055624863` / [CI39261021740](https://github.com/T1doo/Easy-AI/actions/runs/39261021740) Linux/Windows全SUCCESS。开发态与实际打包应用均保留原两个完整E2E，并验证已选Linear滚离后重复点击同一诊断源按钮和Monaco声明行仍重新可见，原生数字编辑回声不居中。ZIP435255629字节，SHA256 `74f3522825f4e3f9106319f6af65515ab539304e708bd31e572ad60ccefe3615`；审计/包内backend/上传PASS，一天留存。见[收据与真实UI验收范围](candidate-windows-3c53280.md)。完整M4/M7/SSH/MNIST/TST33/许可/A/B尚未完成，以下旧候选与失败均保全。
