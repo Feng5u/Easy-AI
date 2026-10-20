@@ -592,7 +592,7 @@ it.each([
       );
     if (variant === "wrong-tab") saved.sourceMap[1].origin.workspace = "model";
     if (variant === "unsupported-version")
-      saved.snapshot.blockLibraryVersion = "9.0.0";
+      Object.assign(saved.snapshot, { blockLibraryVersion: "9.0.0" });
     if (variant === "duplicate-id")
       saved.snapshot.workspaces.model.blocks.blocks![0].id = blockId;
     await render(

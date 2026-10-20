@@ -3749,3 +3749,5 @@ CI工作流on:[push,pull_request]，纯推两文档会额外全跑。已先向�
 独立只读审查未见明确P1/P2；Node24原生stripTypeScriptTypes后实际执行当前runSnapshot/monaco-mapping纯逻辑，7个合法producer/contributor及foreign-run/未登记/null view/缺块/缺map/错tab/版本/重复ID边界通过，输入JSON不变；新增测试语法解析与git diff --check PASS，不累加为完整套件。两TSX按既有React best-practices核hooks/派生属性/只读与可访问性，未增加effect或跨run共享状态。本地node --check与diff检查PASS；因无React/Vitest/项目node_modules，本地完整类型/格式/React测试NOT RUN，未安装依赖，等待本次必要产品变更后的自然CI实际结果。
 
 原main、计划/规格/README/两锁保持；只提交本切片及必要记录，不改backend/CI工作流，不再围绕atime加外围测试。没有第二次训练、新数据下载、SSH或本地依赖安装。此切片不等于历史快照真实GUI像素验收或完整A/B完成。
+
+首产品提交 `b47312c307d1f7af3c1fa740789a59f85efc9321` 的 [CI39370731336](https://github.com/T1doo/Easy-AI/actions/runs/39370731336) Linux check在新增异常夹具处TS2322失败：直接把锁定字面量版本赋值为9.0.0；尚未执行格式/测试/build，不计行为RED或PASS。仅改为文件已有Object.assign构造异常输入方式，保持相同异常值及拒绝断言，不放宽生成类型、校验或生产代码；原始失败日志私有保留。后续结果待实际CI。
