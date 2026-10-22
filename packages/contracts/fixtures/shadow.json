@@ -1,0 +1,36 @@
+{
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "model.define",
+        "id": "shadow-root",
+        "x": 0,
+        "y": 0,
+        "extraState": {
+          "easyai": {
+            "version": 1,
+            "registered": true
+          }
+        },
+        "fields": {
+          "NAME": "ShadowModel"
+        },
+        "inputs": {
+          "body": {
+            "shadow": {
+              "type": "model.relu",
+              "id": "shadow-layer",
+              "extraState": {
+                "easyai": {
+                  "version": 1,
+                  "registered": false
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

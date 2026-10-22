@@ -1,0 +1,48 @@
+.tutorial-panel nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.tutorial-panel nav [aria-pressed="true"] {
+  outline: 2px solid currentColor;
+}
+.convolution-lab {
+  border: 1px solid #778;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-block: 1rem;
+}
+.convolution-lab table {
+  border-collapse: collapse;
+  margin-block: 1rem;
+}
+.convolution-lab td {
+  border: 1px solid #778;
+  padding: 0.45rem;
+  min-width: 2rem;
+  text-align: center;
+}
+.convolution-window {
+  background: #cfebfa;
+  color: #142c3c;
+  font-weight: bold;
+}
+.kernel-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  max-width: 30rem;
+}
+.kernel-grid label {
+  display: flex;
+  flex-direction: column;
+}
+.kernel-grid input {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+.convolution-lab output {
+  display: block;
+  font-weight: bold;
+}

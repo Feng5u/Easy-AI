@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": [
+      "ES2022",
+      "DOM"
+    ],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "outDir": "dist-electron",
+    "types": [
+      "node"
+    ],
+    "skipLibCheck": false,
+    "rootDir": "electron",
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
+  },
+  "include": [
+    "electron"
+  ],
+  "exclude": [
+    "electron/**/*.test.mts"
+  ]
+}

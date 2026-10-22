@@ -1,0 +1,224 @@
+{
+  "$defs": {
+    "BlocklyBlocks": {
+      "additionalProperties": false,
+      "properties": {
+        "languageVersion": {
+          "const": 0,
+          "default": 0,
+          "title": "Languageversion",
+          "type": "integer"
+        },
+        "blocks": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Blocks",
+          "type": "array"
+        }
+      },
+      "title": "BlocklyBlocks",
+      "type": "object"
+    },
+    "ProjectDocument": {
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": {
+          "const": 1,
+          "default": 1,
+          "title": "Schemaversion",
+          "type": "integer"
+        },
+        "appVersion": {
+          "const": "0.0.0",
+          "default": "0.0.0",
+          "title": "Appversion",
+          "type": "string"
+        },
+        "blockLibraryVersion": {
+          "const": "0.0.0",
+          "default": "0.0.0",
+          "title": "Blocklibraryversion",
+          "type": "string"
+        },
+        "projectId": {
+          "title": "Projectid",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "revision": {
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "workspaces": {
+          "$ref": "#/$defs/Workspaces"
+        },
+        "settings": {
+          "$ref": "#/$defs/Settings"
+        },
+        "ui": {
+          "$ref": "#/$defs/UI"
+        }
+      },
+      "required": [
+        "projectId",
+        "name",
+        "revision",
+        "workspaces"
+      ],
+      "title": "ProjectDocument",
+      "type": "object"
+    },
+    "Settings": {
+      "additionalProperties": false,
+      "properties": {
+        "dataDirectory": {
+          "const": "data",
+          "default": "data",
+          "title": "Datadirectory",
+          "type": "string"
+        },
+        "seed": {
+          "default": 42,
+          "maximum": 4294967295,
+          "minimum": 0,
+          "title": "Seed",
+          "type": "integer"
+        },
+        "executionMode": {
+          "default": "full",
+          "enum": [
+            "full",
+            "quick"
+          ],
+          "title": "Executionmode",
+          "type": "string"
+        }
+      },
+      "title": "Settings",
+      "type": "object"
+    },
+    "UI": {
+      "additionalProperties": false,
+      "properties": {
+        "activeTab": {
+          "default": "data",
+          "enum": [
+            "data",
+            "model",
+            "training"
+          ],
+          "title": "Activetab",
+          "type": "string"
+        },
+        "codeVisible": {
+          "default": false,
+          "title": "Codevisible",
+          "type": "boolean"
+        }
+      },
+      "title": "UI",
+      "type": "object"
+    },
+    "Workspace": {
+      "additionalProperties": false,
+      "properties": {
+        "blocks": {
+          "$ref": "#/$defs/BlocklyBlocks"
+        }
+      },
+      "required": [
+        "blocks"
+      ],
+      "title": "Workspace",
+      "type": "object"
+    },
+    "Workspaces": {
+      "additionalProperties": false,
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/Workspace"
+        },
+        "model": {
+          "$ref": "#/$defs/Workspace"
+        },
+        "training": {
+          "$ref": "#/$defs/Workspace"
+        }
+      },
+      "required": [
+        "data",
+        "model",
+        "training"
+      ],
+      "title": "Workspaces",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "project": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ProjectDocument"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "readOnly": {
+      "title": "Readonly",
+      "type": "boolean"
+    },
+    "reason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reason"
+    },
+    "rawText": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Rawtext"
+    },
+    "label": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Label"
+    }
+  },
+  "required": [
+    "project",
+    "readOnly"
+  ],
+  "title": "ProjectSession",
+  "type": "object"
+}

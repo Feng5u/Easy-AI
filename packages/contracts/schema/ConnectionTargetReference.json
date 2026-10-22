@@ -1,0 +1,21 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "targetId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Targetid",
+      "type": "string"
+    },
+    "expectedRevision": {
+      "minimum": 1,
+      "title": "Expectedrevision",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "targetId",
+    "expectedRevision"
+  ],
+  "title": "ConnectionTargetReference",
+  "type": "object"
+}

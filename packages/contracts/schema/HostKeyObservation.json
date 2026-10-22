@@ -1,0 +1,80 @@
+{
+  "$defs": {
+    "SshEndpoint": {
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "title": "Host",
+          "type": "string"
+        },
+        "port": {
+          "default": 22,
+          "maximum": 65535,
+          "minimum": 1,
+          "title": "Port",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "host"
+      ],
+      "title": "SshEndpoint",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "endpoint": {
+      "$ref": "#/$defs/SshEndpoint"
+    },
+    "algorithm": {
+      "title": "Algorithm",
+      "type": "string"
+    },
+    "fingerprint": {
+      "title": "Fingerprint",
+      "type": "string"
+    },
+    "trustState": {
+      "enum": [
+        "trusted",
+        "unknown",
+        "changed"
+      ],
+      "title": "Truststate",
+      "type": "string"
+    },
+    "challengeId": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Challengeid"
+    },
+    "previousFingerprint": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Previousfingerprint"
+    }
+  },
+  "required": [
+    "endpoint",
+    "algorithm",
+    "fingerprint",
+    "trustState"
+  ],
+  "title": "HostKeyObservation",
+  "type": "object"
+}

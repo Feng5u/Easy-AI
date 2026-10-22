@@ -1,0 +1,438 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { createRequire } from "node:module";
+import {
+  mkdtemp,
+  mkdir,
+  writeFile,
+  rm,
+  readFile,
+  chmod,
+  lstat,
+} from "node:fs/promises";
+import path, { join, dirname } from "node:path";
+import { tmpdir } from "node:os";
+import {
+  verifyBuilder,
+  builderLayout,
+  builderArchiveName,
+  builderConfiguration,
+} from "./package-builder.mjs";
+import { treeRecords } from "./package-inputs.mjs";
+import { OFFLINE_DOCS, hash } from "./package.mjs";
+const req = createRequire(import.meta.url);
+const builder = createRequire(req.resolve("electron-builder"));
+const dependency = createRequire(builder.resolve("app-builder-lib"));
+const asar = dependency("@electron/asar");
+function windowsMemberQueryNormalizer(hostPath) {
+  // On Windows the default path API IS path.win32. Capture both functions
+  // before replacing anything, otherwise the test shim recurses into itself.
+  const hostNormalize = hostPath.normalize;
+  const windowsNormalize = hostPath.win32.normalize;
+  return (name) =>
+    hostPath.isAbsolute(name) ? hostNormalize(name) : windowsNormalize(name);
+}
+
+async function fixture(t, extra, platform = "linux") {
+  const layout = builderLayout(platform);
+  const root = await mkdtemp(join(tmpdir(), "easyai-builder-verifier-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const app = join(root, "app-input");
+  const files = [
+    `${layout.unpacked}/${layout.executable}`,
+    `${layout.unpacked}/LICENSE`,
+    `${layout.unpacked}/LICENSE.electron.txt`,
+    `${layout.unpacked}/LICENSES.chromium.html`,
+    `${layout.unpacked}/resources/app.asar`,
+    `${layout.unpacked}/resources/backend/${layout.sidecar}`,
+    ...(platform === "win32"
+      ? [`${layout.unpacked}/resources/backend/_internal/base_library.zip`]
+      : []),
+    `${layout.unpacked}/resources/notices/NOTICE.txt`,
+    `${layout.unpacked}/resources/notices/inventory.json`,
+    ...OFFLINE_DOCS.map(
+      (x) => `${layout.unpacked}/resources/offline/docs/${x}`,
+    ),
+    builderArchiveName("0.0.0", platform),
+  ].sort();
+  for (const file of files) {
+    await mkdir(dirname(join(root, "artifacts", file)), { recursive: true });
+    await writeFile(join(root, "artifacts", file), "fixture");
+    await chmod(join(root, "artifacts", file), 0o644);
+  }
+  for (const [name, content] of Object.entries({
+    "package.json": JSON.stringify({
+      version: "0.0.0",
+      type: "module",
+      main: "dist-electron/main.mjs",
+    }),
+    "dist/index.html": "fixture",
+    "dist/assets/ProjectEditor-fixture.css": ".fixture { color: red; }",
+    "dist/assets/Editor-worker-fixture.js": "// synthetic nested worker",
+    "dist-electron/main.mjs": "fixture",
+    "dist-electron/preload.cjs": "fixture",
+    ...(extra || {}),
+  })) {
+    await mkdir(dirname(join(app, name)), { recursive: true });
+    await writeFile(join(app, name), content);
+  }
+  await asar.createPackage(
+    app,
+    join(root, "artifacts", layout.unpacked, "resources/app.asar"),
+  );
+  let originalPe;
+  if (platform === "win32") {
+    const { NtExecutable, NtExecutableResource, Resource } =
+      dependency("resedit");
+    const exe = NtExecutable.createEmpty(false);
+    const resources = NtExecutableResource.from(exe);
+    const version = Resource.VersionInfo.createEmpty();
+    version.setStringValues(
+      { lang: 1033, codepage: 1200 },
+      { FileVersion: "1.0.0", ProductName: "Synthetic fixture" },
+    );
+    version.outputToResourceEntries(resources.entries);
+    resources.outputResource(exe);
+    originalPe = Buffer.from(exe.generate());
+    const original = join(root, "input/vendor/electron.exe");
+    await mkdir(dirname(original), { recursive: true });
+    await writeFile(original, originalPe);
+    await chmod(original, 0o644);
+    const target = join(root, "artifacts", layout.unpacked, layout.executable);
+    await writeFile(target, originalPe);
+    const resourcePath = join(root, "artifacts", layout.unpacked, "resources");
+    const { computeData } = dependency("./asar/integrity.js");
+    const integrity = await computeData({
+      resourcesPath: resourcePath,
+      resourcesRelativePath: "resources",
+      resourcesDestinationPath: resourcePath,
+      extraResourceMatchers: [],
+    });
+    await dependency("./electron/electronWin.js").addWinAsarIntegrity(
+      target,
+      integrity,
+    );
+  }
+  const records = [];
+  for (const file of files)
+    records.push({
+      path: file,
+      bytes: (await readFile(join(root, "artifacts", file))).length,
+      mode: (await lstat(join(root, "artifacts", file))).mode & 0o777,
+      sha256: await hash(join(root, "artifacts", file)),
+    });
+  const base = join(root, "artifacts", layout.unpacked);
+  const vendor = (await treeRecords(base))
+    .filter(
+      (r) =>
+        !r.path.startsWith("resources/") && r.path !== "LICENSE.electron.txt",
+    )
+    .map((r) => ({
+      ...r,
+      path: r.path === layout.executable ? layout.vendorExecutable : r.path,
+    }));
+  if (originalPe) {
+    const record = vendor.find((r) => r.path === "electron.exe");
+    record.bytes = originalPe.length;
+    record.sha256 = await hash(join(root, "input/vendor/electron.exe"));
+  }
+  const manifest = {
+    schemaVersion: 2,
+    kind: "unsigned-electron-builder-local",
+    sourceCommit: "a".repeat(40),
+    builderVersion: "26.15.3",
+    version: "0.0.0",
+    platform,
+    arch: "x64",
+    distributionReady: false,
+    legalReviewComplete: false,
+    approvedInputs: {
+      schemaVersion: 1,
+      origin: "exclusive-clean-build",
+      sourceCommit: "a".repeat(40),
+      appMetadata: JSON.stringify(
+        JSON.parse(await readFile(join(app, "package.json"), "utf8")),
+      ),
+      groups: {
+        app: await treeRecords(app),
+        backend: await treeRecords(join(base, "resources/backend")),
+        offline: await treeRecords(join(base, "resources/offline")),
+        notices: await treeRecords(join(base, "resources/notices")),
+        vendor,
+      },
+    },
+    records,
+  };
+  const save = () =>
+    writeFile(join(root, "builder-manifest.json"), JSON.stringify(manifest));
+  await save();
+  return { root, manifest, save };
+}
+test("builder verification detects modified and unrecorded payloads", async (t) => {
+  const { root } = await fixture(t);
+  assert.equal((await verifyBuilder(root)).distributionReady, false);
+  const extra = join(root, "artifacts/private-machine.json");
+  await writeFile(extra, "synthetic-private");
+  await assert.rejects(verifyBuilder(root), /BUILDER_CONTENT_MISMATCH/);
+  await rm(extra);
+  await writeFile(
+    join(root, "artifacts/linux-unpacked/resources/backend/easyai-sidecar"),
+    "changed",
+  );
+  await assert.rejects(verifyBuilder(root), /BUILDER_CONTENT_MISMATCH/);
+});
+test("builder verifier refuses release claims and traversal before reading content", async (t) => {
+  const { root, manifest, save } = await fixture(t);
+  manifest.legalReviewComplete = true;
+  await save();
+  await assert.rejects(verifyBuilder(root), /BUILDER_MANIFEST_INVALID/);
+  manifest.legalReviewComplete = false;
+  manifest.records[0].path = "../private";
+  await save();
+  await assert.rejects(verifyBuilder(root), /BUILDER_MANIFEST_PATH_INVALID/);
+});
+test("builder verifier rejects development inputs inside an otherwise hashed ASAR", async (t) => {
+  const { root } = await fixture(t, {
+    "src/private.ts": "synthetic forbidden input",
+  });
+  await assert.rejects(verifyBuilder(root), /BUILDER_ASAR_UNEXPECTED_INPUT/);
+});
+test("builder verifier rejects private environment files even when hashes match", async (t) => {
+  const { root } = await fixture(t, {
+    "dist/.env.local": "SYNTHETIC_SECRET_ONLY",
+  });
+  await assert.rejects(verifyBuilder(root), /BUILDER_ASAR_UNEXPECTED_INPUT/);
+});
+
+test("output inventory cannot approve an extra resource with an ordinary name", async (t) => {
+  const { root, manifest, save } = await fixture(t);
+  const file = join(
+    root,
+    "artifacts/linux-unpacked/resources/offline/additional-reading.json",
+  );
+  await writeFile(file, "SYNTHETIC_UNREGISTERED_CONTENT");
+  manifest.records = await treeRecords(join(root, "artifacts"));
+  await save();
+  await assert.rejects(
+    verifyBuilder(root),
+    /BUILDER_UNAPPROVED_RESOURCE: offline/,
+  );
+});
+
+test("same-host candidate layout rejects unimplemented OS and architectures", () => {
+  assert.throws(() => builderLayout("darwin"), /PLATFORM_NOT_VALIDATED/);
+  assert.throws(
+    () => builderLayout("win32", "arm64"),
+    /PLATFORM_NOT_VALIDATED/,
+  );
+  const config = builderConfiguration("stage", "output", "vendor", "44.9.0");
+  assert.equal(config.publish, null);
+  assert.equal(config.win.signAndEditExecutable, false);
+  assert.equal(config.disableAsarIntegrity, undefined);
+  assert.deepEqual(config.win.target, ["dir", "zip"]);
+});
+
+test("Windows verifier accepts only the declared ASAR integrity PE transformation", async (t) => {
+  const { root, manifest, save } = await fixture(t, undefined, "win32");
+  assert.equal((await verifyBuilder(root)).sourceCommit, "a".repeat(40));
+  // Even updating the output inventory cannot approve an arbitrary EXE change.
+  await writeFile(
+    join(root, "artifacts/win-unpacked/easyai.exe"),
+    "arbitrary exe",
+  );
+  manifest.records = await treeRecords(join(root, "artifacts"));
+  await save();
+  await assert.rejects(verifyBuilder(root), /BUILDER_UNAPPROVED_VENDOR_OUTPUT/);
+});
+
+test("Windows verifier rejects an altered sealed original before replaying PE changes", async (t) => {
+  const { root } = await fixture(t, undefined, "win32");
+  await writeFile(join(root, "input/vendor/electron.exe"), "altered original");
+  await assert.rejects(
+    verifyBuilder(root),
+    /APPROVED_VENDOR_EXECUTABLE_CHANGED/,
+  );
+});
+
+test("native Windows ASAR separators preserve entry, privacy and sealed-set checks", async (t) => {
+  const valid = await fixture(t);
+  const privateInput = await fixture(t, {
+    "dist/.env.local": "SYNTHETIC_SECRET_ONLY",
+  });
+  const original = asar.listPackage;
+  // Locked ASAR 3.4.1 uses native path.join: reproduce its Windows output
+  // while still reading real ASAR bytes through the production verifier.
+  asar.listPackage = (...args) =>
+    original(...args).map((name) => name.replaceAll("/", "\\"));
+  try {
+    assert.equal(
+      (await verifyBuilder(valid.root)).sourceCommit,
+      "a".repeat(40),
+    );
+    await assert.rejects(
+      verifyBuilder(privateInput.root),
+      /BUILDER_ASAR_UNEXPECTED_INPUT/,
+    );
+  } finally {
+    asar.listPackage = original;
+  }
+});
+
+test("distribution names use builder OS mapping and preserve strict version paths", () => {
+  assert.equal(
+    builderArchiveName("0.0.0", "win32"),
+    "easyai-0.0.0-win-x64.zip",
+  );
+  assert.equal(
+    builderArchiveName("0.0.0", "linux"),
+    "easyai-0.0.0-linux-x64.tar.gz",
+  );
+  assert.throws(
+    () => builderArchiveName("../private", "win32"),
+    /ARCHIVE_VERSION_INVALID/,
+  );
+});
+
+for (const variant of ["missing", "misnamed", "extra", "other-platform"]) {
+  test(`Windows distribution archive rejects ${variant} root output while retaining nested ZIP`, async (t) => {
+    const { root, manifest, save } = await fixture(t, undefined, "win32");
+    assert.equal(
+      (await verifyBuilder(root)).archive.path,
+      "easyai-0.0.0-win-x64.zip",
+    );
+    const archive = join(root, "artifacts/easyai-0.0.0-win-x64.zip");
+    if (variant === "missing" || variant === "misnamed") await rm(archive);
+    if (variant !== "missing") {
+      const extra =
+        variant === "other-platform"
+          ? "easyai-0.0.0-linux-x64.tar.gz"
+          : "extra.zip";
+      await writeFile(join(root, "artifacts", extra), "synthetic root archive");
+    }
+    manifest.records = await treeRecords(join(root, "artifacts"));
+    await save();
+    await assert.rejects(verifyBuilder(root), /BUILDER_ARCHIVE_MISSING/);
+  });
+}
+
+test("nested library ZIP still requires approved bytes even if output inventory is updated", async (t) => {
+  const { root, manifest, save } = await fixture(t, undefined, "win32");
+  await writeFile(
+    join(
+      root,
+      "artifacts/win-unpacked/resources/backend/_internal/base_library.zip",
+    ),
+    "unapproved library bytes",
+  );
+  manifest.records = await treeRecords(join(root, "artifacts"));
+  await save();
+  await assert.rejects(
+    verifyBuilder(root),
+    /BUILDER_UNAPPROVED_RESOURCE: backend/,
+  );
+});
+
+test("Windows nested ASAR members use native stat and read queries while policy stays canonical", async (t) => {
+  const valid = await fixture(t);
+  const privateInput = await fixture(t, {
+    "dist/assets/.env.local": "SYNTHETIC_SECRET_ONLY",
+  });
+  const missing = await fixture(t);
+  await rm(
+    join(missing.root, "app-input/dist/assets/ProjectEditor-fixture.css"),
+  );
+  await asar.createPackage(
+    join(missing.root, "app-input"),
+    join(missing.root, "artifacts/linux-unpacked/resources/app.asar"),
+  );
+  missing.manifest.records = await treeRecords(join(missing.root, "artifacts"));
+  await missing.save();
+  const tampered = await fixture(t);
+  await writeFile(
+    join(tampered.root, "app-input/dist/assets/ProjectEditor-fixture.css"),
+    "unapproved CSS bytes",
+  );
+  await asar.createPackage(
+    join(tampered.root, "app-input"),
+    join(tampered.root, "artifacts/linux-unpacked/resources/app.asar"),
+  );
+  tampered.manifest.records = await treeRecords(
+    join(tampered.root, "artifacts"),
+  );
+  await tampered.save();
+  const originals = {
+    list: asar.listPackage,
+    stat: asar.statFile,
+    read: asar.extractFile,
+    normalize: path.normalize,
+  };
+  const queries = [];
+  // Reproduce the locked library's actual Windows dirname/split contract,
+  // including its lack of input normalization. Read real ASAR bytes on Linux.
+  const windowsQuery = (method, original) => (archive, name, followLinks) => {
+    if (path.win32.dirname(name).includes("/"))
+      throw Error(`"${name}" was not found in this archive`);
+    queries.push({ method, name, followLinks });
+    return original(
+      archive,
+      originals.normalize(name.replaceAll("\\", "/")),
+      followLinks,
+    );
+  };
+  asar.listPackage = (...args) =>
+    originals.list(...args).map((name) => name.replaceAll("/", "\\"));
+  asar.statFile = windowsQuery("stat", originals.stat);
+  asar.extractFile = windowsQuery("read", originals.read);
+  path.normalize = windowsMemberQueryNormalizer(path);
+  try {
+    assert.equal(
+      (await verifyBuilder(valid.root)).sourceCommit,
+      "a".repeat(40),
+    );
+    await assert.rejects(
+      verifyBuilder(privateInput.root),
+      /BUILDER_ASAR_UNEXPECTED_INPUT/,
+    );
+    await assert.rejects(
+      verifyBuilder(missing.root),
+      /BUILDER_UNAPPROVED_APP_ENTRY/,
+    );
+    await assert.rejects(
+      verifyBuilder(tampered.root),
+      /BUILDER_UNAPPROVED_APP_BYTES/,
+    );
+    for (const method of ["stat", "read"])
+      assert.ok(
+        queries.some(
+          (q) =>
+            q.method === method &&
+            q.name === "dist\\assets\\ProjectEditor-fixture.css" &&
+            q.followLinks === false,
+        ),
+      );
+  } finally {
+    asar.listPackage = originals.list;
+    asar.statFile = originals.stat;
+    asar.extractFile = originals.read;
+    path.normalize = originals.normalize;
+  }
+});
+
+test("Windows member fixture remains valid when default path and win32 share one object", () => {
+  const windows = path.win32;
+  const original = windows.normalize;
+  const normalize = windowsMemberQueryNormalizer(windows);
+  try {
+    windows.normalize = normalize;
+    assert.equal(
+      windows.normalize("dist/assets/file.css"),
+      "dist\\assets\\file.css",
+    );
+    assert.equal(
+      windows.normalize("C:/candidate/app.asar"),
+      "C:\\candidate\\app.asar",
+    );
+  } finally {
+    windows.normalize = original;
+  }
+});

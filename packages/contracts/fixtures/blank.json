@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "appVersion": "0.0.0",
+  "blockLibraryVersion": "0.0.0",
+  "projectId": "d27ce785-6e51-4f50-a709-35de949c0d93",
+  "name": "MNIST 入门实验",
+  "revision": 1,
+  "workspaces": {
+    "data": {
+      "blocks": {
+        "languageVersion": 0,
+        "blocks": []
+      }
+    },
+    "model": {
+      "blocks": {
+        "languageVersion": 0,
+        "blocks": []
+      }
+    },
+    "training": {
+      "blocks": {
+        "languageVersion": 0,
+        "blocks": []
+      }
+    }
+  },
+  "settings": {
+    "dataDirectory": "data",
+    "seed": 42,
+    "executionMode": "full"
+  },
+  "ui": {
+    "activeTab": "data",
+    "codeVisible": false
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "$defs": {
+    "SessionControl": {
+      "additionalProperties": false,
+      "properties": {
+        "projectId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Projectid",
+          "type": "string"
+        },
+        "connectionId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Connectionid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "projectId",
+        "connectionId"
+      ],
+      "title": "SessionControl",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "session": {
+      "$ref": "#/$defs/SessionControl"
+    },
+    "cancel": {
+      "default": false,
+      "title": "Cancel",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "session"
+  ],
+  "title": "RemoteInstallReconcile",
+  "type": "object"
+}

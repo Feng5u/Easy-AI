@@ -1,0 +1,46 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "epoch": {
+      "minimum": 1,
+      "title": "Epoch",
+      "type": "integer"
+    },
+    "trainLoss": {
+      "minimum": 0,
+      "title": "Trainloss",
+      "type": "number"
+    },
+    "testAccuracy": {
+      "maximum": 1,
+      "minimum": 0,
+      "title": "Testaccuracy",
+      "type": "number"
+    },
+    "trainSamples": {
+      "exclusiveMinimum": 0,
+      "title": "Trainsamples",
+      "type": "integer"
+    },
+    "testSamples": {
+      "exclusiveMinimum": 0,
+      "title": "Testsamples",
+      "type": "integer"
+    },
+    "elapsedSeconds": {
+      "minimum": 0,
+      "title": "Elapsedseconds",
+      "type": "number"
+    }
+  },
+  "required": [
+    "epoch",
+    "trainLoss",
+    "testAccuracy",
+    "trainSamples",
+    "testSamples",
+    "elapsedSeconds"
+  ],
+  "title": "EpochMetrics",
+  "type": "object"
+}

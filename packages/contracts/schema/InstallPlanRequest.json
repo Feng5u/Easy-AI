@@ -1,0 +1,116 @@
+{
+  "$defs": {
+    "NewEnvironmentSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,31}$",
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "NewEnvironmentSpec",
+      "type": "object"
+    },
+    "SessionControl": {
+      "additionalProperties": false,
+      "properties": {
+        "projectId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Projectid",
+          "type": "string"
+        },
+        "connectionId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Connectionid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "projectId",
+        "connectionId"
+      ],
+      "title": "SessionControl",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "targetId": {
+      "anyOf": [
+        {
+          "const": "local",
+          "type": "string"
+        },
+        {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "type": "string"
+        }
+      ],
+      "title": "Targetid"
+    },
+    "remoteSession": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SessionControl"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "profileId": {
+      "enum": [
+        "teacher-existing",
+        "easyai-cpu"
+      ],
+      "title": "Profileid",
+      "type": "string"
+    },
+    "packageIds": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9-]{0,63}$",
+        "type": "string"
+      },
+      "maxItems": 17,
+      "minItems": 1,
+      "title": "Packageids",
+      "type": "array"
+    },
+    "ownedEnvironmentId": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Ownedenvironmentid"
+    },
+    "newEnvironmentSpec": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/NewEnvironmentSpec"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "targetId",
+    "profileId",
+    "packageIds"
+  ],
+  "title": "InstallPlanRequest",
+  "type": "object"
+}

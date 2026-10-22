@@ -1,0 +1,180 @@
+{
+  "$defs": {
+    "QuickLimits": {
+      "additionalProperties": false,
+      "properties": {
+        "epochs": {
+          "const": 1,
+          "default": 1,
+          "title": "Epochs",
+          "type": "integer"
+        },
+        "trainSamples": {
+          "const": 1024,
+          "default": 1024,
+          "title": "Trainsamples",
+          "type": "integer"
+        },
+        "testSamples": {
+          "const": 256,
+          "default": 256,
+          "title": "Testsamples",
+          "type": "integer"
+        }
+      },
+      "title": "QuickLimits",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "configVersion": {
+      "const": 1,
+      "default": 1,
+      "title": "Configversion",
+      "type": "integer"
+    },
+    "runId": {
+      "title": "Runid",
+      "type": "string"
+    },
+    "projectId": {
+      "title": "Projectid",
+      "type": "string"
+    },
+    "projectRevision": {
+      "minimum": 1,
+      "title": "Projectrevision",
+      "type": "integer"
+    },
+    "programHash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Programhash",
+      "type": "string"
+    },
+    "codeHash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Codehash",
+      "type": "string"
+    },
+    "bundleHash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Bundlehash",
+      "type": "string"
+    },
+    "targetId": {
+      "title": "Targetid",
+      "type": "string"
+    },
+    "runner": {
+      "enum": [
+        "local",
+        "ssh"
+      ],
+      "title": "Runner",
+      "type": "string"
+    },
+    "dataRoot": {
+      "title": "Dataroot",
+      "type": "string"
+    },
+    "runRoot": {
+      "title": "Runroot",
+      "type": "string"
+    },
+    "pythonExecutable": {
+      "title": "Pythonexecutable",
+      "type": "string"
+    },
+    "environmentPrefix": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Environmentprefix"
+    },
+    "condaExecutable": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Condaexecutable"
+    },
+    "device": {
+      "default": "auto",
+      "enum": [
+        "auto",
+        "cpu",
+        "cuda",
+        "mps"
+      ],
+      "title": "Device",
+      "type": "string"
+    },
+    "executionMode": {
+      "enum": [
+        "full",
+        "quick"
+      ],
+      "title": "Executionmode",
+      "type": "string"
+    },
+    "seed": {
+      "maximum": 4294967295,
+      "minimum": 0,
+      "title": "Seed",
+      "type": "integer"
+    },
+    "numWorkers": {
+      "maximum": 16,
+      "minimum": 0,
+      "title": "Numworkers",
+      "type": "integer"
+    },
+    "pinMemoryPolicy": {
+      "const": "cuda_only",
+      "default": "cuda_only",
+      "title": "Pinmemorypolicy",
+      "type": "string"
+    },
+    "quickLimits": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/QuickLimits"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "runId",
+    "projectId",
+    "projectRevision",
+    "programHash",
+    "codeHash",
+    "bundleHash",
+    "targetId",
+    "runner",
+    "dataRoot",
+    "runRoot",
+    "pythonExecutable",
+    "executionMode",
+    "seed",
+    "numWorkers"
+  ],
+  "title": "RunConfig",
+  "type": "object"
+}

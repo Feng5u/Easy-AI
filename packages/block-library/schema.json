@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "libraryVersion",
+    "blocks"
+  ],
+  "properties": {
+    "libraryVersion": {
+      "const": "0.0.0"
+    },
+    "blocks": {
+      "type": "array",
+      "minItems": 21,
+      "maxItems": 21,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "version",
+          "category",
+          "label",
+          "placement",
+          "fields",
+          "inputs",
+          "imports",
+          "backendHandler",
+          "helpKey"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "const": 1
+          },
+          "category": {
+            "enum": [
+              "data",
+              "model",
+              "train",
+              "viz"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "placement": {
+            "type": "string"
+          },
+          "fields": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "type",
+                "default"
+              ],
+              "properties": {
+                "type": {
+                  "enum": [
+                    "string",
+                    "reference",
+                    "numbers",
+                    "integer",
+                    "number",
+                    "boolean",
+                    "enum"
+                  ]
+                },
+                "default": {},
+                "min": {
+                  "type": "number"
+                },
+                "max": {
+                  "type": "number"
+                },
+                "exclusiveMin": {
+                  "type": "boolean"
+                },
+                "exclusiveMax": {
+                  "type": "boolean"
+                },
+                "maxLength": {
+                  "type": "integer"
+                },
+                "options": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "imports": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "torch",
+                "torch.nn",
+                "torch.optim",
+                "torch.utils.data",
+                "torchvision.datasets",
+                "torchvision.transforms",
+                "matplotlib.pyplot"
+              ]
+            }
+          },
+          "backendHandler": {
+            "type": "string"
+          },
+          "helpKey": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

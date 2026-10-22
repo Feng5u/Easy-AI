@@ -1,0 +1,33 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "runner": {
+      "const": "ssh",
+      "title": "Runner",
+      "type": "string"
+    },
+    "bindingId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Bindingid",
+      "type": "string"
+    },
+    "expectedRevision": {
+      "minimum": 1,
+      "title": "Expectedrevision",
+      "type": "integer"
+    },
+    "expectedProgramHash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Expectedprogramhash",
+      "type": "string"
+    }
+  },
+  "required": [
+    "runner",
+    "bindingId",
+    "expectedRevision",
+    "expectedProgramHash"
+  ],
+  "title": "RemoteRunStartRequest",
+  "type": "object"
+}

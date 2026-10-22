@@ -1,0 +1,341 @@
+{
+  "$defs": {
+    "InstallTargetIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "projectId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Projectid",
+          "type": "string"
+        },
+        "targetId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Targetid",
+          "type": "string"
+        },
+        "targetRevision": {
+          "minimum": 1,
+          "title": "Targetrevision",
+          "type": "integer"
+        },
+        "endpoint": {
+          "$ref": "#/$defs/SshEndpoint"
+        },
+        "hostFingerprint": {
+          "pattern": "^SHA256:[A-Za-z0-9+/]{43}$",
+          "title": "Hostfingerprint",
+          "type": "string"
+        },
+        "username": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Username",
+          "type": "string"
+        },
+        "root": {
+          "maxLength": 1024,
+          "minLength": 2,
+          "pattern": "^/[^\\\\\\x00-\\x1f\\x7f]*$",
+          "title": "Root",
+          "type": "string"
+        }
+      },
+      "required": [
+        "projectId",
+        "targetId",
+        "targetRevision",
+        "endpoint",
+        "hostFingerprint",
+        "username",
+        "root"
+      ],
+      "title": "InstallTargetIdentity",
+      "type": "object"
+    },
+    "PackageChange": {
+      "additionalProperties": false,
+      "properties": {
+        "packageId": {
+          "pattern": "^[a-z][a-z0-9-]{0,63}$",
+          "title": "Packageid",
+          "type": "string"
+        },
+        "previousVersion": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Previousversion"
+        },
+        "targetVersion": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Targetversion"
+        },
+        "action": {
+          "enum": [
+            "add",
+            "keep",
+            "unresolved"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "requested": {
+          "title": "Requested",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "packageId",
+        "previousVersion",
+        "targetVersion",
+        "action",
+        "requested"
+      ],
+      "title": "PackageChange",
+      "type": "object"
+    },
+    "SshEndpoint": {
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "title": "Host",
+          "type": "string"
+        },
+        "port": {
+          "default": 22,
+          "maximum": 65535,
+          "minimum": 1,
+          "title": "Port",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "host"
+      ],
+      "title": "SshEndpoint",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "planId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Planid",
+      "type": "string"
+    },
+    "planHash": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Planhash",
+      "type": "string"
+    },
+    "targetId": {
+      "anyOf": [
+        {
+          "const": "local",
+          "type": "string"
+        },
+        {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "type": "string"
+        }
+      ],
+      "default": "local",
+      "title": "Targetid"
+    },
+    "targetIdentity": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/InstallTargetIdentity"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "remoteFreeBytes": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Remotefreebytes"
+    },
+    "profileId": {
+      "const": "easyai-cpu",
+      "default": "easyai-cpu",
+      "title": "Profileid",
+      "type": "string"
+    },
+    "environmentId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Environmentid",
+      "type": "string"
+    },
+    "environmentName": {
+      "title": "Environmentname",
+      "type": "string"
+    },
+    "newEnvironment": {
+      "title": "Newenvironment",
+      "type": "boolean"
+    },
+    "baselineFingerprint": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Baselinefingerprint",
+      "type": "string"
+    },
+    "constraintsHash": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Constraintshash",
+      "type": "string"
+    },
+    "packageChanges": {
+      "items": {
+        "$ref": "#/$defs/PackageChange"
+      },
+      "title": "Packagechanges",
+      "type": "array"
+    },
+    "requiresNetwork": {
+      "default": true,
+      "title": "Requiresnetwork",
+      "type": "boolean"
+    },
+    "downloadBytes": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Downloadbytes"
+    },
+    "installedBytes": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Installedbytes"
+    },
+    "sizeStatus": {
+      "enum": [
+        "locked-wheel-estimate",
+        "unresolved"
+      ],
+      "title": "Sizestatus",
+      "type": "string"
+    },
+    "platform": {
+      "title": "Platform",
+      "type": "string"
+    },
+    "blockers": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Blockers",
+      "type": "array"
+    },
+    "executionEnabled": {
+      "default": false,
+      "title": "Executionenabled",
+      "type": "boolean"
+    },
+    "runtimeFingerprint": {
+      "anyOf": [
+        {
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Runtimefingerprint"
+    },
+    "bootstrapBytes": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Bootstrapbytes"
+    },
+    "diskBudgetBytes": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Diskbudgetbytes"
+    },
+    "executionSeconds": {
+      "anyOf": [
+        {
+          "maximum": 3600,
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Executionseconds"
+    }
+  },
+  "required": [
+    "planId",
+    "planHash",
+    "environmentId",
+    "environmentName",
+    "newEnvironment",
+    "baselineFingerprint",
+    "constraintsHash",
+    "packageChanges",
+    "downloadBytes",
+    "installedBytes",
+    "sizeStatus",
+    "platform",
+    "blockers"
+  ],
+  "title": "InstallPlan",
+  "type": "object"
+}

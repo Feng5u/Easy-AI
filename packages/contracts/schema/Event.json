@@ -1,0 +1,90 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "protocolVersion": {
+      "const": 1,
+      "default": 1,
+      "title": "Protocolversion",
+      "type": "integer"
+    },
+    "runId": {
+      "title": "Runid",
+      "type": "string"
+    },
+    "seq": {
+      "minimum": 1,
+      "title": "Seq",
+      "type": "integer"
+    },
+    "source": {
+      "enum": [
+        "runtime",
+        "application"
+      ],
+      "title": "Source",
+      "type": "string"
+    },
+    "sourceSeq": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Sourceseq"
+    },
+    "timestamp": {
+      "title": "Timestamp",
+      "type": "string"
+    },
+    "type": {
+      "enum": [
+        "runtime_started",
+        "device_selected",
+        "progress",
+        "epoch_completed",
+        "artifact_created",
+        "runtime_error",
+        "pipeline_cancelled",
+        "pipeline_completed",
+        "process_exited",
+        "process_spawn_failed",
+        "status_changed",
+        "artifact_sync_failed"
+      ],
+      "title": "Type",
+      "type": "string"
+    },
+    "blockId": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Blockid"
+    },
+    "payload": {
+      "additionalProperties": true,
+      "title": "Payload",
+      "type": "object"
+    }
+  },
+  "required": [
+    "runId",
+    "seq",
+    "source",
+    "timestamp",
+    "type",
+    "payload"
+  ],
+  "title": "Event",
+  "type": "object"
+}

@@ -1,0 +1,48 @@
+{
+  "$defs": {
+    "SshEndpoint": {
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "title": "Host",
+          "type": "string"
+        },
+        "port": {
+          "default": 22,
+          "maximum": 65535,
+          "minimum": 1,
+          "title": "Port",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "host"
+      ],
+      "title": "SshEndpoint",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "projectId": {
+      "pattern": "^[0-9a-f-]{36}$",
+      "title": "Projectid",
+      "type": "string"
+    },
+    "requestId": {
+      "pattern": "^[0-9a-f-]{36}$",
+      "title": "Requestid",
+      "type": "string"
+    },
+    "endpoint": {
+      "$ref": "#/$defs/SshEndpoint"
+    }
+  },
+  "required": [
+    "projectId",
+    "requestId",
+    "endpoint"
+  ],
+  "title": "IdentityProbeRequest",
+  "type": "object"
+}

@@ -1,0 +1,2032 @@
+[
+  {
+    "file": "train.py",
+    "startLine": 19,
+    "endLine": 19,
+    "origin": {
+      "blockId": "cnn",
+      "workspace": "model"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 20,
+    "endLine": 20,
+    "origin": {
+      "blockId": "cnn",
+      "workspace": "model"
+    },
+    "kind": "scaffold"
+  },
+  {
+    "file": "train.py",
+    "startLine": 21,
+    "endLine": 21,
+    "origin": {
+      "blockId": "cnn",
+      "workspace": "model"
+    },
+    "kind": "scaffold"
+  },
+  {
+    "file": "train.py",
+    "startLine": 22,
+    "endLine": 22,
+    "origin": {
+      "blockId": "layer-0",
+      "workspace": "model"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 23,
+    "endLine": 23,
+    "origin": {
+      "blockId": "layer-1",
+      "workspace": "model"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 24,
+    "endLine": 24,
+    "origin": {
+      "blockId": "layer-2",
+      "workspace": "model"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 25,
+    "endLine": 25,
+    "origin": {
+      "blockId": "layer-3",
+      "workspace": "model"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 26,
+    "endLine": 26,
+    "origin": {
+      "blockId": "layer-4",
+      "workspace": "model"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 27,
+    "endLine": 27,
+    "origin": {
+      "blockId": "layer-5",
+      "workspace": "model"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 28,
+    "endLine": 28,
+    "origin": {
+      "blockId": "layer-7",
+      "workspace": "model"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 29,
+    "endLine": 29,
+    "origin": {
+      "blockId": "layer-8",
+      "workspace": "model"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 30,
+    "endLine": 30,
+    "origin": {
+      "blockId": "layer-9",
+      "workspace": "model"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 32,
+    "endLine": 32,
+    "origin": {
+      "blockId": "cnn",
+      "workspace": "model"
+    },
+    "kind": "scaffold"
+  },
+  {
+    "file": "train.py",
+    "startLine": 33,
+    "endLine": 33,
+    "origin": {
+      "blockId": "layer-0",
+      "workspace": "model"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 34,
+    "endLine": 34,
+    "origin": {
+      "blockId": "layer-1",
+      "workspace": "model"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 35,
+    "endLine": 35,
+    "origin": {
+      "blockId": "layer-2",
+      "workspace": "model"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 36,
+    "endLine": 36,
+    "origin": {
+      "blockId": "layer-3",
+      "workspace": "model"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 37,
+    "endLine": 37,
+    "origin": {
+      "blockId": "layer-4",
+      "workspace": "model"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 38,
+    "endLine": 38,
+    "origin": {
+      "blockId": "layer-5",
+      "workspace": "model"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 39,
+    "endLine": 39,
+    "origin": {
+      "blockId": "layer-6",
+      "workspace": "model"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 40,
+    "endLine": 40,
+    "origin": {
+      "blockId": "layer-7",
+      "workspace": "model"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 41,
+    "endLine": 41,
+    "origin": {
+      "blockId": "layer-8",
+      "workspace": "model"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 42,
+    "endLine": 42,
+    "origin": {
+      "blockId": "layer-9",
+      "workspace": "model"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 43,
+    "endLine": 43,
+    "origin": {
+      "blockId": "cnn",
+      "workspace": "model"
+    },
+    "kind": "scaffold"
+  },
+  {
+    "file": "train.py",
+    "startLine": 49,
+    "endLine": 49,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "scaffold"
+  },
+  {
+    "file": "train.py",
+    "startLine": 50,
+    "endLine": 50,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 51,
+    "endLine": 51,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 52,
+    "endLine": 52,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 53,
+    "endLine": 53,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 54,
+    "endLine": 54,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 55,
+    "endLine": 55,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 56,
+    "endLine": 56,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 57,
+    "endLine": 57,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 58,
+    "endLine": 58,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 59,
+    "endLine": 59,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 60,
+    "endLine": 60,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 61,
+    "endLine": 61,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 62,
+    "endLine": 62,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 63,
+    "endLine": 63,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 64,
+    "endLine": 64,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 65,
+    "endLine": 65,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 66,
+    "endLine": 66,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 67,
+    "endLine": 67,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 68,
+    "endLine": 68,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 69,
+    "endLine": 69,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 70,
+    "endLine": 70,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 71,
+    "endLine": 71,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 72,
+    "endLine": 72,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 73,
+    "endLine": 73,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 74,
+    "endLine": 74,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 75,
+    "endLine": 75,
+    "origin": {
+      "blockId": "transform",
+      "workspace": "data"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 76,
+    "endLine": 76,
+    "origin": {
+      "blockId": "tensor",
+      "workspace": "data"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 77,
+    "endLine": 77,
+    "origin": {
+      "blockId": "normalize",
+      "workspace": "data"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 78,
+    "endLine": 78,
+    "origin": {
+      "blockId": "transform",
+      "workspace": "data"
+    },
+    "kind": "scaffold"
+  },
+  {
+    "file": "train.py",
+    "startLine": 79,
+    "endLine": 79,
+    "origin": {
+      "blockId": "train-dataset",
+      "workspace": "data"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 80,
+    "endLine": 80,
+    "origin": {
+      "blockId": "test-dataset",
+      "workspace": "data"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 81,
+    "endLine": 81,
+    "origin": {
+      "blockId": "train-loader",
+      "workspace": "data"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 82,
+    "endLine": 82,
+    "origin": {
+      "blockId": "test-loader",
+      "workspace": "data"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 83,
+    "endLine": 83,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 84,
+    "endLine": 84,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 85,
+    "endLine": 85,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 86,
+    "endLine": 86,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 87,
+    "endLine": 87,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 88,
+    "endLine": 88,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 89,
+    "endLine": 89,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 90,
+    "endLine": 90,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 91,
+    "endLine": 91,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "scaffold"
+  },
+  {
+    "file": "train.py",
+    "startLine": 92,
+    "endLine": 92,
+    "origin": {
+      "blockId": "before-figure",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 93,
+    "endLine": 93,
+    "origin": {
+      "blockId": "before-figure",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 94,
+    "endLine": 94,
+    "origin": {
+      "blockId": "before-figure",
+      "workspace": "training"
+    },
+    "kind": "scaffold"
+  },
+  {
+    "file": "train.py",
+    "startLine": 95,
+    "endLine": 95,
+    "origin": {
+      "blockId": "before-figure",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 96,
+    "endLine": 96,
+    "origin": {
+      "blockId": "before-0-panel",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 97,
+    "endLine": 97,
+    "origin": {
+      "blockId": "before-0-title",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 98,
+    "endLine": 98,
+    "origin": {
+      "blockId": "before-0-panel",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 99,
+    "endLine": 99,
+    "origin": {
+      "blockId": "before-0-panel",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 100,
+    "endLine": 100,
+    "origin": {
+      "blockId": "before-0-source",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 101,
+    "endLine": 101,
+    "origin": {
+      "blockId": "before-0-source",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 102,
+    "endLine": 102,
+    "origin": {
+      "blockId": "before-0-source",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 103,
+    "endLine": 103,
+    "origin": {
+      "blockId": "before-0-source",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 104,
+    "endLine": 104,
+    "origin": {
+      "blockId": "before-0-source",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 105,
+    "endLine": 105,
+    "origin": {
+      "blockId": "before-0-source",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 106,
+    "endLine": 106,
+    "origin": {
+      "blockId": "before-0-source",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 107,
+    "endLine": 107,
+    "origin": {
+      "blockId": "before-0-panel",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 108,
+    "endLine": 108,
+    "origin": {
+      "blockId": "before-0-source",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 109,
+    "endLine": 109,
+    "origin": {
+      "blockId": "before-0-source",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 110,
+    "endLine": 110,
+    "origin": {
+      "blockId": "before-0-source",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 111,
+    "endLine": 111,
+    "origin": {
+      "blockId": "before-0-source",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 112,
+    "endLine": 112,
+    "origin": {
+      "blockId": "before-0-source",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 113,
+    "endLine": 113,
+    "origin": {
+      "blockId": "before-0-axis",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 114,
+    "endLine": 114,
+    "origin": {
+      "blockId": "before-0-axis",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 115,
+    "endLine": 115,
+    "origin": {
+      "blockId": "before-0-axis",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 116,
+    "endLine": 116,
+    "origin": {
+      "blockId": "before-0-axis",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 117,
+    "endLine": 117,
+    "origin": {
+      "blockId": "before-save",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 118,
+    "endLine": 118,
+    "origin": {
+      "blockId": "before-save",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 119,
+    "endLine": 119,
+    "origin": {
+      "blockId": "before-save",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 120,
+    "endLine": 120,
+    "origin": {
+      "blockId": "before-save",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 121,
+    "endLine": 121,
+    "origin": {
+      "blockId": "before-figure",
+      "workspace": "training"
+    },
+    "kind": "scaffold"
+  },
+  {
+    "file": "train.py",
+    "startLine": 122,
+    "endLine": 122,
+    "origin": {
+      "blockId": "before-figure",
+      "workspace": "training"
+    },
+    "kind": "scaffold"
+  },
+  {
+    "file": "train.py",
+    "startLine": 123,
+    "endLine": 123,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 124,
+    "endLine": 124,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 125,
+    "endLine": 125,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 126,
+    "endLine": 126,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 127,
+    "endLine": 127,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 128,
+    "endLine": 128,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 129,
+    "endLine": 129,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 130,
+    "endLine": 130,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 131,
+    "endLine": 131,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 132,
+    "endLine": 132,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 133,
+    "endLine": 133,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 134,
+    "endLine": 134,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 135,
+    "endLine": 135,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 136,
+    "endLine": 136,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 137,
+    "endLine": 137,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 138,
+    "endLine": 138,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 139,
+    "endLine": 139,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 140,
+    "endLine": 140,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 141,
+    "endLine": 141,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 142,
+    "endLine": 142,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 143,
+    "endLine": 143,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 144,
+    "endLine": 144,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 145,
+    "endLine": 145,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 146,
+    "endLine": 146,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 147,
+    "endLine": 147,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 148,
+    "endLine": 148,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 149,
+    "endLine": 149,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 150,
+    "endLine": 150,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 151,
+    "endLine": 151,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 152,
+    "endLine": 152,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 153,
+    "endLine": 153,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 154,
+    "endLine": 154,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 155,
+    "endLine": 155,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 156,
+    "endLine": 156,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 157,
+    "endLine": 157,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 158,
+    "endLine": 158,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 159,
+    "endLine": 159,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 160,
+    "endLine": 160,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 161,
+    "endLine": 161,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 162,
+    "endLine": 162,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 163,
+    "endLine": 163,
+    "origin": {
+      "blockId": "body-figure",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 164,
+    "endLine": 164,
+    "origin": {
+      "blockId": "body-figure",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 165,
+    "endLine": 165,
+    "origin": {
+      "blockId": "body-figure",
+      "workspace": "training"
+    },
+    "kind": "scaffold"
+  },
+  {
+    "file": "train.py",
+    "startLine": 166,
+    "endLine": 166,
+    "origin": {
+      "blockId": "body-figure",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 167,
+    "endLine": 167,
+    "origin": {
+      "blockId": "body-0-panel",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 168,
+    "endLine": 168,
+    "origin": {
+      "blockId": "body-0-title",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 169,
+    "endLine": 169,
+    "origin": {
+      "blockId": "body-0-source",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 170,
+    "endLine": 170,
+    "origin": {
+      "blockId": "body-0-panel",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 171,
+    "endLine": 171,
+    "origin": {
+      "blockId": "body-0-panel",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 172,
+    "endLine": 172,
+    "origin": {
+      "blockId": "body-0-axis",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 173,
+    "endLine": 173,
+    "origin": {
+      "blockId": "body-0-legend",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 174,
+    "endLine": 174,
+    "origin": {
+      "blockId": "body-1-panel",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 175,
+    "endLine": 175,
+    "origin": {
+      "blockId": "body-1-title",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 176,
+    "endLine": 176,
+    "origin": {
+      "blockId": "body-1-source",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 177,
+    "endLine": 177,
+    "origin": {
+      "blockId": "body-1-panel",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 178,
+    "endLine": 178,
+    "origin": {
+      "blockId": "body-1-panel",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 179,
+    "endLine": 179,
+    "origin": {
+      "blockId": "body-1-panel",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 180,
+    "endLine": 180,
+    "origin": {
+      "blockId": "body-1-axis",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 181,
+    "endLine": 181,
+    "origin": {
+      "blockId": "body-1-legend",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 182,
+    "endLine": 182,
+    "origin": {
+      "blockId": "body-save",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 183,
+    "endLine": 183,
+    "origin": {
+      "blockId": "body-save",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 184,
+    "endLine": 184,
+    "origin": {
+      "blockId": "body-save",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 185,
+    "endLine": 185,
+    "origin": {
+      "blockId": "body-save",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 186,
+    "endLine": 186,
+    "origin": {
+      "blockId": "body-figure",
+      "workspace": "training"
+    },
+    "kind": "scaffold"
+  },
+  {
+    "file": "train.py",
+    "startLine": 187,
+    "endLine": 187,
+    "origin": {
+      "blockId": "body-figure",
+      "workspace": "training"
+    },
+    "kind": "scaffold"
+  },
+  {
+    "file": "train.py",
+    "startLine": 188,
+    "endLine": 188,
+    "origin": {
+      "blockId": "after-figure",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 189,
+    "endLine": 189,
+    "origin": {
+      "blockId": "after-figure",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 190,
+    "endLine": 190,
+    "origin": {
+      "blockId": "after-figure",
+      "workspace": "training"
+    },
+    "kind": "scaffold"
+  },
+  {
+    "file": "train.py",
+    "startLine": 191,
+    "endLine": 191,
+    "origin": {
+      "blockId": "after-figure",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 192,
+    "endLine": 192,
+    "origin": {
+      "blockId": "after-0-panel",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 193,
+    "endLine": 193,
+    "origin": {
+      "blockId": "after-0-title",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 194,
+    "endLine": 194,
+    "origin": {
+      "blockId": "after-0-panel",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 195,
+    "endLine": 195,
+    "origin": {
+      "blockId": "after-0-panel",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 196,
+    "endLine": 196,
+    "origin": {
+      "blockId": "after-0-source",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 197,
+    "endLine": 197,
+    "origin": {
+      "blockId": "after-0-source",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 198,
+    "endLine": 198,
+    "origin": {
+      "blockId": "after-0-source",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 199,
+    "endLine": 199,
+    "origin": {
+      "blockId": "after-0-source",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 200,
+    "endLine": 200,
+    "origin": {
+      "blockId": "after-0-source",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 201,
+    "endLine": 201,
+    "origin": {
+      "blockId": "after-0-source",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 202,
+    "endLine": 202,
+    "origin": {
+      "blockId": "after-0-source",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 203,
+    "endLine": 203,
+    "origin": {
+      "blockId": "after-0-panel",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 204,
+    "endLine": 204,
+    "origin": {
+      "blockId": "after-0-source",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 205,
+    "endLine": 205,
+    "origin": {
+      "blockId": "after-0-source",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 206,
+    "endLine": 206,
+    "origin": {
+      "blockId": "after-0-source",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 207,
+    "endLine": 207,
+    "origin": {
+      "blockId": "after-0-source",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 208,
+    "endLine": 208,
+    "origin": {
+      "blockId": "after-0-source",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 209,
+    "endLine": 209,
+    "origin": {
+      "blockId": "after-0-source",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 210,
+    "endLine": 210,
+    "origin": {
+      "blockId": "after-0-source",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 211,
+    "endLine": 211,
+    "origin": {
+      "blockId": "after-0-source",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 212,
+    "endLine": 212,
+    "origin": {
+      "blockId": "after-0-source",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 213,
+    "endLine": 213,
+    "origin": {
+      "blockId": "after-0-axis",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 214,
+    "endLine": 214,
+    "origin": {
+      "blockId": "after-0-axis",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 215,
+    "endLine": 215,
+    "origin": {
+      "blockId": "after-0-axis",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 216,
+    "endLine": 216,
+    "origin": {
+      "blockId": "after-0-axis",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 217,
+    "endLine": 217,
+    "origin": {
+      "blockId": "after-save",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 218,
+    "endLine": 218,
+    "origin": {
+      "blockId": "after-save",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 219,
+    "endLine": 219,
+    "origin": {
+      "blockId": "after-save",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 220,
+    "endLine": 220,
+    "origin": {
+      "blockId": "after-save",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 221,
+    "endLine": 221,
+    "origin": {
+      "blockId": "after-figure",
+      "workspace": "training"
+    },
+    "kind": "scaffold"
+  },
+  {
+    "file": "train.py",
+    "startLine": 222,
+    "endLine": 222,
+    "origin": {
+      "blockId": "after-figure",
+      "workspace": "training"
+    },
+    "kind": "scaffold"
+  },
+  {
+    "file": "train.py",
+    "startLine": 223,
+    "endLine": 223,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 224,
+    "endLine": 224,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 225,
+    "endLine": 225,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 226,
+    "endLine": 226,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  },
+  {
+    "file": "train.py",
+    "startLine": 227,
+    "endLine": 227,
+    "origin": {
+      "blockId": "training",
+      "workspace": "training"
+    },
+    "kind": "semantic"
+  }
+]

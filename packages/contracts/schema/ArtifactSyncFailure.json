@@ -1,0 +1,48 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "stage": {
+      "enum": [
+        "scope",
+        "owner_poll",
+        "snapshot",
+        "event_prefix",
+        "receipt_read",
+        "receipt_digest",
+        "receipt_records",
+        "cache_open",
+        "artifact_read",
+        "artifact_verify",
+        "cache_commit",
+        "channel_cleanup",
+        "cache_cleanup",
+        "watcher_cleanup",
+        "completion",
+        "unknown"
+      ],
+      "title": "Stage",
+      "type": "string"
+    },
+    "code": {
+      "enum": [
+        "SYNC_INVALID_EVIDENCE",
+        "SYNC_IO_FAILED",
+        "SYNC_CANCELLED",
+        "SYNC_DEADLINE",
+        "SYNC_AUTH_STALE",
+        "SYNC_BUSY",
+        "SYNC_CLEANUP_UNCONFIRMED",
+        "SYNC_REQUIRED_ARTIFACTS_MISSING",
+        "SYNC_UNKNOWN"
+      ],
+      "title": "Code",
+      "type": "string"
+    }
+  },
+  "required": [
+    "stage",
+    "code"
+  ],
+  "title": "ArtifactSyncFailure",
+  "type": "object"
+}

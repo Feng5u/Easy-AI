@@ -1,0 +1,39 @@
+{
+  "name": "easy-ai",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.25.0",
+  "engines": {
+    "node": "24.19.0"
+  },
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "dev": "pnpm --filter @easyai/desktop build && pnpm --filter @easyai/desktop start",
+    "check": "pnpm --filter @easyai/desktop check && tsc -p packages/contracts/tsconfig.json && tsc -p tsconfig.tests.json && node scripts/python-task.mjs check && node scripts/check-contracts.mjs --check && pnpm fixtures --check && pnpm format:check",
+    "test": "vitest run && node scripts/python-task.mjs test && node --test scripts/package.test.mjs scripts/package-builder.test.mjs scripts/package-inputs.test.mjs scripts/candidate-archive.test.mjs scripts/frozen-diagnostics.test.mjs",
+    "build": "pnpm --filter @easyai/desktop build && node scripts/python-task.mjs build",
+    "package": "node scripts/package.mjs",
+    "package:verify": "node scripts/package.mjs --verify",
+    "package:notices": "node scripts/package.mjs --notices",
+    "test:package": "node --test scripts/package.test.mjs scripts/package-builder.test.mjs scripts/package-inputs.test.mjs scripts/candidate-archive.test.mjs scripts/frozen-diagnostics.test.mjs",
+    "contracts": "node scripts/check-contracts.mjs",
+    "fixtures": "node scripts/generate-fixtures.mjs",
+    "format:check": "prettier --check \"apps/desktop/{src,electron}/**/*.{ts,tsx,mts,cts,css}\" \"scripts/*.mjs\" \"packages/block-library/register.mjs\" \"*.mts\" \"packages/block-library/*.mts\" \"tests/e2e/*.ts\" \"playwright.config.ts\"",
+    "test:e2e": "playwright test",
+    "test:integration": "node scripts/test-training.mjs",
+    "test:ssh": "node scripts/test-ssh.mjs",
+    "package:builder": "node scripts/package-builder.mjs",
+    "package:builder:verify": "node scripts/package-builder.mjs --verify"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/node": "24.10.1",
+    "blockly": "13.4.0",
+    "electron-builder": "26.15.3",
+    "json-schema-to-typescript": "16.0.0",
+    "prettier": "3.9.10",
+    "typescript": "7.0.2",
+    "vitest": "5.0.5"
+  }
+}

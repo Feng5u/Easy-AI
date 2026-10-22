@@ -1,0 +1,66 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "transferId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Transferid",
+      "type": "string"
+    },
+    "projectId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Projectid",
+      "type": "string"
+    },
+    "targetId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Targetid",
+      "type": "string"
+    },
+    "targetRevision": {
+      "minimum": 1,
+      "title": "Targetrevision",
+      "type": "integer"
+    },
+    "targetPath": {
+      "maxLength": 1024,
+      "minLength": 2,
+      "pattern": "^/[^\\\\\\x00-\\x1f\\x7f]*$",
+      "title": "Targetpath",
+      "type": "string"
+    },
+    "fileCount": {
+      "maximum": 256,
+      "minimum": 1,
+      "title": "Filecount",
+      "type": "integer"
+    },
+    "totalBytes": {
+      "maximum": 268435456,
+      "minimum": 0,
+      "title": "Totalbytes",
+      "type": "integer"
+    },
+    "lastCompleted": {
+      "title": "Lastcompleted",
+      "type": "boolean"
+    },
+    "inspectionRequired": {
+      "const": true,
+      "default": true,
+      "title": "Inspectionrequired",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "transferId",
+    "projectId",
+    "targetId",
+    "targetRevision",
+    "targetPath",
+    "fileCount",
+    "totalBytes",
+    "lastCompleted"
+  ],
+  "title": "TransferHistory",
+  "type": "object"
+}

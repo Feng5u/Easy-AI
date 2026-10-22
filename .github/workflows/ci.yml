@@ -1,0 +1,94 @@
+name: application-checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.25.0
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: 0.12.23
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm setup
+      - run: pnpm check
+      - run: pnpm test
+      - run: pnpm build
+  desktop:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.25.0
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: 0.12.23
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm setup
+      - name: Project persistence, native locks and install metadata
+        working-directory: services/backend
+        run: uv run --frozen pytest -q tests/test_project_persistence.py tests/test_install_platform_metadata.py tests/test_golden_checkout.py tests/test_compilation.py tests/test_atomic_artifact_durability.py
+      - name: Native NTFS cache and host-trust security contracts
+        if: ${{ !cancelled() }}
+        timeout-minutes: 3
+        working-directory: services/backend
+        run: uv run --frozen pytest -q tests/test_windows_storage_contract.py tests/test_windows_native_store.py tests/test_windows_cache_selector.py tests/test_windows_cache_integration.py tests/test_windows_host_keys.py tests/test_windows_host_key_gate.py tests/test_windows_trust_cleanup.py
+      - name: Freeze backend including experimental native ABI module
+        id: freeze_backend
+        if: ${{ !cancelled() }}
+        timeout-minutes: 4
+        run: node scripts/python-task.mjs build
+      - name: Frozen backend HTTP and resource gates
+        if: ${{ !cancelled() && steps.freeze_backend.outcome == 'success' }}
+        timeout-minutes: 2
+        run: node scripts/test-frozen-ssh.mjs
+      - run: pnpm --filter @easyai/desktop build
+      - name: Application venv startup PID and isolation (no GUI)
+        run: pnpm exec vitest run apps/desktop/electron/backend.test.mts apps/desktop/electron/application-python.test.mts apps/desktop/electron/backend-ready.test.mts
+      - run: pnpm test:e2e
+      - name: Packaging input and archive guards
+        run: pnpm test:package
+      - name: Build unsigned Windows candidate (never publish)
+        id: candidate
+        timeout-minutes: 5
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          UV_OFFLINE: "1"
+        run: node scripts/build-candidate.mjs
+      - name: Audit ZIP ${{ steps.candidate.outputs.sha256 }} (${{ steps.candidate.outputs.bytes }} bytes)
+        run: '& services/backend/.venv/Scripts/python.exe -I scripts/verify-candidate-archive.py "${{ steps.candidate.outputs.directory }}"'
+      - name: Packaged backend PID, auth, resources and EOF
+        timeout-minutes: 2
+        run: |
+          & services/backend/.venv/Scripts/python.exe -I scripts/verify-frozen-trust.py "${{ steps.candidate.outputs.backend }}/easyai-sidecar.exe"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/test-frozen.mjs "${{ steps.candidate.outputs.backend }}"
+      - name: Packaged Electron sandbox, ASAR identity and normal shutdown
+        env:
+          EASYAI_E2E_PACKAGE: ${{ steps.candidate.outputs.executable }}
+        run: pnpm test:e2e
+      - name: Retain unsigned candidate and provenance (one day)
+        uses: actions/upload-artifact@v4
+        with:
+          name: easyai-unsigned-win-x64-${{ github.sha }}
+          retention-days: 1
+          compression-level: 0
+          if-no-files-found: error
+          path: |
+            ${{ steps.candidate.outputs.archive }}
+            ${{ steps.candidate.outputs.directory }}/builder-manifest.json
+            ${{ steps.candidate.outputs.directory }}/candidate-provenance.json
+            ${{ steps.candidate.outputs.directory }}/candidate-audit.json

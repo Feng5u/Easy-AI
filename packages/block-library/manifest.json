@@ -1,0 +1,607 @@
+{
+  "libraryVersion": "0.0.0",
+  "blocks": [
+    {
+      "id": "data.compose",
+      "version": 1,
+      "category": "data",
+      "label": "预处理流水线",
+      "placement": "data_root",
+      "fields": {
+        "NAME": {
+          "type": "string",
+          "default": "MyObject",
+          "maxLength": 64
+        }
+      },
+      "inputs": {
+        "steps": [
+          "data.to_tensor",
+          "data.normalize"
+        ]
+      },
+      "imports": [
+        "torchvision.transforms"
+      ],
+      "backendHandler": "data.compose",
+      "helpKey": "blocks.data.compose"
+    },
+    {
+      "id": "data.to_tensor",
+      "version": 1,
+      "category": "data",
+      "label": "转为张量",
+      "placement": "transform_step",
+      "fields": {},
+      "inputs": {},
+      "imports": [
+        "torchvision.transforms"
+      ],
+      "backendHandler": "data.to_tensor",
+      "helpKey": "blocks.data.to_tensor"
+    },
+    {
+      "id": "data.normalize",
+      "version": 1,
+      "category": "data",
+      "label": "归一化",
+      "placement": "transform_step",
+      "fields": {
+        "MEAN": {
+          "type": "numbers",
+          "default": "0.1307"
+        },
+        "STD": {
+          "type": "numbers",
+          "default": "0.3081"
+        }
+      },
+      "inputs": {},
+      "imports": [
+        "torchvision.transforms"
+      ],
+      "backendHandler": "data.normalize",
+      "helpKey": "blocks.data.normalize"
+    },
+    {
+      "id": "data.dataset_builtin",
+      "version": 1,
+      "category": "data",
+      "label": "加载内置数据集",
+      "placement": "data_root",
+      "fields": {
+        "NAME": {
+          "type": "string",
+          "default": "MyObject",
+          "maxLength": 64
+        },
+        "DATASET_NAME": {
+          "type": "enum",
+          "default": "MNIST",
+          "options": [
+            "MNIST",
+            "CIFAR10",
+            "FashionMNIST"
+          ]
+        },
+        "SPLIT": {
+          "type": "enum",
+          "default": "train",
+          "options": [
+            "train",
+            "test"
+          ]
+        },
+        "TRANSFORM_REF": {
+          "type": "reference",
+          "default": ""
+        }
+      },
+      "inputs": {},
+      "imports": [
+        "torchvision.datasets"
+      ],
+      "backendHandler": "data.dataset_builtin",
+      "helpKey": "blocks.data.dataset_builtin"
+    },
+    {
+      "id": "data.dataloader",
+      "version": 1,
+      "category": "data",
+      "label": "创建 DataLoader",
+      "placement": "data_root",
+      "fields": {
+        "NAME": {
+          "type": "string",
+          "default": "MyObject",
+          "maxLength": 64
+        },
+        "DATASET_REF": {
+          "type": "reference",
+          "default": ""
+        },
+        "BATCH_SIZE": {
+          "type": "integer",
+          "default": 128,
+          "min": 1,
+          "max": 65536
+        },
+        "SHUFFLE": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "inputs": {},
+      "imports": [
+        "torch.utils.data"
+      ],
+      "backendHandler": "data.dataloader",
+      "helpKey": "blocks.data.dataloader"
+    },
+    {
+      "id": "model.define",
+      "version": 1,
+      "category": "model",
+      "label": "定义模型类",
+      "placement": "model_root",
+      "fields": {
+        "NAME": {
+          "type": "string",
+          "default": "MyModel",
+          "maxLength": 64
+        }
+      },
+      "inputs": {
+        "body": [
+          "model.conv2d",
+          "model.linear",
+          "model.relu",
+          "model.maxpool2d",
+          "model.dropout",
+          "model.flatten",
+          "model.sequential"
+        ]
+      },
+      "imports": [
+        "torch",
+        "torch.nn"
+      ],
+      "backendHandler": "model.define",
+      "helpKey": "blocks.model.define"
+    },
+    {
+      "id": "model.sequential",
+      "version": 1,
+      "category": "model",
+      "label": "顺序组合",
+      "placement": "model_node",
+      "fields": {},
+      "inputs": {
+        "layers": [
+          "model.conv2d",
+          "model.linear",
+          "model.relu",
+          "model.maxpool2d",
+          "model.dropout"
+        ]
+      },
+      "imports": [
+        "torch.nn"
+      ],
+      "backendHandler": "model.sequential",
+      "helpKey": "blocks.model.sequential"
+    },
+    {
+      "id": "model.conv2d",
+      "version": 1,
+      "category": "model",
+      "label": "卷积层",
+      "placement": "model_node",
+      "fields": {
+        "IN_CHANNELS": {
+          "type": "integer",
+          "default": 1,
+          "min": 1,
+          "max": 4096
+        },
+        "OUT_CHANNELS": {
+          "type": "integer",
+          "default": 16,
+          "min": 1,
+          "max": 4096
+        },
+        "KERNEL_SIZE": {
+          "type": "integer",
+          "default": 3,
+          "min": 1,
+          "max": 127
+        },
+        "PADDING": {
+          "type": "integer",
+          "default": 1,
+          "min": 0,
+          "max": 127
+        }
+      },
+      "inputs": {},
+      "imports": [
+        "torch.nn"
+      ],
+      "backendHandler": "model.conv2d",
+      "helpKey": "blocks.model.conv2d"
+    },
+    {
+      "id": "model.linear",
+      "version": 1,
+      "category": "model",
+      "label": "全连接层",
+      "placement": "model_node",
+      "fields": {
+        "IN_FEATURES": {
+          "type": "integer",
+          "default": 1568,
+          "min": 1,
+          "max": 1000000
+        },
+        "OUT_FEATURES": {
+          "type": "integer",
+          "default": 128,
+          "min": 1,
+          "max": 1000000
+        }
+      },
+      "inputs": {},
+      "imports": [
+        "torch.nn"
+      ],
+      "backendHandler": "model.linear",
+      "helpKey": "blocks.model.linear"
+    },
+    {
+      "id": "model.relu",
+      "version": 1,
+      "category": "model",
+      "label": "ReLU",
+      "placement": "model_node",
+      "fields": {},
+      "inputs": {},
+      "imports": [
+        "torch.nn"
+      ],
+      "backendHandler": "model.relu",
+      "helpKey": "blocks.model.relu"
+    },
+    {
+      "id": "model.maxpool2d",
+      "version": 1,
+      "category": "model",
+      "label": "最大池化",
+      "placement": "model_node",
+      "fields": {
+        "KERNEL_SIZE": {
+          "type": "integer",
+          "default": 2,
+          "min": 1,
+          "max": 127
+        }
+      },
+      "inputs": {},
+      "imports": [
+        "torch.nn"
+      ],
+      "backendHandler": "model.maxpool2d",
+      "helpKey": "blocks.model.maxpool2d"
+    },
+    {
+      "id": "model.dropout",
+      "version": 1,
+      "category": "model",
+      "label": "Dropout",
+      "placement": "model_node",
+      "fields": {
+        "P": {
+          "type": "number",
+          "default": 0.5,
+          "min": 0,
+          "max": 1,
+          "exclusiveMax": true
+        }
+      },
+      "inputs": {},
+      "imports": [
+        "torch.nn"
+      ],
+      "backendHandler": "model.dropout",
+      "helpKey": "blocks.model.dropout"
+    },
+    {
+      "id": "model.flatten",
+      "version": 1,
+      "category": "model",
+      "label": "展平",
+      "placement": "model_node",
+      "fields": {},
+      "inputs": {},
+      "imports": [],
+      "backendHandler": "model.flatten",
+      "helpKey": "blocks.model.flatten"
+    },
+    {
+      "id": "train.loop",
+      "version": 1,
+      "category": "train",
+      "label": "训练模型",
+      "placement": "training_root",
+      "fields": {
+        "MODEL_REF": {
+          "type": "reference",
+          "default": ""
+        },
+        "TRAIN_LOADER_REF": {
+          "type": "reference",
+          "default": ""
+        },
+        "TEST_LOADER_REF": {
+          "type": "reference",
+          "default": ""
+        },
+        "CRITERION": {
+          "type": "enum",
+          "default": "CrossEntropy",
+          "options": [
+            "CrossEntropy",
+            "MSE",
+            "BCE"
+          ]
+        },
+        "OPTIMIZER": {
+          "type": "enum",
+          "default": "SGD",
+          "options": [
+            "SGD",
+            "Adam"
+          ]
+        },
+        "LEARNING_RATE": {
+          "type": "number",
+          "default": 0.01,
+          "min": 0,
+          "max": 100,
+          "exclusiveMin": true
+        },
+        "EPOCHS": {
+          "type": "integer",
+          "default": 10,
+          "min": 1,
+          "max": 10000
+        }
+      },
+      "inputs": {
+        "before": [
+          "viz.figure"
+        ],
+        "body": [
+          "viz.figure"
+        ],
+        "after": [
+          "viz.figure"
+        ]
+      },
+      "imports": [
+        "torch",
+        "torch.nn",
+        "torch.optim"
+      ],
+      "backendHandler": "train.loop",
+      "helpKey": "blocks.train.loop"
+    },
+    {
+      "id": "viz.figure",
+      "version": 1,
+      "category": "viz",
+      "label": "创建画布",
+      "placement": "figure",
+      "fields": {
+        "LAYOUT": {
+          "type": "enum",
+          "default": "1,1",
+          "options": [
+            "1,1",
+            "1,2",
+            "2,2",
+            "1,3",
+            "2,5"
+          ]
+        },
+        "SIZE": {
+          "type": "enum",
+          "default": "medium",
+          "options": [
+            "small",
+            "medium",
+            "large"
+          ]
+        }
+      },
+      "inputs": {
+        "panels": [
+          "viz.panel"
+        ],
+        "save": [
+          "viz.savefig"
+        ]
+      },
+      "imports": [
+        "matplotlib.pyplot"
+      ],
+      "backendHandler": "viz.figure",
+      "helpKey": "blocks.viz.figure"
+    },
+    {
+      "id": "viz.panel",
+      "version": 1,
+      "category": "viz",
+      "label": "子图",
+      "placement": "panel",
+      "fields": {
+        "CHART_TYPE": {
+          "type": "enum",
+          "default": "line",
+          "options": [
+            "line",
+            "image_grid",
+            "scatter"
+          ]
+        },
+        "COUNT": {
+          "type": "integer",
+          "default": 10,
+          "min": 1,
+          "max": 100
+        },
+        "ROWS": {
+          "type": "integer",
+          "default": 2,
+          "min": 1,
+          "max": 10
+        },
+        "COLS": {
+          "type": "integer",
+          "default": 5,
+          "min": 1,
+          "max": 10
+        }
+      },
+      "inputs": {
+        "data": [
+          "viz.data_source"
+        ],
+        "style": [
+          "viz.title",
+          "viz.legend",
+          "viz.axis"
+        ]
+      },
+      "imports": [
+        "matplotlib.pyplot"
+      ],
+      "backendHandler": "viz.panel",
+      "helpKey": "blocks.viz.panel"
+    },
+    {
+      "id": "viz.data_source",
+      "version": 1,
+      "category": "viz",
+      "label": "数据来源",
+      "placement": "source",
+      "fields": {
+        "SOURCE": {
+          "type": "enum",
+          "default": "train_loss",
+          "options": [
+            "train_loss",
+            "test_accuracy",
+            "train_samples",
+            "test_samples",
+            "predictions"
+          ]
+        },
+        "X_SOURCE": {
+          "type": "enum",
+          "default": "epoch",
+          "options": [
+            "epoch",
+            "none"
+          ]
+        }
+      },
+      "inputs": {},
+      "imports": [],
+      "backendHandler": "viz.data_source",
+      "helpKey": "blocks.viz.data_source"
+    },
+    {
+      "id": "viz.title",
+      "version": 1,
+      "category": "viz",
+      "label": "标题",
+      "placement": "style",
+      "fields": {
+        "TEXT": {
+          "type": "string",
+          "default": "",
+          "maxLength": 256
+        },
+        "COLOR": {
+          "type": "enum",
+          "default": "black",
+          "options": [
+            "black",
+            "red",
+            "green",
+            "blue"
+          ]
+        }
+      },
+      "inputs": {},
+      "imports": [
+        "matplotlib.pyplot"
+      ],
+      "backendHandler": "viz.title",
+      "helpKey": "blocks.viz.title"
+    },
+    {
+      "id": "viz.legend",
+      "version": 1,
+      "category": "viz",
+      "label": "图例",
+      "placement": "style",
+      "fields": {},
+      "inputs": {},
+      "imports": [
+        "matplotlib.pyplot"
+      ],
+      "backendHandler": "viz.legend",
+      "helpKey": "blocks.viz.legend"
+    },
+    {
+      "id": "viz.axis",
+      "version": 1,
+      "category": "viz",
+      "label": "坐标轴",
+      "placement": "style",
+      "fields": {
+        "SHOW_TICKS": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "inputs": {},
+      "imports": [
+        "matplotlib.pyplot"
+      ],
+      "backendHandler": "viz.axis",
+      "helpKey": "blocks.viz.axis"
+    },
+    {
+      "id": "viz.savefig",
+      "version": 1,
+      "category": "viz",
+      "label": "保存图像",
+      "placement": "save",
+      "fields": {
+        "PATH": {
+          "type": "string",
+          "default": "outputs/figure.png",
+          "maxLength": 256
+        }
+      },
+      "inputs": {},
+      "imports": [
+        "matplotlib.pyplot"
+      ],
+      "backendHandler": "viz.savefig",
+      "helpKey": "blocks.viz.savefig"
+    }
+  ]
+}
