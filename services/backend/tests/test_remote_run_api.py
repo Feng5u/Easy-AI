@@ -144,7 +144,8 @@ def harness(tmp_path, monkeypatch):
 
     def nontraining(document):
         compiled = original(document)
-        producer = compiled.program.training.before[0].id
+        producer = compiled.program.training.before[0].origin.block_id
+        assert producer in {span.origin.block_id for span in compiled.result.source_map}
         artifact = f"""
 import hashlib
 raw = {png()!r}

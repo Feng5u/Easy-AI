@@ -4030,3 +4030,24 @@ pnpm 11.25.0，当前 pnpm 命令报告 Node 24.22.1，与仓库要求 24.19.0 �
 | Node 包装测试 / 桌面 E2E / 训练 / 真实 SSH | NOT RUN；Node 包装阶段因链式后端失败未到达，桌面按用户本轮范围不重跑，训练/SSH 不属于本轮修复 |
 
 沿用现有应用依赖；本机 Node 版本差异仍如上一节记录。更新现有草稿 PR，保留上述后端全套限制及人工桌面验收结论，不合并、不发布。
+
+## 2026-11-16 直接图表的完成校验与来源修复
+
+用户要求修复合并前核查发现的图表 ID 不一致，并提交新 PR。在 `34361bd` 上建立 `codex/fix-chart-completion`，保留 PR #2 的工作台、直接图表和教学改动，以 main 为新 PR 的目标分支。原需求、锁文件、个人工程、数据与未跟踪的 POC 不改动。
+
+新直接图表用 `auto:<training>:<phase>` 标识图片分组，但生成代码的 artifact 事件使用真实 `figure.origin.block_id`。原完成校验错误地将分组 ID 与事件中的来源积木 ID 比较，导致图片齐全仍无法通过完成校验。本次让本地与远端共享的完成校验使用真实来源积木 ID；图片路径和分组 ID 不变。远端协议测试及桌面日志夹具也按实际生成代码登记来源，并断言来源存在于源码映射。没有放宽文件验证、阶段、轮次、重复产物或安全检查。
+
+新增回归读取实际 Blockly JSON，并从生成 Python 的 AST 中提取 artifact 调用，检验编译器和完成校验的一致性；覆盖直接图表、旧画布、混合布局、full/quick，以及缺失图片/模型、错误来源/阶段/轮次、空文件、重复产物、验证失败。协议记录仅用于单元测试，不作为训练结果，不启动训练或导入 torch。
+
+| 验证 | 结果 |
+| --- | --- |
+| 修复前的新回归 | FAIL（预期复现）：4 FAIL / 12 PASS，直接图表及混合布局在 full/quick 下均被错误拒绝，旧画布正常 |
+| 修复后的完成校验与直接图表测试 | PASS，25 项（16 项新回归 + 9 项既有直接图表）；`build/chart-protocol.log` |
+| `pnpm check` | PASS，TS、Ruff、Linux/Windows strict mypy、合同、Blockly fixtures 与格式全部通过；`build/chart-check.log` |
+| 扩展的编译/产物预算测试 | FAIL，54 PASS / 2 FAIL / 1 ERROR；Windows 默认临时目录的 ACL、链接权限和长路径限制，未修改权限或断言来掩盖失败 |
+| `pnpm exec playwright test tests/e2e/run-logs.spec.ts` | FAIL，此前禁用的来源按钮及其定位操作已通过，后续在临时桌面关闭时超过 12 秒；`build/chart-run-logs-e2e.log`。不记为整项通过，未发现该次日志测试的 Electron 主进程残留 |
+| 修改文件 Ruff、`git diff --check` | PASS |
+| 完整 `pnpm test` / build / 其余桌面 E2E | 本地 NOT RUN；新 PR 的标准 CI 会执行，远端结果记录在 PR 检查与说明中。既有失败仍保留 |
+| 训练、数据下载、训练环境变更、真实 SSH、部署/Release | NOT RUN；本次仅修复图表完成判定和协议夹具 |
+
+新 PR 为可审阅的普通 PR；这不表示所有检查通过，也不自动合并。保留旧 PR #2 供查阅，新 PR 包含其改动和本次修复。完整发布门槛 B 未宣称完成。

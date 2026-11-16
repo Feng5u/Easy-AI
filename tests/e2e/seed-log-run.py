@@ -62,6 +62,8 @@ try:
     figure_ids = []
     figure_sources = []
     for index, figure in enumerate(figures):
+        producer = figure.origin.block_id
+        assert producer in {span.origin.block_id for span in compiled.result.source_map}
         name = f"fixture-image-{index}"
         content = png(bytes((200, 60, 60) if index == 0 else (30, 80, 210)))
         (output / f"{name}.png").write_bytes(content)
@@ -86,17 +88,17 @@ try:
             mime_type="image/png",
             size_bytes=len(content),
             sha256=hashlib.sha256(content).hexdigest(),
-            producer_block_id=figure.id,
+            producer_block_id=producer,
             contributor_block_ids=contributors,
             phase="before" if index == 0 else "epoch_end",
             epoch=None if index == 0 else 1,
             sync_state="ready",
         )
         workspace.runs._journal(run.run_id).append(
-            "artifact_created", figure.id, record.model_dump(by_alias=True)
+            "artifact_created", producer, record.model_dump(by_alias=True)
         )
         figure_ids.append(record.artifact_id)
-        figure_sources.append({"producer": figure.id, "contributors": contributors})
+        figure_sources.append({"producer": producer, "contributors": contributors})
     workspace.runs._write_views(run.run_id, workspace.runs.events(run.run_id))
     print(
         json.dumps(
