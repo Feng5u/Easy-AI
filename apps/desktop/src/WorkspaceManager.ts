@@ -11,6 +11,7 @@ import {
 } from "../../../packages/block-library/symbols.mjs";
 import type { ProjectDocument } from "../electron/bridge.js";
 import type { WorkspaceTab } from "./editor-contract.js";
+import { zoomShortcut } from "../electron/zoom-shortcut.mjs";
 
 export const workspaceTabs = ["data", "model", "training"] as const;
 type Workspaces = ProjectDocument["workspaces"];
@@ -46,6 +47,13 @@ export interface FigureView {
   columns: number;
   disabled: boolean;
   panels: { id: string; chartType: string; disabled: boolean }[];
+}
+export const plotPhases = ["before", "body", "after"] as const;
+export type PlotPhase = (typeof plotPhases)[number];
+export interface PhaseFigureView extends FigureView {
+  trainingId: string;
+  phase: PlotPhase;
+  legacyCount: number;
 }
 
 function object(value: unknown): value is JsonObject {
@@ -205,10 +213,14 @@ export function validateWorkspaces(
       if (
         !object(raw.next.block) ||
         typeof raw.next.block.type !== "string" ||
-        catalog[raw.next.block.type]?.placement !== spec.placement
+        (catalog[raw.next.block.type]?.placement !== spec.placement &&
+          !(
+            ["viz.figure", "viz.panel"].includes(spec.id) &&
+            ["viz.figure", "viz.panel"].includes(raw.next.block.type)
+          ))
       )
         throw new Error("积木顺序连接类型不受支持；原内容未更改。");
-      visit(raw.next.block, depth);
+      visit(raw.next.block, depth, parent, slot);
     }
   }
   for (const tab of workspaceTabs) {
@@ -246,8 +258,45 @@ export function toolboxFor(
       }[category],
       colour: { data: "160", model: "220", train: "30", viz: "290" }[category],
       contents: manifest.blocks
-        .filter((block) => block.category === category)
-        .map((block) => ({ kind: "block", type: block.id })),
+        .filter(
+          (block) =>
+            block.category === category &&
+            !["viz.figure", "viz.savefig"].includes(block.id),
+        )
+        .flatMap((block): Blockly.utils.toolbox.BlockInfo[] => {
+          if (block.id !== "viz.panel")
+            return [{ kind: "block", type: block.id }];
+          return [
+            "train_samples",
+            "train_loss",
+            "test_accuracy",
+            "predictions",
+          ].map((source) => {
+            const metric =
+              source === "train_loss" || source === "test_accuracy";
+            return {
+              kind: "block",
+              type: "viz.panel",
+              fields: {
+                CHART_TYPE: metric ? "line" : "image_grid",
+                COUNT: source === "train_samples" ? 5 : 10,
+                ROWS: source === "train_samples" ? 1 : 2,
+                COLS: 5,
+              },
+              inputs: {
+                data: {
+                  block: {
+                    type: "viz.data_source",
+                    fields: {
+                      SOURCE: source,
+                      X_SOURCE: metric ? "epoch" : "none",
+                    },
+                  },
+                },
+              },
+            };
+          });
+        }),
     })),
   };
 }
@@ -290,6 +339,7 @@ export const browserWorkspaceFactory: WorkspaceFactory = (
     css: true,
     media: "assets/",
     renderer: "geras",
+    grid: { spacing: 24, length: 1, colour: "#d7e3e3", snap: false },
     move: { scrollbars: true, drag: true, wheel: true },
     zoom: {
       controls: true,
@@ -308,6 +358,34 @@ export const browserWorkspaceFactory: WorkspaceFactory = (
       }
   };
   setReadOnly(readOnly);
+  const onZoomKey = (event: KeyboardEvent) => {
+    const target = event.target;
+    if (
+      event.defaultPrevented ||
+      event.isComposing ||
+      !(target instanceof Element) ||
+      target.closest(
+        "input, textarea, select, [contenteditable], [role='textbox']",
+      )
+    )
+      return;
+    const direction = zoomShortcut(
+      event.key,
+      event.code,
+      event.ctrlKey || event.metaKey,
+      event.altKey,
+    );
+    if (direction === null) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (direction === 0) {
+      workspace.setScale(workspace.options.zoomOptions.startScale);
+      workspace.scrollCenter();
+    } else workspace.zoomCenter(direction);
+  };
+  // Scope keys to this canvas, including its toolbox and selected blocks.
+  // View-only zoom stays available in read-only/historical workspaces.
+  host.addEventListener("keydown", onZoomKey, true);
   return {
     workspace,
     resize: () => Blockly.svgResize(workspace),
@@ -321,7 +399,10 @@ export const browserWorkspaceFactory: WorkspaceFactory = (
         workspace.centerOnBlock(id);
       }
     },
-    dispose: () => workspace.dispose(),
+    dispose: () => {
+      host.removeEventListener("keydown", onZoomKey, true);
+      workspace.dispose();
+    },
   };
 };
 
@@ -579,7 +660,7 @@ export class WorkspaceManager {
     while (block && block.type !== "viz.figure") {
       if (ancestors.has(block.id) || ancestors.size >= 500) return null;
       ancestors.add(block.id);
-      block = block.getParent();
+      block = block.getSurroundParent();
     }
     if (!block) return null;
     const layout = String(block.getFieldValue("LAYOUT"));
@@ -611,6 +692,100 @@ export class WorkspaceManager {
       container = container.getSurroundParent();
     }
     return { id: block.id, layout, size, rows, columns, disabled, panels };
+  }
+  phaseFigures(id: string): PhaseFigureView[] {
+    if (this.disposed || this.blocked) return [];
+    let ancestor = this.block(id);
+    while (ancestor && ancestor.type !== "train.loop") {
+      if (ancestor.type === "viz.figure") return [];
+      ancestor = ancestor.getSurroundParent();
+    }
+    if (!ancestor) return [];
+    const training = ancestor;
+    return plotPhases.flatMap((phase) => {
+      const panels: FigureView["panels"] = [];
+      let legacyCount = 0;
+      let containsSelection = training.id === id;
+      let node = training.getInputTargetBlock(phase);
+      const seen = new Set<string>();
+      while (node && !seen.has(node.id)) {
+        seen.add(node.id);
+        if (node.getDescendants(false).some((child) => child.id === id))
+          containsSelection = true;
+        if (node.type === "viz.panel")
+          panels.push({
+            id: node.id,
+            chartType: String(node.getFieldValue("CHART_TYPE")),
+            disabled: !node.isEnabled(),
+          });
+        else if (node.type === "viz.figure") legacyCount++;
+        node = node.getNextBlock();
+      }
+      if (!containsSelection) return [];
+      const layout = String(
+        training.getFieldValue(`${phase.toUpperCase()}_LAYOUT`),
+      );
+      const size = String(
+        training.getFieldValue(`${phase.toUpperCase()}_SIZE`),
+      );
+      const enabled = training.isEnabled()
+        ? panels.filter((panel) => !panel.disabled).length
+        : 0;
+      const columns = Math.min(2, Math.max(1, enabled));
+      const [rows, cols] =
+        layout === "auto"
+          ? [Math.max(1, Math.ceil(enabled / columns)), columns]
+          : layout.split(",").map(Number);
+      return [
+        {
+          id: `${training.id}:${phase}`,
+          trainingId: training.id,
+          phase,
+          layout,
+          size,
+          rows,
+          columns: cols,
+          disabled: !training.isEnabled(),
+          panels,
+          legacyCount,
+        },
+      ];
+    });
+  }
+  configurePhaseFigure(
+    id: string,
+    phase: PlotPhase,
+    layout: string,
+    size: string,
+  ): void {
+    if (this.disposed || this.readOnly || this.blocked) return;
+    const view = this.phaseFigures(id).find((item) => item.phase === phase);
+    if (
+      !view ||
+      !["auto", ...figureLayouts].includes(layout) ||
+      !["auto", ...figureSizes].includes(size)
+    )
+      throw new Error("请选择支持的图表布局和尺寸。");
+    if (
+      layout !== "auto" &&
+      view.panels.length >
+        layout
+          .split(",")
+          .map(Number)
+          .reduce((a, b) => a * b)
+    )
+      throw new Error(
+        "布局格子数不足；请选择更大布局或自动排列。所有图表已保留。",
+      );
+    const training = this.block(view.trainingId)!;
+    const group = Blockly.Events.getGroup();
+    Blockly.Events.setGroup(group || true);
+    try {
+      training.setFieldValue(layout, `${phase.toUpperCase()}_LAYOUT`);
+      training.setFieldValue(size, `${phase.toUpperCase()}_SIZE`);
+    } finally {
+      Blockly.Events.setGroup(group);
+    }
   }
   configureFigure(id: string, layout: string, size: string): void {
     if (this.disposed || this.readOnly || this.blocked) return;

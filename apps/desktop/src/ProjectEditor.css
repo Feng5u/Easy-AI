@@ -26,6 +26,12 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) 240px;
 }
+.project-editor-body[data-inspector="false"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+.project-editor-inspector[hidden] {
+  display: none;
+}
 .project-editor-canvases {
   min-width: 0;
   height: 550px;

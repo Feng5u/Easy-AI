@@ -259,7 +259,7 @@ test("build a CNN from the toolbox, diagnose shape and restore the saved graph",
     await expect(
       page.getByRole("status").filter({ hasText: /^代码检查通过/ }),
     ).toBeVisible();
-    await page.getByText("查看当前工程的只读生成代码", { exact: true }).click();
+    await page.getByRole("button", { name: "代码对照", exact: true }).click();
     await expect(
       page.getByLabel("Monaco 只读代码视图").locator(".monaco-editor"),
     ).toBeVisible();

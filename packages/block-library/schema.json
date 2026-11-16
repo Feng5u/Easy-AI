@@ -2,10 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "libraryVersion",
-    "blocks"
-  ],
+  "required": ["libraryVersion", "blocks"],
   "properties": {
     "libraryVersion": {
       "const": "0.0.0"
@@ -37,12 +34,7 @@
             "const": 1
           },
           "category": {
-            "enum": [
-              "data",
-              "model",
-              "train",
-              "viz"
-            ]
+            "enum": ["data", "model", "train", "viz"]
           },
           "label": {
             "type": "string"
@@ -55,10 +47,7 @@
             "additionalProperties": {
               "type": "object",
               "additionalProperties": false,
-              "required": [
-                "type",
-                "default"
-              ],
+              "required": ["type", "default"],
               "properties": {
                 "type": {
                   "enum": [
@@ -92,6 +81,9 @@
                   "items": {
                     "type": "string"
                   }
+                },
+                "hidden": {
+                  "type": "boolean"
                 }
               }
             }

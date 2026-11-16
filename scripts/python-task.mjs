@@ -14,7 +14,8 @@ const operations = {
       "pyproject.toml",
       "../../runtime",
     ],
-    ["mypy", "src"],
+    ["mypy", "--platform", "linux", "src"],
+    ["mypy", "--platform", "win32", "src"],
   ],
   test: [["pytest", "-q"]],
   build: [

@@ -78,6 +78,8 @@ def private_file(path: Path, limit: int) -> bytes:
 
 def private_snapshot(path: Path, limit: int) -> tuple[bytes, tuple[int, ...]]:
     protected(path)
+    if sys.platform == "win32":
+        raise ValueError("INSTALL_PROFILE_PLATFORM_UNSUPPORTED")
     fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
     with os.fdopen(fd, "rb") as source:
         info = os.fstat(source.fileno())
@@ -117,6 +119,8 @@ def private_snapshot(path: Path, limit: int) -> tuple[bytes, tuple[int, ...]]:
 def protected(path: Path, *, directory: bool = False) -> os.stat_result:
     if not path.is_absolute() or path.resolve(strict=True) != path:
         raise ValueError("INSTALL_SOURCE_INVALID")
+    if sys.platform == "win32":
+        raise ValueError("INSTALL_PROFILE_PLATFORM_UNSUPPORTED")
     anchor_uid = Path(path.anchor).lstat().st_uid
     for parent in reversed(path.parents):
         _directory(parent.lstat(), final=False, anchor_uid=anchor_uid)

@@ -176,7 +176,29 @@ const visualDoc = structuredClone(doc);
 visualDoc.workspaces.training =
   Blockly.serialization.workspaces.save(visualTraining);
 await save("packages/contracts/fixtures/mnist-figures.json", visualDoc);
-await save("examples/mnist-cnn/project.easyai.json", visualDoc);
+// New direct charts are also assembled and saved by the real Blockly loader.
+// Keep the legacy fixture above byte-for-byte available for compatibility tests.
+const directWorkspace = new Blockly.Workspace();
+Blockly.serialization.workspaces.load(
+  visualDoc.workspaces.training,
+  directWorkspace,
+);
+const directLoop = directWorkspace.getBlockById("training");
+for (const phase of ["before", "body", "after"]) {
+  const oldFigure = directLoop.getInputTargetBlock(phase);
+  const charts = oldFigure.getInputTargetBlock("panels");
+  charts.previousConnection.disconnect();
+  oldFigure.dispose(false);
+  directLoop.getInput(phase).connection.connect(charts.previousConnection);
+}
+const directDoc = structuredClone(doc);
+directDoc.workspaces.training =
+  Blockly.serialization.workspaces.save(directWorkspace);
+await save("packages/contracts/fixtures/mnist-direct-plots.json", directDoc);
+await save("examples/mnist-cnn/project.easyai.json", directDoc);
+await mkdir("examples/mnist-direct-plots", { recursive: true });
+await save("examples/mnist-direct-plots/project.easyai.json", directDoc);
+directWorkspace.dispose();
 visualTraining.dispose();
 for (const ws of [all, reloaded, data, model, training]) ws.dispose();
 

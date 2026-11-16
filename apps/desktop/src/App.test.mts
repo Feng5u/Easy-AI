@@ -231,6 +231,79 @@ function button(label: string): HTMLButtonElement {
     throw new Error(`Button missing: ${label}; ${container.textContent}`);
   return target;
 }
+
+it("keeps the canvas and unsaved edits mounted while navigating workbench panels", async () => {
+  const h = bridge();
+  await mount(h.api);
+  const canvas = container.querySelector('[aria-label="unit-test canvas"]')!;
+  await click("画布新增层");
+  await click("环境与数据");
+  expect(canvas.closest("[hidden]")).not.toBeNull();
+  expect(
+    document.getElementById("environment-heading")?.closest("[hidden]"),
+  ).toBeNull();
+  await click("工程");
+  expect(
+    document.getElementById("project-heading")?.closest("[hidden]"),
+  ).toBeNull();
+  await click("返回积木");
+  expect(canvas.closest("[hidden]")).toBeNull();
+  expect(container.querySelector('[aria-label="unit-test canvas"]')).toBe(
+    canvas,
+  );
+  expect(
+    container.querySelector('[data-testid="visible-blocks"]')?.textContent,
+  ).toBe("1");
+  await advance(850);
+  expect(h.save).toHaveBeenCalledTimes(1);
+  expect(h.save.mock.calls[0][0].workspaces.model.blocks.blocks).toHaveLength(
+    1,
+  );
+});
+
+it("code comparison compiles only saved revisions and never starts a run", async () => {
+  const h = bridge();
+  h.api.runs.start = vi.fn(h.api.runs.start);
+  h.api.projects.compile = vi.fn(async (value) => ({
+    revision: value.revision,
+    runnable: true,
+    diagnostics: [],
+    programHash: "a".repeat(64),
+  }));
+  await mount(h.api);
+  await click("代码对照");
+  expect(h.api.projects.compile).not.toHaveBeenCalled();
+  await advance(850);
+  expect(h.api.projects.compile).toHaveBeenLastCalledWith(
+    { ...h.save.mock.calls[0][0], revision: 2 },
+    expect.any(Number),
+  );
+  await click("画布新增层");
+  expect(h.api.projects.compile).toHaveBeenCalledTimes(1);
+  await advance(850);
+  expect(h.api.projects.compile).toHaveBeenLastCalledWith(
+    { ...h.save.mock.calls[1][0], revision: 3 },
+    expect.any(Number),
+  );
+  await click("积木");
+  await advance(850);
+  expect(h.api.projects.compile).toHaveBeenCalledTimes(2);
+  expect(h.api.runs.start).not.toHaveBeenCalled();
+});
+
+it("does not retry a failed automatic preview indefinitely and keeps manual retry available", async () => {
+  const h = bridge();
+  h.api.projects.compile = vi.fn(async () => {
+    throw new Error("preview unavailable");
+  });
+  await mount(h.api);
+  await click("代码对照");
+  await advance(850);
+  await advance(5000);
+  expect(h.api.projects.compile).toHaveBeenCalledTimes(1);
+  await click("检查与编译");
+  expect(h.api.projects.compile).toHaveBeenCalledTimes(2);
+});
 async function click(label: string) {
   await act(async () => {
     button(label).click();

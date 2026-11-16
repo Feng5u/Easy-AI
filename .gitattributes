@@ -16,3 +16,13 @@
 /packages/package-groups/catalog.json text eol=lf
 /examples/mnist-cnn/project.easyai.json text eol=lf
 /packages/contracts/fixtures/blank.json text eol=lf
+
+# Keep source and generated contracts identical across Windows/Linux checkouts.
+*.ts text eol=lf
+*.tsx text eol=lf
+*.mts text eol=lf
+*.cts text eol=lf
+*.mjs text eol=lf
+*.css text eol=lf
+*.json text eol=lf
+*.py text eol=lf

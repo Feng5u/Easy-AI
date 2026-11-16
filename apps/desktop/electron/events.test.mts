@@ -128,6 +128,32 @@ it("handles simultaneous stream failure and cancellation without an orphan rejec
   await new Promise<void>((resolve) => setImmediate(resolve));
 });
 
+it("applies the UTF8 byte limit separately to coalesced frames", async () => {
+  const large = { ...event, payload: { message: "中".repeat(18000) } };
+  const next = { ...large, seq: 2 };
+  const received: Event[] = [];
+  const input = (frame(large) + frame(next)).replace(/\n/g, "\r\n");
+  expect(
+    await consumeEvents(
+      bytes(input, 110003),
+      runId,
+      0,
+      (value) => received.push(value),
+      new AbortController().signal,
+    ),
+  ).toBe(2);
+  expect(received).toEqual([large, next]);
+  await expect(
+    consumeEvents(
+      bytes(frame({ ...event, payload: { message: "中".repeat(24000) } }), 997),
+      runId,
+      0,
+      () => expect.fail("oversized event must not be delivered"),
+      new AbortController().signal,
+    ),
+  ).rejects.toBeInstanceOf(EventProtocolError);
+});
+
 it("preserves supervisor spawn failure without inventing a process exit", async () => {
   const failed: Event = {
     ...event,

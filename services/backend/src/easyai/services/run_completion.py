@@ -28,7 +28,9 @@ def artifacts_complete(
     ):
         for figure in figures:
             for epoch in range(1, epochs + 1) if phase == "epoch_end" else [None]:
-                expected.add((figure.id, "figure", phase, epoch))
+                # Automatic figures have a grouping ID, but emitted artifacts
+                # point to a real source block, just like legacy figures do.
+                expected.add((figure.origin.block_id, "figure", phase, epoch))
     actual: set[tuple[str, str, str | None, int | None]] = set()
     ids: set[str] = set()
     paths: set[str] = set()

@@ -14,6 +14,17 @@ class ClassificationLossField extends Blockly.FieldDropdown {
     super.onItemSelected_(menu, item);
   }
 }
+// Omit default side-panel settings so old projects round-trip unchanged.
+class LayoutSettingField extends Blockly.FieldDropdown {
+  isSerializable() {
+    return this.getValue() !== "auto" && super.isSerializable();
+  }
+}
+const inputLabels = {
+  "train.loop": { before: "训练前", body: "每轮结束", after: "训练后" },
+  "viz.figure": { panels: "图表", save: "保存图像" },
+  "viz.panel": { data: "数据", style: "样式（可选）" },
+};
 export function registerBlocks() {
   for (const spec of manifest.blocks) {
     if (Blockly.Blocks[spec.id]) continue;
@@ -40,8 +51,9 @@ export function registerBlocks() {
                 : x,
               x,
             ]);
-            input =
-              key === "CRITERION"
+            input = field.hidden
+              ? new LayoutSettingField(options)
+              : key === "CRITERION"
                 ? new ClassificationLossField(options)
                 : new Blockly.FieldDropdown(options);
           } else if (field.type === "reference") {
@@ -53,7 +65,11 @@ export function registerBlocks() {
               (value) =>
                 value.length <= (field.maxLength ?? 256) ? value : null,
             );
-          row.appendField(key).appendField(input, key);
+          if (field.hidden)
+            this.appendDummyInput(`setting-${key}`)
+              .appendField(input, key)
+              .setVisible(false);
+          else row.appendField(key).appendField(input, key);
           this.setFieldValue(
             field.type === "boolean"
               ? field.default
@@ -63,14 +79,21 @@ export function registerBlocks() {
             key,
           );
         }
-        for (const [slot, accepts] of Object.entries(spec.inputs))
-          this.appendStatementInput(slot).setCheck(accepts);
+        for (const [slot, accepts] of Object.entries(spec.inputs)) {
+          const slotInput = this.appendStatementInput(slot).setCheck(accepts);
+          const label = inputLabels[spec.id]?.[slot];
+          if (label) slotInput.appendField(label);
+        }
         if (!spec.placement.endsWith("_root")) {
           this.setPreviousStatement(true, spec.id);
           this.setNextStatement(
             true,
             manifest.blocks
-              .filter((candidate) => candidate.placement === spec.placement)
+              .filter((candidate) =>
+                ["viz.panel", "viz.figure"].includes(spec.id)
+                  ? ["viz.panel", "viz.figure"].includes(candidate.id)
+                  : candidate.placement === spec.placement,
+              )
               .map((candidate) => candidate.id),
           );
         }

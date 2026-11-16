@@ -4,6 +4,7 @@ Never repair existing permissions, follow symlinks or substitute weaker I/O.
 """
 
 import os
+import sys
 import platform
 from pathlib import Path
 import stat
@@ -11,11 +12,15 @@ from typing import Literal, Protocol
 
 
 def check_file(info: os.stat_result) -> None:
+    if sys.platform == "win32":
+        raise ValueError("REMOTE_CACHE_PLATFORM_UNVERIFIED")
     if not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid() or info.st_mode & 0o022:
         raise ValueError("REMOTE_CACHE_FILE_UNSAFE")
 
 
 def _directory(info: os.stat_result, *, final: bool, anchor_uid: int) -> None:
+    if sys.platform == "win32":
+        raise ValueError("REMOTE_CACHE_PLATFORM_UNVERIFIED")
     owners = {os.geteuid()} if final else {0, os.geteuid(), anchor_uid}
     if (
         not stat.S_ISDIR(info.st_mode)
@@ -26,6 +31,8 @@ def _directory(info: os.stat_result, *, final: bool, anchor_uid: int) -> None:
 
 
 def open_directory(path: Path) -> int:
+    if sys.platform == "win32":
+        raise ValueError("REMOTE_CACHE_PLATFORM_UNVERIFIED")
     if os.name != "posix" or not path.is_absolute():
         raise ValueError("REMOTE_CACHE_PLATFORM_UNVERIFIED")
     descriptors = []
@@ -178,6 +185,8 @@ class _PosixDirectory:
         return os.listdir(self._fd)
 
     def open_file(self, name: str, access: Access = "read") -> int:
+        if sys.platform == "win32":
+            raise ValueError("REMOTE_CACHE_PLATFORM_UNVERIFIED")
         self.verify()
         name = _name(name)
         modes = {
@@ -264,7 +273,13 @@ class _PosixDirectory:
 
 
 class _PosixWriterLock:
+    directory: _PosixDirectory
+    name: str
+    descriptor: int
+
     def __init__(self, directory: _PosixDirectory, name: str):
+        if sys.platform == "win32":
+            raise ValueError("REMOTE_CACHE_PLATFORM_UNVERIFIED")
         import fcntl  # Native dependency is loaded only after the platform gate.
 
         self.directory, self.name = directory, _name(name)

@@ -37,7 +37,9 @@ def test_real_blockly_example_matches_frozen_code_ir_and_map():
     example = ProjectDocument.model_validate_json(
         (SOURCE_ROOT / "examples/mnist-cnn/project.easyai.json").read_bytes()
     )
-    assert compile_project(example) == compiled
+    # New projects use direct charts; the frozen legacy code/IR/map above
+    # remain the compatibility oracle for existing explicit-canvas projects.
+    assert compile_project(example) == compile_project(project("mnist-direct-plots"))
 
 
 def test_ui_changes_leave_code_map_and_hash_unchanged():

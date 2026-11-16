@@ -3861,3 +3861,201 @@ Windows job118498326810全部SUCCESS：持久化/编译golden与原生安全、�
 本次完整解码日志私有保全：Linux SHA256 7b5c42e5ad84231371fa6acc4e29fd56c240961ced7d61cfd206fcc662f086ca；Windows 699a550a8dd6b66e86685c714cfec50c9825926a2c0d41a0606423c316a60011；两job/全部steps和artifact原元数据收据 f014924b14bb6341be00d16515ba6495d85047f2b0be6eaa735c429f95d60b07。此前605/55d/e656的FAIL及受控反例继续保留，没有无变更重跑或把旧绿灯转给新SHA。代码与测试已独立只读复审限定ACK，未发现剩余确定P1/P2，不作绝对无漏洞保证。
 
 末次仅回填证据文档并明确[skip ci]，全GREEN仍只绑定上述0e1e1b2源码。原计划SHA256 dade1fcaadac319e130de415b48154601254dcae9b148a2d42475fb82205fa43、原需求5808fb59fb32917ef92d6a516609d51adecc8830fa1bb736222b43f1a134b190，README/两锁与main5323f86232529efcfb52131168ad049f01b219f3保持。合并/Release/部署继续HOLD；正式十轮、真实SSH、干净Win11、实际安装、CIFAR安全构造与三不支持包组的外部条件仍未关闭，详见remaining-critical-path与m6-compatibility-review。没有新增训练、数据下载、真实模型调用、用户设备操作、凭据、安全权限或费用。
+
+## 2026-10-29 Mixly 参考工作台：M4/M7 界面增量
+
+用户授权参考本地 Mixly 的界面实现，将 EasyAI 已有能力整合为积木工作台。基于 c7ed06a4055736759b9635a1a5167b2dc8d54dbc，在 `codex/mixly-workbench` 开发分支修改；未提交、推送、创建 PR 或发布。README、v0.0.0 需求、实施计划、两份锁文件、后端与 Electron 安全边界未改，原有 POC 未改。本轮属于既有 M4/M7 的界面整合，不重排 M0→M8，不将历史 CI 或本次局部验证升级为完整 gate A/B。
+
+参考 `mixly/mixly_lite` 的本地 8a38dc54f2dde7b9c74855429127cc14a36d508a：`common/templates/html/workspace.html` 的主编辑区/侧栏/底部状态区、`common/templates/html/editor/editor-mix.html` 的积木与代码布局、`common/modules/mixly-modules/common/editor-mix.js` 的模式切换与 resize。仅参考布局与交互方式，以本项目 React/CSS 自行实现，未引入 Mixly 的 Electron 配置或 JavaScript 代码生成链。
+
+实现内容：
+
+- 顶部集中工程、环境与数据、积木、代码对照、离线教程、使用指引及保存/检查/运行入口。工程和环境表单按需展开；底部状态栏显示当前工作区与保存状态。
+- 三个 Blockly 实例持续挂载。设置页、代码侧栏、可收起的对象参数面板和底部面板切换通过原 ResizeObserver 调整画布；不重新注入或丢失未保存编辑。增加轻量网格背景。
+- 右侧提供只读 PyTorch 代码与教程切换。打开代码对照后，仅在已保存版本上调用现有 Python 权威编译器；编辑保存后更新预览，每个版本自动尝试一次，失败仍可手动检查，不自动重试循环、不自动开始训练。保留积木/代码双向映射、稳定 ID 与 source map。
+- 底部收纳检查问题、运行记录、日志与结果。运行组件保持挂载，收起面板不停止事件订阅或运行；顶部运行状态入口可进入既有停止操作。历史快照样式与主编辑区隔离，保留历史代码、来源积木、日志、指标、图像和产物访问。
+- 新增三项 App 回归，覆盖面板切换不丢草稿、只编译保存版本/不运行、预览失败不无限重试；新增真实桌面工作台场景，核对三个 SVG 实例保持、工作区不变、配置入口、侧栏互斥、对象面板、底部记录/结果和整窗布局。既有 E2E 改为实际点击新的代码/运行记录入口，等待保存后测量 Monaco；保留全部真实拖拽、错误修复、映射、只读、安全与恢复断言。
+
+本机验证（Windows，Node 24.15.0；仓库固定版本为 24.19.0，因此不冒称完整冻结工具链）：
+
+| 检查 | 结果与范围 |
+| --- | --- |
+| 桌面 TypeScript、合同 TS、测试 TS | PASS |
+| 相关 App / ProjectEditor / SVG 组件测试 | PASS，43 项；`build/mixly-ui-tests-final.log` |
+| `pnpm build` | PASS，Vite、Electron TS、PyInstaller 全部完成；保留既有大 chunk 提示；`build/mixly-build.log` |
+| `pnpm test:e2e` 最终完整运行 | PASS，5 个场景，1.1 分钟；真实 Electron、IPC、Python 编译、Blockly、Monaco；`build/mixly-e2e-verified.log` |
+| 本轮改动文件 Prettier / `git diff --check` | PASS |
+| 全量 Vitest 最终运行 | FAIL：433 PASS、2 FAIL、2 SKIP。未改的 events 超时、private-key-workflow 创建 symlink 返回 EPERM；`build/mixly-vitest-final.log` |
+| `pnpm check` | FAIL：Python mypy 对 Windows 缺失 POSIX 符号等报 39 个错误；后续独立检查还发现合同/fixture 字节比较差异及全库 133 个格式提示。抽查原有文件为 CRLF，与 HEAD 归一换行后一致；没有批量重写原文件或降低门槛。`build/mixly-check.log`、`build/mixly-format.log` |
+| Python 全套补充运行 | FAIL：170 FAIL、358 PASS、66 SKIP、442 ERROR、8 subtests PASS。大量 setup 被原有 Windows ACL 门拒绝（pytest 私有临时目录包含 OWNER RIGHTS ACE），另有平台条件问题；原生安全政策未改。`build/mixly-python-tests.log` |
+| `pnpm install --frozen-lockfile` / `pnpm setup` | NOT RUN：沿用已有应用依赖，无依赖或锁文件改动 |
+| 真实训练、数据下载、SSH、训练环境安装、打包发布 | NOT RUN，不在本轮授权范围 |
+
+早期验证确实发现并修复了启动恢复关闭教程、包计划焦点不可见、旧 app-shell 样式挤占画布的问题。早期 E2E 在同时构建时曾出现一次 CNN 拖拽未落块/关闭确认超时，保留失败记录；无断言放宽的单场景复查通过，随后安静环境下完整五场景通过，不把失败删除或合计成更多 PASS。
+
+系统默认临时目录/应用数据祖先权限不满足现有安全规则；真实后端和桌面验证使用测试自有、能通过同一规则的用户目录，仅为进程设置临时目录与 UTF-8，不修改系统 ACL、系统环境变量或教师环境。应用 venv 中 `find_spec('torch')` 为 None。预览使用真实 MNIST 示例工程与真实编译器，没有训练或指标造假；本机状态、日志、截图、启动脚本保留在忽略路径，未加入源码。普通 Electron 预览已打开，可用 `build/Start-WorkbenchPreview.cmd` 重新打开同一示例，截图为 `build/workbench-preview.png`。
+
+本地证据 SHA256：E2E `4e999cad0563e2f43a2d3934ab3d71279088425bef8454ff4e26bf5dd1de8a00`；43 项组件 `0376e6b18d95817f9373441daf273f02c88655762cab3a4e47eec2cf9963c7d9`；完整构建 `8fd23dbb7b262ba2024ad4df489eeb42824114ac6036a4e0cc5ba8904ef4f8d0`。本轮界面验证完成；全量检查仍 FAIL，完整课堂与发布 gate B 未验收。
+
+## 2026-10-29 HW1 本机完整训练验证
+
+用户明确要求用新建的 EasyAI 尝试完成其 HW1。本轮根据用户 notebook 的 FCN 实验，使用现有注册积木在真实 Blockly Workspace 中构造并序列化独立工程，经 Python 权威编译器生成代码，再从正常桌面应用执行环境/数据预检及“开始本次运行”。核心配置为 Flatten → 784/256/64/16/10 全连接层、三层 ReLU、MNIST 标准化 0.1307/0.3081、batch 128、SGD 0.01/momentum 0.9、交叉熵、20 epochs。没有复制固定训练脚本或构造指标。
+
+| 验证 | 结果与范围 |
+| --- | --- |
+| Blockly 工程与 Python 编译 | PASS，runnable=true，无诊断；运行启动时快照与保存工程字节一致，结束后关闭代码侧栏仅将 UI 设置保存为 revision 2，数据/模型/训练/运行设置与 revision 1 快照一致 |
+| 桌面本机环境/数据预检 | PASS；沿用用户已有 Python 3.13.12、torch 2.11.0+cpu、torchvision 0.26.0+cpu；现有 MNIST 文件 |
+| 桌面真实完整运行 | PASS，20/20 epochs；每轮 60000 训练样本、10000 测试样本；退出码 0，状态 SUCCEEDED |
+| 真实结果 | 最终 loss 0.0005141487154081308，test accuracy 0.9814；第 17 轮观察到最高 0.9819，保存最终轮权重；第 20 轮累计 208.75 秒 |
+| 产物与保护 | PASS，23 个登记产物 SHA256 全部匹配、stderr 为空；原 notebook 和 8 个数据文件前后 hash 不变；应用 venv 仍不含 torch |
+| 可视化人工检查 | 损失/准确率两子图可读；预测图的五列长标题存在相邻重叠，作为已知显示问题记录，未重绘替代原产物 |
+| 本轮应用代码变更及全量检查 | NOT RUN：无新增应用行为修改；未重新执行 setup/check/test/build，前一轮全量 FAIL 不被本次实验覆盖 |
+| 环境安装、数据下载、SSH、打包发布 | NOT RUN；只读已有数据、使用已有训练环境，没有改变教师环境 |
+
+实验工程、实际生成代码、模型、逐轮 CSV、原始日志、图片、快照与中文结果说明保存在用户 HW1 目录中，未加入仓库。为适应现有 Windows 运行策略，workers=0、CPU pin_memory=false，固定 seed=42；与原 notebook 的 workers=2、未固定种子存在差异，已在结果说明列明。原 notebook 保存的 97.93% 仅作为旧结果注明，没有冒充本次证据。
+
+本轮证明了该本机 HW1 的编译、训练、指标与产物局部闭环（gate A 范围），不视为完整课堂或发布 gate B。没有提交、推送、PR、部署或 Release；此前未提交的工作保持。
+## 2026-11-15 M4 工作区缩放快捷键修复
+
+用户报告 Ctrl +/- 无法按预期缩放。沿用 `codex/mixly-workbench` 及此前未提交改动；保留 README、原需求、D01–D14、依赖锁和既有工程。此次是 M4/M7 界面修复，不推进或重定义发布门槛。
+
+此前 Blockly 仅配置按钮缩放，没有画布快捷键处理，Electron 默认菜单还会把 Ctrl +/- 用于整页缩放。现在在实际获得焦点的 Blockly 画布上处理 Ctrl/Cmd + 加号、等号、减号与 0，兼容数字小键盘；0 恢复 startScale=0.8 并居中。缩放沿用 0.3–1.5 限制，保留只读画布查看能力；输入框、组合输入和 Alt 组合不接管，销毁画布时清理监听器。Main 只为这些组合跳过默认菜单快捷键，让 renderer 处理；没有增加 IPC 或变更安全配置。画布增加快捷键提示。
+
+验证：
+
+- PASS：桌面 renderer/Main TypeScript 与测试 TypeScript；`build/zoom-typecheck-final.log`。
+- PASS：相关 WorkspaceManager、焦点、ProjectEditor、SVG、快捷键及安全测试 40 项；启动时序测试更新其显式依赖清单以加载实际快捷键模块后单独 1 PASS。初次启动时序测试因新增 import 未登记而 FAIL，保留原失败日志；未放宽启动/安全断言。`build/zoom-tests.log`、`build/zoom-bootstrap.log`。
+- PASS：`pnpm --filter @easyai/desktop build`；`build/zoom-build.log`。
+- PASS：真实 Electron 缩放及原工作台 E2E 2 项、58.2 秒；主键盘通过原生 sendInputEvent 路径，数字小键盘通过 Playwright 键盘路径。验证三工作区分别缩放、上下限、恢复默认、负数输入、整页 zoomFactor=1、保存的积木内容不变及两个临时应用正常退出。`build/zoom-e2e-final.log`。
+- 早期新 E2E 使用了包含 flyout 的 DOM 选择器、不可聚焦 SVG 根及旧版字段 class，造成测试定位失败；现已改用实际画布点击、焦点断言和仓库既有 Canvas 字段定位工具，未取消行为断言。首次失败清理还发生过退出超时；最终两项关闭均已确认。
+- PASS：改动文件 Prettier 与 git diff --check。
+
+- NOT RUN：全量 pnpm check/test、后端打包构建、install/setup、训练、数据下载、SSH、Release。范围为键盘/桌面界面修复，无依赖及训练行为变化；此前全量检查的失败状态未被此次局部测试覆盖。
+
+pnpm 11.25.0，当前 pnpm 命令报告 Node 24.22.1，与仓库要求 24.19.0 不一致；因此不宣称完整冻结工具链验收。用户工程正常保存后退出，使用原用户状态目录启动更新后的桌面程序；用户数据和运行产物未加入 Git。无提交、推送、PR、部署或发布。
+
+重启后的普通桌面应用已恢复原已保存工程，实际 Windows 键盘 Ctrl+- 缩小、Ctrl+Shift+= 放大均观察通过；顶部工具栏保持正常尺寸，工程仍为已保存状态。
+
+## 2026-11-15 M4/M7 直接图表与自动布局
+
+用户明确接受去掉必需的“创建画布”步骤。继续在 `codex/mixly-workbench` 上实现，保留原需求文件与此前工作；这属于现有编辑器/可视化交互调整，不跳过 M0–M8 门槛。
+
+- 新工具箱隐藏“创建画布”和“保存图像”，提供带数据来源的训练样本、训练损失、测试准确率、预测图片四个“绘制图表”预设。训练模型三个插槽明确标为训练前、每轮结束、训练后；图表内标明数据和样式（可选）。新建 MNIST 示例与离线教程同步采用直接图表。
+- Python 权威编译器把每个阶段的直接图表降低为显式 FigureSpec：一个图表一格、两个横排、更多按两列换行，最多 10 个。图片尺寸自动选择，运行时沿用 Agg、显式 Figure/Axes、原子 PNG 保存与逐轮独立文件。D06 的执行阶段、D09 的静态 PNG、D11 的明确画布归属和保存均保留在编译器/运行时。
+- 右侧按阶段预览排列，可选手动布局和尺寸，保存到训练块的隐藏字段；默认 auto 不写入旧工程序列化结果。设置支持分组撤销/重做和保存/重开；格子不足会拒绝应用并保留图表，Python 也独立校验。
+- 旧画布/保存积木仍注册并可读，保留原布局、路径、ID 与代码映射；没有自动改写用户工程。允许同一阶段混用旧画布与直接图表，容器类型校验贯穿 next 链，选中直接图表不会误认前一个旧画布为其父容器。原 `mnist-figures` fixture 与代码/IR/source-map golden 保持兼容。
+- 新 fixture 和示例由实际 Blockly 工作区构造、拆除外层画布并序列化，Python 测试消费真实 JSON，不引入训练脚本模板或生产 mock。无依赖/锁文件、安全开关、IPC/token 路径变更。
+
+本机验证（Windows；pnpm 报 Node 24.22.1，部分子进程为 24.15.0，非仓库固定的 24.19.0）：
+
+| 检查 | 结果与范围 |
+| --- | --- |
+| 相关 Blockly / WorkspaceManager / FigureInspector 测试 | PASS，64 项；`build/plots-vitest.log`。包含默认字段省略、手动设置保存/重开、撤销、混用旧画布、停用、只读及真实 SVG |
+| Python 编译/降低/golden 回归 | 53 PASS、2 FAIL；新增直接图表的 9 项全部 PASS，包含三个阶段、布局容量、停用/重排、错误数据源、旧工程代码、source map。FAIL 为原有 Windows symlink 权限和长路径文件写入；`build/plots-python.log`，未降低安全/测试要求 |
+| 真实桌面直接图表 E2E | PASS，19.6 秒；真实鼠标从工具箱拖入预设、自动排列、手动设置、保存、实际 Python 编译、正常退出、重启恢复及再次编译；两个临时进程正常退出。`build/plots-e2e-verified.log` |
+| 缩放/工作台 E2E 回归 | PASS，2 项、38.5 秒；`build/plots-regression-e2e.log`，包含 Ctrl +/-、不改整页缩放、不丢工程及面板切换 |
+| renderer/Main/测试 TypeScript | PASS |
+| 桌面构建 | PASS；`pnpm --filter @easyai/desktop build`，`build/plots-build.log`；沿用开发 Python 后端，不需要冻结侧车即可使用 |
+| 改动文件 Prettier、Ruff、fixture --check、git diff --check | PASS |
+| `pnpm check` | FAIL，原有 Windows 缺失 POSIX 符号等 39 个 mypy 错误；`build/plots-check.log`。独立合同检查仍报既有 ArtifactManifest.json 换行字节 drift，没有重生成无关合同 |
+| `pnpm test` 全量 / 完整 `pnpm build` / install / setup | NOT RUN，执行上述相关验证，沿用已有依赖 |
+| 训练、下载数据、环境变更、SSH、打包/部署/发布 | NOT RUN，本轮未执行；仅局部 gate A 证据，不能视为完整 gate B |
+
+验证过程曾发现并修复隐藏默认字段被保存为 null、混合旧/新图表的 next 校验不一致等问题；测试按真实隐藏字段调整 SVG 断言，保留旧 golden 校验。早期 E2E 因带子块的 SVG 文本顺序导致定位失败，另一次正常退出确认异常被二次清理错误覆盖；已使用正确预设定位并按实际进程退出状态清理，保留失败日志 `build/plots-e2e.log`、`build/plots-e2e-final.log`。最终通过未放宽退出/编译/保存断言。测试仅使用自有临时目录和进程级 UTF-8 设置，不改变系统 ACL 或教师环境。
+
+普通桌面应用已在原状态目录正常重启，观察到后端就绪、原 FCN 工程已保存、训练阶段中文标签和新的图表工具箱；原有画布/数据源/保存路径仍在。应用 venv 的 torch 检查仍为未安装。未提交、推送、发起 PR 或发布。
+
+## 2026-11-15 M7 MNIST CNN 手把手教学 README
+
+按用户要求新增 `examples/mnist-cnn/readme.md`，以同目录当前内置 `MnistCNN` 工程（两层卷积、batch 128、SGD 0.01、10 epoch、直接图表）为准。保留根 README 与两份原始需求文档，沿用开发分支及全部既有工作。本轮仅编写文档，没有改动应用行为或用户练习工程。
+
+教程分为工程准备、数据处理、模型结构、训练管线、图表、检查运行六个模块；逐项说明界面入口、拖入位置、填写值、注册顺序、动作目的和完成检查。包含六个注册对象、十层 CNN 的形状表、三个阶段的图表结构、自动布局与样本网格的区别、快速/完整运行、结果清单和常见问题。每个模块以对应 Python 结束，共八段代码；取自 Python 权威编译器对当前实际 Blockly 示例的输出，只作已说明的五个内部变量别名简化、缩进拆分和排版。
+
+- PASS：当前示例编译 runnable=true；代码 SHA256 `35a9a78bbf4c768f3124805ad2f4400654c9e2bc93734d84864e6782331ea619`。没有导入 torch 或执行生成的训练代码。
+- PASS：八段 Python 均可解析，排版前后 AST 一致；六个模块均以 Python 代码块结束；文内本地文件链接有效；网络十层形状、训练参数、三个阶段的图表数量及布局与实际编译 IR 对照一致。
+- PASS：新增 README 的 Prettier 与文档 diff 空白检查。一次性生成/核验脚本及编译输出仅在忽略的 build 目录中。
+- NOT RUN：install/setup、全量 check/test/build、桌面 E2E、训练、下载、环境变更和 SSH；本轮只修改教学文档，未重复执行无关验证，也不改变此前验收状态或宣称 gate B 完成。
+
+### 教学语言调整
+
+按用户反馈，将教程改为边操作边解释的口吻：用图片、数字和小例子说明数据集、批次、卷积、池化及训练过程，删去重复的限制性提醒，将常见问题改为具体操作。保留六个模块的手把手步骤、参数表和模块末尾的 Python 代码。停止后的状态名称与界面中的“已停止”对齐。
+
+- PASS：改写前后全部 13 个围栏内容一致（8 段 Python、5 段结构示意）；8 段 Python 语法解析通过，6 个模块均以 Python 代码结束；README Prettier 与文档空白检查通过。
+- NOT RUN：应用测试、训练和数据下载；本次仅调整文档措辞。
+
+## 2026-11-16 开发分支提交与草稿 PR 检查
+
+用户明确要求按此前方案提交 PR。本次整理 `codex/mixly-workbench` 上的工作台、快捷键、直接图表、示例、教程及相关测试，共 32 个文件；`POC/` 保留本地，个人工程、训练数据、权重、运行记录、机器配置和临时脚本不加入提交。根 README、两份原始需求和依赖锁保持不变。Git fetch 后开发分支基点与 origin/main 一致。
+
+本机 Windows 验证结果如下；pnpm 报 Node 24.22.1，部分子命令为 24.15.0，仓库固定版本为 24.19.0。
+
+| 检查 | 结果 |
+| --- | --- |
+| `pnpm build` | PASS，桌面和 PyInstaller 后端构建完成；保留大 chunk、tzdata 等构建提示 |
+| `pnpm check` | FAIL，TypeScript 和 Ruff 通过，mypy 报 Windows 缺少 POSIX 符号等 39 项错误；后续链式步骤未执行 |
+| `pnpm test`，默认临时目录 | FAIL，Vitest 435 PASS / 11 FAIL / 2 SKIP；8 个后端就绪失败、2 个超时、1 个 symlink EPERM |
+| `pnpm test`，使用已有测试专用临时目录复查 | FAIL，Vitest 444 PASS / 2 FAIL / 2 SKIP；剩余 events 超时及 private-key-workflow 的 symlink EPERM。仅设置进程 TEMP/TMP 与 Python UTF-8，没有修改系统 ACL 或测试断言。链式 Python 全套及 Node 包装测试未运行 |
+| Python `test_direct_plots.py` | PASS，9 项，覆盖真实 Blockly JSON、自动/手动布局、阶段/来源/容量校验、旧画布兼容及源码映射 |
+| `pnpm test:e2e` | FAIL，4 PASS / 3 FAIL，另有 worker 退出超时。通过：直接图表拖拽/设置/保存重开、启动与 Dataset 修复/Monaco、卷积教程、工作台。失败：空白 CNN 卷积积木未连接到容器；日志来源按钮 `auto:training:body` 为禁用状态；缩放场景临时桌面未在 12 秒内确认退出。此次失败完整保留，不能用此前 PASS 覆盖 |
+| `pnpm fixtures --check` | PASS |
+| 独立合同检查 | FAIL，`ArtifactManifest.json` drift；未改合同文件 |
+| 扩展到改动 JSON 的 Prettier 检查 | FAIL，manifest/schema 两个文件；确认 HEAD 版本同样不符合 Prettier，保持原有排版。其余改动的 TS/TSX/MTS/MJS/CSS/JSON 与教程通过 |
+| 提交内容与文档 | PASS，暂存差异空白检查；8 段教程 Python 可解析；32 个文件扫描未发现私钥、GitHub token、本机用户/桌面路径或超大文件 |
+
+日志保存在忽略目录 `build/pr-20261116-*.log`，失败的桌面截图/上下文保存在忽略的 `test-results/`。测试结束后未发现使用测试专用 user-data-dir 的 Electron 主进程残留。
+
+用户在 2026-11-15 自行完成的本机 MNIST FCN 运行已只读核对：20 轮、60000/10000 训练/测试样本、CPU、SUCCEEDED、exit 0，最终准确率 98.14%，第 17 轮最高 98.19%，22 张 PNG 与最终权重已保存。该用户工程仍使用旧画布；其右侧曲线标题为准确率而来源选择 train_loss，预测图长标题有重叠。此记录用于说明已有实际使用结果，不替代新直接图表的完整训练验证。
+
+本轮未重新训练、下载数据、安装/调整训练环境、执行真实 SSH 或部署/Release。按用户要求以草稿 PR 分享当前工作，并明确列出待排查项；不标记完整 gate B，也不自动合并 main。
+
+## 2026-11-16 非桌面检查修复
+
+用户确认拖拽、图表来源、缩放与退出等桌面人工测试通过，并要求本轮不再处理桌面自动化失败。保留原 E2E 失败记录和测试，本轮不重跑、不删除或放宽这些断言；人工通过与自动化历史结果分别记录。继续在 PR #2 的开发分支修复此前明确列出的事件超时、Windows 链接测试、mypy、合同字节差异和 JSON 格式。
+
+- 事件读取器原先对每个小分片重复编码、替换并扫描整个缓存。改为增量统计 UTF-8 字节、仅规范化新片段并从连接处寻找帧边界；保留 70 KiB 限制、身份/序号校验、UTF-8/CRLF 处理及 reader 取消/释放。原逐字节超限测试保留，新增多个合并帧和中文按字节限流的回归。
+- Windows 私钥文件测试改用真实 NTFS junction；POSIX 保留指向有效文件的 symlink。断言真实 lstat 链接身份、拒绝链接、拒绝目录/超大/非法编码/非法格式、有效原文件内容不变；未改生产私钥读取规则、系统权限或增加 skip。平台链接类型依据 [Node 文件系统文档](https://nodejs.org/download/release/v24.19.0/docs/api/fs.html)。
+- 为 POSIX 专属调用补充明确的 Windows 拒绝分支，混合平台分支增加可被 mypy 识别的 sys.platform 条件；声明 POSIX 对象字段类型。检查脚本同时执行 Linux 和 Windows 的 strict mypy，避免只检查宿主平台遗漏另一分支；没有禁用错误或新增 Any/ignore。依据 [mypy 平台检查说明](https://mypy.readthedocs.io/en/stable/common_issues.html)。新增 Windows 平台边界回归，并保留缺失远端配置时原有错误优先级。
+- 确认 ArtifactManifest 的内容与 HEAD 一致，差异来自 Python/TS 输出和 Windows 检出的换行。Python schema 导出显式使用 LF，Git 对源码和 JSON 固定 LF；本地换行规范化未产生数百个内容变更。新增全部合同 schema 的字节回归，原严格合同比较保留。
+- 用 Prettier 规范 manifest/schema 并加入常规 format:check；独立核对两个 JSON 与 HEAD 的解析内容完全相同。
+
+| 验证 | 结果 |
+| --- | --- |
+| `pnpm check` 最终复查 | PASS，TypeScript、Ruff、Linux/Windows strict mypy（各 70 个源码文件）、全部合同、Blockly fixture、全库规定格式范围均通过；`build/fix-check-final.log` |
+| `pnpm test` 的完整 Vitest 阶段 | PASS，447 PASS / 2 原有 SKIP / 0 FAIL；`build/fix-test.log` |
+| 相关 Python 回归 | PASS，55 项，覆盖合同导出、Git autocrlf 检出、Windows 调用边界、原生存储合同和直接图表编译；`build/fix-targeted-python.log` |
+| 后续定向检查 | PASS，3 个平台边界测试加 2 个全量新失败的复核。修正“缺失远端配置”被新平台拒绝提前覆盖的错误优先级；合作取消场景未改断言即定向通过。`build/fix-platform-followup.log` |
+| `pnpm build` | PASS，桌面与 PyInstaller 后端；`build/fix-build-final.log` |
+| 差异与保护 | PASS，git diff --check、JSON 语义一致；原 README/需求、依赖锁、安全配置及个人工程未改 |
+| `pnpm test` 的后端全套阶段 | FAIL，172 FAIL / 366 PASS / 66 SKIP / 442 ERROR / 8 subtests PASS，130.67 秒；此轮在修复上述错误优先级前执行。与此前保存的全套日志相比，170 个失败用例名称均已有；新增的 2 项随后定向通过。大量 setup 被既有 `WINDOWS_CACHE_SECURITY_UNSAFE` 拒绝（pytest 目录含 OWNER RIGHTS ACE），其余包括环境路径、平台门、symlink 权限和环境变量长度限制。未调整系统 ACL、安全策略或批量跳过测试，也未将定向通过冒称全套通过 |
+| Node 包装测试 / 桌面 E2E / 训练 / 真实 SSH | NOT RUN；Node 包装阶段因链式后端失败未到达，桌面按用户本轮范围不重跑，训练/SSH 不属于本轮修复 |
+
+沿用现有应用依赖；本机 Node 版本差异仍如上一节记录。更新现有草稿 PR，保留上述后端全套限制及人工桌面验收结论，不合并、不发布。
+
+## 2026-11-16 直接图表的完成校验与来源修复
+
+用户要求修复合并前核查发现的图表 ID 不一致，并提交新 PR。在 `34361bd` 上建立 `codex/fix-chart-completion`，保留 PR #2 的工作台、直接图表和教学改动，以 main 为新 PR 的目标分支。原需求、锁文件、个人工程、数据与未跟踪的 POC 不改动。
+
+新直接图表用 `auto:<training>:<phase>` 标识图片分组，但生成代码的 artifact 事件使用真实 `figure.origin.block_id`。原完成校验错误地将分组 ID 与事件中的来源积木 ID 比较，导致图片齐全仍无法通过完成校验。本次让本地与远端共享的完成校验使用真实来源积木 ID；图片路径和分组 ID 不变。远端协议测试及桌面日志夹具也按实际生成代码登记来源，并断言来源存在于源码映射。没有放宽文件验证、阶段、轮次、重复产物或安全检查。
+
+新增回归读取实际 Blockly JSON，并从生成 Python 的 AST 中提取 artifact 调用，检验编译器和完成校验的一致性；覆盖直接图表、旧画布、混合布局、full/quick，以及缺失图片/模型、错误来源/阶段/轮次、空文件、重复产物、验证失败。协议记录仅用于单元测试，不作为训练结果，不启动训练或导入 torch。
+
+| 验证 | 结果 |
+| --- | --- |
+| 修复前的新回归 | FAIL（预期复现）：4 FAIL / 12 PASS，直接图表及混合布局在 full/quick 下均被错误拒绝，旧画布正常 |
+| 修复后的完成校验与直接图表测试 | PASS，25 项（16 项新回归 + 9 项既有直接图表）；`build/chart-protocol.log` |
+| `pnpm check` | PASS，TS、Ruff、Linux/Windows strict mypy、合同、Blockly fixtures 与格式全部通过；`build/chart-check.log` |
+| 扩展的编译/产物预算测试 | FAIL，54 PASS / 2 FAIL / 1 ERROR；Windows 默认临时目录的 ACL、链接权限和长路径限制，未修改权限或断言来掩盖失败 |
+| `pnpm exec playwright test tests/e2e/run-logs.spec.ts` | FAIL，此前禁用的来源按钮及其定位操作已通过，后续在临时桌面关闭时超过 12 秒；`build/chart-run-logs-e2e.log`。不记为整项通过，未发现该次日志测试的 Electron 主进程残留 |
+| 修改文件 Ruff、`git diff --check` | PASS |
+| 完整 `pnpm test` / build / 其余桌面 E2E | 本地 NOT RUN；新 PR 的标准 CI 会执行，远端结果记录在 PR 检查与说明中。既有失败仍保留 |
+| 训练、数据下载、训练环境变更、真实 SSH、部署/Release | NOT RUN；本次仅修复图表完成判定和协议夹具 |
+
+新 PR 为可审阅的普通 PR；这不表示所有检查通过，也不自动合并。保留旧 PR #2 供查阅，新 PR 包含其改动和本次修复。完整发布门槛 B 未宣称完成。
+
+## 2026-11-16 按用户要求移除 CI 桌面界面测试步骤
+
+用户在确认人工桌面测试通过后，明确要求去掉导致 PR 红叉的桌面测试任务。本次从 `application-checks` 的 Windows job 中移除开发态及安装包态两处 `pnpm test:e2e` 调用。保留 `tests/e2e/` 与本地命令供手动触发；保留单元测试、类型/合同/格式检查、Windows 持久化及原生安全检查、构建、打包审计和冻结后端验证。Electron 运行时安全选项和 IPC 校验不变。
+
+这是按用户明确要求调整 CI 覆盖范围，原桌面 E2E 失败不改记为 PASS；本次自动流程不再验证桌面交互及安装包 Electron 的界面/沙箱场景。原发布门槛 B 的验收记录仍保留，不以减少任务宣称已完成发布验收。更新现有 PR #3，不创建新 PR、不合并或发布。
+
+验证：PASS，Prettier YAML 解析/格式检查与 `git diff --check`；首次格式检查发现 CRLF 格式差异，规范换行后通过，Git 内容差异仅上述五行删除。NOT RUN，本地训练、桌面 E2E 与完整应用测试；本轮只修改工作流和进度文档，保留的 CI 检查将在推送后按原配置运行。

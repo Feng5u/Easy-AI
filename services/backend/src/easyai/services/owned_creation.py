@@ -8,6 +8,7 @@ promoted or reused merely because its kernel lease has become available.
 from dataclasses import dataclass
 import json
 import os
+import sys
 from pathlib import Path
 import stat
 from typing import Any
@@ -28,6 +29,8 @@ def read_install_job(payload: dict[str, Any]) -> tuple[InstallJob, bool]:
 
 
 def sync_directory(path: Path) -> None:
+    if sys.platform == "win32":
+        raise ValueError("INSTALL_PROFILE_PLATFORM_UNSUPPORTED")
     # The creation executor is POSIX-only. No unsupported durability fallback.
     descriptor = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
     try:

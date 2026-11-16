@@ -362,6 +362,8 @@ class RemoteInstallTarget(InstallRuntime):
         Recovery can observe/cancel/release only; this snapshot never grants a
         fresh execution right after the operator policy is revoked or removed.
         """
+        if sys.platform == "win32":
+            raise ValueError("INSTALL_PROFILE_PLATFORM_UNSUPPORTED")
         path = self.local_root / "install-jobs" / job_id / "remote-policy.json"
         value = {
             "jobId": job_id,
