@@ -374,17 +374,92 @@
           "default": 10,
           "min": 1,
           "max": 10000
+        },
+        "BEFORE_LAYOUT": {
+          "type": "enum",
+          "default": "auto",
+          "options": [
+            "auto",
+            "1,1",
+            "1,2",
+            "2,2",
+            "1,3",
+            "2,5"
+          ],
+          "hidden": true
+        },
+        "BEFORE_SIZE": {
+          "type": "enum",
+          "default": "auto",
+          "options": [
+            "auto",
+            "small",
+            "medium",
+            "large"
+          ],
+          "hidden": true
+        },
+        "BODY_LAYOUT": {
+          "type": "enum",
+          "default": "auto",
+          "options": [
+            "auto",
+            "1,1",
+            "1,2",
+            "2,2",
+            "1,3",
+            "2,5"
+          ],
+          "hidden": true
+        },
+        "BODY_SIZE": {
+          "type": "enum",
+          "default": "auto",
+          "options": [
+            "auto",
+            "small",
+            "medium",
+            "large"
+          ],
+          "hidden": true
+        },
+        "AFTER_LAYOUT": {
+          "type": "enum",
+          "default": "auto",
+          "options": [
+            "auto",
+            "1,1",
+            "1,2",
+            "2,2",
+            "1,3",
+            "2,5"
+          ],
+          "hidden": true
+        },
+        "AFTER_SIZE": {
+          "type": "enum",
+          "default": "auto",
+          "options": [
+            "auto",
+            "small",
+            "medium",
+            "large"
+          ],
+          "hidden": true
         }
       },
       "inputs": {
         "before": [
-          "viz.figure"
+          "viz.figure",
+          "viz.panel"
         ],
         "body": [
-          "viz.figure"
+          "viz.figure",
+          "viz.panel"
         ],
         "after": [
-          "viz.figure"
+          "viz.figure",
+          "viz.panel"
         ]
       },
       "imports": [
@@ -441,7 +516,7 @@
       "id": "viz.panel",
       "version": 1,
       "category": "viz",
-      "label": "子图",
+      "label": "绘制图表",
       "placement": "panel",
       "fields": {
         "CHART_TYPE": {

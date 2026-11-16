@@ -75,6 +75,9 @@ const replacements = {
   "node:path": { dirname, join, extname },
   "node:fs/promises": { readFile },
   "./app-assets.mjs": { renderAppHtml: (text) => text },
+  "./zoom-shortcut.mjs": await import(
+    pathToFileURL(join(dirname(entry), "zoom-shortcut.mjs")).href
+  ),
   "./workflow.mjs": { MainWorkflow: class {}, WORKFLOW_CHANNELS: [] },
   "./backend.mjs": {
     startBackend: () => {

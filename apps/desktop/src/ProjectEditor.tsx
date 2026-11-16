@@ -1,4 +1,5 @@
 import { FigureInspector } from "./FigureInspector.js";
+import { PhasePlots } from "./PhasePlots.js";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import type {
   BlockNavigationRequest,
@@ -29,6 +30,7 @@ export function ProjectEditor(props: ProjectEditorProps) {
   const [error, setError] = useState("");
   const [loadError, setLoadError] = useState("");
   const [name, setName] = useState("");
+  const [inspectorVisible, setInspectorVisible] = useState(true);
   const [, refresh] = useState(0);
 
   useLayoutEffect(() => {
@@ -146,6 +148,9 @@ export function ProjectEditor(props: ProjectEditorProps) {
   const figure = props.selectedBlock
     ? manager.current?.figure(props.selectedBlock)
     : null;
+  const phaseFigures = props.selectedBlock
+    ? (manager.current?.phaseFigures(props.selectedBlock) ?? [])
+    : [];
   const entry = symbols.find((symbol) => symbol.id === props.selectedBlock);
   const selectedName = entry?.name ?? "";
   useEffect(() => {
@@ -187,6 +192,14 @@ export function ProjectEditor(props: ProjectEditorProps) {
         </div>
         <div className="project-editor-history">
           <button
+            type="button"
+            aria-expanded={inspectorVisible}
+            aria-controls={`${workspaceId}-inspector`}
+            onClick={() => setInspectorVisible((visible) => !visible)}
+          >
+            对象与参数
+          </button>
+          <button
             disabled={readOnly}
             onClick={() => action((instance) => instance.undo())}
           >
@@ -211,8 +224,12 @@ export function ProjectEditor(props: ProjectEditorProps) {
           此工程以只读方式打开，不能修改积木。
         </p>
       )}
-      <div className="project-editor-body">
-        <div className="project-editor-canvases" ref={container}>
+      <div className="project-editor-body" data-inspector={inspectorVisible}>
+        <div
+          className="project-editor-canvases"
+          ref={container}
+          title="在画布内按 Ctrl + 加号/减号缩放，Ctrl + 0 恢复默认大小"
+        >
           <div
             id={`${workspaceId}-data`}
             role="tabpanel"
@@ -238,7 +255,33 @@ export function ProjectEditor(props: ProjectEditorProps) {
             ref={training}
           />
         </div>
-        <aside className="project-editor-inspector" aria-label="对象注册与引用">
+        <aside
+          id={`${workspaceId}-inspector`}
+          hidden={!inspectorVisible}
+          className="project-editor-inspector"
+          aria-label="对象注册与引用"
+        >
+          {phaseFigures.map((view) => (
+            <PhasePlots
+              key={`${props.project.projectId}:${view.id}`}
+              view={view}
+              readOnly={readOnly}
+              onApply={(layout, size) =>
+                action((instance) =>
+                  instance.configurePhaseFigure(
+                    view.trainingId,
+                    view.phase,
+                    layout,
+                    size,
+                  ),
+                )
+              }
+              onSelect={(id) => {
+                props.onSelect(id);
+                manager.current?.select(id);
+              }}
+            />
+          ))}
           {figure && (
             <FigureInspector
               key={`${props.project.projectId}:${figure.id}`}

@@ -1,3 +1,4 @@
+import "./Workbench.css";
 import { PackageManager } from "./PackageManager.js";
 import { DataUpload } from "./DataUpload.js";
 import { TutorialPanel } from "./TutorialPanel.js";
@@ -94,16 +95,35 @@ export function App({ api }: { api?: DesktopAPI }) {
   }, [tutorialVisible, tutorialTopic]);
   const [identityVisible, setIdentityVisible] = useState(false);
   const [viewCode, setViewCode] = useState(false);
+  const [settingsPanel, setSettingsPanel] = useState<
+    "project" | "environment" | null
+  >(null);
+  const [guideVisible, setGuideVisible] = useState(false);
+  const [dock, setDock] = useState<"checks" | "history" | "results" | null>(
+    null,
+  );
+  const [dockExpanded, setDockExpanded] = useState(false);
+  const pendingFocus = useRef<string | null>(null);
+  const previewAttempt = useRef("");
+  useEffect(() => {
+    const id = pendingFocus.current;
+    if (!id) return;
+    document.getElementById(id)?.focus();
+    pendingFocus.current = null;
+  }, [settingsPanel, dock, guideVisible]);
+
   const serverFocusProject = useRef<string | null>(null);
   const focusServer = () => {
     const target = document.getElementById("server-configuration");
-    if (!target) return false;
+    if (!target || target.closest("[hidden]")) return false;
     target.focus();
     target.scrollIntoView?.({ block: "start" });
     return true;
   };
   function openServerSettings() {
     if (!project) return;
+    setSettingsPanel("environment");
+    setGuideVisible(false);
     if (!focusServer()) serverFocusProject.current = project.projectId;
     setIdentityVisible(true);
   }
@@ -116,7 +136,7 @@ export function App({ api }: { api?: DesktopAPI }) {
     )
       focusServer();
     serverFocusProject.current = null;
-  }, [identityVisible, ready, project?.projectId]);
+  }, [identityVisible, ready, project?.projectId, settingsPanel]);
 
   const draft = useRef<ProjectDraft | null>(null);
   const compiledSemantic = useRef(-1);
@@ -257,6 +277,10 @@ export function App({ api }: { api?: DesktopAPI }) {
     setRemoteSession(null);
     compileRequest.current += 1;
     draft.current = value.project ? new ProjectDraft(value) : null;
+    setSettingsPanel(null);
+    setGuideVisible(false);
+    setDock(null);
+    previewAttempt.current = "";
     setSession(value);
     setProject(value.project);
     setViewTab(value.project?.ui?.activeTab ?? "data");
@@ -505,6 +529,7 @@ export function App({ api }: { api?: DesktopAPI }) {
       ) {
         compiledSemantic.current = draft.current?.semanticVersion ?? -1;
         setCompilation(result);
+        if (!result.runnable) setDock("checks");
         intent.current = null;
         setNotice(
           result.runnable
@@ -550,6 +575,7 @@ export function App({ api }: { api?: DesktopAPI }) {
       const created = await bridge.runs.start({ ...request, idempotencyKey });
       if (active.current) {
         setRun(created);
+        setDock("results");
         intent.current = null;
         setNotice(
           created.config.runner === "ssh"
@@ -561,6 +587,8 @@ export function App({ api }: { api?: DesktopAPI }) {
   }
   function locateBlock(blockId: string | null) {
     if (!project || !blockId) return;
+    setSettingsPanel(null);
+    setGuideVisible(false);
     setSelectedBlock(blockId);
     setBlockNavigation((previous) => ({
       projectId: project.projectId,
@@ -583,6 +611,8 @@ export function App({ api }: { api?: DesktopAPI }) {
     if (!topic) return;
     setTutorialTopic(topic.id);
     setTutorialVisible(true);
+    setSettingsPanel(null);
+    setGuideVisible(false);
   }
   function navigate(destination: GuideDestination) {
     const ids: Record<GuideDestination, string> = {
@@ -591,9 +621,17 @@ export function App({ api }: { api?: DesktopAPI }) {
       compile: "compile-heading",
       history: "history-heading",
     };
+    pendingFocus.current = ids[destination];
+    setGuideVisible(false);
+    if (destination === "project" || destination === "environment") {
+      setSettingsPanel(destination);
+    } else {
+      setSettingsPanel(null);
+      setDock(destination === "compile" ? "checks" : "history");
+    }
+    // Already visible destinations do not trigger another render.
     const target = document.getElementById(ids[destination]);
-    target?.focus();
-    target?.scrollIntoView?.({ block: "start" });
+    if (target && !target.closest("[hidden]")) target.focus();
   }
   const writable = project && session && !session.readOnly;
   const canRun =
@@ -606,14 +644,123 @@ export function App({ api }: { api?: DesktopAPI }) {
     !activeRun &&
     !busy &&
     !saving;
+  function showCode(visible: boolean) {
+    setViewCode(visible);
+    setTutorialVisible(false);
+    setSettingsPanel(null);
+    setGuideVisible(false);
+    if (
+      !activeRun &&
+      !busy &&
+      !saving &&
+      visible !== (project?.ui?.codeVisible ?? false)
+    )
+      edit(
+        (value) => ({ ...value, ui: { ...value.ui, codeVisible: visible } }),
+        false,
+      );
+  }
+  // Preview uses the same authoritative compiler as the explicit check button.
+  // One attempt per saved revision prevents retry loops after a failed request.
+  useEffect(() => {
+    if (
+      !viewCode ||
+      !ready ||
+      !project ||
+      dirty ||
+      saving ||
+      busy ||
+      activeRun ||
+      compilation
+    )
+      return;
+    const key = `${project.projectId}:${project.revision}`;
+    if (previewAttempt.current === key) return;
+    previewAttempt.current = key;
+    void compile();
+  }, [viewCode, ready, project, dirty, saving, busy, activeRun, compilation]);
+  const settingsVisible = !project || settingsPanel !== null || guideVisible;
+  const problemCount = compilation?.diagnostics.length ?? 0;
+  const saveStatus = session?.readOnly
+    ? "只读工程"
+    : saving
+      ? "正在保存…"
+      : dirty
+        ? "有未保存修改"
+        : "已保存";
   return (
-    <main className="app-shell">
-      <header className="app-header">
-        <div>
-          <p className="eyebrow">EASY-AI · v0.0.0 开发版</p>
-          <h1>华为 ICT · AI 积木工作台</h1>
-          <p>打开工程，检查代码，在选定的现有环境中运行。</p>
+    <main className="app-shell workbench-shell">
+      <header className="workbench-header">
+        <div className="workbench-brand">
+          <span className="workbench-brand-mark" aria-hidden="true">
+            E
+          </span>
+          <h1>Easy-AI</h1>
+          <span>AI 积木工作台</span>
         </div>
+        <nav className="workbench-navigation" aria-label="工作台工具">
+          <button
+            type="button"
+            aria-pressed={settingsPanel === "project"}
+            onClick={() => {
+              setGuideVisible(false);
+              setSettingsPanel(settingsPanel === "project" ? null : "project");
+            }}
+          >
+            工程
+          </button>
+          <button
+            type="button"
+            aria-pressed={settingsPanel === "environment"}
+            onClick={() => {
+              setGuideVisible(false);
+              setSettingsPanel(
+                settingsPanel === "environment" ? null : "environment",
+              );
+            }}
+          >
+            环境与数据
+          </button>
+          <button
+            type="button"
+            aria-pressed={
+              !viewCode && !tutorialVisible && !settingsPanel && !guideVisible
+            }
+            onClick={() => showCode(false)}
+          >
+            积木
+          </button>
+          <button
+            type="button"
+            disabled={!project}
+            aria-pressed={viewCode && !tutorialVisible}
+            aria-controls="workbench-code"
+            onClick={() => showCode(!viewCode || tutorialVisible)}
+          >
+            代码对照
+          </button>
+          <button
+            type="button"
+            aria-expanded={tutorialVisible}
+            onClick={() => {
+              setTutorialVisible((previous) => !previous);
+              setSettingsPanel(null);
+              setGuideVisible(false);
+            }}
+          >
+            {tutorialVisible ? "收起离线教程" : "打开离线教程"}
+          </button>
+          <button
+            type="button"
+            aria-expanded={guideVisible}
+            onClick={() => {
+              setGuideVisible((previous) => !previous);
+              setSettingsPanel(null);
+            }}
+          >
+            使用指引
+          </button>
+        </nav>
         <span
           data-testid="backend-status"
           className={`service-state ${ready ? "ready" : ""}`}
@@ -622,606 +769,821 @@ export function App({ api }: { api?: DesktopAPI }) {
           {status}
         </span>
       </header>
-      <p className="notice">
-        通过数据、模型和训练三个工作区构建工程。真实桌面交互与完整版本验收仍在进行。
-      </p>
-      {error && <FailureCard failure={error} onNavigate={navigate} />}
-      {notice && (
-        <p className="notice" role="status">
-          {notice}
-        </p>
-      )}
-      {busy && <p role="status">{busy}中，请稍候…</p>}
-      {saving && <p role="status">正在保存工程；期间的新编辑会继续保留。</p>}
-      {autosaveStopped && (
-        <p className="error" role="alert">
-          自动保存已暂停。未保存状态仍在内存中，请导出草稿或手动重试。
-        </p>
-      )}
-      <GettingStarted
-        projectName={project?.name ?? null}
-        readOnly={Boolean(session?.readOnly)}
-        dirty={dirty}
-        mode={runMode}
-        pythonSelected={Boolean(python)}
-        dataSelected={Boolean(data)}
-        remoteBound={Boolean(
-          remoteBinding &&
-          remoteSession &&
-          !dirty &&
-          remoteBinding.projectId === project?.projectId &&
-          remoteBinding.projectRevision === project.revision &&
-          remoteBinding.programHash === compilation?.programHash &&
-          remoteBinding.connectionId === remoteSession.scope.connectionId &&
-          remoteSession.projectId === project.projectId,
+      <div className="workbench-commandbar">
+        <div className="workbench-project-name">
+          <strong>{project?.name ?? "开始一个 AI 实验"}</strong>
+          <span>{project ? saveStatus : "从数据到模型，再到训练"}</span>
+          {project?.settings?.executionMode === "quick" && (
+            <span className="workbench-quick">小样本快速检查</span>
+          )}
+        </div>
+        <button
+          className="workbench-environment"
+          type="button"
+          onClick={() => navigate("environment")}
+        >
+          {runMode === "local" ? "本机" : "学校服务器"} ·{" "}
+          {runMode === "local"
+            ? python
+              ? "已选择 Python"
+              : "待选择环境"
+            : remoteBinding
+              ? "已绑定环境"
+              : "待配置环境"}
+        </button>
+        {project && (
+          <>
+            <button
+              type="button"
+              disabled={
+                !writable || !dirty || Boolean(busy) || saving || activeRun
+              }
+              onClick={() => {
+                void save();
+              }}
+            >
+              保存工程配置
+            </button>
+          </>
         )}
-        compiled={Boolean(
-          !dirty &&
-          compilation?.runnable &&
-          compilation.revision === project?.revision,
-        )}
-        hasRun={Boolean(run || history.length)}
-        ready={ready}
-        blocked={Boolean(busy) || saving || activeRun}
-        onServer={openServerSettings}
-        onNavigate={navigate}
-      />
-      <div className="button-row">
-        {bridge?.packages && (
+        <div className="button-row">
           <button
             type="button"
-            aria-expanded={packagesVisible}
+            disabled={!ready || !project || dirty || Boolean(busy) || saving}
             onClick={() => {
-              setPackagesOpened(true);
-              setPackagesVisible((previous) => !previous);
+              setDock("checks");
+              void compile();
             }}
           >
-            {packagesVisible ? "收起包安装计划" : "打开包安装计划"}
+            检查与编译
+          </button>
+          <button
+            type="button"
+            className="primary"
+            disabled={!canRun}
+            onClick={() => {
+              void start();
+            }}
+          >
+            开始本次运行
+          </button>
+        </div>
+        {run && (
+          <button
+            type="button"
+            className={activeRun ? "danger" : ""}
+            onClick={() => setDock("results")}
+          >
+            {activeRun ? "运行状态 / 停止" : "查看运行结果"}
           </button>
         )}
-        <button
-          type="button"
-          aria-expanded={tutorialVisible}
-          onClick={() => setTutorialVisible((previous) => !previous)}
-        >
-          {tutorialVisible ? "收起离线教程" : "打开离线教程"}
-        </button>
-        <button
-          type="button"
-          disabled={!ready || !project}
-          onClick={() => {
-            if (identityVisible) setIdentityVisible(false);
-            else openServerSettings();
-          }}
-        >
-          SSH 主机身份设置
-        </button>
       </div>
-      {packagesOpened && bridge?.packages && (
-        <div hidden={!packagesVisible}>
-          <PackageManager api={bridge.packages} remoteSession={remoteSession} />
-        </div>
-      )}
-      {tutorialVisible && (
-        <TutorialPanel
-          topicId={tutorialTopic}
-          onTopic={setTutorialTopic}
-          project={project}
-          compilation={compilation}
-          dirty={dirty}
-          canCreateExample={Boolean(
-            ready &&
-            bridge &&
-            !restoringProject &&
-            !dirty &&
-            !busy &&
-            !saving &&
-            !activeRun,
-          )}
-          onExample={() => {
-            void openProject(true, "mnist-cnn", true);
-          }}
-          onLocate={tutorialLocate}
-        />
-      )}
-      {identityVisible && ready && bridge && project && (
-        <div
-          id="server-configuration"
-          role="region"
-          aria-label="服务器配置"
-          tabIndex={-1}
-        >
-          <ServerProfiles
-            key={project.projectId}
-            api={bridge.connections}
-            environments={bridge.environments}
-            projectId={project.projectId}
-            remote={{
-              runs: bridge.runs,
-              authority:
-                !dirty &&
-                compilation?.runnable &&
-                compilation.revision === project.revision
-                  ? {
-                      expectedRevision: project.revision,
-                      expectedProgramHash: compilation.programHash,
-                    }
-                  : undefined,
-              onBinding: acceptRemoteBinding,
-              onSession: acceptRemoteSession,
-            }}
-            onClose={() => setIdentityVisible(false)}
-          />
-        </div>
-      )}
-      <div className="setup-grid">
-        {remoteSession && project && !session?.readOnly && (
-          <DataUpload
-            key={`${project.projectId}:${remoteSession.scope.connectionId}`}
-            api={bridge!}
-            session={remoteSession}
-            revision={project.revision}
-            disabled={!ready || dirty || saving || Boolean(busy) || activeRun}
-          />
+      <div className="workbench-feedback" aria-label="操作反馈">
+        {error && <FailureCard failure={error} onNavigate={navigate} />}
+        {notice && (
+          <p className="notice" role="status">
+            {notice}
+          </p>
         )}
-        <section className="panel" aria-labelledby="project-heading">
-          <h2 id="project-heading" tabIndex={-1}>
-            1. 工程
-          </h2>
-          <label className="field">
-            新工程名称
-            <input
-              value={projectName}
-              maxLength={128}
-              onChange={(event) => setProjectName(event.target.value)}
-            />
-          </label>
-          <div className="button-row">
+        {busy && <p role="status">{busy}中，请稍候…</p>}
+        {saving && <p role="status">正在保存工程；期间的新编辑会继续保留。</p>}
+        {autosaveStopped && (
+          <p className="error" role="alert">
+            自动保存已暂停。未保存状态仍在内存中，请导出草稿或手动重试。
+          </p>
+        )}
+      </div>
+      <div
+        className="workbench-main"
+        data-side-panel={tutorialVisible || (viewCode && Boolean(project))}
+      >
+        <div className="workbench-primary">
+          <div className="workbench-settings" hidden={!settingsVisible}>
+            {project && (
+              <div className="workbench-settings-heading">
+                <h2>
+                  {guideVisible
+                    ? "使用指引"
+                    : settingsPanel === "environment"
+                      ? "准备运行环境与数据"
+                      : "工程设置"}
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSettingsPanel(null);
+                    setGuideVisible(false);
+                  }}
+                >
+                  返回积木
+                </button>
+              </div>
+            )}
+            <div hidden={!guideVisible}>
+              <GettingStarted
+                projectName={project?.name ?? null}
+                readOnly={Boolean(session?.readOnly)}
+                dirty={dirty}
+                mode={runMode}
+                pythonSelected={Boolean(python)}
+                dataSelected={Boolean(data)}
+                remoteBound={Boolean(
+                  remoteBinding &&
+                  remoteSession &&
+                  !dirty &&
+                  remoteBinding.projectId === project?.projectId &&
+                  remoteBinding.projectRevision === project.revision &&
+                  remoteBinding.programHash === compilation?.programHash &&
+                  remoteBinding.connectionId ===
+                    remoteSession.scope.connectionId &&
+                  remoteSession.projectId === project.projectId,
+                )}
+                compiled={Boolean(
+                  !dirty &&
+                  compilation?.runnable &&
+                  compilation.revision === project?.revision,
+                )}
+                hasRun={Boolean(run || history.length)}
+                ready={ready}
+                blocked={Boolean(busy) || saving || activeRun}
+                onServer={openServerSettings}
+                onNavigate={navigate}
+              />
+            </div>
+            <div hidden={settingsPanel === "environment" || guideVisible}>
+              <section className="panel" aria-labelledby="project-heading">
+                <h2 id="project-heading" tabIndex={-1}>
+                  1. 工程
+                </h2>
+                <label className="field">
+                  新工程名称
+                  <input
+                    value={projectName}
+                    maxLength={128}
+                    onChange={(event) => setProjectName(event.target.value)}
+                  />
+                </label>
+                <div className="button-row">
+                  <button
+                    type="button"
+                    disabled={
+                      !ready || Boolean(busy) || saving || dirty || activeRun
+                    }
+                    onClick={() => {
+                      void openProject(false);
+                    }}
+                  >
+                    选择目录并打开
+                  </button>
+                  <button
+                    type="button"
+                    disabled={
+                      !ready ||
+                      Boolean(busy) ||
+                      saving ||
+                      dirty ||
+                      activeRun ||
+                      !projectName.trim()
+                    }
+                    onClick={() => {
+                      void openProject(true);
+                    }}
+                  >
+                    新建 MNIST 示例
+                  </button>
+                  <button
+                    type="button"
+                    disabled={
+                      !ready ||
+                      Boolean(busy) ||
+                      saving ||
+                      dirty ||
+                      activeRun ||
+                      !projectName.trim()
+                    }
+                    onClick={() => {
+                      void openProject(true, "blank");
+                    }}
+                  >
+                    新建空白工程
+                  </button>
+                  <button
+                    type="button"
+                    disabled={
+                      !ready || Boolean(busy) || saving || dirty || activeRun
+                    }
+                    onClick={() => {
+                      void importProject();
+                    }}
+                  >
+                    导入 JSON 工程
+                  </button>
+                  <button
+                    type="button"
+                    disabled={
+                      !ready ||
+                      !session ||
+                      Boolean(busy) ||
+                      saving ||
+                      session.reason === "PROJECT_SIZE_LIMIT"
+                    }
+                    onClick={() => {
+                      void exportProject();
+                    }}
+                  >
+                    导出当前工程
+                  </button>
+                  <button
+                    type="button"
+                    disabled={
+                      !ready ||
+                      !bridge?.projects.exportBundle ||
+                      !project ||
+                      Boolean(busy) ||
+                      saving ||
+                      dirty ||
+                      session?.readOnly ||
+                      !compilation?.runnable ||
+                      compilation.revision !== project.revision
+                    }
+                    onClick={() => {
+                      void exportBundle();
+                    }}
+                  >
+                    导出已保存代码 Bundle
+                  </button>
+                </div>
+                <p className="muted">
+                  新建只写入新工程文件，不覆盖已有工程或数据。正式训练固定不自动下载数据。
+                </p>
+                {project ? (
+                  <>
+                    <h3>{project.name}</h3>
+                    <p>
+                      revision {project.revision} ·{" "}
+                      {dirty ? "有未保存配置" : "已保存"}
+                    </p>
+                    {session?.readOnly && (
+                      <p className="error" role="alert">
+                        工程为只读：{session.reason ?? "无法取得写入权限"}
+                        。保存和运行已禁用。
+                      </p>
+                    )}
+                    <label className="checkbox-field">
+                      <input
+                        type="checkbox"
+                        checked={project.settings?.executionMode === "quick"}
+                        disabled={!writable || Boolean(busy) || activeRun}
+                        onChange={(event) => {
+                          const quick = event.target.checked;
+                          edit((value) => ({
+                            ...value,
+                            settings: {
+                              ...value.settings,
+                              executionMode: quick ? "quick" : "full",
+                            },
+                          }));
+                        }}
+                      />
+                      快速检查：1 epoch，最多 1024 个训练 / 256 个测试样本
+                    </label>
+                    <p className="muted">
+                      此开关只改变执行模式，不改示例积木中的正式训练参数。更改后需保存并重新编译。
+                    </p>
+                  </>
+                ) : (
+                  <p className="empty-state">
+                    尚未打开工程。可选择已有工程目录，或在新目录创建 MNIST
+                    示例。
+                  </p>
+                )}
+              </section>
+
+              {session?.readOnly && !project && (
+                <section
+                  className="panel"
+                  aria-labelledby="unsupported-heading"
+                >
+                  <h2 id="unsupported-heading">
+                    只读工程：{session.label ?? "不支持的格式"}
+                  </h2>
+                  <p className="error">
+                    {session.reason ?? "无法安全加载"}。原文件未更改，不加载
+                    Blockly、不自动保存；未超限时可导出原件。
+                  </p>
+                  <details>
+                    <summary>原始文本预览（最多 64KiB）</summary>
+                    <pre className="log">{session.rawText}</pre>
+                  </details>
+                </section>
+              )}
+            </div>
+            <div hidden={settingsPanel !== "environment" || guideVisible}>
+              <section className="panel" aria-labelledby="environment-heading">
+                <h2 id="environment-heading" tabIndex={-1}>
+                  2. 运行环境与数据
+                </h2>
+                <p>
+                  选择已安装训练依赖的
+                  Python，以及已准备好数据的目录。此页面不会安装包或下载数据。
+                </p>
+                <label className="field">
+                  运行位置
+                  <select
+                    value={runMode}
+                    disabled={!!busy || activeRun}
+                    onChange={(event) =>
+                      setRunMode(event.target.value as "local" | "ssh")
+                    }
+                  >
+                    <option value="local">本机</option>
+                    <option value="ssh">SSH 服务器</option>
+                  </select>
+                </label>
+                {runMode === "ssh" && (
+                  <p role="status">
+                    {remoteBinding
+                      ? `已绑定 revision ${remoteBinding.projectRevision} · ${remoteBinding.pythonExecutable} · ${remoteBinding.device}`
+                      : "请在 SSH 设置中完成身份、认证、环境和数据检查，再绑定已保存工程。"}
+                  </p>
+                )}
+                {runMode === "local" ? (
+                  <>
+                    <div className="binding">
+                      <span>训练 Python</span>
+                      <strong>{python?.label ?? "尚未选择"}</strong>
+                      <button
+                        type="button"
+                        disabled={!ready || Boolean(busy) || activeRun}
+                        onClick={() => {
+                          void choose("python");
+                        }}
+                      >
+                        选择现有 Python
+                      </button>
+                    </div>
+                    <div className="binding">
+                      <span>数据目录</span>
+                      <strong>{data?.label ?? "尚未选择"}</strong>
+                      <button
+                        type="button"
+                        disabled={!ready || Boolean(busy) || activeRun}
+                        onClick={() => {
+                          void choose("data");
+                        }}
+                      >
+                        选择数据目录
+                      </button>
+                    </div>
+                    <p className="muted">
+                      训练 Python 是已安装训练依赖的解释器。MNIST
+                      示例的数据目录内需有
+                      MNIST/raw；数据由你或老师预先准备，选择目录不会下载。
+                    </p>
+                  </>
+                ) : (
+                  <div aria-label="服务器环境与数据说明">
+                    <p>
+                      使用服务器已有的 Python
+                      环境与数据目录，本机无需准备数据副本。老师环境只做检查，不安装或升级包；数据不会自动上传。
+                    </p>
+                    {remoteBinding && (
+                      <p>
+                        服务器 Python：{remoteBinding.pythonExecutable}
+                        ；服务器数据：
+                        {remoteBinding.dataRoot}
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      disabled={
+                        !ready || !project || Boolean(busy) || activeRun
+                      }
+                      onClick={openServerSettings}
+                    >
+                      打开服务器配置
+                    </button>
+                  </div>
+                )}
+                {runMode === "local" && bridge && project && python && data && (
+                  <LocalPreflight
+                    key={`${project.projectId}:${project.revision}:${python.selectionId}:${data.selectionId}:${dirty}:${ready}`}
+                    api={bridge.local}
+                    request={{
+                      projectId: project.projectId,
+                      expectedRevision: project.revision,
+                      pythonSelectionId: python.selectionId,
+                      dataSelectionId: data.selectionId,
+                    }}
+                    pythonLabel={python.label}
+                    dataLabel={data.label}
+                    disabled={!ready || dirty || Boolean(busy) || activeRun}
+                  />
+                )}
+                <p className="muted">
+                  运行位置：{runMode === "ssh" ? "SSH 服务器" : "本机"}
+                  。服务器数据不会自动上传或下载。
+                </p>
+              </section>
+
+              <div className="button-row">
+                <button
+                  type="button"
+                  disabled={!ready || !project}
+                  onClick={() => {
+                    if (identityVisible) setIdentityVisible(false);
+                    else openServerSettings();
+                  }}
+                >
+                  SSH 主机身份设置
+                </button>
+                {bridge?.packages && (
+                  <button
+                    type="button"
+                    aria-expanded={packagesVisible}
+                    onClick={() => {
+                      setSettingsPanel("environment");
+                      setGuideVisible(false);
+                      setPackagesOpened(true);
+                      setPackagesVisible((previous) => !previous);
+                    }}
+                  >
+                    {packagesVisible ? "收起包安装计划" : "打开包安装计划"}
+                  </button>
+                )}
+              </div>
+              {identityVisible && ready && bridge && project && (
+                <div
+                  id="server-configuration"
+                  role="region"
+                  aria-label="服务器配置"
+                  tabIndex={-1}
+                >
+                  <ServerProfiles
+                    key={project.projectId}
+                    api={bridge.connections}
+                    environments={bridge.environments}
+                    projectId={project.projectId}
+                    remote={{
+                      runs: bridge.runs,
+                      authority:
+                        !dirty &&
+                        compilation?.runnable &&
+                        compilation.revision === project.revision
+                          ? {
+                              expectedRevision: project.revision,
+                              expectedProgramHash: compilation.programHash,
+                            }
+                          : undefined,
+                      onBinding: acceptRemoteBinding,
+                      onSession: acceptRemoteSession,
+                    }}
+                    onClose={() => setIdentityVisible(false)}
+                  />
+                </div>
+              )}
+
+              {packagesOpened && bridge?.packages && (
+                <div hidden={!packagesVisible}>
+                  <PackageManager
+                    api={bridge.packages}
+                    remoteSession={remoteSession}
+                  />
+                </div>
+              )}
+
+              {remoteSession && project && !session?.readOnly && (
+                <DataUpload
+                  key={`${project.projectId}:${remoteSession.scope.connectionId}`}
+                  api={bridge!}
+                  session={remoteSession}
+                  revision={project.revision}
+                  disabled={
+                    !ready || dirty || saving || Boolean(busy) || activeRun
+                  }
+                />
+              )}
+            </div>
+          </div>
+          <div className="workbench-editor-host" hidden={settingsVisible}>
+            {project && (
+              <section className="workbench-canvas">
+                <Suspense fallback={<p role="status">正在加载积木编辑器…</p>}>
+                  <ProjectEditor
+                    project={project}
+                    readOnly={!writable || Boolean(busy) || activeRun}
+                    selectedBlock={selectedBlock}
+                    navigationRequest={blockNavigation}
+                    onChange={changeWorkspaces}
+                    onSelect={setSelectedBlock}
+                    onHelp={tutorialHelp}
+                    activeTab={viewTab}
+                    onTabChange={changeTab}
+                  />
+                </Suspense>
+              </section>
+            )}
+          </div>
+        </div>
+        <aside
+          id="workbench-code"
+          className="workbench-side"
+          aria-label="当前工程代码对照"
+          hidden={!viewCode || tutorialVisible || !project}
+        >
+          <div className="workbench-side-heading">
+            <div>
+              <h2>PyTorch 代码</h2>
+              <span>只读 · 点击代码可定位积木</span>
+            </div>
             <button
               type="button"
-              disabled={!ready || Boolean(busy) || saving || dirty || activeRun}
-              onClick={() => {
-                void openProject(false);
-              }}
+              onClick={() => showCode(false)}
+              aria-label="关闭代码对照"
             >
-              选择目录并打开
-            </button>
-            <button
-              type="button"
-              disabled={
-                !ready ||
-                Boolean(busy) ||
-                saving ||
-                dirty ||
-                activeRun ||
-                !projectName.trim()
-              }
-              onClick={() => {
-                void openProject(true);
-              }}
-            >
-              新建 MNIST 示例
-            </button>
-            <button
-              type="button"
-              disabled={
-                !ready ||
-                Boolean(busy) ||
-                saving ||
-                dirty ||
-                activeRun ||
-                !projectName.trim()
-              }
-              onClick={() => {
-                void openProject(true, "blank");
-              }}
-            >
-              新建空白工程
-            </button>
-            <button
-              type="button"
-              disabled={!ready || Boolean(busy) || saving || dirty || activeRun}
-              onClick={() => {
-                void importProject();
-              }}
-            >
-              导入 JSON 工程
-            </button>
-            <button
-              type="button"
-              disabled={
-                !ready ||
-                !session ||
-                Boolean(busy) ||
-                saving ||
-                session.reason === "PROJECT_SIZE_LIMIT"
-              }
-              onClick={() => {
-                void exportProject();
-              }}
-            >
-              导出当前工程
-            </button>
-            <button
-              type="button"
-              disabled={
-                !ready ||
-                !bridge?.projects.exportBundle ||
-                !project ||
-                Boolean(busy) ||
-                saving ||
-                dirty ||
-                session?.readOnly ||
-                !compilation?.runnable ||
-                compilation.revision !== project.revision
-              }
-              onClick={() => {
-                void exportBundle();
-              }}
-            >
-              导出已保存代码 Bundle
+              ×
             </button>
           </div>
-          <p className="muted">
-            新建只写入新工程文件，不覆盖已有工程或数据。正式训练固定不自动下载数据。
-          </p>
-          {project ? (
-            <>
-              <h3>{project.name}</h3>
+          {dirty && (
+            <p className="notice">正在等待当前修改保存，随后更新代码。</p>
+          )}
+          {compilation?.code ? (
+            <CodeView
+              code={compilation.code}
+              spans={compilation.sourceMap ?? []}
+              selectedBlock={selectedBlock}
+              onSelectBlock={locateBlock}
+            />
+          ) : (
+            <div className="workbench-code-empty">
               <p>
-                revision {project.revision} ·{" "}
-                {dirty ? "有未保存配置" : "已保存"}
-              </p>
-              {session?.readOnly && (
-                <p className="error" role="alert">
-                  工程为只读：{session.reason ?? "无法取得写入权限"}
-                  。保存和运行已禁用。
-                </p>
-              )}
-              <label className="checkbox-field">
-                <input
-                  type="checkbox"
-                  checked={project.settings?.executionMode === "quick"}
-                  disabled={!writable || Boolean(busy) || activeRun}
-                  onChange={(event) => {
-                    const quick = event.target.checked;
-                    edit((value) => ({
-                      ...value,
-                      settings: {
-                        ...value.settings,
-                        executionMode: quick ? "quick" : "full",
-                      },
-                    }));
-                  }}
-                />
-                快速检查：1 epoch，最多 1024 个训练 / 256 个测试样本
-              </label>
-              <p className="muted">
-                此开关只改变执行模式，不改示例积木中的正式训练参数。更改后需保存并重新编译。
+                {busy === "检查与编译"
+                  ? "正在生成当前工程的 PyTorch 代码…"
+                  : "保存并检查积木后，这里会显示完整 PyTorch 代码。"}
               </p>
               <button
                 type="button"
-                disabled={
-                  !writable || !dirty || Boolean(busy) || saving || activeRun
-                }
                 onClick={() => {
-                  void save();
+                  setDock("checks");
                 }}
               >
-                保存工程配置
-              </button>
-            </>
-          ) : (
-            <p className="empty-state">
-              尚未打开工程。可选择已有工程目录，或在新目录创建 MNIST 示例。
-            </p>
-          )}
-        </section>
-        <section className="panel" aria-labelledby="environment-heading">
-          <h2 id="environment-heading" tabIndex={-1}>
-            2. 运行环境与数据
-          </h2>
-          <p>
-            选择已安装训练依赖的
-            Python，以及已准备好数据的目录。此页面不会安装包或下载数据。
-          </p>
-          <label className="field">
-            运行位置
-            <select
-              value={runMode}
-              disabled={!!busy || activeRun}
-              onChange={(event) =>
-                setRunMode(event.target.value as "local" | "ssh")
-              }
-            >
-              <option value="local">本机</option>
-              <option value="ssh">SSH 服务器</option>
-            </select>
-          </label>
-          {runMode === "ssh" && (
-            <p role="status">
-              {remoteBinding
-                ? `已绑定 revision ${remoteBinding.projectRevision} · ${remoteBinding.pythonExecutable} · ${remoteBinding.device}`
-                : "请在 SSH 设置中完成身份、认证、环境和数据检查，再绑定已保存工程。"}
-            </p>
-          )}
-          {runMode === "local" ? (
-            <>
-              <div className="binding">
-                <span>训练 Python</span>
-                <strong>{python?.label ?? "尚未选择"}</strong>
-                <button
-                  type="button"
-                  disabled={!ready || Boolean(busy) || activeRun}
-                  onClick={() => {
-                    void choose("python");
-                  }}
-                >
-                  选择现有 Python
-                </button>
-              </div>
-              <div className="binding">
-                <span>数据目录</span>
-                <strong>{data?.label ?? "尚未选择"}</strong>
-                <button
-                  type="button"
-                  disabled={!ready || Boolean(busy) || activeRun}
-                  onClick={() => {
-                    void choose("data");
-                  }}
-                >
-                  选择数据目录
-                </button>
-              </div>
-              <p className="muted">
-                训练 Python 是已安装训练依赖的解释器。MNIST 示例的数据目录内需有
-                MNIST/raw；数据由你或老师预先准备，选择目录不会下载。
-              </p>
-            </>
-          ) : (
-            <div aria-label="服务器环境与数据说明">
-              <p>
-                使用服务器已有的 Python
-                环境与数据目录，本机无需准备数据副本。老师环境只做检查，不安装或升级包；数据不会自动上传。
-              </p>
-              {remoteBinding && (
-                <p>
-                  服务器 Python：{remoteBinding.pythonExecutable}；服务器数据：
-                  {remoteBinding.dataRoot}
-                </p>
-              )}
-              <button
-                type="button"
-                disabled={!ready || !project || Boolean(busy) || activeRun}
-                onClick={openServerSettings}
-              >
-                打开服务器配置
+                查看检查结果
               </button>
             </div>
           )}
-          {runMode === "local" && bridge && project && python && data && (
-            <LocalPreflight
-              key={`${project.projectId}:${project.revision}:${python.selectionId}:${data.selectionId}:${dirty}:${ready}`}
-              api={bridge.local}
-              request={{
-                projectId: project.projectId,
-                expectedRevision: project.revision,
-                pythonSelectionId: python.selectionId,
-                dataSelectionId: data.selectionId,
+        </aside>
+        <aside
+          className="workbench-side workbench-tutorial"
+          aria-label="学习与教程"
+          hidden={!tutorialVisible}
+        >
+          <div className="workbench-side-heading">
+            <h2>边做边学</h2>
+            <button
+              type="button"
+              onClick={() => setTutorialVisible(false)}
+              aria-label="关闭学习面板"
+            >
+              ×
+            </button>
+          </div>
+          {tutorialVisible && (
+            <TutorialPanel
+              topicId={tutorialTopic}
+              onTopic={setTutorialTopic}
+              project={project}
+              compilation={compilation}
+              dirty={dirty}
+              canCreateExample={Boolean(
+                ready &&
+                bridge &&
+                !restoringProject &&
+                !dirty &&
+                !busy &&
+                !saving &&
+                !activeRun,
+              )}
+              onExample={() => {
+                void openProject(true, "mnist-cnn", true);
               }}
-              pythonLabel={python.label}
-              dataLabel={data.label}
-              disabled={!ready || dirty || Boolean(busy) || activeRun}
+              onLocate={tutorialLocate}
             />
           )}
-          <p className="muted">
-            运行位置：{runMode === "ssh" ? "SSH 服务器" : "本机"}
-            。服务器数据不会自动上传或下载。
-          </p>
-        </section>
+        </aside>
       </div>
-      {session?.readOnly && !project && (
-        <section className="panel" aria-labelledby="unsupported-heading">
-          <h2 id="unsupported-heading">
-            只读工程：{session.label ?? "不支持的格式"}
-          </h2>
-          <p className="error">
-            {session.reason ?? "无法安全加载"}。原文件未更改，不加载
-            Blockly、不自动保存；未超限时可导出原件。
-          </p>
-          <details>
-            <summary>原始文本预览（最多 64KiB）</summary>
-            <pre className="log">{session.rawText}</pre>
-          </details>
-        </section>
-      )}
-      {project && (
-        <section className="panel">
-          <Suspense fallback={<p role="status">正在加载积木编辑器…</p>}>
-            <ProjectEditor
-              project={project}
-              readOnly={!writable || Boolean(busy) || activeRun}
-              selectedBlock={selectedBlock}
-              navigationRequest={blockNavigation}
-              onChange={changeWorkspaces}
-              onSelect={setSelectedBlock}
-              onHelp={tutorialHelp}
-              activeTab={viewTab}
-              onTabChange={changeTab}
-            />
-          </Suspense>
-        </section>
-      )}
-      <section className="panel" aria-labelledby="compile-heading">
-        <div className="section-heading">
-          <div>
-            <h2 id="compile-heading" tabIndex={-1}>
-              3. 检查与运行
-            </h2>
-            <p className="muted">
-              保存的工程与编译 revision 一致后，才能显式启动。
-            </p>
+      <section
+        className="workbench-dock"
+        data-open={dock !== null}
+        data-expanded={dockExpanded}
+        aria-label="检查与运行面板"
+      >
+        <div className="workbench-dock-toolbar">
+          <div role="tablist" aria-label="检查与运行视图">
+            {(
+              [
+                [
+                  "checks",
+                  `检查与问题${problemCount ? ` (${problemCount})` : ""}`,
+                ],
+                ["history", "运行记录"],
+                ["results", "日志与结果"],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                id={`dock-tab-${id}`}
+                role="tab"
+                aria-selected={dock === id}
+                aria-controls={`dock-${id}`}
+                onClick={() => setDock(dock === id ? null : id)}
+              >
+                {label}
+              </button>
+            ))}
           </div>
-          <div className="button-row">
-            <button
-              type="button"
-              disabled={!ready || !project || dirty || Boolean(busy) || saving}
-              onClick={() => {
-                void compile();
-              }}
-            >
-              检查与编译
-            </button>
-            <button
-              type="button"
-              className="primary"
-              disabled={!canRun}
-              onClick={() => {
-                void start();
-              }}
-            >
-              开始本次运行
-            </button>
-          </div>
+          {dock && (
+            <div className="button-row">
+              <button
+                type="button"
+                aria-pressed={dockExpanded}
+                onClick={() => setDockExpanded((previous) => !previous)}
+              >
+                {dockExpanded ? "恢复面板高度" : "展开结果面板"}
+              </button>
+              <button type="button" onClick={() => setDock(null)}>
+                收起面板
+              </button>
+            </div>
+          )}
         </div>
-        {dirty && <p className="notice">请先保存当前配置，再检查与运行。</p>}
-        {compilation ? (
-          <>
-            <p role="status">
-              {compilation.runnable ? "代码检查通过" : "暂不能运行"} · revision{" "}
-              {compilation.revision}
-            </p>
-            {compilation.diagnostics.length > 0 && (
-              <ul className="diagnostics">
-                {compilation.diagnostics.map((diagnostic, index) => (
-                  <li
-                    key={`${diagnostic.code}-${index}`}
-                    className={
-                      diagnostic.severity === "error" ? "error" : "notice"
+        <div className="workbench-dock-body" hidden={!dock}>
+          <div
+            id="dock-checks"
+            role="tabpanel"
+            aria-labelledby="dock-tab-checks"
+            hidden={dock !== "checks"}
+          >
+            <section className="panel" aria-labelledby="compile-heading">
+              <div className="section-heading">
+                <div>
+                  <h2 id="compile-heading" tabIndex={-1}>
+                    3. 检查与运行
+                  </h2>
+                  <p className="muted">
+                    保存的工程与编译 revision 一致后，才能显式启动。
+                  </p>
+                </div>
+              </div>
+              {dirty && (
+                <p className="notice">请先保存当前配置，再检查与运行。</p>
+              )}
+              {compilation ? (
+                <>
+                  <p role="status">
+                    {compilation.runnable ? "代码检查通过" : "暂不能运行"} ·
+                    revision {compilation.revision}
+                  </p>
+                  {compilation.diagnostics.length > 0 && (
+                    <ul className="diagnostics">
+                      {compilation.diagnostics.map((diagnostic, index) => (
+                        <li
+                          key={`${diagnostic.code}-${index}`}
+                          className={
+                            diagnostic.severity === "error" ? "error" : "notice"
+                          }
+                        >
+                          <strong>{diagnostic.message}</strong>
+                          {diagnostic.suggestion && (
+                            <p>{diagnostic.suggestion}</p>
+                          )}
+                          {diagnostic.origin && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                locateBlock(diagnostic.origin?.blockId ?? null)
+                              }
+                            >
+                              源积木 {diagnostic.origin.blockId}
+                            </button>
+                          )}
+                          <small>
+                            {diagnostic.code}
+                            {diagnostic.field ? ` · ${diagnostic.field}` : ""}
+                          </small>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
+              ) : (
+                <p className="empty-state">尚无编译结果。检查不会启动训练。</p>
+              )}
+            </section>
+          </div>
+          <div
+            id="dock-history"
+            role="tabpanel"
+            aria-labelledby="dock-tab-history"
+            hidden={dock !== "history"}
+          >
+            {project && (
+              <section className="panel">
+                <h2 id="history-heading" tabIndex={-1}>
+                  运行历史（只读快照）
+                </h2>
+                <p className="muted">查看旧运行不会替换当前编辑工程或映射。</p>
+                {historyError && (
+                  <FailureCard failure={historyError} onNavigate={navigate} />
+                )}
+                <button
+                  type="button"
+                  disabled={!ready}
+                  onClick={() => {
+                    setHistoryOffset(0);
+                    setHistoryRefresh((value) => value + 1);
+                  }}
+                >
+                  刷新运行历史
+                </button>
+                {history.length ? (
+                  <ul className="history-list">
+                    {history.map((item) => (
+                      <li key={item.runId}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRun(item);
+                            setDock("results");
+                          }}
+                        >
+                          {item.runId.slice(0, 8)} · revision{" "}
+                          {item.config.projectRevision} · {item.status}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>暂无运行记录。</p>
+                )}
+                <div className="button-row">
+                  <button
+                    type="button"
+                    disabled={historyOffset === 0}
+                    onClick={() =>
+                      setHistoryOffset((value) => Math.max(0, value - 25))
                     }
                   >
-                    <strong>{diagnostic.message}</strong>
-                    {diagnostic.suggestion && <p>{diagnostic.suggestion}</p>}
-                    {diagnostic.origin && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          locateBlock(diagnostic.origin?.blockId ?? null)
-                        }
-                      >
-                        源积木 {diagnostic.origin.blockId}
-                      </button>
-                    )}
-                    <small>
-                      {diagnostic.code}
-                      {diagnostic.field ? ` · ${diagnostic.field}` : ""}
-                    </small>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {compilation.code && (
-              <details
-                open={viewCode}
-                onToggle={(event) => {
-                  const visible = event.currentTarget.open;
-                  setViewCode(visible);
-                  if (
-                    !activeRun &&
-                    !busy &&
-                    !saving &&
-                    visible !== (project?.ui?.codeVisible ?? false)
-                  )
-                    edit(
-                      (value) => ({
-                        ...value,
-                        ui: { ...value.ui, codeVisible: visible },
-                      }),
-                      false,
-                    );
-                }}
-              >
-                <summary>查看当前工程的只读生成代码</summary>
-                {selectedBlock && (
-                  <p>
-                    来源积木：<code>{selectedBlock}</code>
-                  </p>
-                )}
-                <CodeView
-                  code={compilation.code}
-                  spans={compilation.sourceMap ?? []}
-                  selectedBlock={selectedBlock}
-                  onSelectBlock={locateBlock}
-                />
-              </details>
-            )}
-          </>
-        ) : (
-          <p className="empty-state">尚无编译结果。检查不会启动训练。</p>
-        )}
-      </section>
-      {project && (
-        <section className="panel">
-          <h2 id="history-heading" tabIndex={-1}>
-            运行历史（只读快照）
-          </h2>
-          <p className="muted">查看旧运行不会替换当前编辑工程或映射。</p>
-          {historyError && (
-            <FailureCard failure={historyError} onNavigate={navigate} />
-          )}
-          <button
-            type="button"
-            disabled={!ready}
-            onClick={() => {
-              setHistoryOffset(0);
-              setHistoryRefresh((value) => value + 1);
-            }}
-          >
-            刷新运行历史
-          </button>
-          {history.length ? (
-            <ul className="history-list">
-              {history.map((item) => (
-                <li key={item.runId}>
-                  <button type="button" onClick={() => setRun(item)}>
-                    {item.runId.slice(0, 8)} · revision{" "}
-                    {item.config.projectRevision} · {item.status}
+                    上一页
                   </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p>暂无运行记录。</p>
-          )}
-          <div className="button-row">
-            <button
-              type="button"
-              disabled={historyOffset === 0}
-              onClick={() =>
-                setHistoryOffset((value) => Math.max(0, value - 25))
-              }
-            >
-              上一页
-            </button>
-            <button
-              type="button"
-              disabled={history.length < 25}
-              onClick={() => setHistoryOffset((value) => value + 25)}
-            >
-              下一页
-            </button>
+                  <button
+                    type="button"
+                    disabled={history.length < 25}
+                    onClick={() => setHistoryOffset((value) => value + 25)}
+                  >
+                    下一页
+                  </button>
+                </div>
+              </section>
+            )}
+
+            {!project && (
+              <p className="empty-state">
+                打开工程后，可以在这里查看运行记录。
+              </p>
+            )}
           </div>
-        </section>
-      )}
-      {bridge && run && (
-        <RunDashboard
-          key={run.runId}
-          api={bridge}
-          initialRun={run}
-          onRunUpdate={updateRun}
-          remoteSession={remoteSession}
-        />
-      )}
+          <div
+            id="dock-results"
+            role="tabpanel"
+            aria-labelledby="dock-tab-results"
+            hidden={dock !== "results"}
+          >
+            {bridge && run && (
+              <RunDashboard
+                key={run.runId}
+                api={bridge}
+                initialRun={run}
+                onRunUpdate={updateRun}
+                remoteSession={remoteSession}
+              />
+            )}
+
+            {!run && (
+              <p className="empty-state">
+                尚未开始训练。训练产生的日志、指标、图像和文件会显示在这里。
+              </p>
+            )}
+          </div>
+        </div>
+      </section>
+      <footer className="workbench-statusbar">
+        <span>
+          {project
+            ? `${{ data: "数据处理", model: "模型结构", training: "训练管线" }[viewTab]} · ${saveStatus}`
+            : "准备工程"}
+        </span>
+        <span>PyTorch · {runMode === "local" ? "本机运行" : "服务器运行"}</span>
+      </footer>
     </main>
   );
 }

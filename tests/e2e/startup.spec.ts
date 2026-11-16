@@ -91,11 +91,13 @@ test("secure desktop, Dataset error repair, Monaco and saved project reopen", as
       .filter({ hasText: /^代码检查通过/ });
     await compile.click();
     await expect(passed).toBeVisible();
-    await page.getByText("查看当前工程的只读生成代码", { exact: true }).click();
+    await page.getByRole("button", { name: "代码对照", exact: true }).click();
     const monaco = page
       .getByLabel("Monaco 只读代码视图")
       .locator(".monaco-editor");
     await expect(monaco).toBeVisible();
+    // Persist the view preference before measuring the stable editor viewport.
+    await expect(compile).toBeEnabled();
     // Monaco 0.57 uses native EditContext on current Chromium and a textarea
     // elsewhere. Both expose a textbox and readOnly-derived ARIA attributes.
     const codeInput = monaco.getByRole("textbox");
@@ -279,11 +281,7 @@ test("secure desktop, Dataset error repair, Monaco and saved project reopen", as
     await expect(
       symbols.getByRole("button", { name: /^train_data/ }),
     ).toHaveCount(0);
-    await expect(
-      page.getByText("尚无编译结果。检查不会启动训练。", { exact: true }),
-    ).toBeVisible();
-    await expect(compile).toBeEnabled(); // Wait for actual autosave, not a fixed timer.
-    await compile.click();
+    // Visible code comparison recompiles the actual saved revision automatically.
     await expect(
       page.getByRole("status").filter({ hasText: /^暂不能运行/ }),
     ).toBeVisible();

@@ -18,10 +18,10 @@ import {
 } from "../../tests/e2e/canvas-geometry.js";
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
-function fixture(): ProjectDocument {
+function fixture(name = "mnist"): ProjectDocument {
   return JSON.parse(
     readFileSync(
-      new URL("../contracts/fixtures/mnist.json", import.meta.url),
+      new URL(`../contracts/fixtures/${name}.json`, import.meta.url),
       "utf8",
     ),
   );
@@ -65,6 +65,112 @@ function setup(readOnly = false) {
   manager.receive(fixture().workspaces);
   return { manager, callbacks, instances, handles };
 }
+
+describe("direct phase charts with real Blockly", () => {
+  it("saves manual settings, restores them on reload and supports grouped Undo", async () => {
+    const { manager, callbacks } = setup();
+    try {
+      manager.receive(fixture("mnist-direct-plots").workspaces);
+      manager.setActive("training");
+      await settle();
+      manager.workspaces.training.clearUndo();
+      const original = manager.serialize();
+      expect(
+        manager
+          .phaseFigures("training")
+          .map((view) => [view.phase, view.rows, view.columns]),
+      ).toEqual([
+        ["before", 1, 1],
+        ["body", 1, 2],
+        ["after", 1, 1],
+      ]);
+      expect(manager.phaseFigures("body-1-source")).toHaveLength(1);
+      expect(manager.figure("body-1-source")).toBeNull();
+      manager.configurePhaseFigure("training", "body", "2,2", "large");
+      await settle();
+      const saved = manager.serialize();
+      expect(saved.training.blocks.blocks![0].fields).toMatchObject({
+        BODY_LAYOUT: "2,2",
+        BODY_SIZE: "large",
+      });
+      expect(saved.training.blocks.blocks![0].fields).not.toHaveProperty(
+        "BEFORE_LAYOUT",
+      );
+      validateWorkspaces(saved);
+      expect(callbacks.onChange).toHaveBeenCalled();
+      manager.undo();
+      await settle();
+      expect(manager.serialize()).toEqual(original);
+      manager.undo(true);
+      await settle();
+      expect(manager.serialize()).toEqual(saved);
+      manager.receive(original);
+      manager.receive(saved);
+      expect(manager.phaseFigures("body-0-panel")[0]).toMatchObject({
+        layout: "2,2",
+        size: "large",
+        rows: 2,
+        columns: 2,
+      });
+      expect(() =>
+        manager.configurePhaseFigure("training", "body", "1,1", "auto"),
+      ).toThrow("格子数不足");
+      expect(manager.serialize()).toEqual(saved);
+      manager.configurePhaseFigure("training", "body", "auto", "auto");
+      expect(manager.serialize()).toEqual(original);
+    } finally {
+      manager.dispose();
+    }
+  });
+  it("keeps legacy settings unchanged and locates direct charts after a legacy figure", () => {
+    const { manager } = setup();
+    try {
+      const old = fixture("mnist-figures").workspaces;
+      manager.receive(old);
+      expect(manager.serialize()).toEqual(old);
+      expect(manager.phaseFigures("body-1-source")).toEqual([]);
+      const direct = manager.workspaces.training.newBlock(
+        "viz.panel",
+        "direct-after-legacy",
+      );
+      manager
+        .block("body-figure")!
+        .nextConnection!.connect(direct.previousConnection!);
+      validateWorkspaces(manager.serialize());
+      expect(manager.figure(direct.id)).toBeNull();
+      expect(manager.phaseFigures(direct.id)[0]).toMatchObject({
+        phase: "body",
+        legacyCount: 1,
+        rows: 1,
+        columns: 1,
+      });
+      expect(manager.figure("body-1-panel")?.id).toBe("body-figure");
+    } finally {
+      manager.dispose();
+    }
+  });
+  it("reflows disabled charts and prevents edits to read-only snapshots", () => {
+    const { manager } = setup();
+    const locked = setup(true).manager;
+    try {
+      const workspaces = fixture("mnist-direct-plots").workspaces;
+      manager.receive(workspaces);
+      manager
+        .block("body-0-panel")!
+        .setDisabledReason(true, "MANUALLY_DISABLED");
+      expect(manager.phaseFigures("training")[1]).toMatchObject({
+        rows: 1,
+        columns: 1,
+      });
+      locked.receive(workspaces);
+      locked.configurePhaseFigure("training", "body", "2,2", "large");
+      expect(locked.serialize()).toEqual(workspaces);
+    } finally {
+      manager.dispose();
+      locked.dispose();
+    }
+  });
+});
 
 describe("persistent three-workspace lifecycle with real headless Blockly", () => {
   it("creates three handles/listeners once, and no save on load/tab/select/revision echo", async () => {
@@ -177,7 +283,7 @@ describe("persistent three-workspace lifecycle with real headless Blockly", () =
       manager.dispose();
     }
   });
-  it("has all 21 manifest block types in the three toolboxes and rejects extra fields", () => {
+  it("offers direct charts while retaining legacy blocks in the registry and rejects extra fields", () => {
     const types = ["data", "model", "training"].flatMap((tab) => {
       const toolbox = toolboxFor(tab as "data" | "model" | "training") as {
         contents: { contents: { type: string }[] }[];
@@ -186,7 +292,11 @@ describe("persistent three-workspace lifecycle with real headless Blockly", () =
         category.contents.map((block) => block.type),
       );
     });
-    expect(new Set(types).size).toBe(21);
+    expect(new Set(types).size).toBe(19);
+    expect(types).not.toContain("viz.figure");
+    expect(types).not.toContain("viz.savefig");
+    expect(Blockly.Blocks["viz.figure"]).toBeDefined();
+    expect(Blockly.Blocks["viz.savefig"]).toBeDefined();
     const value = fixture().workspaces;
     value.model.blocks.blocks![0].template = "untrusted.py";
     expect(() => validateWorkspaces(value)).toThrow("不支持的字段");

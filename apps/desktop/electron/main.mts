@@ -16,6 +16,7 @@ import { readFile } from "node:fs/promises";
 import { startBackend, type Backend } from "./backend.mjs";
 import { trustedSender, SECURE_PREFERENCES } from "./security.mjs";
 import { backendLocation } from "./backend-location.mjs";
+import { zoomShortcut } from "./zoom-shortcut.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 protocol.registerSchemesAsPrivileged([
@@ -83,6 +84,18 @@ async function startDesktop(): Promise<void> {
     },
   });
   console.info("EASYAI_STARTUP:window-created");
+  window.webContents.on("before-input-event", (_event, input) => {
+    // Let the focused editor handle these keys before Electron's default View
+    // menu zooms the entire page. Other menu accelerators remain unchanged.
+    window.webContents.setIgnoreMenuShortcuts(
+      zoomShortcut(
+        input.key,
+        input.code,
+        input.control || input.meta,
+        input.alt,
+      ) !== null,
+    );
+  });
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   window.webContents.on("will-navigate", (event) => event.preventDefault());
   function authorizeSender(event: IpcMainInvokeEvent): void {

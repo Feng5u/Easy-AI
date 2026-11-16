@@ -85,6 +85,7 @@ test("real log windows and image history preserve their independent views", asyn
     await expect(page.getByTestId("backend-status")).toHaveText(
       "本地服务已就绪。",
     );
+    await page.getByRole("tab", { name: "运行记录", exact: true }).click();
     await page
       .getByRole("button", {
         name: new RegExp(`^${fixture.runId.slice(0, 8)} ·`),
@@ -319,6 +320,7 @@ test("real log windows and image history preserve their independent views", asyn
     await expect(reopened.getByTestId("backend-status")).toHaveText(
       "本地服务已就绪。",
     );
+    await reopened.getByRole("tab", { name: "运行记录", exact: true }).click();
     await reopened
       .getByRole("button", {
         name: new RegExp(`^${fixture.runId.slice(0, 8)} ·`),

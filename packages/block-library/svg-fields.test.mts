@@ -101,6 +101,11 @@ it.each(manifest.blocks)(
     expect(root.textContent).toMatch(blockLabelPrefix(spec.label));
     expect(header).toBe(block.inputList[0].fieldRow[0].getSvgRoot());
     for (const [name, fieldSpec] of Object.entries(spec.fields)) {
+      if ("hidden" in fieldSpec && fieldSpec.hidden) {
+        expect(block.getInput(`setting-${name}`)!.isVisible()).toBe(false);
+        expect(block.getField(name)!.getValue()).toBe("auto");
+        continue;
+      }
       const actual = control(root, name);
       expect(actual, `${spec.id}.${name}`).toBe(
         block.getField(name)!.getSvgRoot(),

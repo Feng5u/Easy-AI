@@ -182,6 +182,56 @@ def lower_figure(node: BlockIR, phase: Literal["before", "body", "after"]) -> Fi
     )
 
 
+def lower_phase(training: BlockIR, phase: Literal["before", "body", "after"]) -> list[FigureSpec]:
+    """Direct charts share an explicit, compiler-owned figure for this phase.
+
+    Legacy figures keep their own layout, path, identity and execution order.
+    No implicit pyplot current-figure state is used for either representation.
+    """
+    nodes = training.inputs[phase]
+    panels = [node for node in nodes if node.type_id == "viz.panel"]
+    automatic = None
+    if panels:
+        if len(panels) > 10:
+            raise SemanticError(
+                panels[0], "FIGURE_LAYOUT_INVALID", "每个阶段最多放置 10 个直接图表。"
+            )
+        layout = training.fields[f"{phase.upper()}_LAYOUT"]
+        if layout == "auto":
+            columns = min(2, len(panels))
+            layout = f"{math.ceil(len(panels) / columns)},{columns}"
+        size = training.fields[f"{phase.upper()}_SIZE"]
+        if size == "auto":
+            size = (
+                "large"
+                if len(panels) > 2
+                or any(
+                    panel.fields["CHART_TYPE"] == "image_grid" and panel.fields["COUNT"] > 5
+                    for panel in panels
+                )
+                else "medium"
+            )
+        # Reuse the same panel/source/style/path validation as legacy figures.
+        automatic = lower_figure(
+            BlockIR(
+                type_id="viz.figure",
+                origin=panels[0].origin,
+                fields={"LAYOUT": layout, "SIZE": size},
+                inputs={"panels": panels, "save": []},
+            ),
+            phase,
+        )
+        automatic.id = f"auto:{training.origin.block_id}:{phase}"
+    figures = []
+    for node in nodes:
+        if node.type_id == "viz.figure":
+            figures.append(lower_figure(node, phase))
+        elif automatic is not None:
+            figures.append(automatic)
+            automatic = None
+    return figures
+
+
 def shape_check(model: ModelDef, dataset: DatasetDef) -> tuple[list[ShapeStep], list[Diagnostic]]:
     trace: list[ShapeStep] = []
     errors: list[Diagnostic] = []
@@ -372,9 +422,9 @@ def lower_program(
             criterion=f["CRITERION"],
             learning_rate=f["LEARNING_RATE"],
             epochs=f["EPOCHS"],
-            before=[lower_figure(n, "before") for n in training_node.inputs["before"]],
-            body=[lower_figure(n, "body") for n in training_node.inputs["body"]],
-            after=[lower_figure(n, "after") for n in training_node.inputs["after"]],
+            before=lower_phase(training_node, "before"),
+            body=lower_phase(training_node, "body"),
+            after=lower_phase(training_node, "after"),
         )
         trace, shape_errors = shape_check(model, datasets[0])
         if shape_errors:
