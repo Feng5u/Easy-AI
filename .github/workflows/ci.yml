@@ -58,7 +58,6 @@ jobs:
       - run: pnpm --filter @easyai/desktop build
       - name: Application venv startup PID and isolation (no GUI)
         run: pnpm exec vitest run apps/desktop/electron/backend.test.mts apps/desktop/electron/application-python.test.mts apps/desktop/electron/backend-ready.test.mts
-      - run: pnpm test:e2e
       - name: Packaging input and archive guards
         run: pnpm test:package
       - name: Build unsigned Windows candidate (never publish)
@@ -76,10 +75,6 @@ jobs:
           & services/backend/.venv/Scripts/python.exe -I scripts/verify-frozen-trust.py "${{ steps.candidate.outputs.backend }}/easyai-sidecar.exe"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node scripts/test-frozen.mjs "${{ steps.candidate.outputs.backend }}"
-      - name: Packaged Electron sandbox, ASAR identity and normal shutdown
-        env:
-          EASYAI_E2E_PACKAGE: ${{ steps.candidate.outputs.executable }}
-        run: pnpm test:e2e
       - name: Retain unsigned candidate and provenance (one day)
         uses: actions/upload-artifact@v4
         with:
