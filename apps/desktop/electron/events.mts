@@ -53,7 +53,9 @@ export async function consumeEvents(
 ): Promise<number> {
   const reader = body.getReader();
   const decoder = new TextDecoder("utf-8", { fatal: true });
+  const encoder = new TextEncoder();
   let buffer = "";
+  let bufferBytes = 0;
   let cursor = after;
   const abort = () => {
     void reader.cancel().catch(() => undefined);
@@ -63,17 +65,30 @@ export async function consumeEvents(
     while (!signal.aborted) {
       const chunk = await reader.read();
       if (chunk.done) break;
+      let text: string;
       try {
-        buffer += decoder.decode(chunk.value, { stream: true });
+        text = decoder.decode(chunk.value, { stream: true });
       } catch {
         throw new EventProtocolError("事件UTF-8格式不符。");
       }
-      buffer = buffer.replace(/\r\n/g, "\n");
+      // Normalize only the new text, including CRLF split between reads.
+      // Re-encoding/scanning the entire pending frame for each byte is quadratic.
+      if (buffer.endsWith("\r") && text.startsWith("\n")) {
+        buffer = buffer.slice(0, -1);
+        bufferBytes--;
+      }
+      text = text.replace(/\r\n/g, "\n");
+      let searchFrom = Math.max(0, buffer.length - 1);
+      buffer += text;
+      bufferBytes += encoder.encode(text).byteLength;
       let boundary: number;
-      while ((boundary = buffer.indexOf("\n\n")) >= 0) {
+      while ((boundary = buffer.indexOf("\n\n", searchFrom)) >= 0) {
         const frame = buffer.slice(0, boundary);
         buffer = buffer.slice(boundary + 2);
-        if (new TextEncoder().encode(frame).byteLength > 70 * 1024)
+        const frameBytes = encoder.encode(frame).byteLength;
+        bufferBytes -= frameBytes + 2;
+        searchFrom = 0;
+        if (frameBytes > 70 * 1024)
           throw new EventProtocolError("事件超出大小限制。");
         const fields = frame.split("\n");
         const data = fields.filter((line) => line.startsWith("data: "));
@@ -94,7 +109,7 @@ export async function consumeEvents(
         onEvent(event);
         cursor = event.seq;
       }
-      if (new TextEncoder().encode(buffer).byteLength > 70 * 1024)
+      if (bufferBytes > 70 * 1024)
         throw new EventProtocolError("事件超出大小限制。");
     }
     if (!signal.aborted) {

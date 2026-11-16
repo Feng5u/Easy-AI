@@ -6,6 +6,7 @@ from dataclasses import dataclass
 import hashlib
 import hmac
 import os
+import sys
 import stat
 from pathlib import Path
 import threading
@@ -81,6 +82,8 @@ class HostKeyStore:
     def __init__(self, root: Path, clock: Callable[[], float] = time.monotonic):
         if not root.is_absolute() or root.is_symlink():
             raise ValueError("SSH_TRUST_PATH_INVALID")
+        self._uid: int
+        self._system_uid: int
         self.root = root
         self._root_identity: tuple[int, int] | None = None
         self._native_store: WindowsTrustStore | None = None
@@ -92,7 +95,7 @@ class HostKeyStore:
             from easyai.security.windows_host_keys import WindowsTrustStore as NativeTrustStore
 
             self._native_store = NativeTrustStore(root)
-        elif os.name == "posix":
+        elif sys.platform != "win32" and os.name == "posix":
             self._uid = os.geteuid()
             # Keep the existing POSIX root trust anchor and directory flock protocol.
             self._system_uid = Path(root.anchor).stat().st_uid
@@ -136,6 +139,8 @@ class HostKeyStore:
             with self._native_store.transaction(exclusive=exclusive) as transaction:
                 yield transaction
             return
+        if sys.platform == "win32":
+            raise ValueError("SSH_TRUST_PLATFORM_UNVERIFIED")
         # Walk from the kernel filesystem root, keeping descriptors for every
         # ancestor; never follow symlinks, chmod/chown, or trust path-only checks.
         import fcntl
@@ -222,6 +227,8 @@ class HostKeyStore:
         return records
 
     def _read_posix(self, directory: int) -> bytes:
+        if sys.platform == "win32":
+            raise ValueError("SSH_TRUST_PLATFORM_UNVERIFIED")
         try:
             fd = os.open(
                 "known_hosts", os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory

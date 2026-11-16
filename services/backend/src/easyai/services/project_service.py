@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import threading
 from dataclasses import dataclass
 from pathlib import Path
@@ -140,7 +141,7 @@ class ProjectService:
                 stream.flush()
                 os.fsync(stream.fileno())
             os.replace(temp, target)
-            if os.name == "posix":
+            if sys.platform != "win32" and os.name == "posix":
                 fd = os.open(target.parent, os.O_RDONLY | os.O_DIRECTORY)
                 try:
                     os.fsync(fd)

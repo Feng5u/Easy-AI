@@ -1,5 +1,12 @@
 import { it, expect, vi } from "vitest";
-import { mkdtemp, writeFile, rm, symlink } from "node:fs/promises";
+import {
+  mkdtemp,
+  writeFile,
+  rm,
+  symlink,
+  lstat,
+  readFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { MainWorkflow } from "./workflow.mjs";
@@ -161,7 +168,14 @@ it("reader rejects directories, symlinks, oversize, invalid encoding and unsuppo
     const good = join(root, "good"),
       link = join(root, "link");
     await writeFile(good, text);
-    await symlink(good, link);
+    // NTFS junctions exercise real link rejection without requiring Windows'
+    // file-symlink privilege. POSIX still exercises a link to a valid key file.
+    await symlink(
+      process.platform === "win32" ? root : good,
+      link,
+      process.platform === "win32" ? "junction" : "file",
+    );
+    expect((await lstat(link)).isSymbolicLink()).toBe(true);
     await expect(readSelectedPrivateKey(root)).rejects.toThrow();
     await expect(readSelectedPrivateKey(link)).rejects.toThrow();
     for (const [name, data] of [
@@ -174,6 +188,7 @@ it("reader rejects directories, symlinks, oversize, invalid encoding and unsuppo
       await expect(readSelectedPrivateKey(path)).rejects.toThrow();
     }
     expect(await readSelectedPrivateKey(good)).toBe(text);
+    expect(await readFile(good, "utf8")).toBe(text);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

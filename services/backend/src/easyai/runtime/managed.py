@@ -2,6 +2,7 @@
 
 import json
 import os
+import sys
 from pathlib import Path
 import signal
 import stat
@@ -160,7 +161,7 @@ class ManagedProcess(Generic[E]):
         try:
             if not stat.S_ISREG(os.fstat(descriptor).st_mode):
                 raise ValueError("Supervisor log must be a regular file")
-            if os.name == "posix":
+            if sys.platform != "win32" and os.name == "posix":
                 parent = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
                 try:
                     os.fsync(parent)
@@ -376,7 +377,7 @@ class ManagedProcess(Generic[E]):
         if process is None or self._done.is_set():
             return
         try:
-            if os.name == "posix":
+            if sys.platform != "win32" and os.name == "posix":
                 os.killpg(process.pid, signal.SIGKILL if force else signal.SIGTERM)
             elif process.poll() is None:
                 if force:

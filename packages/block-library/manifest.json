@@ -15,14 +15,9 @@
         }
       },
       "inputs": {
-        "steps": [
-          "data.to_tensor",
-          "data.normalize"
-        ]
+        "steps": ["data.to_tensor", "data.normalize"]
       },
-      "imports": [
-        "torchvision.transforms"
-      ],
+      "imports": ["torchvision.transforms"],
       "backendHandler": "data.compose",
       "helpKey": "blocks.data.compose"
     },
@@ -34,9 +29,7 @@
       "placement": "transform_step",
       "fields": {},
       "inputs": {},
-      "imports": [
-        "torchvision.transforms"
-      ],
+      "imports": ["torchvision.transforms"],
       "backendHandler": "data.to_tensor",
       "helpKey": "blocks.data.to_tensor"
     },
@@ -57,9 +50,7 @@
         }
       },
       "inputs": {},
-      "imports": [
-        "torchvision.transforms"
-      ],
+      "imports": ["torchvision.transforms"],
       "backendHandler": "data.normalize",
       "helpKey": "blocks.data.normalize"
     },
@@ -78,19 +69,12 @@
         "DATASET_NAME": {
           "type": "enum",
           "default": "MNIST",
-          "options": [
-            "MNIST",
-            "CIFAR10",
-            "FashionMNIST"
-          ]
+          "options": ["MNIST", "CIFAR10", "FashionMNIST"]
         },
         "SPLIT": {
           "type": "enum",
           "default": "train",
-          "options": [
-            "train",
-            "test"
-          ]
+          "options": ["train", "test"]
         },
         "TRANSFORM_REF": {
           "type": "reference",
@@ -98,9 +82,7 @@
         }
       },
       "inputs": {},
-      "imports": [
-        "torchvision.datasets"
-      ],
+      "imports": ["torchvision.datasets"],
       "backendHandler": "data.dataset_builtin",
       "helpKey": "blocks.data.dataset_builtin"
     },
@@ -132,9 +114,7 @@
         }
       },
       "inputs": {},
-      "imports": [
-        "torch.utils.data"
-      ],
+      "imports": ["torch.utils.data"],
       "backendHandler": "data.dataloader",
       "helpKey": "blocks.data.dataloader"
     },
@@ -162,10 +142,7 @@
           "model.sequential"
         ]
       },
-      "imports": [
-        "torch",
-        "torch.nn"
-      ],
+      "imports": ["torch", "torch.nn"],
       "backendHandler": "model.define",
       "helpKey": "blocks.model.define"
     },
@@ -185,9 +162,7 @@
           "model.dropout"
         ]
       },
-      "imports": [
-        "torch.nn"
-      ],
+      "imports": ["torch.nn"],
       "backendHandler": "model.sequential",
       "helpKey": "blocks.model.sequential"
     },
@@ -224,9 +199,7 @@
         }
       },
       "inputs": {},
-      "imports": [
-        "torch.nn"
-      ],
+      "imports": ["torch.nn"],
       "backendHandler": "model.conv2d",
       "helpKey": "blocks.model.conv2d"
     },
@@ -251,9 +224,7 @@
         }
       },
       "inputs": {},
-      "imports": [
-        "torch.nn"
-      ],
+      "imports": ["torch.nn"],
       "backendHandler": "model.linear",
       "helpKey": "blocks.model.linear"
     },
@@ -265,9 +236,7 @@
       "placement": "model_node",
       "fields": {},
       "inputs": {},
-      "imports": [
-        "torch.nn"
-      ],
+      "imports": ["torch.nn"],
       "backendHandler": "model.relu",
       "helpKey": "blocks.model.relu"
     },
@@ -286,9 +255,7 @@
         }
       },
       "inputs": {},
-      "imports": [
-        "torch.nn"
-      ],
+      "imports": ["torch.nn"],
       "backendHandler": "model.maxpool2d",
       "helpKey": "blocks.model.maxpool2d"
     },
@@ -308,9 +275,7 @@
         }
       },
       "inputs": {},
-      "imports": [
-        "torch.nn"
-      ],
+      "imports": ["torch.nn"],
       "backendHandler": "model.dropout",
       "helpKey": "blocks.model.dropout"
     },
@@ -348,19 +313,12 @@
         "CRITERION": {
           "type": "enum",
           "default": "CrossEntropy",
-          "options": [
-            "CrossEntropy",
-            "MSE",
-            "BCE"
-          ]
+          "options": ["CrossEntropy", "MSE", "BCE"]
         },
         "OPTIMIZER": {
           "type": "enum",
           "default": "SGD",
-          "options": [
-            "SGD",
-            "Adam"
-          ]
+          "options": ["SGD", "Adam"]
         },
         "LEARNING_RATE": {
           "type": "number",
@@ -378,95 +336,46 @@
         "BEFORE_LAYOUT": {
           "type": "enum",
           "default": "auto",
-          "options": [
-            "auto",
-            "1,1",
-            "1,2",
-            "2,2",
-            "1,3",
-            "2,5"
-          ],
+          "options": ["auto", "1,1", "1,2", "2,2", "1,3", "2,5"],
           "hidden": true
         },
         "BEFORE_SIZE": {
           "type": "enum",
           "default": "auto",
-          "options": [
-            "auto",
-            "small",
-            "medium",
-            "large"
-          ],
+          "options": ["auto", "small", "medium", "large"],
           "hidden": true
         },
         "BODY_LAYOUT": {
           "type": "enum",
           "default": "auto",
-          "options": [
-            "auto",
-            "1,1",
-            "1,2",
-            "2,2",
-            "1,3",
-            "2,5"
-          ],
+          "options": ["auto", "1,1", "1,2", "2,2", "1,3", "2,5"],
           "hidden": true
         },
         "BODY_SIZE": {
           "type": "enum",
           "default": "auto",
-          "options": [
-            "auto",
-            "small",
-            "medium",
-            "large"
-          ],
+          "options": ["auto", "small", "medium", "large"],
           "hidden": true
         },
         "AFTER_LAYOUT": {
           "type": "enum",
           "default": "auto",
-          "options": [
-            "auto",
-            "1,1",
-            "1,2",
-            "2,2",
-            "1,3",
-            "2,5"
-          ],
+          "options": ["auto", "1,1", "1,2", "2,2", "1,3", "2,5"],
           "hidden": true
         },
         "AFTER_SIZE": {
           "type": "enum",
           "default": "auto",
-          "options": [
-            "auto",
-            "small",
-            "medium",
-            "large"
-          ],
+          "options": ["auto", "small", "medium", "large"],
           "hidden": true
         }
       },
       "inputs": {
-        "before": [
-          "viz.figure",
-          "viz.panel"
-        ],
-        "body": [
-          "viz.figure",
-          "viz.panel"
-        ],
-        "after": [
-          "viz.figure",
-          "viz.panel"
-        ]
+        "before": ["viz.figure", "viz.panel"],
+        "body": ["viz.figure", "viz.panel"],
+        "after": ["viz.figure", "viz.panel"]
       },
-      "imports": [
-        "torch",
-        "torch.nn",
-        "torch.optim"
-      ],
+      "imports": ["torch", "torch.nn", "torch.optim"],
       "backendHandler": "train.loop",
       "helpKey": "blocks.train.loop"
     },
@@ -480,35 +389,19 @@
         "LAYOUT": {
           "type": "enum",
           "default": "1,1",
-          "options": [
-            "1,1",
-            "1,2",
-            "2,2",
-            "1,3",
-            "2,5"
-          ]
+          "options": ["1,1", "1,2", "2,2", "1,3", "2,5"]
         },
         "SIZE": {
           "type": "enum",
           "default": "medium",
-          "options": [
-            "small",
-            "medium",
-            "large"
-          ]
+          "options": ["small", "medium", "large"]
         }
       },
       "inputs": {
-        "panels": [
-          "viz.panel"
-        ],
-        "save": [
-          "viz.savefig"
-        ]
+        "panels": ["viz.panel"],
+        "save": ["viz.savefig"]
       },
-      "imports": [
-        "matplotlib.pyplot"
-      ],
+      "imports": ["matplotlib.pyplot"],
       "backendHandler": "viz.figure",
       "helpKey": "blocks.viz.figure"
     },
@@ -522,11 +415,7 @@
         "CHART_TYPE": {
           "type": "enum",
           "default": "line",
-          "options": [
-            "line",
-            "image_grid",
-            "scatter"
-          ]
+          "options": ["line", "image_grid", "scatter"]
         },
         "COUNT": {
           "type": "integer",
@@ -548,18 +437,10 @@
         }
       },
       "inputs": {
-        "data": [
-          "viz.data_source"
-        ],
-        "style": [
-          "viz.title",
-          "viz.legend",
-          "viz.axis"
-        ]
+        "data": ["viz.data_source"],
+        "style": ["viz.title", "viz.legend", "viz.axis"]
       },
-      "imports": [
-        "matplotlib.pyplot"
-      ],
+      "imports": ["matplotlib.pyplot"],
       "backendHandler": "viz.panel",
       "helpKey": "blocks.viz.panel"
     },
@@ -584,10 +465,7 @@
         "X_SOURCE": {
           "type": "enum",
           "default": "epoch",
-          "options": [
-            "epoch",
-            "none"
-          ]
+          "options": ["epoch", "none"]
         }
       },
       "inputs": {},
@@ -610,18 +488,11 @@
         "COLOR": {
           "type": "enum",
           "default": "black",
-          "options": [
-            "black",
-            "red",
-            "green",
-            "blue"
-          ]
+          "options": ["black", "red", "green", "blue"]
         }
       },
       "inputs": {},
-      "imports": [
-        "matplotlib.pyplot"
-      ],
+      "imports": ["matplotlib.pyplot"],
       "backendHandler": "viz.title",
       "helpKey": "blocks.viz.title"
     },
@@ -633,9 +504,7 @@
       "placement": "style",
       "fields": {},
       "inputs": {},
-      "imports": [
-        "matplotlib.pyplot"
-      ],
+      "imports": ["matplotlib.pyplot"],
       "backendHandler": "viz.legend",
       "helpKey": "blocks.viz.legend"
     },
@@ -652,9 +521,7 @@
         }
       },
       "inputs": {},
-      "imports": [
-        "matplotlib.pyplot"
-      ],
+      "imports": ["matplotlib.pyplot"],
       "backendHandler": "viz.axis",
       "helpKey": "blocks.viz.axis"
     },
@@ -672,9 +539,7 @@
         }
       },
       "inputs": {},
-      "imports": [
-        "matplotlib.pyplot"
-      ],
+      "imports": ["matplotlib.pyplot"],
       "backendHandler": "viz.savefig",
       "helpKey": "blocks.viz.savefig"
     }

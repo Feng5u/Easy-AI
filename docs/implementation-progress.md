@@ -4007,3 +4007,26 @@ pnpm 11.25.0，当前 pnpm 命令报告 Node 24.22.1，与仓库要求 24.19.0 �
 用户在 2026-11-15 自行完成的本机 MNIST FCN 运行已只读核对：20 轮、60000/10000 训练/测试样本、CPU、SUCCEEDED、exit 0，最终准确率 98.14%，第 17 轮最高 98.19%，22 张 PNG 与最终权重已保存。该用户工程仍使用旧画布；其右侧曲线标题为准确率而来源选择 train_loss，预测图长标题有重叠。此记录用于说明已有实际使用结果，不替代新直接图表的完整训练验证。
 
 本轮未重新训练、下载数据、安装/调整训练环境、执行真实 SSH 或部署/Release。按用户要求以草稿 PR 分享当前工作，并明确列出待排查项；不标记完整 gate B，也不自动合并 main。
+
+## 2026-11-16 非桌面检查修复
+
+用户确认拖拽、图表来源、缩放与退出等桌面人工测试通过，并要求本轮不再处理桌面自动化失败。保留原 E2E 失败记录和测试，本轮不重跑、不删除或放宽这些断言；人工通过与自动化历史结果分别记录。继续在 PR #2 的开发分支修复此前明确列出的事件超时、Windows 链接测试、mypy、合同字节差异和 JSON 格式。
+
+- 事件读取器原先对每个小分片重复编码、替换并扫描整个缓存。改为增量统计 UTF-8 字节、仅规范化新片段并从连接处寻找帧边界；保留 70 KiB 限制、身份/序号校验、UTF-8/CRLF 处理及 reader 取消/释放。原逐字节超限测试保留，新增多个合并帧和中文按字节限流的回归。
+- Windows 私钥文件测试改用真实 NTFS junction；POSIX 保留指向有效文件的 symlink。断言真实 lstat 链接身份、拒绝链接、拒绝目录/超大/非法编码/非法格式、有效原文件内容不变；未改生产私钥读取规则、系统权限或增加 skip。平台链接类型依据 [Node 文件系统文档](https://nodejs.org/download/release/v24.19.0/docs/api/fs.html)。
+- 为 POSIX 专属调用补充明确的 Windows 拒绝分支，混合平台分支增加可被 mypy 识别的 sys.platform 条件；声明 POSIX 对象字段类型。检查脚本同时执行 Linux 和 Windows 的 strict mypy，避免只检查宿主平台遗漏另一分支；没有禁用错误或新增 Any/ignore。依据 [mypy 平台检查说明](https://mypy.readthedocs.io/en/stable/common_issues.html)。新增 Windows 平台边界回归，并保留缺失远端配置时原有错误优先级。
+- 确认 ArtifactManifest 的内容与 HEAD 一致，差异来自 Python/TS 输出和 Windows 检出的换行。Python schema 导出显式使用 LF，Git 对源码和 JSON 固定 LF；本地换行规范化未产生数百个内容变更。新增全部合同 schema 的字节回归，原严格合同比较保留。
+- 用 Prettier 规范 manifest/schema 并加入常规 format:check；独立核对两个 JSON 与 HEAD 的解析内容完全相同。
+
+| 验证 | 结果 |
+| --- | --- |
+| `pnpm check` 最终复查 | PASS，TypeScript、Ruff、Linux/Windows strict mypy（各 70 个源码文件）、全部合同、Blockly fixture、全库规定格式范围均通过；`build/fix-check-final.log` |
+| `pnpm test` 的完整 Vitest 阶段 | PASS，447 PASS / 2 原有 SKIP / 0 FAIL；`build/fix-test.log` |
+| 相关 Python 回归 | PASS，55 项，覆盖合同导出、Git autocrlf 检出、Windows 调用边界、原生存储合同和直接图表编译；`build/fix-targeted-python.log` |
+| 后续定向检查 | PASS，3 个平台边界测试加 2 个全量新失败的复核。修正“缺失远端配置”被新平台拒绝提前覆盖的错误优先级；合作取消场景未改断言即定向通过。`build/fix-platform-followup.log` |
+| `pnpm build` | PASS，桌面与 PyInstaller 后端；`build/fix-build-final.log` |
+| 差异与保护 | PASS，git diff --check、JSON 语义一致；原 README/需求、依赖锁、安全配置及个人工程未改 |
+| `pnpm test` 的后端全套阶段 | FAIL，172 FAIL / 366 PASS / 66 SKIP / 442 ERROR / 8 subtests PASS，130.67 秒；此轮在修复上述错误优先级前执行。与此前保存的全套日志相比，170 个失败用例名称均已有；新增的 2 项随后定向通过。大量 setup 被既有 `WINDOWS_CACHE_SECURITY_UNSAFE` 拒绝（pytest 目录含 OWNER RIGHTS ACE），其余包括环境路径、平台门、symlink 权限和环境变量长度限制。未调整系统 ACL、安全策略或批量跳过测试，也未将定向通过冒称全套通过 |
+| Node 包装测试 / 桌面 E2E / 训练 / 真实 SSH | NOT RUN；Node 包装阶段因链式后端失败未到达，桌面按用户本轮范围不重跑，训练/SSH 不属于本轮修复 |
+
+沿用现有应用依赖；本机 Node 版本差异仍如上一节记录。更新现有草稿 PR，保留上述后端全套限制及人工桌面验收结论，不合并、不发布。

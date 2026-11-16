@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import json
 import hashlib
 import os
+import sys
 import struct
 import subprocess
 import threading
@@ -107,7 +108,7 @@ def probe_python(python: Path, cache: Path) -> dict[str, Any]:
 
     def drain(stream: BinaryIO, index: int) -> None:
         try:
-            if os.name == "posix":
+            if sys.platform != "win32" and os.name == "posix":
                 # A descendant may retain a pipe after the selected leader exits.
                 # Cancellable reads let cleanup retire both workers even if that
                 # descendant escaped the owned group; never kill it by a bare PID.
@@ -136,7 +137,7 @@ def probe_python(python: Path, cache: Path) -> dict[str, Any]:
     def kill_owned_group() -> None:
         # start_new_session above gives this probe its own POSIX group. Its
         # leader's exit does not imply its descendants or inherited pipes exited.
-        if os.name == "posix":
+        if sys.platform != "win32" and os.name == "posix":
             try:
                 os.killpg(process.pid, signal.SIGKILL)
             except ProcessLookupError:

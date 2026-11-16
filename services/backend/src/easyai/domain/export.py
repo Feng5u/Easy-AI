@@ -130,7 +130,9 @@ def main() -> None:
     for model in MODELS:
         schema = model.model_json_schema(by_alias=True)
         (target / f"{model.__name__}.json").write_text(
-            json.dumps(schema, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+            json.dumps(schema, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+            newline="\n",
         )
 
 

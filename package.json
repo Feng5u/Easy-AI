@@ -19,7 +19,7 @@
     "test:package": "node --test scripts/package.test.mjs scripts/package-builder.test.mjs scripts/package-inputs.test.mjs scripts/candidate-archive.test.mjs scripts/frozen-diagnostics.test.mjs",
     "contracts": "node scripts/check-contracts.mjs",
     "fixtures": "node scripts/generate-fixtures.mjs",
-    "format:check": "prettier --check \"apps/desktop/{src,electron}/**/*.{ts,tsx,mts,cts,css}\" \"scripts/*.mjs\" \"packages/block-library/register.mjs\" \"*.mts\" \"packages/block-library/*.mts\" \"tests/e2e/*.ts\" \"playwright.config.ts\"",
+    "format:check": "prettier --check \"apps/desktop/{src,electron}/**/*.{ts,tsx,mts,cts,css}\" \"scripts/*.mjs\" \"packages/block-library/register.mjs\" \"packages/block-library/{manifest,schema}.json\" \"*.mts\" \"packages/block-library/*.mts\" \"tests/e2e/*.ts\" \"playwright.config.ts\"",
     "test:e2e": "playwright test",
     "test:integration": "node scripts/test-training.mjs",
     "test:ssh": "node scripts/test-ssh.mjs",

@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 import os
+import sys
 from pathlib import Path
 import tempfile
 import time
@@ -120,6 +121,8 @@ class SourceSelection:
         return preview.model_copy(deep=True)
 
     def confirm(self, request: InstallSourceConfirmation) -> InstallSourceResult:
+        if sys.platform == "win32":
+            raise ValueError("INSTALL_PROFILE_PLATFORM_UNSUPPORTED")
         self.guard()
         if self.uncertain:
             raise ValueError("INSTALL_SOURCE_COMMIT_UNCONFIRMED")
